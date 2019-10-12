@@ -66,9 +66,12 @@ officia deserunt mollit anim id est laborum."
 		       (:ligatures (setf (ligatures state) t))
 		       (:hyphenation (setf (hyphenation state) t))))
 	       value))))
-      (clim:toggle-button :label "Kerning" :id :kerning)
-      (clim:toggle-button :label "Ligatures" :id :ligatures)
-      (clim:toggle-button :label "Hyphenation" :id :hyphenation)))
+      (clim:make-pane 'clim:toggle-button
+		      :label "Kerning" :id :kerning)
+      (clim:make-pane 'clim:toggle-button
+		      :label "Ligatures" :id :ligatures)
+      (clim:make-pane 'clim:toggle-button
+		      :label "Hyphenation" :id :hyphenation)))
    (layout
     (clim:with-radio-box
 	(:value-changed-callback
@@ -77,9 +80,12 @@ officia deserunt mollit anim id est laborum."
 	   (setf (layout (state clim:*application-frame*))
 		 (clim:gadget-id value))))
       (clim:radio-box-current-selection
-       (clim:toggle-button :label "Flush left" :id :flush-left))
-      (clim:toggle-button :label "Flush right" :id :flush-right)
-      (clim:toggle-button :label "Justified" :id :justified))))
+       (clim:make-pane 'clim:toggle-button
+		       :label "Flush left" :id :flush-left))
+      (clim:make-pane 'clim:toggle-button
+		      :label "Flush right" :id :flush-right)
+      (clim:make-pane 'clim:toggle-button
+		      :label "Justified" :id :justified))))
   (:layouts
    (default
     (clim:vertically ()
