@@ -31,25 +31,6 @@
 (clim:define-application-frame teap ()
   ((state :initform (make-instance 'state) :reader state))
   (:panes
-   (typesetting
-    (clim:make-pane 'typesetting-pane
-		    :min-width  800
-		    :min-height 300))
-   (source
-    (clim:make-pane 'clim:text-editor
-		    :nlines 10
-		    :ncolumns 60
-		    :value "Lorem ipsum dolor sit amet,
-consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
-dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
-officia deserunt mollit anim id est laborum."
-		    :value-changed-callback
-		    (lambda (pane value)
-		      (declare (ignore pane))
-		      (setf (text (state clim:*application-frame*)) value))))
    (processing
     (clim:with-radio-box
 	(:type :some-of
@@ -85,7 +66,26 @@ officia deserunt mollit anim id est laborum."
       (clim:make-pane 'clim:toggle-button
 		      :label "Flush right" :id :flush-right)
       (clim:make-pane 'clim:toggle-button
-		      :label "Justified" :id :justified))))
+		      :label "Justified" :id :justified)))
+   (source
+    (clim:make-pane 'clim:text-editor
+		    :nlines 10
+		    :ncolumns 60
+		    :value "Lorem ipsum dolor sit amet,
+consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
+dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
+ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
+dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
+officia deserunt mollit anim id est laborum."
+		    :value-changed-callback
+		    (lambda (pane value)
+		      (declare (ignore pane))
+		      (setf (text (state clim:*application-frame*)) value))))
+   (typesetting
+    (clim:make-pane 'typesetting-pane
+		    :min-width  800
+		    :min-height 300)))
   (:layouts
    (default
     (clim:vertically ()
