@@ -33,8 +33,11 @@
   (when pane (clim:redisplay-frame-pane frame pane)))
 
 (defun render-paragraph
-    (frame pane &aux (*standard-output* pane) (state (state frame)))
-  (print (text state)))
+    (frame pane
+     &aux (state (state frame))
+	  (medium (clim:sheet-medium pane)))
+  (unless (zerop (length (text state)))
+    (clim:draw-text* pane (string (aref (text state) 0)) 50 50)))
 
 (clim:define-application-frame teap ()
   ((state :initform (make-instance 'state) :reader state))
