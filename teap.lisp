@@ -23,10 +23,16 @@
    (layout :initarg :flush-left :accessor layout)
    (text :accessor text)))
 
-
-(defclass typesetting-pane (clim:basic-pane)
-  ()
-  (:default-initargs :background clim:+white+))
+(defmethod (setf kerning) :after (value (state state))
+  )
+(defmethod (setf ligatures) :after (value (state state))
+  )
+(defmethod (setf hyphenation) :after (value (state state))
+  )
+(defmethod (setf layout) :after (value (state state))
+  )
+(defmethod (setf text) :after (value (state state))
+  )
 
 (clim:define-application-frame teap ()
   ((state :initform (make-instance 'state) :reader state))
@@ -67,25 +73,21 @@
 		      :label "Flush right" :id :flush-right)
       (clim:make-pane 'clim:toggle-button
 		      :label "Justified" :id :justified)))
-   (source
-    (clim:make-pane 'clim:text-editor
-		    :nlines 10
-		    :ncolumns 60
-		    :value "Lorem ipsum dolor sit amet,
-consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
-dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
-pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui
-officia deserunt mollit anim id est laborum."
-		    :value-changed-callback
-		    (lambda (pane value)
-		      (declare (ignore pane))
-		      (setf (text (state clim:*application-frame*)) value))))
-   (typesetting
-    (clim:make-pane 'typesetting-pane
-		    :min-width  800
-		    :min-height 300)))
+   (source :text-editor
+	   :scroll-bars :vertical
+	   :nlines 10
+	   :ncolumns 60
+	   :value "Lorem ipsum dolor sit amet, consectetur adipiscing elit,
+sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea
+commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit
+esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
+non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+	   :value-changed-callback
+	   (lambda (pane value)
+	     (declare (ignore pane))
+	     (setf (text (state clim:*application-frame*)) value)))
+   (typesetting :application :min-width 800 :min-height 300))
   (:layouts
    (default
     (clim:vertically ()
