@@ -23,16 +23,18 @@
    (layout :initarg :flush-left :accessor layout)
    (text :accessor text)))
 
-(defmethod (setf kerning) :after (value (state state))
-  )
-(defmethod (setf ligatures) :after (value (state state))
-  )
-(defmethod (setf hyphenation) :after (value (state state))
-  )
-(defmethod (setf layout) :after (value (state state))
-  )
-(defmethod (setf text) :after (value (state state))
-  )
+;; #### NOTE: we check for the existence of the pane because this function
+;; might be called too early in the process. A better implementation would
+;; need to wait for the application to be running, and then install the after
+;; methods.
+(defun redisplay
+    (&aux (frame clim:*application-frame*)
+	  (pane (clim:find-pane-named frame 'typesetting)))
+  (when pane (clim:redisplay-frame-pane frame pane)))
+
+(defun render-paragraph
+    (frame pane &aux (*standard-output* pane) (state (state frame)))
+  (print (text state)))
 
 (clim:define-application-frame teap ()
   ((state :initform (make-instance 'state) :reader state))
@@ -52,7 +54,8 @@
 		       (:kerning (setf (kerning state) t))
 		       (:ligatures (setf (ligatures state) t))
 		       (:hyphenation (setf (hyphenation state) t))))
-	       value))))
+	       value))
+	   (redisplay)))
       (clim:make-pane 'clim:toggle-button
 		      :label "Kerning" :id :kerning)
       (clim:make-pane 'clim:toggle-button
@@ -65,7 +68,8 @@
 	 (lambda (pane value)
 	   (declare (ignore pane))
 	   (setf (layout (state clim:*application-frame*))
-		 (clim:gadget-id value))))
+		 (clim:gadget-id value))
+	   (redisplay)))
       (clim:radio-box-current-selection
        (clim:make-pane 'clim:toggle-button
 		       :label "Flush left" :id :flush-left))
@@ -86,8 +90,10 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 	   :value-changed-callback
 	   (lambda (pane value)
 	     (declare (ignore pane))
-	     (setf (text (state clim:*application-frame*)) value)))
-   (typesetting :application :min-width 800 :min-height 300))
+	     (setf (text (state clim:*application-frame*)) value)
+	     (redisplay)))
+   (typesetting :application :min-width 800 :min-height 300
+		:display-function #'render-paragraph))
   (:layouts
    (default
     (clim:vertically ()
