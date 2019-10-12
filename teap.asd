@@ -7,5 +7,4 @@
   :source-control "https://github.com/didierverna/teap"
   :license "BSD"
   ;; :version 1.0
-  :depends-on (:mcclim)
   :components ((:file "teap")))
