@@ -1,5 +1,5 @@
 (asdf:defsystem :teap
-  :description "The Typesetting Algorithms Experiment Platform"
+  :description "The Typesetting Experimental Algorithms Platform"
   :author "Didier Verna"
   :mailto "didier@didierverna.net"
   :homepage

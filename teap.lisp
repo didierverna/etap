@@ -1,4 +1,4 @@
-;;; teap.lisp --- Typesetting Algorithms Experiment Platform
+;;; teap.lisp --- Typesetting Experimental Algorithms Platform
 
 ;; ==========
 ;; Meta Level
