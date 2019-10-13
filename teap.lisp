@@ -24,15 +24,6 @@
    (disposition :initarg :flush-left :accessor disposition)
    (text :accessor text)))
 
-(defun set-disposition (value interface)
-  (setf (disposition (state interface))
-	;; #### FIXME: this is not satisfactory. Value should be the symbol
-	;; directly.
-	(cond ((string= value "Flush Left") :flush-left)
-	      ((string= value "Flush Right") :flush-right)
-	      ((string= value "Centered") :centered)
-	      ((string= value "Justified") :justified))))
-
 (defun set-feature (value interface)
   ;; #### FIXME: this is not satisfactory. Value should be the symbol
   ;; directly.
@@ -52,6 +43,19 @@
 	 (setf (ligatures (state interface)) nil))
 	((string= value "Hyphenation")
 	 (setf (hyphenation (state interface)) nil))))
+
+(defun set-disposition (value interface)
+  (setf (disposition (state interface))
+	;; #### FIXME: this is not satisfactory. Value should be the symbol
+	;; directly.
+	(cond ((string= value "Flush Left") :flush-left)
+	      ((string= value "Flush Right") :flush-right)
+	      ((string= value "Centered") :centered)
+	      ((string= value "Justified") :justified))))
+
+(defun set-text (pane point old-length new-length)
+  (declare (ignore point old-length new-length))
+  (setf (text (state (element-interface pane))) (editor-pane-text pane)))
 
 (define-interface teap ()
   ((state :initform (make-instance 'state) :reader state))
@@ -76,7 +80,8 @@ commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit
 esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat
 non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
 	   :visible-min-width '(character 80)
-	   :visible-min-height '(character 15))
+	   :visible-min-height '(character 15)
+	   :change-callback 'set-text)
    (rendering output-pane
 	      :title "Rendered text" :title-position :frame
 	      :visible-min-width 800
