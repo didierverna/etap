@@ -87,17 +87,17 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (define-interface teap ()
   ((state :initform (make-instance 'state) :reader state))
   (:panes
+   (disposition-pane radio-button-panel
+     :layout-class 'column-layout
+     :title "Disposition" :title-position :frame
+     :items '("Flush Left" "Flush Right" "Centered" "Justified")
+     :selection-callback 'set-disposition)
    (features-pane check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :items '("Kerning" "Ligatures" "Hyphenation")
      :selection-callback 'set-feature
      :retract-callback 'unset-feature)
-   (disposition-pane radio-button-panel
-     :layout-class 'column-layout
-     :title "Disposition" :title-position :frame
-     :items '("Flush Left" "Flush Right" "Centered" "Justified")
-     :selection-callback 'set-disposition)
    (text-pane editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
@@ -111,8 +111,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :display-callback 'render-paragraph
      :reader paragraph-pane))
   (:layouts
-   (main-layout column-layout '(options-layout paragraph-pane))
-   (options-layout row-layout '(features-pane disposition-pane text-pane)))
+   (main-layout column-layout '(options-and-text-layout paragraph-pane))
+   (options-and-text-layout row-layout '(options-layout text-pane))
+   (options-layout column-layout '(disposition-pane features-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((teap teap))
