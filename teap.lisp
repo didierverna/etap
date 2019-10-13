@@ -111,8 +111,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :display-callback 'render-paragraph
      :reader paragraph-pane))
   (:layouts
-   (main-layout column-layout '(options-layout text-pane paragraph-pane))
-   (options-layout row-layout '(features-pane disposition-pane)))
+   (main-layout column-layout '(options-layout paragraph-pane))
+   (options-layout row-layout '(features-pane disposition-pane text-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 
