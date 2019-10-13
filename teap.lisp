@@ -13,7 +13,7 @@
 
 
 (defun update (interface &aux (state (state interface)))
-  (setf (paragraph state) (text state))
+  (render state)
   (gp:invalidate-rectangle (paragraph-pane interface)))
 
 
@@ -30,13 +30,9 @@ consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
 cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
 proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
-(defclass state ()
-  ((kerning :initform nil :accessor kerning)
-   (ligatures :initform nil :accessor ligatures)
-   (hyphenation :initarg nil :accessor hyphenation)
-   (disposition :initarg :flush-left :accessor disposition)
-   (text :accessor text)
-   (paragraph :accessor paragraph)))
+(defconstant +font-file+
+  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
+
 
 (defun set-feature (value interface)
   ;; #### FIXME: this is not satisfactory. Value should be the symbol
@@ -82,10 +78,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			      (paragraph (paragraph state)))
   (declare (ignore x y width height))
   (unless (zerop (length paragraph))
-    (gp:draw-character pane (aref paragraph 0) 50 50)))
+    (gp:with-graphics-scale (pane 3 3)
+      (loop :for char-box :across paragraph
+	    :do (gp:draw-character pane (code-char (char-box-char char-box))
+				   (char-box-x char-box) 10)))))
 
 (define-interface teap ()
-  ((state :initform (make-instance 'state) :reader state))
+  ((state :initform (make-instance 'state :font (tfm:load-font +font-file+))
+	  :reader state))
   (:panes
    (disposition-pane radio-button-panel
      :layout-class 'column-layout
@@ -105,7 +105,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :change-callback 'set-text
      :reader text-pane)
    (paragraph-pane output-pane
-     :title "Rendered text" :title-position :frame
+     :title "Typeset paragraph" :title-position :frame
+     :font (gp:make-font-description :family "Times" :slant :roman
+				     :weight :medium :size 10)
      :visible-min-width 800
      :visible-min-height 300
      :display-callback 'render-paragraph

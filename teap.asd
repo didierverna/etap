@@ -7,4 +7,6 @@
   :source-control "https://github.com/didierverna/teap"
   :license "BSD"
   ;; :version 1.0
-  :components ((:file "teap")))
+  :depends-on (:net.didierverna.tfm)
+  :serial t
+  :components ((:file "state") (:file "teap")))
