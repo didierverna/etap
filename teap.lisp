@@ -71,13 +71,13 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (update interface))
 
 (defun set-text (pane point old-length new-length
-		 &aux (interface (element-interface pane)))
+		 &aux (interface (top-level-interface pane)))
   (declare (ignore point old-length new-length))
   (setf (text (state interface)) (editor-pane-text pane))
   (update interface))
 
 (defun render-paragraph (pane x y width height
-			 &aux (interface (element-interface pane))
+			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
 			      (paragraph (paragraph state)))
   (declare (ignore x y width height))
