@@ -57,6 +57,10 @@
   (declare (ignore point old-length new-length))
   (setf (text (state (element-interface pane))) (editor-pane-text pane)))
 
+(defun render (pane x y width height)
+  (declare (ignore x y width height))
+  (gp:draw-character pane #\A 50 50))
+
 (define-interface teap ()
   ((state :initform (make-instance 'state) :reader state))
   (:panes
@@ -85,7 +89,8 @@ non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
    (rendering output-pane
 	      :title "Rendered text" :title-position :frame
 	      :visible-min-width 800
-	      :visible-min-height 300))
+	      :visible-min-height 300
+	      :display-callback 'render))
   (:layouts (main column-layout '(options source rendering))
 	    (options row-layout '(features disposition)))
   (:default-initargs :title "Typesetting Experimental Algorithms Platform"))
