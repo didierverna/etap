@@ -35,8 +35,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (ligatures :initform nil :accessor ligatures)
    (hyphenation :initarg nil :accessor hyphenation)
    (disposition :initarg :flush-left :accessor disposition)
-   (text :initform +initial-text+ :accessor text)
-   (paragraph :initform +initial-text+ :accessor paragraph)))
+   (text :accessor text)
+   (paragraph :accessor paragraph)))
 
 (defun set-feature (value interface)
   ;; #### FIXME: this is not satisfactory. Value should be the symbol
@@ -100,10 +100,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :selection-callback 'set-disposition)
    (text-pane editor-pane
      :title "Source text" :title-position :frame
-     :text +initial-text+
      :visible-min-width '(character 80)
      :visible-min-height '(character 15)
-     :change-callback 'set-text)
+     :change-callback 'set-text
+     :reader text-pane)
    (paragraph-pane output-pane
      :title "Rendered text" :title-position :frame
      :visible-min-width 800
@@ -114,6 +114,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (main-layout column-layout '(options-layout paragraph-pane))
    (options-layout row-layout '(features-pane disposition-pane text-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
+
+(defmethod interface-display :before ((teap teap))
+  (setf (editor-pane-text (text-pane teap)) +initial-text+))
+
 
 
 ;; ===========
