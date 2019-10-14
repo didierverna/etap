@@ -69,8 +69,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun set-paragraph-zoom (pane value status
 			    &aux (interface (top-level-interface pane)))
+  (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
-  (update interface))
+  (gp:invalidate-rectangle (paragraph-pane interface)))
 
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
