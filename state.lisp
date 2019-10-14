@@ -10,6 +10,7 @@
    (disposition :initform :flush-left :accessor disposition)
    (font :initarg :font :reader font)
    (text :accessor text)
+   (paragraph-width :accessor paragraph-width)
    (paragraph :accessor paragraph)))
 
 (defstruct char-box x char)

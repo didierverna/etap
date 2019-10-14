@@ -58,6 +58,15 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (setf (text (state interface)) (editor-pane-text pane))
   (update interface))
 
+(defun set-paragraph-width (pane value status
+			    &aux (interface (top-level-interface pane)))
+  (setf (titled-object-title (paragraph-width-slider interface))
+	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
+	  value (/ value 28.452755)))
+  (when (eq status :move)
+    (setf (paragraph-width (state interface)) value)
+    (update interface)))
+
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
@@ -84,6 +93,15 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :items '("Kerning" "Ligatures" "Hyphenation")
      :selection-callback 'set-feature
      :retract-callback 'unset-feature)
+   (paragraph-width-slider slider
+     :title "Paragraph width: 284pt (10cm)"
+     :orientation :horizontal
+     :start 142 ;; 142.26378pt = 5cm
+     :end 569 ;; 569.0551pt = 20cm
+     :slug-start 284 ;; 284.52756pt = 10cm
+     :tick-frequency 0
+     :callback 'set-paragraph-width
+     :reader paragraph-width-slider)
    (text-pane editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
@@ -95,15 +113,15 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Times" :slant :roman
 				     :weight :medium :size 10)
-     :visible-min-width 800
-     :visible-min-height 300
+     :visible-min-width 850
+     :visible-min-height 350
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
      :reader paragraph-pane))
   (:layouts
    (main-layout column-layout '(options-and-text-layout paragraph-pane))
-   (options-and-text-layout row-layout '(options-layout text-pane))
+   (options-and-text-layout row-layout '(options-layout paragraph-width-slider text-pane))
    (options-layout column-layout '(disposition-pane features-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
