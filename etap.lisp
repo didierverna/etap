@@ -70,16 +70,18 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defun set-paragraph-zoom (pane value status
 			    &aux (interface (top-level-interface pane)))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
-  (when (eq status :move)
-    (update interface)))
+  (update interface))
 
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
+			      (zoom (/ (range-slug-start
+					(paragraph-zoom-slider interface))
+				       100))
 			      (paragraph (paragraph state)))
   (declare (ignore x y width height))
   (unless (zerop (length paragraph))
-    (gp:with-graphics-scale (pane 3 3)
+    (gp:with-graphics-scale (pane zoom zoom)
       (loop :for char-box :across paragraph
 	    :do (gp:draw-character pane (code-char (char-box-char char-box))
 				   (char-box-x char-box) 10)))))
