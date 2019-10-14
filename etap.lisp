@@ -87,6 +87,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (text-pane editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
+     :visible-max-width '(character 80)
      :visible-min-height '(character 15)
      :change-callback 'set-text
      :reader text-pane)
