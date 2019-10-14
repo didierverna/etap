@@ -60,7 +60,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun set-paragraph-width (pane value status
 			    &aux (interface (top-level-interface pane)))
-  (setf (titled-object-title (paragraph-width-slider interface))
+  (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  value (/ value 28.452755)))
   (when (eq status :move)
@@ -69,8 +69,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun set-paragraph-zoom (pane value status
 			    &aux (interface (top-level-interface pane)))
-  (setf (titled-object-title (paragraph-zoom-slider interface))
-	(format nil "Paragraph zoom: ~D%" value))
+  (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
   (when (eq status :move)
     (update interface)))
 
@@ -107,8 +106,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :end 569 ;; 569.0551pt = 20cm
      :slug-start 284 ;; 284.52756pt = 10cm
      :tick-frequency 0
-     :callback 'set-paragraph-width
-     :reader paragraph-width-slider)
+     :callback 'set-paragraph-width)
    (paragraph-zoom-slider slider
      :title "Paragraph zoom: 100%"
      :orientation :horizontal
