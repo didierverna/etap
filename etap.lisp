@@ -97,6 +97,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 				     :weight :medium :size 10)
      :visible-min-width 800
      :visible-min-height 300
+     :horizontal-scroll t
+     :vertical-scroll t
      :display-callback 'render-paragraph
      :reader paragraph-pane))
   (:layouts
