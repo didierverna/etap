@@ -67,6 +67,13 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
     (setf (paragraph-width (state interface)) value)
     (update interface)))
 
+(defun set-paragraph-zoom (pane value status
+			    &aux (interface (top-level-interface pane)))
+  (setf (titled-object-title (paragraph-zoom-slider interface))
+	(format nil "Paragraph zoom: ~D%" value))
+  (when (eq status :move)
+    (update interface)))
+
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
@@ -102,6 +109,15 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :tick-frequency 0
      :callback 'set-paragraph-width
      :reader paragraph-width-slider)
+   (paragraph-zoom-slider slider
+     :title "Paragraph zoom: 100%"
+     :orientation :horizontal
+     :start 100
+     :end 999
+     :slug-start 100
+     :tick-frequency 0
+     :callback 'set-paragraph-zoom
+     :reader paragraph-zoom-slider)
    (text-pane editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
@@ -120,9 +136,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :display-callback 'render-paragraph
      :reader paragraph-pane))
   (:layouts
-   (main-layout column-layout '(options-and-text-layout paragraph-pane))
-   (options-and-text-layout row-layout '(options-layout paragraph-width-slider text-pane))
-   (options-layout column-layout '(disposition-pane features-pane)))
+   (main-layout column-layout
+     '(options-and-text-layout paragraph-pane))
+   (options-and-text-layout row-layout
+     '(options-layout sliders-layout text-pane))
+   (options-layout column-layout
+     '(disposition-pane features-pane))
+   (sliders-layout column-layout
+     '(paragraph-width-slider paragraph-zoom-slider)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap))
