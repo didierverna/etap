@@ -1,26 +1,7 @@
 ;;; teap.lisp --- Typesetting Experimental Algorithms Platform
 
-;; ==========
-;; Meta Level
-;; ==========
-
-(defpackage :teap
-  (:add-use-defaults t)
-  (:use :capi)
-  (:export :run))
-
 (in-package :teap)
 
-
-(defun update (interface &aux (state (state interface)))
-  (render state)
-  (gp:invalidate-rectangle (paragraph-pane interface)))
-
-
-
-;; ===
-;; GUI
-;; ===
 
 (defconstant +initial-text+
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
@@ -32,6 +13,11 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defconstant +font-file+
   #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
+
+
+(defun update (interface &aux (state (state interface)))
+  (render state)
+  (gp:invalidate-rectangle (paragraph-pane interface)))
 
 
 (defun set-feature (value interface)

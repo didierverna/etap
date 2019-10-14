@@ -9,4 +9,4 @@
   ;; :version 1.0
   :depends-on (:net.didierverna.tfm)
   :serial t
-  :components ((:file "state") (:file "teap")))
+  :components ((:file "meta") (:file "state") (:file "teap")))
