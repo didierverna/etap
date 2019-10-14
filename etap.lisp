@@ -1,6 +1,6 @@
-;;; teap.lisp --- Typesetting Experimental Algorithms Platform
+;;; etap.lisp --- Typesetting Experimental Algorithms Platform
 
-(in-package :teap)
+(in-package :etap)
 
 
 (defconstant +initial-text+
@@ -69,7 +69,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	    :do (gp:draw-character pane (code-char (char-box-char char-box))
 				   (char-box-x char-box) 10)))))
 
-(define-interface teap ()
+(define-interface etap ()
   ((state :initform (make-instance 'state :font (tfm:load-font +font-file+))
 	  :reader state))
   (:panes
@@ -104,8 +104,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (options-layout column-layout '(disposition-pane features-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod interface-display :before ((teap teap))
-  (setf (editor-pane-text (text-pane teap)) +initial-text+))
+(defmethod interface-display :before ((etap etap))
+  (setf (editor-pane-text (text-pane etap)) +initial-text+))
 
 
 
@@ -113,6 +113,6 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 ;; Entry Point
 ;; ===========
 
-(defun run () (display (make-instance 'teap)))
+(defun run () (display (make-instance 'etap)))
 
-;;; teap.lisp ends here
+;;; etap.lisp ends here
