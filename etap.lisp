@@ -73,6 +73,11 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
   (gp:invalidate-rectangle (paragraph-pane interface)))
 
+(defun |(un)set-clues| (value interface)
+  (declare (ignore value))
+  (gp:invalidate-rectangle (paragraph-pane interface)))
+
+
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
@@ -119,6 +124,12 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :tick-frequency 0
      :callback 'set-paragraph-zoom
      :reader paragraph-zoom-slider)
+   (clues-pane check-button-panel
+     :layout-class 'column-layout
+     :title "Clues" :title-position :frame
+     :items '("Paragraph box" "Line boxes" "Character boxes" "Baselines")
+     :selection-callback '|(un)set-clues|
+     :retract-callback '|(un)set-clues|)
    (text-pane editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
@@ -144,7 +155,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (options-layout column-layout
      '(disposition-pane features-pane))
    (sliders-layout column-layout
-     '(paragraph-width-slider paragraph-zoom-slider)))
+     '(paragraph-width-slider paragraph-zoom-slider clues-pane)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap))
