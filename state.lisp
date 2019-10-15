@@ -84,6 +84,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	  (lineup (lineup state))
 	  (line (make-paragraph-line
 		 :y 0
+		 :height 0
+		 :depth 0
 		 :characters
 		 (loop :with x := 0
 		       :for element :in lineup
@@ -95,12 +97,13 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			       :do (incf x (kern-value element))
 		       :else :if (glue-p element)
 			       :do (incf x (glue-value element))))))
-  (setf (height line)
-	(* design-size
-	   (apply #'max (mapcar #'tfm:height
-			  (mapcar #'character-metrics (characters line))))))
-  (setf (depth line)
-	(* design-size
-	   (apply #'max (mapcar #'tfm:depth
-			  (mapcar #'character-metrics (characters line))))))
+  (when (characters line)
+    (setf (height line)
+	  (* design-size
+	     (apply #'max (mapcar #'tfm:height
+			    (mapcar #'character-metrics (characters line))))))
+    (setf (depth line)
+	  (* design-size
+	     (apply #'max (mapcar #'tfm:depth
+			    (mapcar #'character-metrics (characters line)))))))
   (setf (paragraph state) line))
