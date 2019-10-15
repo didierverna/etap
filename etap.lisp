@@ -17,7 +17,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun update (interface &aux (state (state interface)))
   (render state)
-  (gp:invalidate-rectangle (paragraph-pane interface)))
+  (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 
 (defun set-feature (value interface)
@@ -71,18 +71,18 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			    &aux (interface (top-level-interface pane)))
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
-  (gp:invalidate-rectangle (paragraph-pane interface)))
+  (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 (defun |(un)set-clues| (value interface)
   (declare (ignore value))
-  (gp:invalidate-rectangle (paragraph-pane interface)))
+  (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
 			      (zoom (/ (range-slug-start
-					(paragraph-zoom-slider interface))
+					(paragraph-zoom interface))
 				       100))
 			      (paragraph (paragraph state)))
   (declare (ignore x y width height))
@@ -96,18 +96,18 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   ((state :initform (make-instance 'state :font (tfm:load-font +font-file+))
 	  :reader state))
   (:panes
-   (disposition-pane radio-button-panel
+   (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
      :items '("Flush Left" "Flush Right" "Centered" "Justified")
      :selection-callback 'set-disposition)
-   (features-pane check-button-panel
+   (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :items '("Kerning" "Ligatures" "Hyphenation")
      :selection-callback 'set-feature
      :retract-callback 'unset-feature)
-   (paragraph-width-slider slider
+   (paragraph-width slider
      :title "Paragraph width: 284pt (10cm)"
      :orientation :horizontal
      :start 142 ;; 142.26378pt = 5cm
@@ -115,7 +115,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :slug-start 284 ;; 284.52756pt = 10cm
      :tick-frequency 0
      :callback 'set-paragraph-width)
-   (paragraph-zoom-slider slider
+   (paragraph-zoom slider
      :title "Paragraph zoom: 100%"
      :orientation :horizontal
      :start 100
@@ -123,21 +123,22 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :slug-start 100
      :tick-frequency 0
      :callback 'set-paragraph-zoom
-     :reader paragraph-zoom-slider)
-   (clues-pane check-button-panel
+     :reader paragraph-zoom)
+   (clues check-button-panel
      :layout-class 'column-layout
      :title "Clues" :title-position :frame
      :items '("Paragraph box" "Line boxes" "Character boxes" "Baselines")
      :selection-callback '|(un)set-clues|
-     :retract-callback '|(un)set-clues|)
-   (text-pane editor-pane
+     :retract-callback '|(un)set-clues|
+     :reader clues)
+   (source-text editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
      :visible-max-width '(character 80)
      :visible-min-height '(character 15)
      :change-callback 'set-text
-     :reader text-pane)
-   (paragraph-pane output-pane
+     :reader source-text)
+   (typeset-paragraph output-pane
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Times" :slant :roman
 				     :weight :medium :size 10)
@@ -146,20 +147,16 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
-     :reader paragraph-pane))
+     :reader typeset-paragraph))
   (:layouts
-   (main-layout column-layout
-     '(options-and-text-layout paragraph-pane))
-   (options-and-text-layout row-layout
-     '(options-layout sliders-layout text-pane))
-   (options-layout column-layout
-     '(disposition-pane features-pane))
-   (sliders-layout column-layout
-     '(paragraph-width-slider paragraph-zoom-slider clues-pane)))
+   (main column-layout '(configuration typeset-paragraph))
+   (configuration row-layout '(options-1 options-2 source-text))
+   (options-1 column-layout '(disposition features))
+   (options-2 column-layout '(paragraph-width paragraph-zoom clues)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap))
-  (setf (editor-pane-text (text-pane etap)) +initial-text+))
+  (setf (editor-pane-text (source-text etap)) +initial-text+))
 
 
 
