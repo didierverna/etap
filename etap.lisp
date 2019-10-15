@@ -14,42 +14,36 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defconstant +font-file+
   #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
 
+(defun keyword-capitalize (keyword)
+  (nsubstitute #\Space #\- (string-capitalize keyword)))
+
 
 (defun update (interface &aux (state (state interface)))
   (render state)
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
-
+;; #### FIXME: we should have a FEATURES slot with a plist instead.
 (defun set-feature (value interface)
-  ;; #### FIXME: this is not satisfactory. Value should be the symbol
-  ;; directly.
-  (cond ((string= value "Kerning")
+  (cond ((eq value :kerning)
 	 (setf (kerning (state interface)) t))
-	((string= value "Ligatures")
+	((eq value :ligatures)
 	 (setf (ligatures (state interface)) t))
-	((string= value "Hyphenation")
+	((eq value :hyphenation)
 	 (setf (hyphenation (state interface)) t)))
   (update interface))
 
+;; #### FIXME: we should have a FEATURES slot with a plist instead.
 (defun unset-feature (value interface)
-  ;; #### FIXME: this is not satisfactory. Value should be the symbol
-  ;; directly.
-  (cond ((string= value "Kerning")
+  (cond ((eq value :kerning)
 	 (setf (kerning (state interface)) nil))
-	((string= value "Ligatures")
+	((eq value :ligatures)
 	 (setf (ligatures (state interface)) nil))
-	((string= value "Hyphenation")
+	((eq value :hyphenation)
 	 (setf (hyphenation (state interface)) nil)))
   (update interface))
 
 (defun set-disposition (value interface)
-  (setf (disposition (state interface))
-	;; #### FIXME: this is not satisfactory. Value should be the symbol
-	;; directly.
-	(cond ((string= value "Flush Left") :flush-left)
-	      ((string= value "Flush Right") :flush-right)
-	      ((string= value "Centered") :centered)
-	      ((string= value "Justified") :justified)))
+  (setf (disposition (state interface)) value)
   (update interface))
 
 (defun set-text (pane point old-length new-length
@@ -99,12 +93,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
-     :items '("Flush Left" "Flush Right" "Centered" "Justified")
+     :items '(:flush-left :flush-right :centered :justified)
+     :print-function 'keyword-capitalize
      :selection-callback 'set-disposition)
    (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
-     :items '("Kerning" "Ligatures" "Hyphenation")
+     :items '(:kerning :ligatures :hyphenation)
+     :print-function 'keyword-capitalize
      :selection-callback 'set-feature
      :retract-callback 'unset-feature)
    (paragraph-width slider
@@ -127,7 +123,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Clues" :title-position :frame
-     :items '("Paragraph box" "Line boxes" "Character boxes" "Baselines")
+     :items '(:paragraph-box :line-boxes :character-boxes :baselines)
+     :print-function 'keyword-capitalize
      :selection-callback '|(un)set-clues|
      :retract-callback '|(un)set-clues|
      :reader clues)
