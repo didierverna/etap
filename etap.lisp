@@ -3,20 +3,8 @@
 (in-package :etap)
 
 
-(defconstant +initial-text+
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
-quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
-cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-
-(defconstant +font-file+
-  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
-
 (defun keyword-capitalize (keyword)
   (nsubstitute #\Space #\- (string-capitalize keyword)))
-
 
 (defun update (interface &aux (state (state interface)))
   (render state)
@@ -64,10 +52,12 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defun render-paragraph (pane x y width height
 			 &aux (interface (top-level-interface pane))
 			      (state (state interface))
+			      (paragraph-width (paragraph-width state))
+			      (paragraph (paragraph state))
 			      (zoom (/ (range-slug-start
 					(paragraph-zoom interface))
 				       100))
-			      (paragraph (paragraph state)))
+			      (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
   (unless (zerop (length paragraph))
     (gp:with-graphics-scale (pane zoom zoom)
@@ -76,30 +66,31 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 				   (char-box-x char-box) 10)))))
 
 (define-interface etap ()
-  ((state :initform (make-instance 'state :font (tfm:load-font +font-file+))
-	  :reader state))
+  ((state :initform (make-instance 'state) :reader state))
   (:panes
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
      :items '(:flush-left :flush-right :centered :justified)
      :print-function 'keyword-capitalize
-     :selection-callback 'set-disposition)
+     :selection-callback 'set-disposition
+     :reader disposition)
    (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :items '(:kerning :ligatures :hyphenation)
      :print-function 'keyword-capitalize
      :selection-callback 'set-feature
-     :retract-callback 'unset-feature)
+     :retract-callback 'unset-feature
+     :reader features)
    (paragraph-width slider
      :title "Paragraph width: 284pt (10cm)"
      :orientation :horizontal
      :start 142 ;; 142.26378pt = 5cm
      :end 569 ;; 569.0551pt = 20cm
-     :slug-start 284 ;; 284.52756pt = 10cm
      :tick-frequency 0
-     :callback 'set-paragraph-width)
+     :callback 'set-paragraph-width
+     :reader paragraph-width)
    (paragraph-zoom slider
      :title "Paragraph zoom: 100%"
      :orientation :horizontal
@@ -141,7 +132,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (options-2 column-layout '(paragraph-width paragraph-zoom clues)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod interface-display :before ((etap etap))
+(defmethod interface-display :before ((etap etap) &aux (state (state etap)))
+  (setf (choice-selected-item (disposition etap)) (disposition state))
+  (setf (choice-selected-items (features etap)) (features state))
+  (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
   (setf (editor-pane-text (source-text etap)) +initial-text+))
 
 

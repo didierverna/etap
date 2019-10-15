@@ -3,12 +3,24 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (net.didierverna.tfm:nickname-package))
 
+(defconstant +initial-text+
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
+proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+
+(defconstant +font-file+
+  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
+
 (defclass state ()
-  ((disposition :initform :flush-left :accessor disposition)
+  ((font :initform (tfm:load-font +font-file+) :reader font)
+   (disposition :initform :flush-left :accessor disposition)
    (features :initform (list) :accessor features)
-   (font :initarg :font :reader font)
-   (text :accessor text)
-   (paragraph-width :accessor paragraph-width)
+   ;; 284.52756pt = 10cm
+   (paragraph-width :initform 284 :accessor paragraph-width)
+   (text :initform +initial-text+ :accessor text)
    (paragraph :accessor paragraph)))
 
 (defstruct char-box x char)
