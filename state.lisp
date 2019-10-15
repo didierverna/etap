@@ -24,8 +24,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (text :initform +initial-text+ :accessor text)
    (paragraph :accessor paragraph)))
 
-(defstruct (kern :conc-name) value)
-(defstruct (glue :conc-name) value stretch shrink)
+(defstruct kern value)
+(defstruct glue value stretch shrink)
 
 (defmethod initialize-instance :after
     ((state state)
@@ -42,24 +42,38 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun blankp (character) (member character +blanks+))
 
-(defun lineup (state)
-  (loop :with font := (font state)
-	:with glue := (glue state)
-	:with text := (string-trim +blanks+ (text state))
-	:with length := (length text)
-	:with i := 0
+(defun lineup
+    (state &aux (design-size (tfm:design-size (font state))) lineup)
+  (setq lineup (loop :with font := (font state)
+		     :with glue := (glue state)
+		     :with text := (string-trim +blanks+ (text state))
+		     :with length := (length text)
+		     :with i := 0
 
-	:while (< i length)
-	:for character := (tfm:get-character (char-code (aref text i)) font)
+		     :while (< i length)
+		     :for character := (tfm:get-character
+					(char-code (aref text i)) font)
 
-	:if (blankp (aref text i))
-	  :collect glue
-	  :and :do (setq i (position-if-not #'blankp text :start i))
-	:else :if character
-		:collect character
-		:and :do (incf i)
-	:else
-	  :do (incf i)))
+		     :if (blankp (aref text i))
+		       :collect glue
+		       :and :do (setq i (position-if-not #'blankp text
+							 :start i))
+		     :else :if character
+			     :collect character
+			     :and :do (incf i)
+		     :else
+		       :do (incf i)))
+  (when (member :kerning (features state))
+    (setq lineup
+	  (loop :for elements :on lineup
+		:for elt1 := (car elements)
+		:for elt2 := (cadr elements)
+		:for kern := (when (and (typep elt1 'tfm::character-metrics)
+					(typep elt2 'tfm::character-metrics))
+			       (tfm:kerning elt1 elt2))
+		:collect elt1
+		:when kern :collect (make-kern :value (* design-size kern)))))
+  lineup)
 
 (defstruct (line-character :conc-name) x character-metrics)
 (defstruct (paragraph-line :conc-name) y height depth characters)
@@ -77,8 +91,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			 :collect (make-line-character
 				   :x x :character-metrics element)
 			 :and :do (incf x (* (tfm:width element) design-size))
+		       :else :if (kern-p element)
+			       :do (incf x (kern-value element))
 		       :else :if (glue-p element)
-			       :do (incf x (value element))))))
+			       :do (incf x (glue-value element))))))
   (setf (height line)
 	(* design-size
 	   (apply #'max (mapcar #'tfm:height
