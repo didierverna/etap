@@ -22,24 +22,13 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (render state)
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
-;; #### FIXME: we should have a FEATURES slot with a plist instead.
 (defun set-feature (value interface)
-  (cond ((eq value :kerning)
-	 (setf (kerning (state interface)) t))
-	((eq value :ligatures)
-	 (setf (ligatures (state interface)) t))
-	((eq value :hyphenation)
-	 (setf (hyphenation (state interface)) t)))
+  (push value (features (state interface)))
   (update interface))
 
-;; #### FIXME: we should have a FEATURES slot with a plist instead.
 (defun unset-feature (value interface)
-  (cond ((eq value :kerning)
-	 (setf (kerning (state interface)) nil))
-	((eq value :ligatures)
-	 (setf (ligatures (state interface)) nil))
-	((eq value :hyphenation)
-	 (setf (hyphenation (state interface)) nil)))
+  (setf (features (state interface))
+	(remove value (features (state interface))))
   (update interface))
 
 (defun set-disposition (value interface)

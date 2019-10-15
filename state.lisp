@@ -4,10 +4,8 @@
   (net.didierverna.tfm:nickname-package))
 
 (defclass state ()
-  ((kerning :initform nil :accessor kerning)
-   (ligatures :initform nil :accessor ligatures)
-   (hyphenation :initarg nil :accessor hyphenation)
-   (disposition :initform :flush-left :accessor disposition)
+  ((disposition :initform :flush-left :accessor disposition)
+   (features :initform (list) :accessor features)
    (font :initarg :font :reader font)
    (text :accessor text)
    (paragraph-width :accessor paragraph-width)
