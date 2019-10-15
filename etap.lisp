@@ -60,12 +60,14 @@
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters pane
     :max-range (+ (* paragraph-width zoom) 40))
-  (unless (zerop (length paragraph))
+  (unless (zerop (length (characters paragraph)))
     (gp:with-graphics-translation (pane 20 20)
       (gp:with-graphics-scale (pane zoom zoom)
-	(loop :for char-box :across paragraph
-	      :do (gp:draw-character pane (code-char (char-box-char char-box))
-				     (char-box-x char-box) 10))))))
+	(loop :with y := (height paragraph)
+	      :for line-character :in (characters paragraph)
+	      :for character := (code-char (tfm:code (character-metrics
+						      line-character)))
+	      :do (gp:draw-character pane character (x line-character) y))))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))

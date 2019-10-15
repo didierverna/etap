@@ -16,6 +16,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
+   (glue :reader glue)
    (disposition :initform :flush-left :accessor disposition)
    (features :initform (list) :accessor features)
    ;; 284.52756pt = 10cm
@@ -23,25 +24,67 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (text :initform +initial-text+ :accessor text)
    (paragraph :accessor paragraph)))
 
-(defstruct char-box x char)
+(defstruct (kern :conc-name) value)
+(defstruct (glue :conc-name) value stretch shrink)
+
+(defmethod initialize-instance :after
+    ((state state)
+     &key
+     &aux (font (font state))
+	  (design-size (tfm:design-size font)))
+  (setf (slot-value state 'glue)
+	(make-glue :value (* (tfm:interword-space font) design-size)
+		   :stretch (* (tfm:interword-stretch font) design-size)
+		   :shrink (* (tfm:interword-shrink font) design-size))))
+
+
+(defconstant +blanks+ '(#\Space #\Tab #\Newline))
+
+(defun blankp (character) (member character +blanks+))
+
+(defun lineup (state)
+  (loop :with font := (font state)
+	:with glue := (glue state)
+	:with text := (string-trim +blanks+ (text state))
+	:with length := (length text)
+	:with i := 0
+
+	:while (< i length)
+	:for character := (tfm:get-character (char-code (aref text i)) font)
+
+	:if (blankp (aref text i))
+	  :collect glue
+	  :and :do (setq i (position-if-not #'blankp text :start i))
+	:else :if character
+		:collect character
+		:and :do (incf i)
+	:else
+	  :do (incf i)))
+
+(defstruct (line-character :conc-name) x character-metrics)
+(defstruct (paragraph-line :conc-name) y height depth characters)
 
 (defun render
-    (state &aux (text (string-trim '(#\Space #\Tab #\Newline) (text state)))
-		(font (font state))
-		(? (tfm:get-character (char-code #\?) font))
-		(design-size (tfm:design-size font))
-		(space (* (tfm:interword-space font) design-size))
-		(line (make-array (length text) :fill-pointer 0)))
-  (loop :with pos := 0
-	:until (zerop (length text))
-	:do (cond ((member (aref text 0) '(#\Space #\Tab #\Newline))
-		   (setq text (string-left-trim '(#\Space #\Tab #\Newline)
-						text))
-		   (incf pos space))
-		  (t
-		   (let* ((code (char-code (aref text 0)))
-			  (char (or (tfm:get-character code font) ?)))
-		     (vector-push (make-char-box :x pos :char code) line)
-		     (incf pos (* (tfm:width char) design-size))
-		     (setq text (subseq text 1))))))
+    (state
+     &aux (design-size (tfm:design-size (font state)))
+	  (lineup (lineup state))
+	  (line (make-paragraph-line
+		 :y 0
+		 :characters
+		 (loop :with x := 0
+		       :for element :in lineup
+		       :if (typep element 'tfm::character-metrics)
+			 :collect (make-line-character
+				   :x x :character-metrics element)
+			 :and :do (incf x (* (tfm:width element) design-size))
+		       :else :if (glue-p element)
+			       :do (incf x (value element))))))
+  (setf (height line)
+	(* design-size
+	   (apply #'max (mapcar #'tfm:height
+			  (mapcar #'character-metrics (characters line))))))
+  (setf (depth line)
+	(* design-size
+	   (apply #'max (mapcar #'tfm:depth
+			  (mapcar #'character-metrics (characters line))))))
   (setf (paragraph state) line))
