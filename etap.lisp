@@ -71,6 +71,7 @@
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
+     :visible-max-width nil
      :items '(:flush-left :flush-right :centered :justified)
      :print-function 'keyword-capitalize
      :selection-callback 'set-disposition
@@ -78,6 +79,7 @@
    (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
+     :visible-max-width nil
      :items '(:kerning :ligatures :hyphenation)
      :print-function 'keyword-capitalize
      :selection-callback 'set-feature
@@ -103,6 +105,7 @@
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Clues" :title-position :frame
+     :visible-max-width nil
      :items '(:paragraph-box :line-boxes :character-boxes :baselines)
      :print-function 'keyword-capitalize
      :selection-callback '|(un)set-clues|
@@ -128,8 +131,12 @@
   (:layouts
    (main column-layout '(configuration typeset-paragraph))
    (configuration row-layout '(options-1 options-2 source-text))
-   (options-1 column-layout '(disposition features))
-   (options-2 column-layout '(paragraph-width paragraph-zoom clues)))
+   (options-1 column-layout '(disposition features)
+     :visible-min-width 150
+     :visible-max-width 150)
+   (options-2 column-layout '(paragraph-width paragraph-zoom clues)
+     :visible-min-width 250
+     :visible-max-width 250))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
