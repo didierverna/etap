@@ -49,16 +49,17 @@
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 
-(defun render-paragraph (pane x y width height
-			 &aux (interface (top-level-interface pane))
-			      (state (state interface))
-			      (paragraph-width (paragraph-width state))
-			      (paragraph (paragraph state))
-			      (zoom (/ (range-slug-start
-					(paragraph-zoom interface))
-				       100))
-			      (clues (choice-selected-items (clues interface))))
+(defun render-paragraph
+    (pane x y width height
+     &aux (interface (top-level-interface pane))
+	  (state (state interface))
+	  (paragraph-width (paragraph-width state))
+	  (paragraph (paragraph state))
+	  (zoom (/ (range-slug-start (paragraph-zoom interface)) 100))
+	  (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
+  (set-horizontal-scroll-parameters pane
+    :max-range (+ (* paragraph-width zoom) 40))
   (unless (zerop (length paragraph))
     (gp:with-graphics-scale (pane zoom zoom)
       (loop :for char-box :across paragraph
