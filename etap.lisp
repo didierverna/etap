@@ -67,7 +67,10 @@
 	(loop :with y := (height paragraph)
 	      :for line-character :in (characters paragraph)
 	      :for character := (character-metrics line-character)
-	      :do (gp:draw-character pane (code-char (tfm:code character))
+	      :do (gp:draw-character pane
+				     (cadr (assoc (elt +tex-base-1-encoding+
+						       (tfm:code character))
+						  +glyph-list+))
 				     (x line-character) y)
 	      :when (member :character-boxes clues)
 		:do (gp:draw-rectangle pane

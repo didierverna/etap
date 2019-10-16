@@ -9,4 +9,8 @@
   ;; :version 1.0
   :depends-on (:net.didierverna.tfm)
   :serial t
-  :components ((:file "meta") (:file "state") (:file "etap")))
+  :components ((:file "meta")
+	       (:file "aglfn")
+	       (:file "8r")
+	       (:file "state")
+	       (:file "etap")))

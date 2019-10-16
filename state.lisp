@@ -12,7 +12,7 @@ cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
 proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defconstant +font-file+
-  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr.tfm")
+  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/adobe/times/ptmr8r.tfm")
 
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
@@ -91,8 +91,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (when (member :kerning (features state))
     (setq lineup
 	  (loop :for elements :on lineup
-		:for elt1 := (car elements)
-		:for elt2 := (cadr elements)
+		:for elt1 := (print (car elements))
+		:for elt2 := (print (cadr elements))
 		:for kern := (when (and (typep elt1 'tfm::character-metrics)
 					(typep elt2 'tfm::character-metrics))
 			       (tfm:kerning elt1 elt2))
