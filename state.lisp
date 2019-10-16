@@ -63,6 +63,31 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			     :and :do (incf i)
 		     :else
 		       :do (incf i)))
+  (when (member :ligatures (features state))
+    (setq lineup
+	  (loop :with elements := lineup
+		:while elements
+		:for elt1 := (car elements)
+		:for elt2 := (cadr elements)
+		:for lig := (when (and (typep elt1 'tfm::character-metrics)
+				       (typep elt2 'tfm::character-metrics))
+			      (tfm:ligature elt1 elt2))
+		:if lig
+		  :do (let ((composition (list)))
+			(unless (tfm:delete-after lig)
+			  (push elt2 composition))
+			(push (tfm:composite lig) composition)
+			(unless (tfm:delete-before lig)
+			  (push elt1 composition))
+			(setq elements (append composition (cddr elements))))
+		  :and :unless (zerop (tfm:pass-over lig))
+			 :append (subseq elements 0 (tfm:pass-over lig))
+			 :and :do (setq elements
+					(nthcdr (tfm:pass-over lig) elements))
+		       :end
+		:else
+		  :collect (print elt1)
+		  :and :do (setq elements (cdr elements)))))
   (when (member :kerning (features state))
     (setq lineup
 	  (loop :for elements :on lineup
