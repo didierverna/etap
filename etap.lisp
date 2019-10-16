@@ -53,6 +53,7 @@
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (state (state interface))
+	  (design-size (tfm:design-size (font state)))
 	  (paragraph-width (paragraph-width state))
 	  (paragraph (paragraph state))
 	  (zoom (/ (range-slug-start (paragraph-zoom interface)) 100))
@@ -65,9 +66,20 @@
       (gp:with-graphics-scale (pane zoom zoom)
 	(loop :with y := (height paragraph)
 	      :for line-character :in (characters paragraph)
-	      :for character := (code-char (tfm:code (character-metrics
-						      line-character)))
-	      :do (gp:draw-character pane character (x line-character) y))))))
+	      :for character := (character-metrics line-character)
+	      :do (gp:draw-character pane (code-char (tfm:code character))
+				     (x line-character) y)
+	      :when (member :character-boxes clues)
+		:do (gp:draw-rectangle pane
+				       (x line-character)
+				       (- y (* design-size
+					       (tfm:height character)))
+				       (* design-size
+					  (tfm:width character))
+				       (+ (* design-size
+					     (tfm:height character))
+					  (* design-size
+					     (tfm:depth character)))))))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
