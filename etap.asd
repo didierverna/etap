@@ -10,7 +10,7 @@
   :depends-on (:net.didierverna.tfm)
   :serial t
   :components ((:file "meta")
-	       (:file "aglfn")
-	       (:file "8r")
+	       (:file "glyphlist")
+	       (:file "lm-ec")
 	       (:file "state")
 	       (:file "etap")))

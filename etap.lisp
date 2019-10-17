@@ -68,7 +68,7 @@
 	      :for line-character :in (characters paragraph)
 	      :for character := (character-metrics line-character)
 	      :do (gp:draw-character pane
-				     (cadr (assoc (elt +tex-base-1-encoding+
+				     (cadr (assoc (elt +lm-ec-encoding+
 						       (tfm:code character))
 						  +glyph-list+))
 				     (x line-character) y)
@@ -139,8 +139,8 @@
      :reader source-text)
    (typeset-paragraph output-pane
      :title "Typeset paragraph" :title-position :frame
-     :font (gp:make-font-description :family "Times" :slant :roman
-				     :weight :medium :size 10)
+     :font (gp:make-font-description :family "Latin Modern Roman"
+	     :weight :normal :slant :roman :size 10)
      :visible-min-width 850
      :visible-min-height 350
      :horizontal-scroll t
