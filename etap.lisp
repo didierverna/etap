@@ -34,9 +34,8 @@
   (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  value (/ value 28.452755)))
-  (when (eq status :move)
-    (setf (paragraph-width (state interface)) value)
-    (update interface)))
+  (setf (paragraph-width (state interface)) value)
+  (update interface))
 
 (defun set-paragraph-zoom (pane value status
 			    &aux (interface (top-level-interface pane)))
