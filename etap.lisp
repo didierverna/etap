@@ -99,7 +99,11 @@
 						 (width line)
 						 (+ (height line)
 						    (depth line))))
-			      :foreground :blue))))))
+			      :foreground :blue))
+	(when (member :paragraph-box clues)
+	  (gp:draw-rectangle pane 0 0 (width paragraph) (height paragraph)
+			     :foreground :red))
+      ))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
