@@ -105,27 +105,62 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 				       :value (* design-size kern)))))
   lineup)
 
+;; #### NOTE: add y for raisebox.
 (defclass line-character ()
   ((x :initarg :x :reader x)
    (character-metrics :initarg :character-metrics :reader character-metrics)))
 
+;; #### FIXME: this should be split into line (without x and y) and
+;; paragraph-line (with them).
 (defclass paragraph-line ()
-    ((y :initarg :y :accessor y)
-     (height :initarg :height :accessor height)
-     (depth :initarg :depth :accessor depth)
-     (characters :initarg :characters :reader characters)))
+  ((x :accessor x)
+   (y :accessor y)
+   (width :accessor width)
+   (height :accessor height)
+   (depth :accessor depth)
+   (characters :initarg :characters :reader characters)))
 
-(defun render
-    (state
-     &aux (design-size (tfm:design-size (font state)))
-	  (lineup (characters-lineup state))
-	  (line (make-instance 'paragraph-line
-		 :y 0
-		 :height 0
-		 :depth 0
+(defclass paragraph ()
+  ((width :initarg :width :reader width)
+   (height :accessor height)
+   (lines :initarg :lines :reader lines)))
+
+(defun next-glue-position (lineup &optional (start 0))
+  (position-if (lambda (element) (typep element 'glue)) lineup :start start))
+
+(defun lineup-width (lineup &optional (start 0) end)
+  (unless end (setq end (length lineup)))
+  (loop :with width := 0
+	:for element :in (nthcdr start lineup)
+	:repeat (- end start)
+	:if (typep element 'tfm::character-metrics)
+	  :do (incf width (* (tfm:design-size (tfm:font element))
+			     (tfm:width element)))
+	:else :if (typep element 'kern)
+		:do (incf width (value element))
+	:else :if (typep element 'glue)
+		:do (incf width (value element))
+	:finally (return width)))
+
+(defun collect-line
+    (lineup state &aux (paragraph-width (paragraph-width state)))
+  (loop :with i := (next-glue-position lineup)
+	:with ii := (when i (next-glue-position lineup (1+ i)))
+	:with width := (lineup-width lineup 0 i)
+	:while (and i (<= (+ width (lineup-width lineup i ii)) paragraph-width))
+	:do (incf width (lineup-width lineup i ii))
+	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
+	:finally (return (if i
+			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
+			   lineup))))
+
+(defun render-line
+    (lineup state &aux (design-size (tfm:design-size (font state))) line)
+  (multiple-value-bind (elements lineup-remainder) (collect-line lineup state)
+    (setq line (make-instance 'paragraph-line
 		 :characters
 		 (loop :with x := 0
-		       :for element :in lineup
+		       :for element :in elements
 		       :if (typep element 'tfm::character-metrics)
 			 :collect (make-instance 'line-character
 				   :x x :character-metrics element)
@@ -133,14 +168,52 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		       :else :if (typep element 'kern)
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
-			       :do (incf x (value element))))))
-  (when (characters line)
-    (setf (height line)
-	  (* design-size
-	     (apply #'max (mapcar #'tfm:height
-			    (mapcar #'character-metrics (characters line))))))
-    (setf (depth line)
-	  (* design-size
-	     (apply #'max (mapcar #'tfm:depth
-			    (mapcar #'character-metrics (characters line)))))))
-  (setf (paragraph state) line))
+			       :do (incf x (value element)))))
+    (loop :for line-character :in (characters line)
+	  :maximize (tfm:height (character-metrics line-character))
+	    :into height
+	  :maximize (tfm:depth (character-metrics line-character))
+	    :into depth
+	  :finally (setf (height line) (* design-size height)
+			 (depth line) (* design-size depth)))
+    (let ((last-line-character (car (last (characters line)))))
+      (setf (width line)
+	    (+ (x last-line-character)
+	       (* design-size
+		  (tfm:width (character-metrics last-line-character))))))
+    (list line lineup-remainder)))
+
+(defun render-lineup
+    (lineup state
+     &aux (paragraph-width (paragraph-width state))
+	  (paragraph
+	   (make-instance 'paragraph
+	     :width paragraph-width
+	     :lines (loop :while lineup
+			  :for (line lineup-remainder)
+			    := (render-line lineup state)
+			  :collect line
+			  :do (setq lineup lineup-remainder)))))
+  (case (disposition state)
+    (:flush-left
+     (loop :for y := 0 :then (+ y 12)
+	   :for line :in (lines paragraph)
+	   :do (setf (x line) 0
+		     (y line) y)))
+    (:flush-right
+     (loop :for y := 0 :then (+ y 12)
+	   :for line :in (lines paragraph)
+	   :do (setf (x line) (- paragraph-width (width line))
+		     (y line) y)))
+    (:centered
+     (loop :for y := 0 :then (+ y 12)
+	   :for line :in (lines paragraph)
+	   :do (setf (x line)(/ (abs (- paragraph-width (width line))) 2)
+		     (y line) y))))
+  (setf (height paragraph) (+ (height (first (lines paragraph)))
+			      (depth (car (last (lines paragraph))))
+			      (* (1- (length (lines paragraph))) 12)))
+  paragraph)
+
+(defun render (state)
+  (setf (paragraph state) (render-lineup (characters-lineup state) state)))

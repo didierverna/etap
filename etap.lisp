@@ -54,35 +54,40 @@
      &aux (interface (top-level-interface pane))
 	  (state (state interface))
 	  (design-size (tfm:design-size (font state)))
-	  (paragraph-width (paragraph-width state))
 	  (paragraph (paragraph state))
 	  (zoom (/ (range-slug-start (paragraph-zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters pane
-    :max-range (+ (* paragraph-width zoom) 40))
-  (unless (zerop (length (characters paragraph)))
+    :max-range (+ (* (width paragraph) zoom) 40))
+  (set-vertical-scroll-parameters pane
+    :max-range (+ (* (height paragraph) zoom) 40))
+  (when (lines paragraph)
     (gp:with-graphics-translation (pane 20 20)
       (gp:with-graphics-scale (pane zoom zoom)
-	(loop :with y := (height paragraph)
-	      :for line-character :in (characters paragraph)
-	      :for character := (character-metrics line-character)
-	      :do (gp:draw-character pane
-				     (cadr (assoc (elt +lm-ec-encoding+
-						       (tfm:code character))
-						  +glyph-list+))
-				     (x line-character) y)
-	      :when (member :character-boxes clues)
-		:do (gp:draw-rectangle pane
-				       (x line-character)
-				       (- y (* design-size
-					       (tfm:height character)))
-				       (* design-size
-					  (tfm:width character))
-				       (+ (* design-size
-					     (tfm:height character))
-					  (* design-size
-					     (tfm:depth character)))))))))
+	(loop :with par-y := (height (first (lines paragraph)))
+	      :for line :in (lines paragraph)
+	      :for x := (x line)
+	      :for y := (+ par-y (y line))
+	      :do (loop :for line-character :in (characters line)
+			:for character := (character-metrics line-character)
+			:do (gp:draw-character pane
+					       (cadr (assoc (elt +lm-ec-encoding+
+								 (tfm:code character))
+							    +glyph-list+))
+					       (+ x (x line-character))
+					       y)
+			:when (member :character-boxes clues)
+			  :do (gp:draw-rectangle pane
+						 (+ x (x line-character))
+						 (- y (* design-size
+							 (tfm:height character)))
+						 (* design-size
+						    (tfm:width character))
+						 (+ (* design-size
+						       (tfm:height character))
+						    (* design-size
+						       (tfm:depth character))))))))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
