@@ -105,14 +105,21 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 				       :value (* design-size kern)))))
   lineup)
 
-(defstruct (line-character :conc-name) x character-metrics)
-(defstruct (paragraph-line :conc-name) y height depth characters)
+(defclass line-character ()
+  ((x :initarg :x :reader x)
+   (character-metrics :initarg :character-metrics :reader character-metrics)))
+
+(defclass paragraph-line ()
+    ((y :initarg :y :accessor y)
+     (height :initarg :height :accessor height)
+     (depth :initarg :depth :accessor depth)
+     (characters :initarg :characters :reader characters)))
 
 (defun render
     (state
      &aux (design-size (tfm:design-size (font state)))
 	  (lineup (lineup state))
-	  (line (make-paragraph-line
+	  (line (make-instance 'paragraph-line
 		 :y 0
 		 :height 0
 		 :depth 0
@@ -120,7 +127,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		 (loop :with x := 0
 		       :for element :in lineup
 		       :if (typep element 'tfm::character-metrics)
-			 :collect (make-line-character
+			 :collect (make-instance 'line-character
 				   :x x :character-metrics element)
 			 :and :do (incf x (* (tfm:width element) design-size))
 		       :else :if (typep element 'kern)
