@@ -24,8 +24,11 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (text :initform +initial-text+ :accessor text)
    (paragraph :accessor paragraph)))
 
-(defstruct kern value)
-(defstruct glue value stretch shrink)
+(defclass kern () ((value :initarg :value :reader value)))
+(defclass glue ()
+  ((value :initarg :value :reader value)
+   (stretch :initarg :stretch :reader stretch)
+   (shrink :initarg :shrink :reader shrink)))
 
 (defmethod initialize-instance :after
     ((state state)
@@ -33,9 +36,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
      &aux (font (font state))
 	  (design-size (tfm:design-size font)))
   (setf (slot-value state 'glue)
-	(make-glue :value (* (tfm:interword-space font) design-size)
-		   :stretch (* (tfm:interword-stretch font) design-size)
-		   :shrink (* (tfm:interword-shrink font) design-size))))
+	(make-instance 'glue
+	  :value (* (tfm:interword-space font) design-size)
+	  :stretch (* (tfm:interword-stretch font) design-size)
+	  :shrink (* (tfm:interword-shrink font) design-size))))
 
 
 (defconstant +blanks+ '(#\Space #\Tab #\Newline))
@@ -97,7 +101,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 					(typep elt2 'tfm::character-metrics))
 			       (tfm:kerning elt1 elt2))
 		:collect elt1
-		:when kern :collect (make-kern :value (* design-size kern)))))
+		:when kern :collect (make-instance 'kern
+				       :value (* design-size kern)))))
   lineup)
 
 (defstruct (line-character :conc-name) x character-metrics)
@@ -118,10 +123,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			 :collect (make-line-character
 				   :x x :character-metrics element)
 			 :and :do (incf x (* (tfm:width element) design-size))
-		       :else :if (kern-p element)
-			       :do (incf x (kern-value element))
-		       :else :if (glue-p element)
-			       :do (incf x (glue-value element))))))
+		       :else :if (typep element 'kern)
+			       :do (incf x (value element))
+		       :else :if (typep element 'glue)
+			       :do (incf x (value element))))))
   (when (characters line)
     (setf (height line)
 	  (* design-size
