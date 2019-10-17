@@ -31,6 +31,7 @@
 
 (defun set-paragraph-width (pane value status
 			    &aux (interface (top-level-interface pane)))
+  (declare (ignore status))
   (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  value (/ value 28.452755)))
