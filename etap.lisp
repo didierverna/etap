@@ -86,7 +86,20 @@
 						 (+ (* design-size
 						       (tfm:height character))
 						    (* design-size
-						       (tfm:depth character))))))))))
+						       (tfm:depth
+							character))))))
+	(when (member :line-boxes clues)
+	  (gp:draw-rectangles pane
+			      (loop :with par-y
+				      := (height (first (lines paragraph)))
+				    :for line :in (lines paragraph)
+				    :nconc (list (x line)
+						 (- (+ par-y (y line))
+						    (height line))
+						 (width line)
+						 (+ (height line)
+						    (depth line))))
+			      :foreground :blue))))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
