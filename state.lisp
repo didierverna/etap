@@ -46,7 +46,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun blankp (character) (member character +blanks+))
 
-(defun lineup
+(defun characters-lineup
     (state &aux (design-size (tfm:design-size (font state))) lineup)
   (setq lineup (loop :with font := (font state)
 		     :with glue := (glue state)
@@ -118,7 +118,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defun render
     (state
      &aux (design-size (tfm:design-size (font state)))
-	  (lineup (lineup state))
+	  (lineup (characters-lineup state))
 	  (line (make-instance 'paragraph-line
 		 :y 0
 		 :height 0
