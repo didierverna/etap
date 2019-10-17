@@ -88,6 +88,15 @@
 						    (* design-size
 						       (tfm:depth
 							character))))))
+	(when (member :baselines clues)
+	  (gp:draw-lines pane
+			 (loop :with par-y
+				 := (height (first (lines paragraph)))
+			       :for line :in (lines paragraph)
+			       :for x := (x line)
+			       :for y := (+ par-y (y line))
+			       :nconc (list x y (+ x (width line)) y))
+			 :foreground :purple))
 	(when (member :line-boxes clues)
 	  (gp:draw-rectangles pane
 			      (loop :with par-y
