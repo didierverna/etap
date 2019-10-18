@@ -90,7 +90,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 					(nthcdr (tfm:pass-over lig) elements))
 		       :end
 		:else
-		  :collect (print elt1)
+		  :collect elt1
 		  :and :do (setq elements (cdr elements)))))
   (when (member :kerning (features state))
     (setq lineup
