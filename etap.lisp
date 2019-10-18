@@ -71,12 +71,13 @@
 	      :for y := (+ par-y (y line))
 	      :do (loop :for line-character :in (characters line)
 			:for character := (character-metrics line-character)
-			:do (gp:draw-character pane
-					       (cadr (assoc (elt +lm-ec-encoding+
-								 (tfm:code character))
-							    +glyph-list+))
-					       (+ x (x line-character))
-					       y)
+			:when (member :characters clues)
+			  :do (gp:draw-character pane
+						 (cadr (assoc (elt +lm-ec-encoding+
+								   (tfm:code character))
+							      +glyph-list+))
+						 (+ x (x line-character))
+						 y)
 			:when (member :character-boxes clues)
 			  :do (gp:draw-rectangle pane
 						 (+ x (x line-character))
@@ -154,9 +155,11 @@
      :reader paragraph-zoom)
    (clues check-button-panel
      :layout-class 'column-layout
-     :title "Clues" :title-position :frame
+     :title "Characters and Clues" :title-position :frame
      :visible-max-width nil
-     :items '(:paragraph-box :line-boxes :character-boxes :baselines)
+     :items '(:characters
+	      :paragraph-box :line-boxes :character-boxes :baselines)
+     :selected-items '(:characters)
      :print-function 'keyword-capitalize
      :selection-callback '|(un)set-clues|
      :retract-callback '|(un)set-clues|
@@ -166,6 +169,7 @@
      :visible-min-width '(character 80)
      :visible-max-width '(character 80)
      :visible-min-height '(character 15)
+     :visible-max-height '(character 34)
      :change-callback 'set-text
      :reader source-text)
    (typeset-paragraph output-pane
