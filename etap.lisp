@@ -188,7 +188,7 @@
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
-  (setf (editor-pane-text (source-text etap)) +initial-text+))
+  (setf (editor-pane-text (source-text etap)) (text state)))
 
 
 
