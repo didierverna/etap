@@ -65,56 +65,47 @@
   (when (lines paragraph)
     (gp:with-graphics-translation (pane 20 20)
       (gp:with-graphics-scale (pane zoom zoom)
+	(when (member :paragraph-box clues)
+	  (gp:draw-rectangle pane 0 0 (width paragraph) (height paragraph)
+	    :foreground :red))
 	(loop :with par-y := (height (first (lines paragraph)))
 	      :for line :in (lines paragraph)
 	      :for x := (x line)
 	      :for y := (+ par-y (y line))
-	      :do (loop :for line-character :in (characters line)
-			:for character := (character-metrics line-character)
-			:when (member :characters clues)
-			  :do (gp:draw-character pane
-						 (cadr (assoc (elt +lm-ec-encoding+
-								   (tfm:code character))
-							      +glyph-list+))
-						 (+ x (x line-character))
-						 y)
-			:when (member :character-boxes clues)
-			  :do (gp:draw-rectangle pane
-						 (+ x (x line-character))
-						 (- y (* design-size
-							 (tfm:height character)))
-						 (* design-size
-						    (tfm:width character))
-						 (+ (* design-size
-						       (tfm:height character))
-						    (* design-size
-						       (tfm:depth
-							character))))))
-	(when (member :baselines clues)
-	  (gp:draw-lines pane
-			 (loop :with par-y
-				 := (height (first (lines paragraph)))
-			       :for line :in (lines paragraph)
-			       :for x := (x line)
-			       :for y := (+ par-y (y line))
-			       :nconc (list x y (+ x (width line)) y))
-			 :foreground :purple))
-	(when (member :line-boxes clues)
-	  (gp:draw-rectangles pane
-			      (loop :with par-y
-				      := (height (first (lines paragraph)))
-				    :for line :in (lines paragraph)
-				    :nconc (list (x line)
-						 (- (+ par-y (y line))
-						    (height line))
-						 (width line)
-						 (+ (height line)
-						    (depth line))))
-			      :foreground :blue))
-	(when (member :paragraph-box clues)
-	  (gp:draw-rectangle pane 0 0 (width paragraph) (height paragraph)
-			     :foreground :red))
-      ))))
+	      :when (member :line-boxes clues)
+		:do (gp:draw-rectangle pane
+				       x
+				       (- y (height line))
+				       (width line)
+				       (+ (height line) (depth line))
+				       :foreground :blue)
+	      :when (member :baselines clues)
+		:do (gp:draw-line pane x y (+ x (width line)) y
+				  :foreground :purple)
+	      :when (or (member :characters clues)
+			(member :character-boxes clues))
+		:do (loop :for line-character :in (characters line)
+			  :for character := (character-metrics line-character)
+			  :when (member :character-boxes clues)
+			    :do (gp:draw-rectangle pane
+						   (+ x (x line-character))
+						   (- y (* design-size
+							   (tfm:height character)))
+						   (* design-size
+						      (tfm:width character))
+						   (+ (* design-size
+							 (tfm:height character))
+						      (* design-size
+							 (tfm:depth
+							  character))))
+			  :when (member :characters clues)
+			    :do (gp:draw-character pane
+						   (cadr (assoc (elt +lm-ec-encoding+
+								     (tfm:code character))
+								+glyph-list+))
+						   (+ x (x line-character))
+						   y)
+			  ))))))
 
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
