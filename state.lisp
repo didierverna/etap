@@ -95,8 +95,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (when (member :kerning (features state))
     (setq lineup
 	  (loop :for elements :on lineup
-		:for elt1 := (print (car elements))
-		:for elt2 := (print (cadr elements))
+		:for elt1 := (car elements)
+		:for elt2 := (cadr elements)
 		:for kern := (when (and (typep elt1 'tfm::character-metrics)
 					(typep elt2 'tfm::character-metrics))
 			       (tfm:kerning elt1 elt2))
