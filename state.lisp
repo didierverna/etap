@@ -12,7 +12,7 @@ cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
 proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defconstant +font-file+
-  #p"/usr/local/texlive/2019/texmf-dist/fonts/tfm/public/lm/ec-lmr10.tfm")
+  (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
