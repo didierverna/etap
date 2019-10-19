@@ -19,7 +19,15 @@
 	(remove value (features (state interface))))
   (update interface))
 
-(defun set-algorithm (value interface)
+(defun set-algorithm (value interface &aux (state (state interface)))
+  (cond ((eq value :fixed)
+	 (when (eq (disposition state) :justified)
+	   (setf (disposition state) :flush-left
+		 (choice-selected-item (disposition interface)) :flush-left))
+	 (set-button-panel-enabled-items (disposition interface)
+	   :set t :disable '(:justified)))
+	(t
+	 (set-button-panel-enabled-items (disposition interface) :set t)))
   (setf (algorithm (state interface)) value)
   (update interface))
 
@@ -213,10 +221,12 @@
 
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
   (let ((algorithm (algorithm state)))
-    (setf (choice-selected-item (algorithm etap)) algorithm)
     (when (eq algorithm :fixed)
+      (if (eq (disposition state) :justified)
+	(setf (disposition state) :flush-left))
       (set-button-panel-enabled-items (disposition etap)
-	:set t :disable '(:justified))))
+	:set t :disable '(:justified)))
+    (setf (choice-selected-item (algorithm etap)) algorithm))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
