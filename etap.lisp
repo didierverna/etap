@@ -132,7 +132,7 @@
      :layout-class 'column-layout
      :title "Algorithm" :title-position :frame
      :visible-max-width nil
-     :items '(:rigid :first-fit :best-fit :last-fit)
+     :items '(:fixed :first-fit :best-fit :last-fit)
      :print-function 'keyword-capitalize
      :selection-callback 'set-algorithm
      :reader algorithm)
@@ -214,7 +214,7 @@
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
   (let ((algorithm (algorithm state)))
     (setf (choice-selected-item (algorithm etap)) algorithm)
-    (when (eq algorithm :rigid)
+    (when (eq algorithm :fixed)
       (set-button-panel-enabled-items (disposition etap)
 	:set t :disable '(:justified))))
   (setf (choice-selected-item (disposition etap)) (disposition state))

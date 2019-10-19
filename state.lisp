@@ -17,7 +17,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
    (glue :reader glue)
-   (algorithm :initform :rigid :accessor algorithm)
+   (algorithm :initform :fixed :accessor algorithm)
    (disposition :initform :flush-left :accessor disposition)
    (features :initform (list) :accessor features)
    ;; 284.52756pt = 10cm
@@ -177,18 +177,36 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
 (defun collect-line
-    (lineup state &aux (paragraph-width (paragraph-width state)))
+    (lineup state &aux (paragraph-width (paragraph-width state))
+		       (algorithm (algorithm state)))
   (loop :with i := (next-glue-position lineup)
 	:with ii := (when i (next-glue-position lineup (1+ i)))
-	:with width := (lineup-width lineup 0 i)
-	:while (and i (<= (+ width (lineup-width lineup i ii)) paragraph-width))
-	:do (incf width (lineup-width lineup i ii))
+	:with width := (multiple-value-bind (exact max min)
+			   (lineup-width lineup 0 i)
+			 (case algorithm
+			   (:fixed exact)
+			   (:first-fit max)
+			   (:last-fit min)))
+	:while (and i (<= (+ width
+			     (multiple-value-bind (exact max min)
+				 (lineup-width lineup i ii)
+			       (case algorithm
+				 (:fixed exact)
+				 (:first-fit max)
+				 (:last-fit min))))
+			  paragraph-width))
+	:do (incf width (multiple-value-bind (exact max min)
+			    (lineup-width lineup i ii)
+			  (case algorithm
+			    (:fixed exact)
+			    (:first-fit max)
+			    (:last-fit min))))
 	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
 	:finally (return (if i
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
 			   lineup))))
 
-(defun render-line (lineup state &aux line)
+(defun render-line (lineup state &aux (algorithm (algorithm state)) line)
   (multiple-value-bind (elements lineup-remainder) (collect-line lineup state)
     (setq line (make-instance 'line
 		 :pinned-characters
@@ -203,7 +221,12 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		       :else :if (typep element 'kern)
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
-			       :do (incf x (value element)))))
+			       :do (incf x (case algorithm
+					     (:fixed (value element))
+					     (:first-fit (+ (value element)
+							    (stretch element)))
+					     (:last-fit (- (value element)
+							   (shrink element))))))))
     (loop :for pinned-character :in (pinned-characters line)
 	  :maximize (height pinned-character) :into height
 	  :maximize (depth pinned-character) :into depth
