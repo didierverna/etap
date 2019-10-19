@@ -7,7 +7,7 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 (defun update (interface &aux (state (state interface)))
-  (render state)
+  (update-paragraph state)
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 (defun set-feature (value interface)

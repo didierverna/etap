@@ -45,7 +45,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun blankp (character) (member character +blanks+))
 
-(defun characters-lineup (state &aux  lineup)
+(defun lineup (state &aux  lineup)
   (setq lineup (loop :with font := (font state)
 		     :with glue := (glue state)
 		     :with text := (string-trim +blanks+ (text state))
@@ -203,7 +203,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
 			   lineup))))
 
-(defun render-line (lineup state &aux (algorithm (algorithm state)) line)
+(defun create-line (lineup state &aux (algorithm (algorithm state)) line)
   (multiple-value-bind (elements lineup-remainder) (collect-line lineup state)
     (setq line (make-instance 'line
 		 :pinned-characters
@@ -236,7 +236,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	    (+ (x last-pinned-character) (width last-pinned-character))))
     (list line lineup-remainder)))
 
-(defun render-lineup
+(defun create-paragraph
     (lineup state &aux (paragraph (make-instance 'paragraph
 				    :width (paragraph-width state))))
   (when lineup
@@ -244,22 +244,20 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
       (setf pinned-lines
 	    (loop :while lineup
 		  :for y := 0 :then (+ y 12)
-		  :for (line remainder) := (render-line lineup state)
+		  :for (line remainder) := (create-line lineup state)
 		  :collect (make-instance 'pinned-line :y y :line line)
 		  :do (setq lineup remainder)))
       (case (disposition state)
 	(:flush-right
 	 (dolist (pinned-line pinned-lines)
-	   (setf (x pinned-line)
-		 (- paragraph-width (width pinned-line)))))
+	   (setf (x pinned-line) (- width (width pinned-line)))))
 	(:centered
 	 (dolist (pinned-line pinned-lines)
-	   (setf (x pinned-line)
-		 (/ (- paragraph-width (width pinned-line)) 2)))))
+	   (setf (x pinned-line) (/ (- width (width pinned-line)) 2)))))
       (setf height (height (first pinned-lines))
 	    depth (+ (depth (car (last pinned-lines)))
 		     (* (1- (length pinned-lines)) 12)))))
   paragraph)
 
-(defun render (state)
-  (setf (paragraph state) (render-lineup (characters-lineup state) state)))
+(defun update-paragraph (state)
+  (setf (paragraph state) (create-paragraph (lineup state) state)))
