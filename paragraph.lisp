@@ -23,12 +23,23 @@
       (character-metrics pinned-character)
     (* (tfm:design-size font) depth)))
 
+
 (defclass line ()
   ((width :initform 0 :initarg :width :accessor width)
    (height :initform 0 :initarg :height :accessor height)
    (depth :initform 0 :initarg :depth :accessor depth)
    (pinned-characters
     :initform nil :initarg :pinned-characters :accessor pinned-characters)))
+
+(defmethod initialize-instance :after ((line line) &key)
+  (loop :for pinned-character :in (pinned-characters line)
+	:maximize (height pinned-character) :into height
+	:maximize (depth pinned-character) :into depth
+	:finally (setf (height line) height (depth line) depth))
+  (let ((last-pinned-character (car (last (pinned-characters line)))))
+    (setf (width line)
+	  (+ (x last-pinned-character) (width last-pinned-character)))))
+
 
 (defclass pinned-line (pinned)
   ((line :initform nil :initarg :line :accessor line)))
@@ -84,7 +95,7 @@
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
-(defun collect-line (lineup paragraph-width algorithm)
+(defun collect-elements (lineup paragraph-width algorithm)
   (loop :with i := (next-glue-position lineup)
 	:with ii := (when i (next-glue-position lineup (1+ i)))
 	:with width := (let ((widths (lineup-widths lineup 0 i)))
@@ -110,8 +121,8 @@
 			   lineup))))
 
 (defun create-line (lineup width algorithm &aux line)
-  (multiple-value-bind (elements lineup-remainder)
-      (collect-line lineup width algorithm)
+  (multiple-value-bind (elements remainder)
+      (collect-elements lineup width algorithm)
     (setq line (make-instance 'line
 		 :pinned-characters
 		 (loop :with x := 0
@@ -134,16 +145,9 @@
 					     (:last-fit
 					      (- (value element)
 						 (shrink element))))))))
-    (loop :for pinned-character :in (pinned-characters line)
-	  :maximize (height pinned-character) :into height
-	  :maximize (depth pinned-character) :into depth
-	  :finally (setf (height line) height (depth line) depth))
-    (let ((last-pinned-character (car (last (pinned-characters line)))))
-      (setf (width line)
-	    (+ (x last-pinned-character) (width last-pinned-character))))
-    (list line lineup-remainder)))
+    (list line remainder)))
 
-(defun collect-lines (lineup width algorithm)
+(defun create-lines (lineup width algorithm)
   (loop :while lineup
 	:for (line remainder) := (create-line lineup width algorithm)
 	:collect line
@@ -151,7 +155,7 @@
 
 (defun create-paragraph
     (lineup width algorithm disposition
-     &aux (lines (collect-lines lineup width algorithm)))
+     &aux (lines (create-lines lineup width algorithm)))
   (make-instance 'paragraph
     :disposition disposition
     :width width
