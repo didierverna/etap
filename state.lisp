@@ -31,10 +31,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (shrink :initarg :shrink :reader shrink)))
 
 (defmethod initialize-instance :after
-    ((state state)
-     &key
-     &aux (font (font state))
-	  (design-size (tfm:design-size font)))
+    ((state state) &key &aux (font (font state))
+			     (design-size (tfm:design-size font)))
   (setf (slot-value state 'glue)
 	(make-instance 'glue
 	  :value (* (tfm:interword-space font) design-size)
@@ -155,9 +153,6 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (depth :initform 0 :initarg :depth :accessor depth)
    (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
 
-(defun next-glue-position (lineup &optional (start 0))
-  (position-if (lambda (element) (typep element 'glue)) lineup :start start))
-
 (defun lineup-width (lineup &optional (start 0) end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
@@ -171,6 +166,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	:else :if (typep element 'glue)
 		:do (incf width (value element))
 	:finally (return width)))
+
+(defun next-glue-position (lineup &optional (start 0))
+  (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
 (defun collect-line
     (lineup state &aux (paragraph-width (paragraph-width state)))
