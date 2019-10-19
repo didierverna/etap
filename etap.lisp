@@ -61,7 +61,7 @@
     (set-horizontal-scroll-parameters pane
       :max-range (+ (* (width paragraph) zoom) 40))
     (set-vertical-scroll-parameters pane
-      :max-range (+ (* (height paragraph) zoom) 40))
+      :max-range (+ (* (+ (height paragraph) (depth paragraph)) zoom) 40))
     (gp:with-graphics-translation (pane 20 20)
       (gp:with-graphics-scale (pane zoom zoom)
 	(when (member :paragraph-box clues)
