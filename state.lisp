@@ -228,7 +228,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
     (:centered
      (loop :for pinned-line :in (pinned-lines paragraph)
 	   :do (setf (x pinned-line)
-		     (/ (abs (- paragraph-width (width pinned-line))) 2)))))
+		     (/ (- paragraph-width (width pinned-line)) 2)))))
   (when (pinned-lines paragraph)
     (setf (height paragraph) (height (first (pinned-lines paragraph)))
 	  (depth paragraph) (+ (depth (car (last (pinned-lines paragraph))))
