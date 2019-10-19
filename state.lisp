@@ -158,6 +158,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defun lineup-width (lineup &optional (start 0) end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
 	:for element :in (nthcdr start lineup)
 	:repeat (- end start)
 	:if (typep element 'tfm::character-metrics)
@@ -167,7 +169,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		:do (incf width (value element))
 	:else :if (typep element 'glue)
 		:do (incf width (value element))
-	:finally (return width)))
+		:and :do (incf stretch (stretch element))
+		:and :do (incf shrink (shrink element))
+	:finally (return (values width (+ width stretch) (- width shrink)))))
 
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
