@@ -238,13 +238,13 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun render-lineup
     (lineup state &aux (paragraph (make-instance 'paragraph
-				    :width  (paragraph-width state))))
+				    :width (paragraph-width state))))
   (setf (pinned-lines paragraph)
 	(loop :while lineup
 	      :for y := 0 :then (+ y 12)
-	      :for (line lineup-remainder) := (render-line lineup state)
+	      :for (line remainder) := (render-line lineup state)
 	      :collect (make-instance 'pinned-line :y y :line line)
-	      :do (setq lineup lineup-remainder)))
+	      :do (setq lineup remainder)))
   (with-slots (width height depth pinned-lines) paragraph
     (when pinned-lines
       (case (disposition state)
