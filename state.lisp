@@ -237,30 +237,28 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
     (list line lineup-remainder)))
 
 (defun render-lineup
-    (lineup state
-     &aux (paragraph-width (paragraph-width state))
-	  (paragraph
-	   (make-instance 'paragraph
-	     :width paragraph-width
-	     :pinned-lines (loop :while lineup
-				 :for y := 0 :then (+ y 12)
-				 :for (line lineup-remainder)
-				   := (render-line lineup state)
-				 :collect (make-instance 'pinned-line
-					    :y y :line line)
-				 :do (setq lineup lineup-remainder)))))
-  (case (disposition state)
-    (:flush-right
-     (loop :for pinned-line :in (pinned-lines paragraph)
-	   :do (setf (x pinned-line) (- paragraph-width (width pinned-line)))))
-    (:centered
-     (loop :for pinned-line :in (pinned-lines paragraph)
-	   :do (setf (x pinned-line)
-		     (/ (- paragraph-width (width pinned-line)) 2)))))
-  (when (pinned-lines paragraph)
-    (setf (height paragraph) (height (first (pinned-lines paragraph)))
-	  (depth paragraph) (+ (depth (car (last (pinned-lines paragraph))))
-			       (* (1- (length (pinned-lines paragraph))) 12))))
+    (lineup state &aux (paragraph (make-instance 'paragraph
+				    :width  (paragraph-width state))))
+  (setf (pinned-lines paragraph)
+	(loop :while lineup
+	      :for y := 0 :then (+ y 12)
+	      :for (line lineup-remainder) := (render-line lineup state)
+	      :collect (make-instance 'pinned-line :y y :line line)
+	      :do (setq lineup lineup-remainder)))
+  (with-slots (width height depth pinned-lines) paragraph
+    (when pinned-lines
+      (case (disposition state)
+	(:flush-right
+	 (dolist (pinned-line pinned-lines)
+	   (setf (x pinned-line)
+		 (- paragraph-width (width pinned-line)))))
+	(:centered
+	 (dolist (pinned-line pinned-lines)
+	   (setf (x pinned-line)
+		 (/ (- paragraph-width (width pinned-line)) 2)))))
+      (setf height (height (first pinned-lines))
+	    depth (+ (depth (car (last pinned-lines)))
+		     (* (1- (length pinned-lines)) 12)))))
   paragraph)
 
 (defun render (state)
