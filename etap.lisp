@@ -80,6 +80,24 @@
 				       (+ (height pinned-line)
 					  (depth pinned-line))
 		      :foreground :blue)
+	      :when (member :over/underfull-boxes clues)
+		:if (> (width pinned-line) (width paragraph))
+		  :do (gp:draw-rectangle pane
+					 (+ x (width pinned-line) 5)
+					 (- y (height pinned-line))
+					 5
+					 (+ (height pinned-line)
+					    (depth pinned-line))
+		       :foreground :orange :filled t)
+	      :else :if (and (eq (disposition state) :justified)
+			     (< (width pinned-line) (width paragraph)))
+		      :do (gp:draw-rectangle pane
+					     (+ x (width pinned-line) 5)
+					     (- y (height pinned-line))
+					     5
+					     (+ (height pinned-line)
+						(depth pinned-line))
+		       :foreground :orange :filled t)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple)
@@ -145,7 +163,8 @@
      :title "Characters and Clues" :title-position :frame
      :visible-max-width nil
      :items '(:characters
-	      :paragraph-box :line-boxes :character-boxes :baselines)
+	      :paragraph-box :line-boxes :character-boxes :baselines
+	      :over/underfull-boxes)
      :selected-items '(:characters)
      :print-function 'keyword-capitalize
      :selection-callback '|(un)set-clues|
