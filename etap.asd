@@ -13,4 +13,6 @@
 	       (:file "glyphlist")
 	       (:file "lm-ec")
 	       (:file "state")
-	       (:file "etap")))
+	       (:file "typesetting")
+	       (:file "paragraph")
+	       (:file "interface")))

@@ -1,5 +1,3 @@
-;;; etap.lisp --- Typesetting Experimental Algorithms Platform
-
 (in-package :etap)
 
 
@@ -7,7 +5,12 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 (defun update (interface &aux (state (state interface)))
-  (update-paragraph state)
+  (with-slots (text font features
+	       algorithm disposition (width paragraph-width))
+      state
+    (setf (paragraph state)
+	  (create-paragraph (lineup text font features) width
+			    algorithm disposition)))
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 (defun set-feature (value interface)
@@ -239,5 +242,3 @@
 ;; ===========
 
 (defun run () (display (make-instance 'etap)))
-
-;;; etap.lisp ends here
