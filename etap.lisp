@@ -19,6 +19,10 @@
 	(remove value (features (state interface))))
   (update interface))
 
+(defun set-algorithm (value interface)
+  (setf (algorithm (state interface)) value)
+  (update interface))
+
 (defun set-disposition (value interface)
   (setf (disposition (state interface)) value)
   (update interface))
@@ -124,6 +128,14 @@
 (define-interface etap ()
   ((state :initform (make-instance 'state) :reader state))
   (:panes
+   (algorithm radio-button-panel
+     :layout-class 'column-layout
+     :title "Algorithm" :title-position :frame
+     :visible-max-width nil
+     :items '(:rigid :first-fit :best-fit :last-fit)
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-algorithm
+     :reader algorithm)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -191,7 +203,7 @@
   (:layouts
    (main column-layout '(configuration typeset-paragraph))
    (configuration row-layout '(options-1 options-2 source-text))
-   (options-1 column-layout '(disposition features)
+   (options-1 column-layout '(algorithm disposition features)
      :visible-min-width 150
      :visible-max-width 150)
    (options-2 column-layout '(paragraph-width paragraph-zoom clues)
@@ -200,6 +212,11 @@
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
+  (let ((algorithm (algorithm state)))
+    (setf (choice-selected-item (algorithm etap)) algorithm)
+    (when (eq algorithm :rigid)
+      (set-button-panel-enabled-items (disposition etap)
+	:set t :disable '(:justified))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
