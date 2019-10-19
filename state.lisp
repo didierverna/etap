@@ -184,21 +184,21 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	:with width := (multiple-value-bind (exact max min)
 			   (lineup-width lineup 0 i)
 			 (case algorithm
-			   (:fixed exact)
+			   ((:fixed :best-fit) exact)
 			   (:first-fit max)
 			   (:last-fit min)))
 	:while (and i (<= (+ width
 			     (multiple-value-bind (exact max min)
 				 (lineup-width lineup i ii)
 			       (case algorithm
-				 (:fixed exact)
+				 ((:fixed :best-fit) exact)
 				 (:first-fit max)
 				 (:last-fit min))))
 			  paragraph-width))
 	:do (incf width (multiple-value-bind (exact max min)
 			    (lineup-width lineup i ii)
 			  (case algorithm
-			    (:fixed exact)
+			    ((:fixed :best-fit) exact)
 			    (:first-fit max)
 			    (:last-fit min))))
 	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
@@ -222,11 +222,14 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
 			       :do (incf x (case algorithm
-					     (:fixed (value element))
-					     (:first-fit (+ (value element)
-							    (stretch element)))
-					     (:last-fit (- (value element)
-							   (shrink element))))))))
+					     ((:fixed :best-fit)
+					      (value element))
+					     (:first-fit
+					      (+ (value element)
+						 (stretch element)))
+					     (:last-fit
+					      (- (value element)
+						 (shrink element))))))))
     (loop :for pinned-character :in (pinned-characters line)
 	  :maximize (height pinned-character) :into height
 	  :maximize (depth pinned-character) :into depth
