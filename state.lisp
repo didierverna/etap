@@ -44,8 +44,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defun blankp (character) (member character +blanks+))
 
-(defun characters-lineup
-    (state &aux (design-size (tfm:design-size (font state))) lineup)
+(defun characters-lineup (state &aux  lineup)
   (setq lineup (loop :with font := (font state)
 		     :with glue := (glue state)
 		     :with text := (string-trim +blanks+ (text state))
@@ -99,8 +98,10 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 					(typep elt2 'tfm::character-metrics))
 			       (tfm:kerning elt1 elt2))
 		:collect elt1
-		:when kern :collect (make-instance 'kern
-				       :value (* design-size kern)))))
+		:when kern
+		  :collect (make-instance 'kern
+			     :value (* (tfm:design-size (tfm:font elt1))
+				       kern)))))
   lineup)
 
 
@@ -182,8 +183,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
 			   lineup))))
 
-(defun render-line
-    (lineup state &aux (design-size (tfm:design-size (font state))) line)
+(defun render-line (lineup state &aux line)
   (multiple-value-bind (elements lineup-remainder) (collect-line lineup state)
     (setq line (make-instance 'line
 		 :pinned-characters
@@ -192,7 +192,9 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 		       :if (typep element 'tfm::character-metrics)
 			 :collect (make-instance 'pinned-character
 				    :x x :character-metrics element)
-			 :and :do (incf x (* (tfm:width element) design-size))
+			 :and :do (incf x (* (tfm:width element)
+					     (tfm:design-size
+					      (tfm:font element))))
 		       :else :if (typep element 'kern)
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
