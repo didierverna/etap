@@ -53,57 +53,53 @@
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (state (state interface))
-	  (design-size (tfm:design-size (font state)))
 	  (paragraph (paragraph state))
 	  (zoom (/ (range-slug-start (paragraph-zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters pane
-    :max-range (+ (* (width paragraph) zoom) 40))
-  (set-vertical-scroll-parameters pane
-    :max-range (+ (* (height paragraph) zoom) 40))
-  (when (lines paragraph)
+  (when (pinned-lines paragraph)
+    (set-horizontal-scroll-parameters pane
+      :max-range (+ (* (width paragraph) zoom) 40))
+    (set-vertical-scroll-parameters pane
+      :max-range (+ (* (height paragraph) zoom) 40))
     (gp:with-graphics-translation (pane 20 20)
       (gp:with-graphics-scale (pane zoom zoom)
 	(when (member :paragraph-box clues)
-	  (gp:draw-rectangle pane 0 0 (width paragraph) (height paragraph)
+	  (gp:draw-rectangle pane 0 0 (width paragraph) (+ (height paragraph)
+							   (depth paragraph))
 	    :foreground :red))
-	(loop :with par-y := (height (first (lines paragraph)))
-	      :for line :in (lines paragraph)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
+	(loop :with par-y := (height (first (pinned-lines paragraph)))
+	      :for pinned-line :in (pinned-lines paragraph)
+	      :for x := (x pinned-line)
+	      :for y := (+ par-y (y pinned-line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle pane
 				       x
-				       (- y (height line))
-				       (width line)
-				       (+ (height line) (depth line))
-				       :foreground :blue)
+				       (- y (height pinned-line))
+				       (width pinned-line)
+				       (+ (height pinned-line)
+					  (depth pinned-line))
+		      :foreground :blue)
 	      :when (member :baselines clues)
-		:do (gp:draw-line pane x y (+ x (width line)) y
-				  :foreground :purple)
+		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
+		      :foreground :purple)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (loop :for line-character :in (characters line)
-			  :for character := (character-metrics line-character)
+		:do (loop :for pinned-character
+			    :in (pinned-characters (line pinned-line))
 			  :when (member :character-boxes clues)
 			    :do (gp:draw-rectangle pane
-						   (+ x (x line-character))
-						   (- y (* design-size
-							   (tfm:height character)))
-						   (* design-size
-						      (tfm:width character))
-						   (+ (* design-size
-							 (tfm:height character))
-						      (* design-size
-							 (tfm:depth
-							  character))))
+						   (+ x (x pinned-character))
+						   (- y (height pinned-character))
+						   (width pinned-character)
+						   (+ (height pinned-character)
+						      (depth pinned-character)))
 			  :when (member :characters clues)
 			    :do (gp:draw-character pane
 						   (cadr (assoc (elt +lm-ec-encoding+
-								     (tfm:code character))
+								     (tfm:code (character-metrics pinned-character)))
 								+glyph-list+))
-						   (+ x (x line-character))
+						   (+ x (x pinned-character))
 						   y)
 			  ))))))
 

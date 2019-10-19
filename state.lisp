@@ -105,25 +105,55 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 				       :value (* design-size kern)))))
   lineup)
 
-;; #### NOTE: add y for raisebox.
-(defclass line-character ()
-  ((x :initarg :x :reader x)
-   (character-metrics :initarg :character-metrics :reader character-metrics)))
 
-;; #### FIXME: this should be split into line (without x and y) and
-;; paragraph-line (with them).
-(defclass paragraph-line ()
-  ((x :accessor x)
-   (y :accessor y)
-   (width :accessor width)
-   (height :accessor height)
-   (depth :accessor depth)
-   (characters :initarg :characters :reader characters)))
+(defclass pinned ()
+  ((x :initform 0 :initarg :x :accessor x)
+   (y :initform 0 :initarg :y :accessor y)))
+
+(defclass pinned-character (pinned)
+  ((character-metrics
+    :initform nil :initarg :character-metrics :accessor character-metrics)))
+
+(defmethod width ((pinned-character pinned-character))
+  (with-slots ((width tfm:width) (font tfm:font))
+      (character-metrics pinned-character)
+    (* (tfm:design-size font) width)))
+
+(defmethod height ((pinned-character pinned-character))
+  (with-slots ((height tfm:height) (font tfm:font))
+      (character-metrics pinned-character)
+    (* (tfm:design-size font) height)))
+
+(defmethod depth ((pinned-character pinned-character))
+  (with-slots ((depth tfm:depth) (font tfm:font))
+      (character-metrics pinned-character)
+    (* (tfm:design-size font) depth)))
+
+(defclass line ()
+  ((width :initform 0 :initarg :width :accessor width)
+   (height :initform 0 :initarg :height :accessor height)
+   (depth :initform 0 :initarg :depth :accessor depth)
+   (pinned-characters
+    :initform nil :initarg :pinned-characters :accessor pinned-characters)))
+
+(defclass pinned-line (pinned)
+  ((line :initform nil :initarg :line :accessor line)))
+
+(defmethod width ((pinned-line pinned-line))
+  (width (line pinned-line)))
+
+(defmethod height ((pinned-line pinned-line))
+  (height (line pinned-line)))
+
+(defmethod depth ((pinned-line pinned-line))
+  (depth (line pinned-line)))
+
 
 (defclass paragraph ()
-  ((width :initform 0 :initarg :width :reader width)
-   (height :initform 0 :accessor height)
-   (lines :initform nil :initarg :lines :reader lines)))
+  ((width :initform 0 :initarg :width :accessor width)
+   (height :initform 0 :initarg :height :accessor height)
+   (depth :initform 0 :initarg :depth :accessor depth)
+   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
 
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
@@ -157,30 +187,25 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 (defun render-line
     (lineup state &aux (design-size (tfm:design-size (font state))) line)
   (multiple-value-bind (elements lineup-remainder) (collect-line lineup state)
-    (setq line (make-instance 'paragraph-line
-		 :characters
+    (setq line (make-instance 'line
+		 :pinned-characters
 		 (loop :with x := 0
 		       :for element :in elements
 		       :if (typep element 'tfm::character-metrics)
-			 :collect (make-instance 'line-character
-				   :x x :character-metrics element)
+			 :collect (make-instance 'pinned-character
+				    :x x :character-metrics element)
 			 :and :do (incf x (* (tfm:width element) design-size))
 		       :else :if (typep element 'kern)
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
 			       :do (incf x (value element)))))
-    (loop :for line-character :in (characters line)
-	  :maximize (tfm:height (character-metrics line-character))
-	    :into height
-	  :maximize (tfm:depth (character-metrics line-character))
-	    :into depth
-	  :finally (setf (height line) (* design-size height)
-			 (depth line) (* design-size depth)))
-    (let ((last-line-character (car (last (characters line)))))
+    (loop :for pinned-character :in (pinned-characters line)
+	  :maximize (height pinned-character) :into height
+	  :maximize (depth pinned-character) :into depth
+	  :finally (setf (height line) height (depth line) depth))
+    (let ((last-pinned-character (car (last (pinned-characters line)))))
       (setf (width line)
-	    (+ (x last-line-character)
-	       (* design-size
-		  (tfm:width (character-metrics last-line-character))))))
+	    (+ (x last-pinned-character) (width last-pinned-character))))
     (list line lineup-remainder)))
 
 (defun render-lineup
@@ -189,31 +214,25 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 	  (paragraph
 	   (make-instance 'paragraph
 	     :width paragraph-width
-	     :lines (loop :while lineup
-			  :for (line lineup-remainder)
-			    := (render-line lineup state)
-			  :collect line
-			  :do (setq lineup lineup-remainder)))))
+	     :pinned-lines (loop :while lineup
+				 :for y := 0 :then (+ y 12)
+				 :for (line lineup-remainder)
+				   := (render-line lineup state)
+				 :collect (make-instance 'pinned-line
+					    :y y :line line)
+				 :do (setq lineup lineup-remainder)))))
   (case (disposition state)
-    (:flush-left
-     (loop :for y := 0 :then (+ y 12)
-	   :for line :in (lines paragraph)
-	   :do (setf (x line) 0
-		     (y line) y)))
     (:flush-right
-     (loop :for y := 0 :then (+ y 12)
-	   :for line :in (lines paragraph)
-	   :do (setf (x line) (- paragraph-width (width line))
-		     (y line) y)))
+     (loop :for pinned-line :in (pinned-lines paragraph)
+	   :do (setf (x pinned-line) (- paragraph-width (width pinned-line)))))
     (:centered
-     (loop :for y := 0 :then (+ y 12)
-	   :for line :in (lines paragraph)
-	   :do (setf (x line)(/ (abs (- paragraph-width (width line))) 2)
-		     (y line) y))))
-  (when (lines paragraph)
-    (setf (height paragraph) (+ (height (first (lines paragraph)))
-				(depth (car (last (lines paragraph))))
-				(* (1- (length (lines paragraph))) 12))))
+     (loop :for pinned-line :in (pinned-lines paragraph)
+	   :do (setf (x pinned-line)
+		     (/ (abs (- paragraph-width (width pinned-line))) 2)))))
+  (when (pinned-lines paragraph)
+    (setf (height paragraph) (height (first (pinned-lines paragraph)))
+	  (depth paragraph) (+ (depth (car (last (pinned-lines paragraph))))
+			       (* (1- (length (pinned-lines paragraph))) 12))))
   paragraph)
 
 (defun render (state)
