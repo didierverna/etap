@@ -100,37 +100,36 @@
 	:while (and i (<= (+ w ww) width))
 	:finally (return i)))
 
-(defun create-line
-    (start lineup width algorithm
-     &aux (glue-length (case algorithm
-			 ((:fixed :best-fit) #'value)
-			 (:first-fit #'max-length)
-			 (:last-fit #'min-length)))
-	  (end (line-end start lineup width glue-length))
-	  line)
-  (setq line (make-instance 'line
-	       :pinned-characters
-	       (loop :with x := 0
-		     :for i :from start
-		     :repeat (- (or end (length lineup)) start)
-		     :for element := (aref lineup i)
-		     :if (typep element 'tfm::character-metrics)
-		       :collect (make-instance 'pinned-character
-				  :x x :character-metrics element)
-		       :and :do (incf x (* (tfm:width element)
-					   (tfm:design-size
-					    (tfm:font element))))
-		     :else :if (typep element 'kern)
-			     :do (incf x (value element))
-		     :else :if (typep element 'glue)
-			     :do (incf x (funcall glue-length element)))))
-  (list line (when end (1+ end))))
-
-(defun create-lines (lineup width algorithm)
-  (loop :for start := 0 :then next
+(defun line-boundaries
+    (lineup width glue-length &aux (last (1- (length lineup))))
+  (loop :for start := 0 :then (when end (1+ end))
 	:while start
-	:for (line next) := (create-line start lineup width algorithm)
-	:collect line))
+	:for end := (line-end start lineup width glue-length)
+	:collect (list start (if end (1- end) last))))
+
+(defun create-line (lineup boundary glue-length)
+  (make-instance 'line
+    :pinned-characters
+    (loop :with x := 0
+	  :for i :from (car boundary) :upto (cadr boundary)
+	  :for element := (aref lineup i)
+	  :if (typep element 'tfm::character-metrics)
+	    :collect (make-instance 'pinned-character
+		       :x x :character-metrics element)
+	    :and :do (incf x (* (tfm:width element)
+				(tfm:design-size (tfm:font element))))
+	  :else :if (typep element 'kern)
+		  :do (incf x (value element))
+	  :else :if (typep element 'glue)
+		  :do (incf x (funcall glue-length element)))))
+
+(defun create-lines (lineup width algorithm
+		     &aux (glue-length (case algorithm
+					 ((:fixed :best-fit) #'value)
+					 (:first-fit #'max-length)
+					 (:last-fit #'min-length))))
+  (mapcar (lambda (boundary) (create-line lineup boundary glue-length))
+    (line-boundaries lineup width glue-length)))
 
 (defun create-paragraph
     (lineup width algorithm disposition
@@ -138,7 +137,7 @@
   (make-instance 'paragraph
     :disposition disposition
     :width width
-    :pinned-lines (loop :for line :in lines
-			:for y := 0 :then (+ y 12)
-			:collect (make-instance 'pinned-line
-				   :y y :line line))))
+    :pinned-lines
+    (loop :for line :in lines
+	  :for y := 0 :then (+ y 12)
+	  :collect (make-instance 'pinned-line :y y :line line))))
