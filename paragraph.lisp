@@ -143,6 +143,23 @@
 	:for end := (line-end start lineup width algorithm disposition)
 	:collect (list start end)))
 
+(defun make-line (lineup start end glue-length)
+  (unless end (setq end (length lineup)))
+  (make-instance 'line
+    :pinned-characters
+    (loop :with x := 0
+	  :for i :from start :upto (1- end)
+	  :for element := (aref lineup i)
+	  :if (typep element 'tfm::character-metrics)
+	    :collect (make-instance 'pinned-character
+		       :x x :character-metrics element)
+	    :and :do (incf x (* (tfm:width element)
+				(tfm:design-size (tfm:font element))))
+	  :else :if (typep element 'kern)
+		  :do (incf x (value element))
+	  :else :if (typep element 'glue)
+		  :do (incf x (funcall glue-length element)))))
+
 (defgeneric create-line (lineup boundary width algorithm disposition)
   (:method (lineup boundary width algorithm disposition
 	    &aux (start (car boundary))
@@ -151,21 +168,7 @@
 				((:fixed :best-fit) #'value)
 				(:first-fit #'max-length)
 				(:last-fit #'min-length))))
-    (unless end (setq end (length lineup)))
-    (make-instance 'line
-      :pinned-characters
-      (loop :with x := 0
-	    :for i :from start :upto (1- end)
-	    :for element := (aref lineup i)
-	    :if (typep element 'tfm::character-metrics)
-	      :collect (make-instance 'pinned-character
-			 :x x :character-metrics element)
-	      :and :do (incf x (* (tfm:width element)
-				  (tfm:design-size (tfm:font element))))
-	    :else :if (typep element 'kern)
-		    :do (incf x (value element))
-	    :else :if (typep element 'glue)
-		    :do (incf x (funcall glue-length element)))))
+    (make-line lineup start end glue-length))
   (:method (lineup boundary width algorithm (disposition (eql :justified))
 	    &aux (start (car boundary))
 		 (end (cadr boundary))
@@ -178,21 +181,7 @@
 					       lineup :start start :end end))
 				  (delta (/ (- width natural) n)))
 			     (lambda (glue) (+ (value glue) delta)))))))
-    (unless end (setq end (length lineup)))
-    (make-instance 'line
-      :pinned-characters
-      (loop :with x := 0
-	    :for i :from start :upto (1- end)
-	    :for element := (aref lineup i)
-	    :if (typep element 'tfm::character-metrics)
-	      :collect (make-instance 'pinned-character
-			 :x x :character-metrics element)
-	      :and :do (incf x (* (tfm:width element)
-				  (tfm:design-size (tfm:font element))))
-	    :else :if (typep element 'kern)
-		    :do (incf x (value element))
-	    :else :if (typep element 'glue)
-		    :do (incf x (funcall glue-length element))))))
+    (make-line lineup start end glue-length)))
 
 (defun create-lines (lineup width algorithm disposition)
   (mapcar (lambda (boundary)
