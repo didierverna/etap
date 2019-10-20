@@ -1,10 +1,14 @@
 (in-package :etap)
 
 (defclass kern () ((value :initarg :value :reader value)))
+
 (defclass glue ()
   ((value :initarg :value :reader value)
    (stretch :initarg :stretch :reader stretch)
    (shrink :initarg :shrink :reader shrink)))
+
+(defun max-length (glue) (+ (value glue) (stretch glue)))
+(defun min-length (glue) (- (value glue) (shrink glue)))
 
 (defconstant +blanks+ '(#\Space #\Tab #\Newline))
 

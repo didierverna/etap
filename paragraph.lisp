@@ -74,11 +74,9 @@
 		   (* (1- (length pinned-lines)) 12)))))
 
 
-(defun lineup-widths (lineup &optional (start 0) end)
+(defun lineup-width (lineup glue-length &optional (start 0) end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
 	:for element :in (nthcdr start lineup)
 	:repeat (- end start)
 	:if (typep element 'tfm::character-metrics)
@@ -87,42 +85,33 @@
 	:else :if (typep element 'kern)
 		:do (incf width (value element))
 	:else :if (typep element 'glue)
-		:do (incf width (value element))
-		:and :do (incf stretch (stretch element))
-		:and :do (incf shrink (shrink element))
-	:finally (return (list width (+ width stretch) (- width shrink)))))
+		:do (incf width (funcall glue-length element))
+	:finally (return width)))
 
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
-(defun collect-elements (lineup paragraph-width algorithm)
+(defun collect-elements (lineup paragraph-width glue-length)
   (loop :with i := (next-glue-position lineup)
 	:with ii := (when i (next-glue-position lineup (1+ i)))
-	:with width := (let ((widths (lineup-widths lineup 0 i)))
-			 (case algorithm
-			   ((:fixed :best-fit) (car widths))
-			   (:first-fit (cadr widths))
-			   (:last-fit (caddr widths))))
-	:while (and i (<= (+ width
-			     (let ((widths (lineup-widths lineup i ii)))
-			       (case algorithm
-				 ((:fixed :best-fit) (car widths))
-				 (:first-fit (cadr widths))
-				 (:last-fit (caddr widths)))))
+	:with width := (lineup-width lineup glue-length 0 i)
+	:while (and i (<= (+ width (lineup-width lineup glue-length i ii))
 			  paragraph-width))
-	:do (incf width (let ((widths (lineup-widths lineup i ii)))
-			  (case algorithm
-			    ((:fixed :best-fit) (car widths))
-			    (:first-fit (cadr widths))
-			    (:last-fit (caddr widths)))))
+	:do (incf width (lineup-width lineup glue-length i ii))
 	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
 	:finally (return (if i
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
 			   lineup))))
 
-(defun create-line (lineup width algorithm &aux line)
+(defun create-line
+    (lineup width algorithm
+     &aux (glue-length (case algorithm
+			 ((:fixed :best-fit) #'value)
+			 (:first-fit #'max-length)
+			 (:last-fit #'min-length)))
+	  line)
   (multiple-value-bind (elements remainder)
-      (collect-elements lineup width algorithm)
+      (collect-elements lineup width glue-length)
     (setq line (make-instance 'line
 		 :pinned-characters
 		 (loop :with x := 0
@@ -136,15 +125,7 @@
 		       :else :if (typep element 'kern)
 			       :do (incf x (value element))
 		       :else :if (typep element 'glue)
-			       :do (incf x (case algorithm
-					     ((:fixed :best-fit)
-					      (value element))
-					     (:first-fit
-					      (+ (value element)
-						 (stretch element)))
-					     (:last-fit
-					      (- (value element)
-						 (shrink element))))))))
+			       :do (incf x (funcall glue-length element)))))
     (list line remainder)))
 
 (defun create-lines (lineup width algorithm)
