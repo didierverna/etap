@@ -91,13 +91,13 @@
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
-(defun collect-elements (lineup paragraph-width glue-length)
+(defun collect-elements (lineup width glue-length)
   (loop :with i := (next-glue-position lineup)
 	:with ii := (when i (next-glue-position lineup (1+ i)))
-	:with width := (lineup-width lineup glue-length 0 i)
-	:while (and i (<= (+ width (lineup-width lineup glue-length i ii))
-			  paragraph-width))
-	:do (incf width (lineup-width lineup glue-length i ii))
+	:with w := (lineup-width lineup glue-length 0 i)
+	:for ww := (when i (lineup-width lineup glue-length i ii))
+	:while (and i (<= (+ w ww) width))
+	:do (incf w ww)
 	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
 	:finally (return (if i
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
