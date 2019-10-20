@@ -77,8 +77,8 @@
 (defun lineup-width (lineup glue-length &optional (start 0) end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
-	:for element :in (nthcdr start lineup)
 	:repeat (- end start)
+	:for element :in (nthcdr start lineup)
 	:if (typep element 'tfm::character-metrics)
 	  :do (incf width (* (tfm:design-size (tfm:font element))
 			     (tfm:width element)))
