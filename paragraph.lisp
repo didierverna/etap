@@ -81,8 +81,7 @@
 		      (:min #'min-length)))
   (unless end (setq end (length lineup)))
   (loop :with width := 0
-	:for i :from start
-	:repeat (- end start)
+	:for i :from start :upto (1- end)
 	:for element := (aref lineup i)
 	:if (typep element 'tfm::character-metrics)
 	  :do (incf width (* (tfm:design-size (tfm:font element))
@@ -93,49 +92,107 @@
 		:do (incf width (funcall glue-length element))
 	:finally (return width)))
 
+(defun lineup-span (lineup start end)
+  (unless end (setq end (length lineup)))
+  (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
+	:for i :from start :upto (1- end)
+	:for element := (aref lineup i)
+	:if (typep element 'tfm::character-metrics)
+	  :do (incf width (* (tfm:design-size (tfm:font element))
+			     (tfm:width element)))
+	:else :if (typep element 'kern)
+		:do (incf width (value element))
+	:else :if (typep element 'glue)
+		:do (incf width (value element))
+		:and :do (incf stretch (stretch element))
+		:and :do (incf shrink (shrink element))
+	:finally (return (list width (+ width stretch) (- width shrink)))))
+
 (defun next-glue-position (lineup &optional (start 0))
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
-(defun line-end
-    (start lineup width algorithm disposition
-     &aux (glue-length (case algorithm
-			 ((:fixed :best-fit) :natural)
-			 (:first-fit :max)
-			 (:last-fit :min))))
-  (loop :for i := (next-glue-position lineup start) :then ii
-	:for ii := (when i (next-glue-position lineup (1+ i)))
-	:for w := (lineup-width lineup start i glue-length) :then (+ w ww)
-	:for ww := (when i (lineup-width lineup i ii glue-length))
-	:while (and i (<= (+ w ww) width))
-	:finally (return i)))
+(defgeneric line-end (start lineup width algorithm disposition)
+  (:method (start lineup width algorithm disposition
+	    &aux (glue-length (case algorithm
+				((:fixed :best-fit) :natural)
+				(:first-fit :max)
+				(:last-fit :min))))
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for w := (lineup-width lineup start i glue-length) :then (+ w ww)
+	  :for ww := (when i (lineup-width lineup i ii glue-length))
+	  :while (and i (<= (+ w ww) width))
+	  :finally (return i)))
+  (:method (start lineup width
+	    (algorithm (eql :first-fit)) (disposition (eql :justified)))
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
+	  :for ss := (when i (lineup-span lineup i ii))
+	  :until (or (> (caddr s) width)
+		     (and (<= (caddr s) width) (>= (cadr s) width))
+		     (null i))
+	  :finally (return i)))
+    )
 
-(defun line-boundaries
-    (lineup width algorithm disposition &aux (last (1- (length lineup))))
+(defun line-boundaries (lineup width algorithm disposition)
   (loop :for start := 0 :then (when end (1+ end))
 	:while start
 	:for end := (line-end start lineup width algorithm disposition)
-	:collect (list start (if end (1- end) last))))
+	:collect (list start end)))
 
-(defun create-line
-    (lineup boundary width algorithm disposition
-     &aux (glue-length (case algorithm
-			 ((:fixed :best-fit) #'value)
-			 (:first-fit #'max-length)
-			 (:last-fit #'min-length))))
-  (make-instance 'line
-    :pinned-characters
-    (loop :with x := 0
-	  :for i :from (car boundary) :upto (cadr boundary)
-	  :for element := (aref lineup i)
-	  :if (typep element 'tfm::character-metrics)
-	    :collect (make-instance 'pinned-character
-		       :x x :character-metrics element)
-	    :and :do (incf x (* (tfm:width element)
-				(tfm:design-size (tfm:font element))))
-	  :else :if (typep element 'kern)
-		  :do (incf x (value element))
-	  :else :if (typep element 'glue)
-		  :do (incf x (funcall glue-length element)))))
+(defgeneric create-line (lineup boundary width algorithm disposition)
+  (:method (lineup boundary width algorithm disposition
+	    &aux (start (car boundary))
+		 (end (cadr boundary))
+		 (glue-length (case algorithm
+				((:fixed :best-fit) #'value)
+				(:first-fit #'max-length)
+				(:last-fit #'min-length))))
+    (unless end (setq end (length lineup)))
+    (make-instance 'line
+      :pinned-characters
+      (loop :with x := 0
+	    :for i :from start :upto (1- end)
+	    :for element := (aref lineup i)
+	    :if (typep element 'tfm::character-metrics)
+	      :collect (make-instance 'pinned-character
+			 :x x :character-metrics element)
+	      :and :do (incf x (* (tfm:width element)
+				  (tfm:design-size (tfm:font element))))
+	    :else :if (typep element 'kern)
+		    :do (incf x (value element))
+	    :else :if (typep element 'glue)
+		    :do (incf x (funcall glue-length element)))))
+  (:method (lineup boundary width algorithm (disposition (eql :justified))
+	    &aux (start (car boundary))
+		 (end (cadr boundary))
+		 (span (lineup-span lineup start end))
+		 (glue-length
+		  (cond ((> (caddr span) width) #'min-length)
+			((< (cadr span) width) #'max-length)
+			(t (let* ((natural (lineup-width lineup start end))
+				  (n (count-if (lambda (elt) (typep elt 'glue))
+					       lineup :start start :end end))
+				  (delta (/ (- width natural) n)))
+			     (lambda (glue) (+ (value glue) delta)))))))
+    (unless end (setq end (length lineup)))
+    (make-instance 'line
+      :pinned-characters
+      (loop :with x := 0
+	    :for i :from start :upto (1- end)
+	    :for element := (aref lineup i)
+	    :if (typep element 'tfm::character-metrics)
+	      :collect (make-instance 'pinned-character
+			 :x x :character-metrics element)
+	      :and :do (incf x (* (tfm:width element)
+				  (tfm:design-size (tfm:font element))))
+	    :else :if (typep element 'kern)
+		    :do (incf x (value element))
+	    :else :if (typep element 'glue)
+		    :do (incf x (funcall glue-length element))))))
 
 (defun create-lines (lineup width algorithm disposition)
   (mapcar (lambda (boundary)
