@@ -92,13 +92,11 @@
   (position-if (lambda (element) (typep element 'glue)) lineup :start start))
 
 (defun collect-elements (lineup width glue-length)
-  (loop :with i := (next-glue-position lineup)
-	:with ii := (when i (next-glue-position lineup (1+ i)))
-	:with w := (lineup-width lineup glue-length 0 i)
+  (loop :for i := (next-glue-position lineup) :then ii
+	:for ii := (when i (next-glue-position lineup (1+ i)))
+	:for w := (lineup-width lineup glue-length 0 i) :then (+ w ww)
 	:for ww := (when i (lineup-width lineup glue-length i ii))
 	:while (and i (<= (+ w ww) width))
-	:do (incf w ww)
-	:do (setq i ii ii (when i (next-glue-position lineup (1+ i))))
 	:finally (return (if i
 			   (values (subseq lineup 0 i) (subseq lineup (1+ i)))
 			   lineup))))
