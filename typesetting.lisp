@@ -76,4 +76,4 @@
 		  :collect (make-instance 'kern
 			     :value (* (tfm:design-size (tfm:font elt1))
 				       kern)))))
-  lineup)
+  (when lineup (make-array (length lineup) :initial-contents lineup)))

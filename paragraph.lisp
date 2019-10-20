@@ -77,8 +77,9 @@
 (defun lineup-width (lineup glue-length &optional (start 0) end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
+	:for i :from start
 	:repeat (- end start)
-	:for element :in (nthcdr start lineup)
+	:for element := (aref lineup i)
 	:if (typep element 'tfm::character-metrics)
 	  :do (incf width (* (tfm:design-size (tfm:font element))
 			     (tfm:width element)))
@@ -110,8 +111,9 @@
   (setq line (make-instance 'line
 	       :pinned-characters
 	       (loop :with x := 0
-		     :for element :in (nthcdr start lineup)
+		     :for i :from start
 		     :repeat (- (or end (length lineup)) start)
+		     :for element := (aref lineup i)
 		     :if (typep element 'tfm::character-metrics)
 		       :collect (make-instance 'pinned-character
 				  :x x :character-metrics element)
