@@ -62,16 +62,17 @@
 
 (defmethod initialize-instance :after ((paragraph paragraph) &key disposition)
   (with-slots (width height depth pinned-lines) paragraph
-    (case disposition
-      (:flush-right
-       (dolist (pinned-line pinned-lines)
-	 (setf (x pinned-line) (- width (width pinned-line)))))
-      (:centered
-       (dolist (pinned-line pinned-lines)
-	 (setf (x pinned-line) (/ (- width (width pinned-line)) 2)))))
-    (setf height (height (first pinned-lines))
-	  depth (+ (depth (car (last pinned-lines)))
-		   (* (1- (length pinned-lines)) 12)))))
+    (when pinned-lines
+      (case disposition
+	(:flush-right
+	 (dolist (pinned-line pinned-lines)
+	   (setf (x pinned-line) (- width (width pinned-line)))))
+	(:centered
+	 (dolist (pinned-line pinned-lines)
+	   (setf (x pinned-line) (/ (- width (width pinned-line)) 2)))))
+      (setf height (height (first pinned-lines))
+	    depth (+ (depth (car (last pinned-lines)))
+		     (* (1- (length pinned-lines)) 12))))))
 
 
 (defun lineup-width (lineup start end &optional (glue-length :natural))
