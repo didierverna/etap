@@ -131,9 +131,10 @@
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
 	  :for ss := (when i (lineup-span lineup i ii))
-	  :until (or (> (caddr s) width)
-		     (and (<= (caddr s) width) (>= (cadr s) width))
-		     (null i))
+	  :until (or (and (<= (caddr s) width) (>= (cadr s) width))
+		     (null ss)
+		     (let ((sss (mapcar #'+ s ss)))
+		       (> (caddr sss) width)))
 	  :finally (return i)))
   (:method (start lineup width
 	    (algorithm (eql :last-fit)) (disposition (eql :justified)))
