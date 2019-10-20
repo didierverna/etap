@@ -123,7 +123,7 @@
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-width lineup start i glue-length) :then (+ w ww)
 	  :for ww := (when i (lineup-width lineup i ii glue-length))
-	  :while (and i (<= (+ w ww) width))
+	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
   (:method (start lineup width
 	    (algorithm (eql :first-fit)) (disposition (eql :justified)))
