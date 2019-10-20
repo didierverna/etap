@@ -14,31 +14,30 @@
 
 (defun blankp (character) (member character +blanks+))
 
-(defun lineup
-    (text font features
-     &aux (text (string-trim +blanks+ text))
-	  (glue (let ((design-size (tfm:design-size font)))
-		  (make-instance 'glue
-		    :value (* (tfm:interword-space font) design-size)
-		    :stretch (* (tfm:interword-stretch font) design-size)
-		    :shrink (* (tfm:interword-shrink font) design-size))))
-	  lineup)
-  (setq lineup (loop :with length := (length text)
-		     :with i := 0
-
-		     :while (< i length)
-		     :for character := (tfm:get-character
-					(char-code (aref text i)) font)
-
-		     :if (blankp (aref text i))
-		       :collect glue
-		       :and :do (setq i (position-if-not #'blankp text
-							 :start i))
-		     :else :if character
-			     :collect character
-			     :and :do (incf i)
-		     :else
-		       :do (incf i)))
+(defun lineup (text font features &aux lineup)
+  (setq lineup
+	(loop :with text := (string-trim +blanks+ text)
+	      :with length := (length text)
+	      :with glue := (let ((design-size (tfm:design-size font)))
+			      (make-instance 'glue
+				:value (* (tfm:interword-space font)
+					  design-size)
+				:stretch (* (tfm:interword-stretch font)
+					    design-size)
+				:shrink (* (tfm:interword-shrink font)
+					   design-size)))
+	      :with i := 0
+	      :while (< i length)
+	      :for character
+		:= (tfm:get-character (char-code (aref text i)) font)
+	      :if (blankp (aref text i))
+		:collect glue
+		:and :do (setq i (position-if-not #'blankp text :start i))
+	      :else :if character
+		      :collect character
+		      :and :do (incf i)
+	      :else
+		:do (incf i)))
   (when (member :ligatures features)
     (setq lineup
 	  (loop :with elements := lineup
