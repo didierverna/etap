@@ -112,7 +112,7 @@
 					     5
 					     (+ (height pinned-line)
 						(depth pinned-line))
-		       :foreground :orange :filled t)
+		       :foreground :orange)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple)
