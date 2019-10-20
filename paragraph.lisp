@@ -135,7 +135,18 @@
 		     (and (<= (caddr s) width) (>= (cadr s) width))
 		     (null i))
 	  :finally (return i)))
-    )
+  (:method (start lineup width
+	    (algorithm (eql :last-fit)) (disposition (eql :justified)))
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
+	  :for ss := (when i (lineup-span lineup i ii))
+	  :while (and ss (let ((sss (mapcar #'+ s ss)))
+			   (or (< (cadr sss) width)
+			       (and (<= (caddr sss) width)
+				    (>= (cadr sss) width)))))
+	  :finally (return i)))
+  )
 
 (defun line-boundaries (lineup width algorithm disposition)
   (loop :for start := 0 :then (when end (1+ end))
