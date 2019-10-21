@@ -157,15 +157,47 @@
 	  :else :if (and (<= (caddr s) width) (>= (cadr s) width))
 		  :do (push (cons i s) fit-spans)
 	  :else :do (setq overfull-span (cons i s))
-	  :finally (return (case algorithm
-			     (:first-fit
-			      (cond (fit-spans (caar (last fit-spans)))
-				    (underfull-span (car underfull-span))
-				    (t (car overfull-span))))
-			     (:last-fit
-			      (cond (fit-spans (caar fit-spans))
-				    (overfull-span (car overfull-span))
-				    (t (car underfull-span)))))))))
+	  :finally
+	     (return (case algorithm
+		       (:first-fit
+			(cond (fit-spans (caar (last fit-spans)))
+			      (underfull-span (car underfull-span))
+			      (t (car overfull-span))))
+		       (:last-fit
+			(cond (fit-spans (caar fit-spans))
+			      (overfull-span (car overfull-span))
+			      (t (car underfull-span))))
+		       (:best-fit
+			(if fit-spans
+			  ;; #### NOTE: two choices might be best-equals,
+			  ;; when we get the same delta, once for shrink and
+			  ;; once for stretch. We could offer those two
+			  ;; alternatives.
+			  (cdr (first (sort
+				       (mapcar
+					   (lambda (fit-span)
+					     (cons (delta lineup start
+							  (car fit-span) width)
+						   (car fit-span)))
+					 fit-spans)
+				       #'<
+				       :key (lambda (elt) (abs (car elt))))))
+			  (let ((underfull-delta
+				  (when underfull-span
+				    (- width
+				       (lineup-width
+					lineup start (car underfull-span)))))
+				(overfull-delta
+				  (when overfull-span
+				    (- (lineup-width
+					lineup start (car underfull-span))
+				       width))))
+			    (cond ((and underfull-delta overfull-delta)
+				   (if (< underfull-delta overfull-delta)
+				     (car underfull-span)
+				     (car overfull-span)))
+				  (underfull-delta (car underfull-span))
+				  (t (car overfull-span)))))))))))
 
 (defun line-boundaries (lineup width algorithm disposition)
   (loop :for start := 0 :then (when end (1+ end))
