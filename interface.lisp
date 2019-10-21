@@ -24,9 +24,6 @@
 
 (defun set-algorithm (value interface &aux (state (state interface)))
   (cond ((eq value :fixed)
-	 (when (eq (disposition state) :justified)
-	   (setf (disposition state) :flush-left
-		 (choice-selected-item (disposition interface)) :flush-left))
 	 (set-button-panel-enabled-items (disposition interface)
 	   :set t :disable '(:justified)))
 	(t
@@ -34,7 +31,12 @@
   (setf (algorithm (state interface)) value)
   (update interface))
 
-(defun set-disposition (value interface)
+(defun set-disposition (value interface &aux (state (state interface)))
+  (cond ((eq value :justified)
+	 (set-button-panel-enabled-items (algorithm interface)
+	   :set t :disable '(:fixed)))
+	(t
+	 (set-button-panel-enabled-items (algorithm interface) :set t)))
   (setf (disposition (state interface)) value)
   (update interface))
 
