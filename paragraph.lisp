@@ -126,29 +126,30 @@
 	  :for ww := (when i (lineup-width lineup i ii glue-length))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
-  (:method (start lineup width
-	    (algorithm (eql :first-fit)) (disposition (eql :justified)))
-    (loop :for i := (next-glue-position lineup start) :then ii
+  (:method (start lineup width algorithm (disposition (eql :justified)))
+    (loop :with underfull-span
+	  :with fit-spans := (list)
+	  :with overfull-span
+	  :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
 	  :for ss := (when i (lineup-span lineup i ii))
-	  :until (or (null ss)
-		     (and (<= (caddr s) width) (>= (cadr s) width))
-		     (let ((sss (mapcar #'+ s ss)))
-		       (> (caddr sss) width)))
-	  :finally (return i)))
-  (:method (start lineup width
-	    (algorithm (eql :last-fit)) (disposition (eql :justified)))
-    (loop :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
-	  :for ss := (when i (lineup-span lineup i ii))
-	  :while (and ss (let ((sss (mapcar #'+ s ss)))
-			   (or (< (cadr sss) width)
-			       (and (<= (caddr sss) width)
-				    (>= (cadr sss) width)))))
-	  :finally (return i)))
-  )
+	  ;; #### NOTE: s becomes NIL when doing (mapcar #'+ s NIL).
+	  :while (and s (not overfull-span))
+	  :if (< (cadr s) width)
+	    :do (setq underfull-span (cons i s))
+	  :else :if (and (<= (caddr s) width) (>= (cadr s) width))
+		  :do (push (cons i s) fit-spans)
+	  :else :do (setq overfull-span (cons i s))
+	  :finally (return (case algorithm
+			     (:first-fit
+			      (cond (fit-spans (caar (last fit-spans)))
+				    (underfull-span (car underfull-span))
+				    (t (car overfull-span))))
+			     (:last-fit
+			      (cond (fit-spans (caar fit-spans))
+				    (overfull-span (car overfull-span))
+				    (t (car underfull-span)))))))))
 
 (defun line-boundaries (lineup width algorithm disposition)
   (loop :for start := 0 :then (when end (1+ end))
