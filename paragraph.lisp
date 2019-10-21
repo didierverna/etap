@@ -8,6 +8,9 @@
   ((character-metrics
     :initform nil :initarg :character-metrics :accessor character-metrics)))
 
+(defun make-pinned-character (&rest initargs)
+  (apply #'make-instance 'pinned-character initargs))
+
 (defmethod width ((pinned-character pinned-character))
   (with-slots ((width tfm:width) (font tfm:font))
       (character-metrics pinned-character)
@@ -31,6 +34,9 @@
    (pinned-characters
     :initform nil :initarg :pinned-characters :accessor pinned-characters)))
 
+(defun make-line (&rest initargs)
+  (apply #'make-instance 'line initargs))
+
 (defmethod initialize-instance :after ((line line) &key)
   (loop :for pinned-character :in (pinned-characters line)
 	:maximize (height pinned-character) :into height
@@ -43,6 +49,9 @@
 
 (defclass pinned-line (pinned)
   ((line :initform nil :initarg :line :accessor line)))
+
+(defun make-pinned-line (&rest initargs)
+  (apply #'make-instance 'pinned-line initargs))
 
 (defmethod width ((pinned-line pinned-line))
   (width (line pinned-line)))
@@ -59,6 +68,9 @@
    (height :initform 0 :initarg :height :accessor height)
    (depth :initform 0 :initarg :depth :accessor depth)
    (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
+
+(defun make-paragraph (&rest initargs)
+  (apply #'make-instance 'paragraph initargs))
 
 (defmethod initialize-instance :after ((paragraph paragraph) &key disposition)
   (with-slots (width height depth pinned-lines) paragraph
@@ -87,9 +99,9 @@
 	:if (typep element 'tfm::character-metrics)
 	  :do (incf width (* (tfm:design-size (tfm:font element))
 			     (tfm:width element)))
-	:else :if (typep element 'kern)
+	:else :if (kernp element)
 		:do (incf width (value element))
-	:else :if (typep element 'glue)
+	:else :if (gluep element)
 		:do (incf width (funcall glue-length element))
 	:finally (return width)))
 
@@ -103,23 +115,27 @@
 	:if (typep element 'tfm::character-metrics)
 	  :do (incf width (* (tfm:design-size (tfm:font element))
 			     (tfm:width element)))
-	:else :if (typep element 'kern)
+	:else :if (kernp element)
 		:do (incf width (value element))
-	:else :if (typep element 'glue)
+	:else :if (gluep element)
 		:do (incf width (value element))
 		:and :do (incf stretch (stretch element))
 		:and :do (incf shrink (shrink element))
 	:finally (return (list width (+ width stretch) (- width shrink)))))
 
+(defun delta (lineup start end width)
+  (/ (- width (lineup-width lineup start end))
+     (count-if #'gluep lineup :start start :end end)))
+
 (defun next-glue-position (lineup &optional (start 0))
-  (position-if (lambda (element) (typep element 'glue)) lineup :start start))
+  (position-if #'gluep lineup :start start))
 
 (defgeneric line-end (start lineup width algorithm disposition)
-  (:method (start lineup width algorithm disposition
-	    &aux (glue-length (case algorithm
-				((:fixed :best-fit) :natural)
-				(:first-fit :max)
-				(:last-fit :min))))
+  (:method (start lineup width algorithm disposition &aux glue-length)
+    (setq glue-length (case algorithm
+			((:fixed :best-fit) :natural)
+			(:first-fit :max)
+			(:last-fit :min)))
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-width lineup start i glue-length) :then (+ w ww)
@@ -157,59 +173,50 @@
 	:for end := (line-end start lineup width algorithm disposition)
 	:collect (list start end)))
 
-(defun make-line (lineup start end glue-length)
+(defun create-line-1 (lineup start end glue-length)
   (unless end (setq end (length lineup)))
-  (make-instance 'line
-    :pinned-characters
-    (loop :with x := 0
-	  :for i :from start :upto (1- end)
-	  :for element := (aref lineup i)
-	  :if (typep element 'tfm::character-metrics)
-	    :collect (make-instance 'pinned-character
-		       :x x :character-metrics element)
-	    :and :do (incf x (* (tfm:width element)
-				(tfm:design-size (tfm:font element))))
-	  :else :if (typep element 'kern)
-		  :do (incf x (value element))
-	  :else :if (typep element 'glue)
-		  :do (incf x (funcall glue-length element)))))
+  (make-line
+   :pinned-characters
+   (loop :with x := 0
+	 :for i :from start :upto (1- end)
+	 :for element := (aref lineup i)
+	 :if (typep element 'tfm::character-metrics)
+	   :collect (make-pinned-character :x x :character-metrics element)
+	   :and :do (incf x (* (tfm:width element)
+			       (tfm:design-size (tfm:font element))))
+	 :else :if (kernp element)
+		 :do (incf x (value element))
+	 :else :if (gluep element)
+		 :do (incf x (funcall glue-length element)))))
 
 (defgeneric create-line (lineup boundary width algorithm disposition)
   (:method (lineup boundary width algorithm disposition
-	    &aux (start (car boundary))
-		 (end (cadr boundary))
-		 (glue-length (case algorithm
-				((:fixed :best-fit) #'value)
-				(:first-fit #'max-length)
-				(:last-fit #'min-length))))
-    (make-line lineup start end glue-length))
+	    &aux (start (car boundary)) (end (cadr boundary)) glue-length)
+    (setq glue-length (case algorithm
+			((:fixed :best-fit) #'value)
+			(:first-fit #'max-length)
+			(:last-fit #'min-length)))
+    (create-line-1 lineup start end glue-length))
   (:method (lineup boundary width algorithm (disposition (eql :justified))
-	    &aux (start (car boundary))
-		 (end (cadr boundary))
-		 (span (lineup-span lineup start end))
-		 (glue-length
-		  (cond ((> (caddr span) width) #'min-length)
-			((< (cadr span) width) #'max-length)
-			(t (let* ((natural (lineup-width lineup start end))
-				  (n (count-if (lambda (elt) (typep elt 'glue))
-					       lineup :start start :end end))
-				  (delta (/ (- width natural) n)))
-			     (lambda (glue) (+ (value glue) delta)))))))
-    (make-line lineup start end glue-length)))
+	    &aux (start (car boundary)) (end (cadr boundary)) span glue-length)
+    (setq span (lineup-span lineup start end)
+	  glue-length
+	  (cond ((> (caddr span) width) #'min-length)
+		((< (cadr span) width) #'max-length)
+		(t (let ((delta (delta lineup start end width)))
+		     (lambda (glue) (+ (value glue) delta))))))
+    (create-line-1 lineup start end glue-length)))
 
 (defun create-lines (lineup width algorithm disposition)
   (mapcar (lambda (boundary)
 	    (create-line lineup boundary width algorithm disposition))
     (line-boundaries lineup width algorithm disposition)))
 
-(defun create-paragraph
-    (lineup width algorithm disposition
-     &aux (lines (when lineup
-		   (create-lines lineup width algorithm disposition))))
-  (make-instance 'paragraph
-    :disposition disposition
-    :width width
-    :pinned-lines
-    (loop :for line :in lines
-	  :for y := 0 :then (+ y 12)
-	  :collect (make-instance 'pinned-line :y y :line line))))
+(defun create-paragraph (lineup width algorithm disposition &aux lines)
+  (setf lines (when lineup (create-lines lineup width algorithm disposition)))
+  (make-paragraph
+   :disposition disposition
+   :width width
+   :pinned-lines (loop :for line :in lines
+		       :for y := 0 :then (+ y 12)
+		       :collect (make-pinned-line :y y :line line))))

@@ -44,8 +44,8 @@
   (setf (text (state interface)) (editor-pane-text pane))
   (update interface))
 
-(defun set-paragraph-width (pane value status
-			    &aux (interface (top-level-interface pane)))
+(defun set-paragraph-width
+    (pane value status &aux (interface (top-level-interface pane)))
   (declare (ignore status))
   (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
@@ -53,8 +53,8 @@
   (setf (paragraph-width (state interface)) value)
   (update interface))
 
-(defun set-paragraph-zoom (pane value status
-			    &aux (interface (top-level-interface pane)))
+(defun set-paragraph-zoom
+    (pane value status &aux (interface (top-level-interface pane)))
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
   (gp:invalidate-rectangle (typeset-paragraph interface)))
@@ -137,7 +137,7 @@
 			  ))))))
 
 (define-interface etap ()
-  ((state :initform (make-instance 'state) :reader state))
+  ((state :initform (make-state) :reader state))
   (:panes
    (algorithm radio-button-panel
      :layout-class 'column-layout

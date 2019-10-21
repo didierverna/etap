@@ -1,17 +1,19 @@
 (in-package :etap)
 
 (defclass kern () ((value :initarg :value :reader value)))
+(defun kernp (object) (typep object 'kern))
+(defun make-kern (&rest initargs) (apply #'make-instance 'kern initargs))
 
 (defclass glue ()
   ((value :initarg :value :reader value)
    (stretch :initarg :stretch :reader stretch)
    (shrink :initarg :shrink :reader shrink)))
-
+(defun gluep (object) (typep object 'glue))
+(defun make-glue (&rest initargs) (apply #'make-instance 'glue initargs))
 (defun max-length (glue) (+ (value glue) (stretch glue)))
 (defun min-length (glue) (- (value glue) (shrink glue)))
 
 (defconstant +blanks+ '(#\Space #\Tab #\Newline))
-
 (defun blankp (character) (member character +blanks+))
 
 (defun lineup (text font features &aux lineup)
@@ -19,13 +21,13 @@
 	(loop :with text := (string-trim +blanks+ text)
 	      :with length := (length text)
 	      :with glue := (let ((design-size (tfm:design-size font)))
-			      (make-instance 'glue
-				:value (* (tfm:interword-space font)
-					  design-size)
-				:stretch (* (tfm:interword-stretch font)
-					    design-size)
-				:shrink (* (tfm:interword-shrink font)
-					   design-size)))
+			      (make-glue
+			       :value (* (tfm:interword-space font)
+					 design-size)
+			       :stretch (* (tfm:interword-stretch font)
+					   design-size)
+			       :shrink (* (tfm:interword-shrink font)
+					  design-size)))
 	      :with i := 0
 	      :while (< i length)
 	      :for character
@@ -73,7 +75,7 @@
 			       (tfm:kerning elt1 elt2))
 		:collect elt1
 		:when kern
-		  :collect (make-instance 'kern
-			     :value (* (tfm:design-size (tfm:font elt1))
-				       kern)))))
+		  :collect (make-kern
+			    :value (* (tfm:design-size (tfm:font elt1))
+				      kern)))))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
