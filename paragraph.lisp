@@ -190,7 +190,7 @@
 				(overfull-delta
 				  (when overfull-span
 				    (- (lineup-width
-					lineup start (car underfull-span))
+					lineup start (car overfull-span))
 				       width))))
 			    (cond ((and underfull-delta overfull-delta)
 				   (if (< underfull-delta overfull-delta)
