@@ -63,30 +63,6 @@
   (depth (line pinned-line)))
 
 
-(defclass paragraph ()
-  ((width :initform 0 :initarg :width :accessor width)
-   (height :initform 0 :initarg :height :accessor height)
-   (depth :initform 0 :initarg :depth :accessor depth)
-   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
-
-(defun make-paragraph (&rest initargs)
-  (apply #'make-instance 'paragraph initargs))
-
-(defmethod initialize-instance :after ((paragraph paragraph) &key disposition)
-  (with-slots (width height depth pinned-lines) paragraph
-    (when pinned-lines
-      (case disposition
-	(:flush-right
-	 (dolist (pinned-line pinned-lines)
-	   (setf (x pinned-line) (- width (width pinned-line)))))
-	(:centered
-	 (dolist (pinned-line pinned-lines)
-	   (setf (x pinned-line) (/ (- width (width pinned-line)) 2)))))
-      (setf height (height (first pinned-lines))
-	    depth (+ (depth (car (last pinned-lines)))
-		     (* (1- (length pinned-lines)) 12))))))
-
-
 (defun lineup-width (lineup start end &optional (glue-length :natural))
   (setq glue-length (case glue-length
 		      (:natural #'value)
@@ -212,11 +188,12 @@
 
 (defun line-boundaries
     (lineup width disposition algorithm &rest options &key &allow-other-keys)
-  (loop :for start := 0 :then (when end (1+ end))
-	:while start
-	:for end := (apply #'line-end
-		      start lineup width disposition algorithm options)
-	:collect (list start end)))
+  (when lineup
+    (loop :for start := 0 :then (when end (1+ end))
+	  :while start
+	  :for end := (apply #'line-end
+			start lineup width disposition algorithm options)
+	  :collect (list start end))))
 
 (defun create-line-1 (lineup start end glue-length)
   (unless end (setq end (length lineup)))
@@ -267,14 +244,36 @@
 	      lineup boundary width disposition algorithm options))
     (apply #'line-boundaries lineup width disposition algorithm options)))
 
-(defun create-paragraph (lineup width disposition algorithm
-			 &rest options &key &allow-other-keys
-			 &aux lines)
-  (setf lines (when lineup (apply #'create-lines
-			     lineup width disposition algorithm options)))
+(defun create-pinned-lines
+    (lineup width disposition algorithm &rest options &key &allow-other-keys)
+  (loop :for line :in (apply #'create-lines
+			lineup width disposition algorithm options)
+	:for x := (case disposition
+		    ((:flush-left :justified) 0)
+		    (:centered (/ (- width (width line)) 2))
+		    (:flush-right (- width (width line))))
+	:for y := 0 :then (+ y 12)
+	:collect (make-pinned-line :x x :y y :line line)))
+
+
+(defclass paragraph ()
+  ((width :initform 0 :initarg :width :accessor width)
+   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
+
+(defmethod height ((paragraph paragraph))
+  (height (first (pinned-lines paragraph))))
+
+(defmethod depth ((paragraph paragraph))
+  (with-accessors ((pinned-lines pinned-lines)) paragraph
+    (+ (* (1- (length pinned-lines)) 12)
+       (depth (car (last pinned-lines))))))
+
+(defun make-paragraph (&rest initargs)
+  (apply #'make-instance 'paragraph initargs))
+
+(defun create-paragraph
+    (lineup width disposition algorithm &rest options &key &allow-other-keys)
   (make-paragraph
-   :disposition disposition
    :width width
-   :pinned-lines (loop :for line :in lines
-		       :for y := 0 :then (+ y 12)
-		       :collect (make-pinned-line :y y :line line))))
+   :pinned-lines
+   (apply #'create-pinned-lines lineup width disposition algorithm options)))
