@@ -180,7 +180,7 @@
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
      :visible-max-width nil
-     :items '(:flush-left :flush-right :centered :justified)
+     :items '(:flush-left :centered :flush-right :justified)
      :print-function 'keyword-capitalize
      :selection-callback 'set-disposition
      :reader disposition)
