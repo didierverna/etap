@@ -22,7 +22,7 @@
 	(remove value (features (state interface))))
   (update interface))
 
-(defun set-algorithm (value interface &aux (state (state interface)))
+(defun set-algorithm (value interface)
   (cond ((eq value :fixed)
 	 (set-button-panel-enabled-items (disposition interface)
 	   :set t :disable '(:justified)))
@@ -31,7 +31,7 @@
   (setf (algorithm (state interface)) value)
   (update interface))
 
-(defun set-disposition (value interface &aux (state (state interface)))
+(defun set-disposition (value interface)
   (cond ((eq value :justified)
 	 (set-button-panel-enabled-items (algorithm interface)
 	   :set t :disable '(:fixed)))
