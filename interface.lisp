@@ -24,10 +24,22 @@
   (setf (algorithm (state interface))
 	(cons algorithm
 	      (case algorithm
-		(:fixed)
+		(:fixed
+		 (when (button-selected (fixed-variant interface))
+		   (list :prefer-overfull-lines t)))
 		(:*-fit
 		 (list :variant
 		       (choice-selected-item (*-fit-variant interface)))))))
+  (update interface))
+
+(defun set-fixed-variant-overfull (value interface)
+  (declare (ignore value))
+  (setf (algorithm (state interface)) (list :fixed :prefer-overfull-lines t))
+  (update interface))
+
+(defun set-fixed-variant-underfull (value interface)
+  (declare (ignore value))
+  (setf (algorithm (state interface)) (list :fixed))
   (update interface))
 
 (defun set-*-fit-variant (value interface)
@@ -149,9 +161,12 @@
      :selection-callback 'set-algorithm
      :reader algorithms)
    (fixed-settings column-layout
-     :description (list (make-instance 'display-pane
-			  :text "This algorithm has no option."
-			  :background :transparent)))
+     :description '(fixed-variant))
+   (fixed-variant check-button
+     :text "Prefer overfull lines."
+     :selection-callback 'set-fixed-variant-overfull
+     :retract-callback 'set-fixed-variant-underfull
+     :reader fixed-variant)
    (*-fit-settings column-layout
      :description '(*-fit-variant))
    (*-fit-variant radio-button-panel

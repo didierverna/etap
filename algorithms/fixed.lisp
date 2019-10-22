@@ -1,6 +1,6 @@
 (in-package :etap)
 
-(defun natural-line-end (start lineup width disposition)
+(defun natural-line-end (start lineup width disposition prefer-overfull-lines)
   (loop :with underfull-end
 	:with underfull-w
 	:with fit-end
@@ -28,17 +28,22 @@
 			    ((:flush-left :centered :flush-right)
 			     underfull-end)
 			    (:justified
-			     ;; <= means favor underfull lines over overfull
-			     ;; ones in case if delta equality.
-			     (if (<= (- width underfull-w)
-				     (- overfull-w width))
-			       underfull-end
-			       overfull-end))))))))
-
+			     (cond ((< (- width underfull-w)
+				       (- overfull-w width))
+				    underfull-end)
+				   ((< (- overfull-w width)
+				       (- width underfull-w))
+				    overfull-end)
+				   (prefer-overfull-lines
+				    overfull-end)
+				   (t
+				    underfull-end)))))))))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :fixed)) &key)
+    (lineup width disposition (algorithm (eql :fixed))
+     &key prefer-overfull-lines)
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
-	:for end := (natural-line-end start lineup width disposition)
+	:for end := (natural-line-end start lineup width
+				      disposition prefer-overfull-lines)
 	:collect (%create-line lineup start end 0)))
