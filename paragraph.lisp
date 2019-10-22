@@ -174,16 +174,17 @@
 		     (lambda (glue) (+ (value glue) delta))))))
     (create-line-1 lineup start end glue-length)))
 
-(defun create-lines (lineup width disposition algorithm)
+(defmethod create-lines (lineup width disposition algorithm
+			 &rest options &key &allow-other-keys)
   (mapcar (lambda (boundary)
 	    (apply #'create-line
-	      lineup boundary width disposition
-	      (car algorithm) (cdr algorithm)))
-    (apply #'line-boundaries lineup width disposition
-	   (car algorithm) (cdr algorithm))))
+	      lineup boundary width disposition algorithm options))
+    (apply #'line-boundaries lineup width disposition algorithm options)))
 
 (defun create-pinned-lines (lineup width disposition algorithm)
-  (loop :for line :in (create-lines lineup width disposition algorithm)
+  (loop :for line
+	  :in (apply #'create-lines lineup width disposition (car algorithm)
+		     (cdr algorithm))
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))

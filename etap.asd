@@ -16,7 +16,8 @@
 	       (:file "lineup")
 	       (:file "typesetting")
 	       (:module "algorithms"
-		:components ((:file "fixed")
-			     (:file "fit")))
+		:components ((:file "base")
+			     (:file "fixed" :depends-on ("base"))
+			     (:file "fit" :depends-on  ("base"))))
 	       (:file "paragraph")
 	       (:file "interface")))
