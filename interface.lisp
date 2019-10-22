@@ -22,6 +22,20 @@
 	(remove value (features (state interface))))
   (update interface))
 
+(defun set-alg (value interface &aux (alg (car value)))
+  (setf (alg (state interface))
+	(cons alg
+	      (case alg
+		(:fixed)
+		(:*-fit
+		 (list :variant
+		       (choice-selected-item (*-fit-variant interface)))))))
+  (update interface))
+
+(defun set-*-fit-variant (value interface &aux (state (state interface)))
+  (setf (alg state) (list :*-fit :variant value))
+  (update interface))
+
 (defun set-algorithm (value interface)
   (cond ((eq value :fixed)
 	 (set-button-panel-enabled-items (disposition interface)
@@ -141,6 +155,29 @@
 (define-interface etap ()
   ((state :initform (make-state) :reader state))
   (:panes
+   (algorithms tab-layout
+     :title "Algorithms"
+     :visible-max-width nil
+     :combine-child-constraints t
+     :items '((:fixed fixed-settings)
+	      (:*-fit *-fit-settings))
+     :print-function (lambda (item) (keyword-capitalize (car item)))
+     :visible-child-function 'second
+     :selection-callback 'set-alg
+     :reader algorithms)
+   (fixed-settings column-layout
+     :description (list (make-instance 'display-pane
+			  :text "This algorithm has no option."
+			  :background :transparent)))
+   (*-fit-settings column-layout
+     :description '(*-fit-variant))
+   (*-fit-variant radio-button-panel
+     :layout-class 'row-layout
+     :title "Variant" :title-position :frame
+     :items '(:first :best :last)
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-*-fit-variant
+     :reader *-fit-variant)
    (algorithm radio-button-panel
      :layout-class 'column-layout
      :title "Algorithm" :title-position :frame
@@ -214,8 +251,10 @@
      :display-callback 'render-paragraph
      :reader typeset-paragraph))
   (:layouts
-   (main column-layout '(configuration typeset-paragraph))
-   (configuration row-layout '(options-1 options-2 source-text))
+   (main column-layout '(settings typeset-paragraph))
+   (settings row-layout '(configuration source-text))
+   (configuration column-layout '(algorithms options))
+   (options row-layout '(options-1 options-2))
    (options-1 column-layout '(algorithm disposition features)
      :visible-min-width 150
      :visible-max-width 150)
@@ -225,6 +264,8 @@
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
+  ;; #### FIXME: update the algorithm pane and options according to the
+  ;; initial state.
   (let ((algorithm (algorithm state)))
     (when (eq algorithm :fixed)
       (if (eq (disposition state) :justified)
