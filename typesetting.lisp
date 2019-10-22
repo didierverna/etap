@@ -49,19 +49,19 @@
   (declare (ignore pinned-characters))
   (apply #'make-instance 'line initargs))
 
-
-(defclass pinned-line (pinned)
-  ((line :initform nil :initarg :line :accessor line)))
-
-(defmethod width ((pinned-line pinned-line))
-  (width (line pinned-line)))
-
-(defmethod height ((pinned-line pinned-line))
-  (height (line pinned-line)))
-
-(defmethod depth ((pinned-line pinned-line))
-  (depth (line pinned-line)))
-
-(defun make-pinned-line (&rest initargs &key x y line)
-  (declare (ignore line))
-  (apply #'make-instance 'pinned-line initargs))
+;; #### FIXME: Rename when the cleanup is over.
+(defun %create-line (lineup start end delta)
+  (unless end (setq end (length lineup)))
+  (make-line :pinned-characters
+	     (loop :with x := 0
+		   :for i :from start :upto (1- end)
+		   :for element := (aref lineup i)
+		   :if (typep element 'tfm::character-metrics)
+		     :collect (make-pinned-character
+			       :x x :character-metrics element)
+		     :and :do (incf x (* (tfm:width element)
+					 (tfm:design-size (tfm:font element))))
+		   :else :if (kernp element)
+			   :do (incf x (value element))
+		   :else :if (gluep element)
+			   :do (incf x (+ (value element) delta)))))

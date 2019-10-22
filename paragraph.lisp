@@ -1,23 +1,5 @@
 (in-package :etap)
 
-(defun lineup-width (lineup start end &optional (glue-length :natural))
-  (setq glue-length (case glue-length
-		      (:natural #'value)
-		      (:max #'max-length)
-		      (:min #'min-length)))
-  (unless end (setq end (length lineup)))
-  (loop :with width := 0
-	:for i :from start :upto (1- end)
-	:for element := (aref lineup i)
-	:if (typep element 'tfm::character-metrics)
-	  :do (incf width (* (tfm:design-size (tfm:font element))
-			     (tfm:width element)))
-	:else :if (kernp element)
-		:do (incf width (value element))
-	:else :if (gluep element)
-		:do (incf width (funcall glue-length element))
-	:finally (return width)))
-
 (defun lineup-span (lineup start end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
@@ -45,13 +27,6 @@
 
 (defgeneric line-end
     (start lineup width disposition algorithm &key &allow-other-keys)
-  (:method (start lineup width disposition (algorithm (eql :fixed)) &key)
-    (loop :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (lineup-width lineup start i) :then (+ w ww)
-	  :for ww := (when i (lineup-width lineup i ii))
-	  :while (and ww (<= (+ w ww) width))
-	  :finally (return i)))
   (:method (start lineup width disposition (algorithm (eql :*-fit))
 	    &key variant &aux glue-length)
     (setq glue-length (case variant
@@ -150,9 +125,6 @@
 
 (defgeneric create-line
     (lineup boundary width disposition algorithm &key &allow-other-keys)
-  (:method (lineup boundary width disposition (algorithm (eql :fixed))
-	    &key &aux (start (car boundary)) (end (cadr boundary)))
-    (create-line-1 lineup start end #'value))
   (:method (lineup boundary width disposition (algorithm (eql :*-fit))
 	    &key variant
 	    &aux (start (car boundary)) (end (cadr boundary)) glue-length)
@@ -161,7 +133,6 @@
 			(:best #'value)
 			(:last #'min-length)))
     (create-line-1 lineup start end glue-length))
-  ;; #### FIXME: method for :fixed :justified
   (:method (lineup boundary width (disposition (eql :justified)) algorithm
 	    &key variant
 	    &aux (start (car boundary)) (end (cadr boundary)) span glue-length)
@@ -180,6 +151,23 @@
 	    (apply #'create-line
 	      lineup boundary width disposition algorithm options))
     (apply #'line-boundaries lineup width disposition algorithm options)))
+
+
+(defclass pinned-line (pinned)
+  ((line :initform nil :initarg :line :accessor line)))
+
+(defmethod width ((pinned-line pinned-line))
+  (width (line pinned-line)))
+
+(defmethod height ((pinned-line pinned-line))
+  (height (line pinned-line)))
+
+(defmethod depth ((pinned-line pinned-line))
+  (depth (line pinned-line)))
+
+(defun make-pinned-line (&rest initargs &key x y line)
+  (declare (ignore x y line))
+  (apply #'make-instance 'pinned-line initargs))
 
 (defun create-pinned-lines (lineup width disposition algorithm)
   (loop :for line
@@ -205,10 +193,12 @@
     (+ (* (1- (length pinned-lines)) 12)
        (depth (car (last pinned-lines))))))
 
-(defun make-paragraph (&rest initargs)
+(defun make-paragraph (&rest initargs &key width pinned-lines)
+  (declare (ignore width pinned-lines))
   (apply #'make-instance 'paragraph initargs))
 
 (defun create-paragraph (lineup width disposition algorithm)
   (make-paragraph
    :width width
-   :pinned-lines (create-pinned-lines lineup width disposition algorithm)))
+   :pinned-lines (when lineup
+		   (create-pinned-lines lineup width disposition algorithm))))
