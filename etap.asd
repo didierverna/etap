@@ -13,6 +13,10 @@
 	       (:file "glyphlist")
 	       (:file "lm-ec")
 	       (:file "state")
+	       (:file "lineup")
 	       (:file "typesetting")
+	       (:module "algorithms"
+		:components ((:file "fixed")
+			     (:file "fit")))
 	       (:file "paragraph")
 	       (:file "interface")))

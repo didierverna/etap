@@ -5,21 +5,19 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 (defun update (interface &aux (state (state interface)))
-  (with-slots
-	(text font features (width paragraph-width) disposition algorithm)
-      state
-    (setf (paragraph state)
-	  (apply #'create-paragraph
-	    (lineup text font features) width disposition algorithm)))
-  (gp:invalidate-rectangle (typeset-paragraph interface)))
+  (setf (paragraph state)
+	(create-paragraph (lineup (text state) (font state) (features state))
+			  (paragraph-width state)
+			  (disposition state)
+			  (algorithm state)))
+  (gp:invalidate-rectangle (paragraph interface)))
 
 (defun set-feature (value interface)
   (push value (features (state interface)))
   (update interface))
 
-(defun unset-feature (value interface)
-  (setf (features (state interface))
-	(remove value (features (state interface))))
+(defun unset-feature (value interface &aux (state (state interface)))
+  (setf (features state) (remove value (features state)))
   (update interface))
 
 (defun set-algorithm (value interface &aux (algorithm (car value)))
@@ -32,8 +30,8 @@
 		       (choice-selected-item (*-fit-variant interface)))))))
   (update interface))
 
-(defun set-*-fit-variant (value interface &aux (state (state interface)))
-  (setf (algorithm state) (list :*-fit :variant value))
+(defun set-*-fit-variant (value interface)
+  (setf (algorithm (state interface)) (list :*-fit :variant value))
   (update interface))
 
 (defun set-disposition (value interface)
@@ -55,15 +53,14 @@
   (setf (paragraph-width (state interface)) value)
   (update interface))
 
-(defun set-paragraph-zoom
-    (pane value status &aux (interface (top-level-interface pane)))
+(defun set-zoom (pane value status)
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
-  (gp:invalidate-rectangle (typeset-paragraph interface)))
+  (gp:invalidate-rectangle (paragraph (top-level-interface pane))))
 
 (defun |(un)set-clues| (value interface)
   (declare (ignore value))
-  (gp:invalidate-rectangle (typeset-paragraph interface)))
+  (gp:invalidate-rectangle (paragraph interface)))
 
 
 (defun render-paragraph
@@ -71,7 +68,7 @@
      &aux (interface (top-level-interface pane))
 	  (state (state interface))
 	  (paragraph (paragraph state))
-	  (zoom (/ (range-slug-start (paragraph-zoom interface)) 100))
+	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
   (when (pinned-lines paragraph)
@@ -189,15 +186,15 @@
      :tick-frequency 0
      :callback 'set-paragraph-width
      :reader paragraph-width)
-   (paragraph-zoom slider
+   (zoom slider
      :title "Paragraph zoom: 100%"
      :orientation :horizontal
      :start 100
      :end 999
      :slug-start 100
      :tick-frequency 0
-     :callback 'set-paragraph-zoom
-     :reader paragraph-zoom)
+     :callback 'set-zoom
+     :reader zoom)
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
@@ -210,15 +207,15 @@
      :selection-callback '|(un)set-clues|
      :retract-callback '|(un)set-clues|
      :reader clues)
-   (source-text editor-pane
+   (text editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
      :visible-max-width '(character 80)
      :visible-min-height '(character 15)
      :visible-max-height '(character 34)
      :change-callback 'set-text
-     :reader source-text)
-   (typeset-paragraph output-pane
+     :reader text)
+   (paragraph output-pane
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
@@ -227,16 +224,16 @@
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
-     :reader typeset-paragraph))
+     :reader paragraph))
   (:layouts
-   (main column-layout '(settings typeset-paragraph))
-   (settings row-layout '(configuration source-text))
+   (main column-layout '(settings paragraph))
+   (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
      :visible-max-width 150)
-   (options-2 column-layout '(paragraph-width paragraph-zoom clues)
+   (options-2 column-layout '(paragraph-width zoom clues)
      :visible-min-width 250
      :visible-max-width 250))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
@@ -247,7 +244,7 @@
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
-  (setf (editor-pane-text (source-text etap)) (text state)))
+  (setf (editor-pane-text (text etap)) (text state)))
 
 
 

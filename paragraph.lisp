@@ -1,68 +1,5 @@
 (in-package :etap)
 
-(defclass pinned ()
-  ((x :initform 0 :initarg :x :accessor x)
-   (y :initform 0 :initarg :y :accessor y)))
-
-(defclass pinned-character (pinned)
-  ((character-metrics
-    :initform nil :initarg :character-metrics :accessor character-metrics)))
-
-(defun make-pinned-character (&rest initargs)
-  (apply #'make-instance 'pinned-character initargs))
-
-(defmethod width ((pinned-character pinned-character))
-  (with-slots ((width tfm:width) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) width)))
-
-(defmethod height ((pinned-character pinned-character))
-  (with-slots ((height tfm:height) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) height)))
-
-(defmethod depth ((pinned-character pinned-character))
-  (with-slots ((depth tfm:depth) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) depth)))
-
-
-(defclass line ()
-  ((width :initform 0 :initarg :width :accessor width)
-   (height :initform 0 :initarg :height :accessor height)
-   (depth :initform 0 :initarg :depth :accessor depth)
-   (pinned-characters
-    :initform nil :initarg :pinned-characters :accessor pinned-characters)))
-
-(defun make-line (&rest initargs)
-  (apply #'make-instance 'line initargs))
-
-(defmethod initialize-instance :after ((line line) &key)
-  (loop :for pinned-character :in (pinned-characters line)
-	:maximize (height pinned-character) :into height
-	:maximize (depth pinned-character) :into depth
-	:finally (setf (height line) height (depth line) depth))
-  (let ((last-pinned-character (car (last (pinned-characters line)))))
-    (setf (width line)
-	  (+ (x last-pinned-character) (width last-pinned-character)))))
-
-
-(defclass pinned-line (pinned)
-  ((line :initform nil :initarg :line :accessor line)))
-
-(defun make-pinned-line (&rest initargs)
-  (apply #'make-instance 'pinned-line initargs))
-
-(defmethod width ((pinned-line pinned-line))
-  (width (line pinned-line)))
-
-(defmethod height ((pinned-line pinned-line))
-  (height (line pinned-line)))
-
-(defmethod depth ((pinned-line pinned-line))
-  (depth (line pinned-line)))
-
-
 (defun lineup-width (lineup start end &optional (glue-length :natural))
   (setq glue-length (case glue-length
 		      (:natural #'value)
@@ -237,17 +174,16 @@
 		     (lambda (glue) (+ (value glue) delta))))))
     (create-line-1 lineup start end glue-length)))
 
-(defun create-lines (lineup width disposition algorithm
-		     &rest options &key &allow-other-keys)
+(defun create-lines (lineup width disposition algorithm)
   (mapcar (lambda (boundary)
 	    (apply #'create-line
-	      lineup boundary width disposition algorithm options))
-    (apply #'line-boundaries lineup width disposition algorithm options)))
+	      lineup boundary width disposition
+	      (car algorithm) (cdr algorithm)))
+    (apply #'line-boundaries lineup width disposition
+	   (car algorithm) (cdr algorithm))))
 
-(defun create-pinned-lines
-    (lineup width disposition algorithm &rest options &key &allow-other-keys)
-  (loop :for line :in (apply #'create-lines
-			lineup width disposition algorithm options)
+(defun create-pinned-lines (lineup width disposition algorithm)
+  (loop :for line :in (create-lines lineup width disposition algorithm)
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))
@@ -271,9 +207,7 @@
 (defun make-paragraph (&rest initargs)
   (apply #'make-instance 'paragraph initargs))
 
-(defun create-paragraph
-    (lineup width disposition algorithm &rest options &key &allow-other-keys)
+(defun create-paragraph (lineup width disposition algorithm)
   (make-paragraph
    :width width
-   :pinned-lines
-   (apply #'create-pinned-lines lineup width disposition algorithm options)))
+   :pinned-lines (create-pinned-lines lineup width disposition algorithm)))

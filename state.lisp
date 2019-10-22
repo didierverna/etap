@@ -24,4 +24,5 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (text :initform +initial-text+ :accessor text)
    (paragraph :accessor paragraph)))
 
-(defun make-state (&rest initargs) (apply #'make-instance 'state initargs))
+(defun make-state ()
+  (apply #'make-instance 'state))
