@@ -62,6 +62,6 @@
 (defmethod depth ((pinned-line pinned-line))
   (depth (line pinned-line)))
 
-(defun make-pinned-line (&rest initargs &key line)
+(defun make-pinned-line (&rest initargs &key x y line)
   (declare (ignore line))
   (apply #'make-instance 'pinned-line initargs))

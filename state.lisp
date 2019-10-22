@@ -25,4 +25,4 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
    (paragraph :accessor paragraph)))
 
 (defun make-state ()
-  (apply #'make-instance 'state))
+  (make-instance 'state))
