@@ -16,8 +16,7 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
-   (alg :initform '(:fixed) :accessor alg)
-   (algorithm :initform :fixed :accessor algorithm)
+   (algorithm :initform '(:fixed) :accessor algorithm)
    (disposition :initform :flush-left :accessor disposition)
    (features :initform (list) :accessor features)
    ;; 284.52756pt = 10cm

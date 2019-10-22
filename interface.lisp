@@ -5,12 +5,12 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 (defun update (interface &aux (state (state interface)))
-  (with-slots (text font features
-	       algorithm disposition (width paragraph-width))
+  (with-slots
+	(text font features (width paragraph-width) disposition algorithm)
       state
     (setf (paragraph state)
-	  (create-paragraph (lineup text font features) width
-			    algorithm disposition)))
+	  (apply #'create-paragraph
+	    (lineup text font features) width disposition algorithm)))
   (gp:invalidate-rectangle (typeset-paragraph interface)))
 
 (defun set-feature (value interface)
@@ -22,10 +22,10 @@
 	(remove value (features (state interface))))
   (update interface))
 
-(defun set-alg (value interface &aux (alg (car value)))
-  (setf (alg (state interface))
-	(cons alg
-	      (case alg
+(defun set-algorithm (value interface &aux (algorithm (car value)))
+  (setf (algorithm (state interface))
+	(cons algorithm
+	      (case algorithm
 		(:fixed)
 		(:*-fit
 		 (list :variant
@@ -33,24 +33,10 @@
   (update interface))
 
 (defun set-*-fit-variant (value interface &aux (state (state interface)))
-  (setf (alg state) (list :*-fit :variant value))
-  (update interface))
-
-(defun set-algorithm (value interface)
-  (cond ((eq value :fixed)
-	 (set-button-panel-enabled-items (disposition interface)
-	   :set t :disable '(:justified)))
-	(t
-	 (set-button-panel-enabled-items (disposition interface) :set t)))
-  (setf (algorithm (state interface)) value)
+  (setf (algorithm state) (list :*-fit :variant value))
   (update interface))
 
 (defun set-disposition (value interface)
-  (cond ((eq value :justified)
-	 (set-button-panel-enabled-items (algorithm interface)
-	   :set t :disable '(:fixed)))
-	(t
-	 (set-button-panel-enabled-items (algorithm interface) :set t)))
   (setf (disposition (state interface)) value)
   (update interface))
 
@@ -163,7 +149,7 @@
 	      (:*-fit *-fit-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
-     :selection-callback 'set-alg
+     :selection-callback 'set-algorithm
      :reader algorithms)
    (fixed-settings column-layout
      :description (list (make-instance 'display-pane
@@ -178,14 +164,6 @@
      :print-function 'keyword-capitalize
      :selection-callback 'set-*-fit-variant
      :reader *-fit-variant)
-   (algorithm radio-button-panel
-     :layout-class 'column-layout
-     :title "Algorithm" :title-position :frame
-     :visible-max-width nil
-     :items '(:fixed :first-fit :best-fit :last-fit)
-     :print-function 'keyword-capitalize
-     :selection-callback 'set-algorithm
-     :reader algorithm)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -255,7 +233,7 @@
    (settings row-layout '(configuration source-text))
    (configuration column-layout '(algorithms options))
    (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(algorithm disposition features)
+   (options-1 column-layout '(disposition features)
      :visible-min-width 150
      :visible-max-width 150)
    (options-2 column-layout '(paragraph-width paragraph-zoom clues)
@@ -266,13 +244,6 @@
 (defmethod interface-display :before ((etap etap) &aux (state (state etap)))
   ;; #### FIXME: update the algorithm pane and options according to the
   ;; initial state.
-  (let ((algorithm (algorithm state)))
-    (when (eq algorithm :fixed)
-      (if (eq (disposition state) :justified)
-	(setf (disposition state) :flush-left))
-      (set-button-panel-enabled-items (disposition etap)
-	:set t :disable '(:justified)))
-    (setf (choice-selected-item (algorithm etap)) algorithm))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))

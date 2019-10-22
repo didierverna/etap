@@ -130,19 +130,30 @@
 (defun next-glue-position (lineup &optional (start 0))
   (position-if #'gluep lineup :start start))
 
-(defgeneric line-end (start lineup width algorithm disposition)
-  (:method (start lineup width algorithm disposition &aux glue-length)
-    (setq glue-length (case algorithm
-			((:fixed :best-fit) :natural)
-			(:first-fit :max)
-			(:last-fit :min)))
+(defgeneric line-end
+    (start lineup width disposition algorithm &key &allow-other-keys)
+  (:method (start lineup width disposition (algorithm (eql :fixed)) &key)
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for w := (lineup-width lineup start i) :then (+ w ww)
+	  :for ww := (when i (lineup-width lineup i ii))
+	  :while (and ww (<= (+ w ww) width))
+	  :finally (return i)))
+  (:method (start lineup width disposition (algorithm (eql :*-fit))
+	    &key variant &aux glue-length)
+    (setq glue-length (case variant
+			(:first :max)
+			(:best :natural)
+			(:last :min)))
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-width lineup start i glue-length) :then (+ w ww)
 	  :for ww := (when i (lineup-width lineup i ii glue-length))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
-  (:method (start lineup width algorithm (disposition (eql :justified)))
+  ;; #### FIXME: method for :fixed :justified
+  (:method (start lineup width (disposition (eql :justified)) algorithm
+	    &key variant)
     (loop :with underfull-span
 	  :with fit-spans := (list)
 	  :with overfull-span
@@ -158,16 +169,16 @@
 		  :do (push (cons i s) fit-spans)
 	  :else :do (setq overfull-span (cons i s))
 	  :finally
-	     (return (case algorithm
-		       (:first-fit
+	     (return (case variant
+		       (:first
 			(cond (fit-spans (caar (last fit-spans)))
 			      (underfull-span (car underfull-span))
 			      (t (car overfull-span))))
-		       (:last-fit
+		       (:last
 			(cond (fit-spans (caar fit-spans))
 			      (overfull-span (car overfull-span))
 			      (t (car underfull-span))))
-		       (:best-fit
+		       (:best
 			(if fit-spans
 			  ;; #### NOTE: two choices might be best-equals,
 			  ;; when we get the same delta, once for shrink and
@@ -199,10 +210,12 @@
 				  (underfull-delta (car underfull-span))
 				  (t (car overfull-span)))))))))))
 
-(defun line-boundaries (lineup width algorithm disposition)
+(defun line-boundaries
+    (lineup width disposition algorithm &rest options &key &allow-other-keys)
   (loop :for start := 0 :then (when end (1+ end))
 	:while start
-	:for end := (line-end start lineup width algorithm disposition)
+	:for end := (apply #'line-end
+		      start lineup width disposition algorithm options)
 	:collect (list start end)))
 
 (defun create-line-1 (lineup start end glue-length)
@@ -221,16 +234,24 @@
 	 :else :if (gluep element)
 		 :do (incf x (funcall glue-length element)))))
 
-(defgeneric create-line (lineup boundary width algorithm disposition)
-  (:method (lineup boundary width algorithm disposition
+(defgeneric create-line
+    (lineup boundary width disposition algorithm &key &allow-other-keys)
+  (:method (lineup boundary width disposition (algorithm (eql :fixed))
+	    &key &aux (start (car boundary)) (end (cadr boundary)))
+    (create-line-1 lineup start end #'value))
+  (:method (lineup boundary width disposition (algorithm (eql :*-fit))
+	    &key variant
 	    &aux (start (car boundary)) (end (cadr boundary)) glue-length)
-    (setq glue-length (case algorithm
-			((:fixed :best-fit) #'value)
-			(:first-fit #'max-length)
-			(:last-fit #'min-length)))
+    (setq glue-length (case variant
+			(:first #'max-length)
+			(:best #'value)
+			(:last #'min-length)))
     (create-line-1 lineup start end glue-length))
-  (:method (lineup boundary width algorithm (disposition (eql :justified))
+  ;; #### FIXME: method for :fixed :justified
+  (:method (lineup boundary width (disposition (eql :justified)) algorithm
+	    &key variant
 	    &aux (start (car boundary)) (end (cadr boundary)) span glue-length)
+    (declare (ignore variant))
     (setq span (lineup-span lineup start end)
 	  glue-length
 	  (cond ((> (caddr span) width) #'min-length)
@@ -239,13 +260,18 @@
 		     (lambda (glue) (+ (value glue) delta))))))
     (create-line-1 lineup start end glue-length)))
 
-(defun create-lines (lineup width algorithm disposition)
+(defun create-lines (lineup width disposition algorithm
+		     &rest options &key &allow-other-keys)
   (mapcar (lambda (boundary)
-	    (create-line lineup boundary width algorithm disposition))
-    (line-boundaries lineup width algorithm disposition)))
+	    (apply #'create-line
+	      lineup boundary width disposition algorithm options))
+    (apply #'line-boundaries lineup width disposition algorithm options)))
 
-(defun create-paragraph (lineup width algorithm disposition &aux lines)
-  (setf lines (when lineup (create-lines lineup width algorithm disposition)))
+(defun create-paragraph (lineup width disposition algorithm
+			 &rest options &key &allow-other-keys
+			 &aux lines)
+  (setf lines (when lineup (apply #'create-lines
+			     lineup width disposition algorithm options)))
   (make-paragraph
    :disposition disposition
    :width width
