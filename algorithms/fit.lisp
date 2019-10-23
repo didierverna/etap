@@ -26,8 +26,14 @@
 	  :with overfull-span
 	  :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for s := (lineup-span lineup start i) :then (mapcar #'+ s ss)
-	  :for ss := (when i (lineup-span lineup i ii))
+	  :for s := (multiple-value-bind (natural stretch shrink)
+			(lineup-width lineup start i)
+		      (list natural (+ natural stretch) (- natural shrink)))
+	    :then (mapcar #'+ s ss)
+	  :for ss := (when i
+		       (multiple-value-bind (natural stretch shrink)
+			   (lineup-width lineup i ii)
+			 (list natural (+ natural stretch) (- natural shrink))))
 	  ;; #### NOTE: s becomes NIL when doing (mapcar #'+ s NIL).
 	  :while (and s (not overfull-span))
 	  :if (< (cadr s) width)
@@ -103,12 +109,13 @@
   (:method (lineup start end width (disposition (eql :justified)) variant
 	    &aux span glue-length)
     (declare (ignore variant))
-    (setq span (lineup-span lineup start end)
-	  glue-length
-	  (cond ((> (caddr span) width) #'min-length)
-		((< (cadr span) width) #'max-length)
-		(t (let ((delta (delta lineup start end width)))
-		     (lambda (glue) (+ (value glue) delta))))))
+    (setq span (multiple-value-bind (natural stretch shrink)
+		   (lineup-width lineup start end)
+		 (list natural (+ natural stretch) (- natural shrink)))
+	  glue-length (cond ((> (caddr span) width) #'min-length)
+			    ((< (cadr span) width) #'max-length)
+			    (t (let ((delta (delta lineup start end width)))
+				 (lambda (glue) (+ (value glue) delta))))))
     (create-line-1 lineup start end glue-length)))
 
 (defmethod create-lines
