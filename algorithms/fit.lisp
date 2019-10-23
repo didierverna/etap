@@ -85,17 +85,19 @@
 				  (underfull-delta (car underfull-span))
 				  (t (car overfull-span)))))))))))
 
-(defgeneric fit-create-line (lineup start end width disposition variant)
-  (:method (lineup start end width disposition (variant (eql :first)))
+(defgeneric fit-create-line
+    (lineup start end width disposition variant &key &allow-other-keys)
+  (:method (lineup start end width disposition (variant (eql :first)) &key)
     (create-line lineup start end :stretch 1))
-  (:method (lineup start end width disposition (variant (eql :best)))
+  (:method (lineup start end width disposition (variant (eql :best)) &key)
     (create-line lineup start end))
-  (:method (lineup start end width disposition (variant (eql :last)))
+  (:method (lineup start end width disposition (variant (eql :last)) &key)
     (create-line lineup start end :shrink 1))
-  (:method (lineup start end width (disposition (eql :justified)) variant)
+  (:method (lineup start end width (disposition (eql :justified)) variant
+	    &key sloppy)
     (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
       (if type
-	(create-line lineup start end type (min ratio 1))
+	(create-line lineup start end type (if sloppy ratio (min ratio 1)))
 	(create-line lineup start end)))))
 
 (defmethod create-lines
@@ -104,4 +106,5 @@
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
 	:for end := (fit-line-end start lineup width disposition variant)
-	:collect (fit-create-line lineup start end width disposition variant)))
+	:collect (fit-create-line lineup start end width disposition variant
+				  :sloppy sloppy)))
