@@ -99,7 +99,8 @@
 	(create-line lineup start end)))))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :*-fit)) &key variant)
+    (lineup width disposition (algorithm (eql :fit))
+     &key variant relax sloppy)
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
 	:for end := (fit-line-end start lineup width disposition variant)

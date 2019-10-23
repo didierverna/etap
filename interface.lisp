@@ -20,31 +20,26 @@
   (setf (features state) (remove value (features state)))
   (update interface))
 
-(defun set-algorithm (value interface &aux (algorithm (car value)))
+(defun set-fixed-algorithm (value interface)
+  (declare (ignore value))
   (setf (algorithm (state interface))
-	(cons algorithm
-	      (case algorithm
-		(:fixed
-		 (when (button-selected (fixed-option interface))
-		   (list :prefer-overfull-lines t)))
-		(:*-fit
-		 (list :variant
-		       (choice-selected-item (*-fit-variant interface)))))))
+	`(:fixed
+	  ,@(when (button-selected (fixed-option interface))
+	      (list :prefer-overfull-lines t))))
   (update interface))
 
-(defun set-fixed-option-overfull (value interface)
+(defun set-fit-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface)) (list :fixed :prefer-overfull-lines t))
+  (setf (algorithm (state interface))
+	`(:fit
+	  :variant ,(choice-selected-item (fit-variant interface))
+	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
 
-(defun unset-fixed-option-overfull (value interface)
-  (declare (ignore value))
-  (setf (algorithm (state interface)) (list :fixed))
-  (update interface))
-
-(defun set-*-fit-variant (value interface)
-  (setf (algorithm (state interface)) (list :*-fit :variant value))
-  (update interface))
+(defun set-algorithm (value interface)
+  (case (car value)
+    (:fixed (set-fixed-algorithm value interface))
+    (:fit (set-fit-algorithm value interface))))
 
 (defun set-disposition (value interface)
   (setf (disposition (state interface)) value)
@@ -154,24 +149,31 @@
      :title "Algorithms"
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:fixed fixed-settings)
-	      (:*-fit *-fit-settings))
+     :items '((:fixed fixed-settings) (:fit fit-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
    (fixed-option check-button
      :text "Prefer overfull lines."
-     :selection-callback 'set-fixed-option-overfull
-     :retract-callback 'unset-fixed-option-overfull
+     :selection-callback 'set-fixed-algorithm
+     :retract-callback 'set-fixed-algorithm
      :reader fixed-option)
-   (*-fit-variant radio-button-panel
+   (fit-variant radio-button-panel
      :layout-class 'row-layout
      :title "Variant" :title-position :frame
      :items '(:first :best :last)
      :print-function 'keyword-capitalize
-     :selection-callback 'set-*-fit-variant
-     :reader *-fit-variant)
+     :selection-callback 'set-fit-algorithm
+     :reader fit-variant)
+   (fit-options check-button-panel
+     :layout-class 'row-layout
+     :title "Options" :title-position :frame
+     :items '((:relax t) (:sloppy t))
+     :print-function (lambda (item) (keyword-capitalize (car item)))
+     :selection-callback 'set-fit-algorithm
+     :retract-callback 'set-fit-algorithm
+     :reader fit-options)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -241,7 +243,7 @@
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options))
    (fixed-settings column-layout '(fixed-option))
-   (*-fit-settings column-layout '(*-fit-variant))
+   (fit-settings row-layout '(fit-variant fit-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
