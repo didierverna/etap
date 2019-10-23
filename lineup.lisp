@@ -118,6 +118,11 @@
 		:and :do (incf shrink (shrink element))
 	:finally (return (values width stretch shrink))))
 
+(defun lineup-scale (lineup start end width)
+  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
+    (cond ((< natural width) (values :stretch (/ (- width natural) stretch)))
+	  ((> natural width) (values :shrink (/ (- natural width) shrink))))))
+
 (defun delta (lineup start end width)
   (/ (- width (lineup-width lineup start end))
      (count-if #'gluep lineup :start start :end end)))

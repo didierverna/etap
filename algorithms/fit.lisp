@@ -83,22 +83,6 @@
 				  (underfull-delta (car underfull-span))
 				  (t (car overfull-span)))))))))))
 
-(defun create-line-1 (lineup start end glue-length)
-  (unless end (setq end (length lineup)))
-  (make-line
-   :pinned-characters
-   (loop :with x := 0
-	 :for i :from start :upto (1- end)
-	 :for element := (aref lineup i)
-	 :if (typep element 'tfm::character-metrics)
-	   :collect (make-pinned-character :x x :character-metrics element)
-	   :and :do (incf x (* (tfm:width element)
-			       (tfm:design-size (tfm:font element))))
-	 :else :if (kernp element)
-		 :do (incf x (value element))
-	 :else :if (gluep element)
-		 :do (incf x (funcall glue-length element)))))
-
 (defgeneric fit-create-line (lineup start end width disposition variant)
   (:method (lineup start end width disposition (variant (eql :first)))
     (create-line lineup start end :stretch 1))
@@ -106,17 +90,12 @@
     (create-line lineup start end))
   (:method (lineup start end width disposition (variant (eql :last)))
     (create-line lineup start end :shrink 1))
-  (:method (lineup start end width (disposition (eql :justified)) variant
-	    &aux span glue-length)
+  (:method (lineup start end width (disposition (eql :justified)) variant)
     (declare (ignore variant))
-    (setq span (multiple-value-bind (natural stretch shrink)
-		   (lineup-width lineup start end)
-		 (list natural (+ natural stretch) (- natural shrink)))
-	  glue-length (cond ((> (caddr span) width) #'min-length)
-			    ((< (cadr span) width) #'max-length)
-			    (t (let ((delta (delta lineup start end width)))
-				 (lambda (glue) (+ (value glue) delta))))))
-    (create-line-1 lineup start end glue-length)))
+    (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
+      (if type
+	(create-line lineup start end type (min ratio 1))
+	(create-line lineup start end)))))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :*-fit)) &key variant)
