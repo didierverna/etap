@@ -116,3 +116,28 @@
 	:else :if (gluep element)
 		:do (incf width (funcall glue-length element))
 	:finally (return width)))
+
+(defun lineup-span (lineup start end)
+  (unless end (setq end (length lineup)))
+  (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
+	:for i :from start :upto (1- end)
+	:for element := (aref lineup i)
+	:if (typep element 'tfm::character-metrics)
+	  :do (incf width (* (tfm:design-size (tfm:font element))
+			     (tfm:width element)))
+	:else :if (kernp element)
+		:do (incf width (value element))
+	:else :if (gluep element)
+		:do (incf width (value element))
+		:and :do (incf stretch (stretch element))
+		:and :do (incf shrink (shrink element))
+	:finally (return (list width (+ width stretch) (- width shrink)))))
+
+(defun delta (lineup start end width)
+  (/ (- width (lineup-width lineup start end))
+     (count-if #'gluep lineup :start start :end end)))
+
+(defun next-glue-position (lineup &optional (start 0))
+  (position-if #'gluep lineup :start start))
