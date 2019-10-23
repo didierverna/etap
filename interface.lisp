@@ -254,9 +254,21 @@
      :visible-max-width 250))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod interface-display :before ((etap etap) &aux (state (state etap)))
-  ;; #### FIXME: update the algorithm pane and options according to the
-  ;; initial state.
+(defmethod interface-display :before
+    ((etap etap) &aux (state (state etap)) (algorithm (algorithm state)))
+  (case (car algorithm)
+    (:fixed
+     (setf (choice-selection (algorithms etap)) 0)
+     (when (cdr algorithm) (setf (choice-selection (fixed-options etap)) 0)))
+    (:fit
+     (setf (choice-selection (algorithms etap)) 1)
+     (setf (choice-selected-item (fit-variant etap))
+	   (or (cadr (member :variant algorithm)) :first))
+     (setf (choice-selection (fit-options etap))
+	   (let ((selection (list)))
+	     (when (cadr (member :relax algorithm)) (push 0 selection))
+	     (when (cadr (member :sloppy algorithm)) (push 1 selection))
+	     selection))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
