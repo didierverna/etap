@@ -244,7 +244,7 @@
    (main column-layout '(settings paragraph))
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options)
-		  :visible-max-width t)
+     :visible-max-width t)
    (fixed-settings column-layout '(fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
    (options row-layout '(options-1 options-2))
