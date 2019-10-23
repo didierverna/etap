@@ -130,8 +130,12 @@
 
 (defun lineup-scale (lineup start end width)
   (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
-    (cond ((< natural width) (values :stretch (/ (- width natural) stretch)))
-	  ((> natural width) (values :shrink (/ (- natural width) shrink))))))
+    (cond ((< natural width)
+	   (unless (zerop stretch)
+	     (values :stretch (/ (- width natural) stretch))))
+	  ((> natural width)
+	   (unless (zerop shrink)
+	     (values :shrink (/ (- natural width) shrink)))))))
 
 (defun delta (lineup start end width)
   (/ (- width (lineup-width lineup start end))
