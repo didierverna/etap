@@ -39,22 +39,6 @@
 				   (t
 				    underfull-end)))))))))
 
-(defun fixed-create-line (lineup start end)
-  (unless end (setq end (length lineup)))
-  (make-line :pinned-characters
-	     (loop :with x := 0
-		   :for i :from start :upto (1- end)
-		   :for element := (aref lineup i)
-		   :if (typep element 'tfm::character-metrics)
-		     :collect (make-pinned-character
-			       :x x :character-metrics element)
-		     :and :do (incf x (* (tfm:width element)
-					 (tfm:design-size (tfm:font element))))
-		   :else :if (kernp element)
-			   :do (incf x (value element))
-		   :else :if (gluep element)
-			   :do (incf x (value element)))))
-
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fixed))
      &key prefer-overfull-lines)
@@ -62,4 +46,4 @@
 	:while start
 	:for end := (fixed-line-end start lineup width disposition
 				    prefer-overfull-lines)
-	:collect (fixed-create-line lineup start end)))
+	:collect (create-line lineup start end)))
