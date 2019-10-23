@@ -160,15 +160,11 @@
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
-   (fixed-settings column-layout
-     :description '(fixed-variant))
    (fixed-variant check-button
      :text "Prefer overfull lines."
      :selection-callback 'set-fixed-variant-overfull
      :retract-callback 'set-fixed-variant-underfull
      :reader fixed-variant)
-   (*-fit-settings column-layout
-     :description '(*-fit-variant))
    (*-fit-variant radio-button-panel
      :layout-class 'row-layout
      :title "Variant" :title-position :frame
@@ -244,6 +240,8 @@
    (main column-layout '(settings paragraph))
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options))
+   (fixed-settings column-layout '(fixed-variant))
+   (*-fit-settings column-layout '(*-fit-variant))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
