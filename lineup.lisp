@@ -100,13 +100,11 @@
   (when lineup (make-array (length lineup) :initial-contents lineup)))
 
 
-(defun lineup-width (lineup start end &optional (glue-length :natural))
-  (setq glue-length (case glue-length
-		      (:natural #'value)
-		      (:max #'max-length)
-		      (:min #'min-length)))
+(defun lineup-width (lineup start end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
 	:for i :from start :upto (1- end)
 	:for element := (aref lineup i)
 	:if (typep element 'tfm::character-metrics)
@@ -115,8 +113,10 @@
 	:else :if (kernp element)
 		:do (incf width (value element))
 	:else :if (gluep element)
-		:do (incf width (funcall glue-length element))
-	:finally (return width)))
+		:do (incf width (value element))
+		:and :do (incf stretch (stretch element))
+		:and :do (incf shrink (shrink element))
+	:finally (return (values width stretch shrink))))
 
 (defun lineup-span (lineup start end)
   (unless end (setq end (length lineup)))

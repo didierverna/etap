@@ -1,15 +1,23 @@
 (in-package :etap)
 
 (defgeneric fit-line-end (start lineup width disposition variant)
-  (:method (start lineup width disposition variant &aux glue-length)
-    (setq glue-length (case variant
-			(:first :max)
-			(:best :natural)
-			(:last :min)))
+  (:method (start lineup width disposition variant)
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (lineup-width lineup start i glue-length) :then (+ w ww)
-	  :for ww := (when i (lineup-width lineup i ii glue-length))
+	  :for w := (multiple-value-bind (natural stretch shrink)
+			(lineup-width lineup start i)
+		      (case variant
+			(:first (+ natural stretch))
+			(:best natural)
+			(:last (- natural shrink))))
+	    :then (+ w ww)
+	  :for ww := (when i
+		       (multiple-value-bind (natural stretch shrink)
+			   (lineup-width lineup i ii)
+			 (case variant
+			   (:first (+ natural stretch))
+			   (:best natural)
+			   (:last (- natural shrink)))))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
   (:method (start lineup width (disposition (eql :justified)) variant)
