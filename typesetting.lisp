@@ -48,20 +48,3 @@
 (defun make-line (&rest initargs &key pinned-characters)
   (declare (ignore pinned-characters))
   (apply #'make-instance 'line initargs))
-
-;; #### FIXME: Rename when the cleanup is over.
-(defun %create-line (lineup start end delta)
-  (unless end (setq end (length lineup)))
-  (make-line :pinned-characters
-	     (loop :with x := 0
-		   :for i :from start :upto (1- end)
-		   :for element := (aref lineup i)
-		   :if (typep element 'tfm::character-metrics)
-		     :collect (make-pinned-character
-			       :x x :character-metrics element)
-		     :and :do (incf x (* (tfm:width element)
-					 (tfm:design-size (tfm:font element))))
-		   :else :if (kernp element)
-			   :do (incf x (value element))
-		   :else :if (gluep element)
-			   :do (incf x (+ (value element) delta)))))

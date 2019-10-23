@@ -99,6 +99,7 @@
 				      kern)))))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
 
+
 (defun lineup-width (lineup start end &optional (glue-length :natural))
   (setq glue-length (case glue-length
 		      (:natural #'value)

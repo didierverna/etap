@@ -1,6 +1,6 @@
 (in-package :etap)
 
-(defun natural-line-end (start lineup width disposition prefer-overfull-lines)
+(defun fixed-line-end (start lineup width disposition prefer-overfull-lines)
   (loop :with underfull-end
 	:with underfull-w
 	:with fit-end
@@ -39,11 +39,27 @@
 				   (t
 				    underfull-end)))))))))
 
+(defun fixed-create-line (lineup start end)
+  (unless end (setq end (length lineup)))
+  (make-line :pinned-characters
+	     (loop :with x := 0
+		   :for i :from start :upto (1- end)
+		   :for element := (aref lineup i)
+		   :if (typep element 'tfm::character-metrics)
+		     :collect (make-pinned-character
+			       :x x :character-metrics element)
+		     :and :do (incf x (* (tfm:width element)
+					 (tfm:design-size (tfm:font element))))
+		   :else :if (kernp element)
+			   :do (incf x (value element))
+		   :else :if (gluep element)
+			   :do (incf x (value element)))))
+
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fixed))
      &key prefer-overfull-lines)
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
-	:for end := (natural-line-end start lineup width
-				      disposition prefer-overfull-lines)
-	:collect (%create-line lineup start end 0)))
+	:for end := (fixed-line-end start lineup width disposition
+				    prefer-overfull-lines)
+	:collect (fixed-create-line lineup start end)))

@@ -85,7 +85,7 @@
 	 :else :if (gluep element)
 		 :do (incf x (funcall glue-length element)))))
 
-(defgeneric create-fit-line (lineup start end width disposition variant)
+(defgeneric fit-create-line (lineup start end width disposition variant)
   (:method (lineup start end width disposition variant &aux glue-length)
     (setq glue-length (case variant
 			(:first #'max-length)
@@ -108,4 +108,4 @@
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
 	:for end := (fit-line-end start lineup width disposition variant)
-	:collect (create-fit-line lineup start end width disposition variant)))
+	:collect (fit-create-line lineup start end width disposition variant)))
