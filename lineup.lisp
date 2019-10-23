@@ -118,6 +118,16 @@
 		:and :do (incf shrink (shrink element))
 	:finally (return (values width stretch shrink))))
 
+(defun lineup-max-width (lineup start end)
+  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
+    (declare (ignore shrink))
+    (+ natural stretch)))
+
+(defun lineup-min-width (lineup start end)
+  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
+    (declare (ignore stretch))
+    (- natural shrink)))
+
 (defun lineup-scale (lineup start end width)
   (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
     (cond ((< natural width) (values :stretch (/ (- width natural) stretch)))

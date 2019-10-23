@@ -1,23 +1,25 @@
 (in-package :etap)
 
 (defgeneric fit-line-end (start lineup width disposition variant)
-  (:method (start lineup width disposition variant)
+  (:method (start lineup width disposition (variant (eql :first)))
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (multiple-value-bind (natural stretch shrink)
-			(lineup-width lineup start i)
-		      (case variant
-			(:first (+ natural stretch))
-			(:best natural)
-			(:last (- natural shrink))))
-	    :then (+ w ww)
-	  :for ww := (when i
-		       (multiple-value-bind (natural stretch shrink)
-			   (lineup-width lineup i ii)
-			 (case variant
-			   (:first (+ natural stretch))
-			   (:best natural)
-			   (:last (- natural shrink)))))
+	  :for w := (lineup-max-width lineup start i) :then (+ w ww)
+	  :for ww := (when i (lineup-max-width lineup i ii))
+	  :while (and ww (<= (+ w ww) width))
+	  :finally (return i)))
+  (:method (start lineup width disposition (variant (eql :best)))
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for w := (lineup-width lineup start i) :then (+ w ww)
+	  :for ww := (when i (lineup-width lineup i ii))
+	  :while (and ww (<= (+ w ww) width))
+	  :finally (return i)))
+  (:method (start lineup width disposition (variant (eql :last)))
+    (loop :for i := (next-glue-position lineup start) :then ii
+	  :for ii := (when i (next-glue-position lineup (1+ i)))
+	  :for w := (lineup-min-width lineup start i) :then (+ w ww)
+	  :for ww := (when i (lineup-min-width lineup i ii))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
   (:method (start lineup width (disposition (eql :justified)) variant)
@@ -91,7 +93,6 @@
   (:method (lineup start end width disposition (variant (eql :last)))
     (create-line lineup start end :shrink 1))
   (:method (lineup start end width (disposition (eql :justified)) variant)
-    (declare (ignore variant))
     (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
       (if type
 	(create-line lineup start end type (min ratio 1))
