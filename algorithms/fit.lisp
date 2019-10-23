@@ -87,12 +87,31 @@
 
 (defgeneric fit-create-line
     (lineup start end width disposition variant &key &allow-other-keys)
-  (:method (lineup start end width disposition (variant (eql :first)) &key)
-    (create-line lineup start end :stretch 1))
+  (:method (lineup start end width disposition (variant (eql :first))
+	    &key relax &aux (ratio 1))
+    (if relax
+      (setq ratio
+	    (if end
+	      (let ((i (next-glue-position lineup (1+ end))))
+		(multiple-value-bind (type ratio)
+		    (lineup-scale lineup start i width)
+		  (if (eq type :stretch)
+		    ratio
+		    0)))
+	      0)))
+    (create-line lineup start end :stretch ratio))
   (:method (lineup start end width disposition (variant (eql :best)) &key)
     (create-line lineup start end))
-  (:method (lineup start end width disposition (variant (eql :last)) &key)
-    (create-line lineup start end :shrink 1))
+  (:method (lineup start end width disposition (variant (eql :last))
+	    &key  relax &aux (ratio 1))
+    (if relax
+      (setq ratio
+	    (multiple-value-bind (type ratio)
+		(lineup-scale lineup start end width)
+	      (if (eq type :stretch)
+		0
+		ratio))))
+    (create-line lineup start end :shrink ratio))
   (:method (lineup start end width (disposition (eql :justified)) variant
 	    &key sloppy)
     (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
@@ -107,4 +126,4 @@
 	:while start
 	:for end := (fit-line-end start lineup width disposition variant)
 	:collect (fit-create-line lineup start end width disposition variant
-				  :sloppy sloppy)))
+				  :relax relax :sloppy sloppy)))
