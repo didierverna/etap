@@ -25,19 +25,19 @@
 	(cons algorithm
 	      (case algorithm
 		(:fixed
-		 (when (button-selected (fixed-variant interface))
+		 (when (button-selected (fixed-option interface))
 		   (list :prefer-overfull-lines t)))
 		(:*-fit
 		 (list :variant
 		       (choice-selected-item (*-fit-variant interface)))))))
   (update interface))
 
-(defun set-fixed-variant-overfull (value interface)
+(defun set-fixed-option-overfull (value interface)
   (declare (ignore value))
   (setf (algorithm (state interface)) (list :fixed :prefer-overfull-lines t))
   (update interface))
 
-(defun set-fixed-variant-underfull (value interface)
+(defun set-fixed-option-underfull (value interface)
   (declare (ignore value))
   (setf (algorithm (state interface)) (list :fixed))
   (update interface))
@@ -160,11 +160,11 @@
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
-   (fixed-variant check-button
+   (fixed-option check-button
      :text "Prefer overfull lines."
-     :selection-callback 'set-fixed-variant-overfull
-     :retract-callback 'set-fixed-variant-underfull
-     :reader fixed-variant)
+     :selection-callback 'set-fixed-option-overfull
+     :retract-callback 'set-fixed-option-underfull
+     :reader fixed-option)
    (*-fit-variant radio-button-panel
      :layout-class 'row-layout
      :title "Variant" :title-position :frame
@@ -240,7 +240,7 @@
    (main column-layout '(settings paragraph))
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options))
-   (fixed-settings column-layout '(fixed-variant))
+   (fixed-settings column-layout '(fixed-option))
    (*-fit-settings column-layout '(*-fit-variant))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
