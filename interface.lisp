@@ -12,12 +12,10 @@
 			  (algorithm state)))
   (gp:invalidate-rectangle (paragraph interface)))
 
-(defun set-feature (value interface)
-  (push value (features (state interface)))
-  (update interface))
-
-(defun unset-feature (value interface &aux (state (state interface)))
-  (setf (features state) (remove value (features state)))
+(defun set-features (value interface)
+  (declare (ignore value))
+  (setf (features (state interface))
+	(choice-selected-items (features interface)))
   (update interface))
 
 (defun set-fixed-algorithm (value interface)
@@ -190,8 +188,8 @@
      :visible-max-width nil
      :items '(:kerning :ligatures :hyphenation)
      :print-function 'keyword-capitalize
-     :selection-callback 'set-feature
-     :retract-callback 'unset-feature
+     :selection-callback 'set-features
+     :retract-callback 'set-features
      :reader features)
    (paragraph-width slider
      :title "Paragraph width: 284pt (10cm)"
