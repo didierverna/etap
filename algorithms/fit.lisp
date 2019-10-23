@@ -100,12 +100,12 @@
 		 :do (incf x (funcall glue-length element)))))
 
 (defgeneric fit-create-line (lineup start end width disposition variant)
-  (:method (lineup start end width disposition variant &aux glue-length)
-    (setq glue-length (case variant
-			(:first #'max-length)
-			(:best #'value)
-			(:last #'min-length)))
-    (create-line-1 lineup start end glue-length))
+  (:method (lineup start end width disposition (variant (eql :first)))
+    (create-line lineup start end :stretch 1))
+  (:method (lineup start end width disposition (variant (eql :best)))
+    (create-line lineup start end))
+  (:method (lineup start end width disposition (variant (eql :last)))
+    (create-line lineup start end :shrink 1))
   (:method (lineup start end width (disposition (eql :justified)) variant
 	    &aux span glue-length)
     (declare (ignore variant))
