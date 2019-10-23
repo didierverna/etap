@@ -225,9 +225,9 @@
    (text editor-pane
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
-     :visible-max-width '(character 80)
+     ;;:visible-max-width '(character 80)
      :visible-min-height '(character 15)
-     :visible-max-height '(character 34)
+     :visible-max-height '(character 30)
      :change-callback 'set-text
      :reader text)
    (paragraph output-pane
@@ -243,7 +243,8 @@
   (:layouts
    (main column-layout '(settings paragraph))
    (settings row-layout '(configuration text))
-   (configuration column-layout '(algorithms options))
+   (configuration column-layout '(algorithms options)
+		  :visible-max-width t)
    (fixed-settings column-layout '(fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
    (options row-layout '(options-1 options-2))
