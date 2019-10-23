@@ -37,7 +37,7 @@
   (setf (algorithm (state interface)) (list :fixed :prefer-overfull-lines t))
   (update interface))
 
-(defun set-fixed-option-underfull (value interface)
+(defun unset-fixed-option-overfull (value interface)
   (declare (ignore value))
   (setf (algorithm (state interface)) (list :fixed))
   (update interface))
@@ -163,7 +163,7 @@
    (fixed-option check-button
      :text "Prefer overfull lines."
      :selection-callback 'set-fixed-option-overfull
-     :retract-callback 'set-fixed-option-underfull
+     :retract-callback 'unset-fixed-option-overfull
      :reader fixed-option)
    (*-fit-variant radio-button-panel
      :layout-class 'row-layout
