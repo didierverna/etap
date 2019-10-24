@@ -60,15 +60,16 @@
 		    ;; when we get the same delta, once for shrink and
 		    ;; once for stretch. We could offer those two
 		    ;; alternatives.
-		    (cdr (first (sort
-				 (mapcar
-				     (lambda (fit-span)
-				       (cons (delta lineup start
-						    (car fit-span) width)
-					     (car fit-span)))
-				   fit-spans)
-				 #'<
-				 :key (lambda (elt) (abs (car elt))))))
+		    (car
+		     (first
+		      (sort
+		       (mapcar
+			   (lambda (fit-span &aux (i (car fit-span)))
+			     (cons i (multiple-value-list
+				      (lineup-scale lineup start i width))))
+			 fit-spans)
+		       #'<
+		       :key (lambda (elt) (caddr elt)))))
 		    (let ((underfull-delta
 			    (when underfull-span
 			      (- width
