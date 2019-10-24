@@ -28,14 +28,14 @@
 	  :with overfull-span
 	  :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for s := (multiple-value-bind (natural stretch shrink)
+	  :for s := (multiple-value-bind (width stretch shrink)
 			(lineup-width lineup start i)
-		      (list natural (+ natural stretch) (- natural shrink)))
+		      (list width (+ width stretch) (- width shrink)))
 	    :then (mapcar #'+ s ss)
 	  :for ss := (when i
-		       (multiple-value-bind (natural stretch shrink)
+		       (multiple-value-bind (width stretch shrink)
 			   (lineup-width lineup i ii)
-			 (list natural (+ natural stretch) (- natural shrink))))
+			 (list width (+ width stretch) (- width shrink))))
 	  ;; #### NOTE: s becomes NIL when doing (mapcar #'+ s NIL).
 	  :while (and s (not overfull-span))
 	  :if (< (cadr s) width)
@@ -44,46 +44,47 @@
 		  :do (push (cons i s) fit-spans)
 	  :else :do (setq overfull-span (cons i s))
 	  :finally
-	     (return (case variant
-		       (:first
-			(cond (fit-spans (caar (last fit-spans)))
-			      (underfull-span (car underfull-span))
-			      (t (car overfull-span))))
-		       (:last
-			(cond (fit-spans (caar fit-spans))
-			      (overfull-span (car overfull-span))
-			      (t (car underfull-span))))
-		       (:best
-			(if fit-spans
-			  ;; #### NOTE: two choices might be best-equals,
-			  ;; when we get the same delta, once for shrink and
-			  ;; once for stretch. We could offer those two
-			  ;; alternatives.
-			  (cdr (first (sort
-				       (mapcar
-					   (lambda (fit-span)
-					     (cons (delta lineup start
-							  (car fit-span) width)
-						   (car fit-span)))
-					 fit-spans)
-				       #'<
-				       :key (lambda (elt) (abs (car elt))))))
-			  (let ((underfull-delta
-				  (when underfull-span
-				    (- width
-				       (lineup-width
-					lineup start (car underfull-span)))))
-				(overfull-delta
-				  (when overfull-span
-				    (- (lineup-width
-					lineup start (car overfull-span))
-				       width))))
-			    (cond ((and underfull-delta overfull-delta)
-				   (if (< underfull-delta overfull-delta)
-				     (car underfull-span)
-				     (car overfull-span)))
-				  (underfull-delta (car underfull-span))
-				  (t (car overfull-span)))))))))))
+	     (return
+	       (case variant
+		 (:first
+		  (cond (fit-spans (caar (last fit-spans)))
+			(underfull-span (car underfull-span))
+			(t (car overfull-span))))
+		 (:last
+		  (cond (fit-spans (caar fit-spans))
+			(overfull-span (car overfull-span))
+			(t (car underfull-span))))
+		 (:best
+		  (if fit-spans
+		    ;; #### NOTE: two choices might be best-equals,
+		    ;; when we get the same delta, once for shrink and
+		    ;; once for stretch. We could offer those two
+		    ;; alternatives.
+		    (cdr (first (sort
+				 (mapcar
+				     (lambda (fit-span)
+				       (cons (delta lineup start
+						    (car fit-span) width)
+					     (car fit-span)))
+				   fit-spans)
+				 #'<
+				 :key (lambda (elt) (abs (car elt))))))
+		    (let ((underfull-delta
+			    (when underfull-span
+			      (- width
+				 (lineup-width
+				  lineup start (car underfull-span)))))
+			  (overfull-delta
+			    (when overfull-span
+			      (- (lineup-width
+				  lineup start (car overfull-span))
+				 width))))
+		      (cond ((and underfull-delta overfull-delta)
+			     (if (< underfull-delta overfull-delta)
+			       (car underfull-span)
+			       (car overfull-span)))
+			    (underfull-delta (car underfull-span))
+			    (t (car overfull-span)))))))))))
 
 (defgeneric fit-create-line
     (lineup start end width disposition variant &key &allow-other-keys)

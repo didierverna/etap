@@ -137,9 +137,5 @@
 	   (unless (zerop shrink)
 	     (values :shrink (/ (- width target) shrink)))))))
 
-(defun delta (lineup start end width)
-  (/ (- width (lineup-width lineup start end))
-     (count-if #'gluep lineup :start start :end end)))
-
 (defun next-glue-position (lineup &optional (start 0))
   (position-if #'gluep lineup :start start))
