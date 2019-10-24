@@ -4,33 +4,30 @@
   ((x :initform 0 :initarg :x :accessor x)
    (y :initform 0 :initarg :y :accessor y)))
 
+
 (defclass pinned-character (pinned)
   ((character-metrics
-    :initform nil :initarg :character-metrics :accessor character-metrics)))
-
-(defun make-pinned-character (&rest initargs &key x y character-metrics)
-  (declare (ignore x y character-metrics))
-  (apply #'make-instance 'pinned-character initargs))
+    :initarg :character-metrics :accessor character-metrics)))
 
 (defmethod width ((pinned-character pinned-character))
-  (with-slots ((width tfm:width) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) width)))
+  (width (character-metrics pinned-character)))
 
 (defmethod height ((pinned-character pinned-character))
-  (with-slots ((height tfm:height) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) height)))
+  (height (character-metrics pinned-character)))
 
 (defmethod depth ((pinned-character pinned-character))
-  (with-slots ((depth tfm:depth) (font tfm:font))
-      (character-metrics pinned-character)
-    (* (tfm:design-size font) depth)))
+  (depth (character-metrics pinned-character)))
+
+(defun make-pinned-character (character-metrics &rest initargs &key x y)
+  (declare (ignore x y))
+  (apply #'make-instance 'pinned-character
+    :character-metrics character-metrics initargs))
+
 
 
 (defclass line ()
   ((pinned-characters
-    :initform nil :initarg :pinned-characters :accessor pinned-characters)))
+    :initarg :pinned-characters :accessor pinned-characters)))
 
 (defmethod width
     ((line line)
@@ -45,24 +42,22 @@
   (loop :for pinned-character :in (pinned-characters line)
 	:maximize (depth pinned-character)))
 
-(defun make-line (&rest initargs &key pinned-characters)
-  (declare (ignore pinned-characters))
-  (apply #'make-instance 'line initargs))
+(defun make-line (pinned-characters &rest initargs &key x y)
+  (declare (ignore x y))
+  (apply #'make-instance 'line :pinned-characters pinned-characters initargs))
+
 
 (defun create-line (lineup start end &key (stretch 0) (shrink 0))
   (unless end (setq end (length lineup)))
-  (make-line :pinned-characters
-	     (loop :with x := 0
+  (make-line (loop :with x := 0
 		   :for i :from start :upto (1- end)
 		   :for element := (aref lineup i)
 		   :if (typep element 'tfm::character-metrics)
-		     :collect (make-pinned-character
-			       :x x :character-metrics element)
-		     :and :do (incf x (* (tfm:width element)
-					 (tfm:design-size (tfm:font element))))
+		     :collect (make-pinned-character element :x x)
+		     :and :do (incf x (width element))
 		   :else :if (kernp element)
-			   :do (incf x (value element))
+			   :do (incf x (width element))
 		   :else :if (gluep element)
-			   :do (incf x (+ (value element)
+			   :do (incf x (+ (width element)
 					  (* stretch (stretch element))
 					  (- (* shrink (shrink element))))))))

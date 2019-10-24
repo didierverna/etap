@@ -1,7 +1,7 @@
 (in-package :etap)
 
 (defclass pinned-line (pinned)
-  ((line :initform nil :initarg :line :accessor line)))
+  ((line :initarg :line :accessor line)))
 
 (defmethod width ((pinned-line pinned-line))
   (width (line pinned-line)))
@@ -12,9 +12,9 @@
 (defmethod depth ((pinned-line pinned-line))
   (depth (line pinned-line)))
 
-(defun make-pinned-line (&rest initargs &key x y line)
-  (declare (ignore x y line))
-  (apply #'make-instance 'pinned-line initargs))
+(defun make-pinned-line (line &rest initargs &key x y)
+  (declare (ignore x y))
+  (apply #'make-instance 'pinned-line :line line initargs))
 
 (defun create-pinned-lines (lineup width disposition algorithm)
   (loop :for line
@@ -25,11 +25,11 @@
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
 	:for y := 0 :then (+ y 12)
-	:collect (make-pinned-line :x x :y y :line line)))
+	:collect (make-pinned-line line :x x :y y)))
 
 
 (defclass paragraph ()
-  ((width :initform 0 :initarg :width :accessor width)
+  ((width :initarg :width :accessor width)
    (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines)))
 
 (defmethod height ((paragraph paragraph))
@@ -40,12 +40,11 @@
     (+ (* (1- (length pinned-lines)) 12)
        (depth (car (last pinned-lines))))))
 
-(defun make-paragraph (&rest initargs &key width pinned-lines)
-  (declare (ignore width pinned-lines))
-  (apply #'make-instance 'paragraph initargs))
+(defun make-paragraph (width &rest initargs &key pinned-lines)
+  (declare (ignore pinned-lines))
+  (apply #'make-instance 'paragraph :width width initargs))
 
 (defun create-paragraph (lineup width disposition algorithm)
-  (make-paragraph
-   :width width
+  (make-paragraph width
    :pinned-lines (when lineup
 		   (create-pinned-lines lineup width disposition algorithm))))

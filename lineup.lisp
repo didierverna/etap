@@ -1,33 +1,47 @@
 (in-package :etap)
 
+(defgeneric width (object)
+  (:method ((character-metrics tfm::character-metrics))
+    (* (tfm:design-size (tfm:font character-metrics))
+       (tfm:width character-metrics))))
+
+(defgeneric height (object)
+  (:method ((character-metrics tfm::character-metrics))
+    (* (tfm:design-size (tfm:font character-metrics))
+       (tfm:height character-metrics))))
+
+(defgeneric depth (object)
+  (:method ((character-metrics tfm::character-metrics))
+    (* (tfm:design-size (tfm:font character-metrics))
+       (tfm:depth character-metrics))))
+
+
 (defclass kern ()
-  ((value :initarg :value :reader value)))
+  ((width :initarg :width :reader width)))
 
 (defun kernp (object)
   (typep object 'kern))
 
-(defun make-kern (&rest initargs &key value)
-  (declare (ignore value))
-  (apply #'make-instance 'kern initargs))
+(defun make-kern (width)
+  (make-instance 'kern :width width))
 
 
 (defclass glue ()
-  ((value :initarg :value :reader value)
+  ((width :initarg :width :reader width)
    (stretch :initarg :stretch :reader stretch)
    (shrink :initarg :shrink :reader shrink)))
 
 (defun gluep (object)
   (typep object 'glue))
 
-(defun make-glue (&rest initargs &key value stretch shrink)
-  (declare (ignore value stretch shrink))
-  (apply #'make-instance 'glue initargs))
+(defun make-glue (width stretch shrink)
+  (make-instance 'glue :width width :stretch stretch :shrink shrink))
 
-(defun max-length (glue)
-  (+ (value glue) (stretch glue)))
-
-(defun min-length (glue)
-  (- (value glue) (shrink glue)))
+(defun make-interword-glue
+    (blank &aux (font (tfm:font blank)) (design-size (tfm:design-size font)))
+  (make-glue (* (tfm:interword-space font) design-size)
+	     (* (tfm:interword-stretch font) design-size)
+	     (* (tfm:interword-shrink font) design-size)))
 
 
 (defconstant +blanks+ '(#\Space #\Tab #\Newline))
@@ -39,20 +53,12 @@
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
 	      :with length := (length text)
-	      :with glue := (let ((design-size (tfm:design-size font)))
-			      (make-glue
-			       :value (* (tfm:interword-space font)
-					 design-size)
-			       :stretch (* (tfm:interword-stretch font)
-					   design-size)
-			       :shrink (* (tfm:interword-shrink font)
-					  design-size)))
 	      :with i := 0
 	      :while (< i length)
 	      :for character
 		:= (tfm:get-character (char-code (aref text i)) font)
 	      :if (blankp (aref text i))
-		:collect glue
+		:collect (make-interword-glue character)
 		:and :do (setq i (position-if-not #'blankp text :start i))
 	      :else :if character
 		      :collect character
@@ -94,9 +100,8 @@
 			       (tfm:kerning elt1 elt2))
 		:collect elt1
 		:when kern
-		  :collect (make-kern
-			    :value (* (tfm:design-size (tfm:font elt1))
-				      kern)))))
+		  :collect (make-kern (* (tfm:design-size (tfm:font elt1))
+					 kern)))))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
 
 
@@ -107,35 +112,30 @@
 	:with shrink := 0
 	:for i :from start :upto (1- end)
 	:for element := (aref lineup i)
-	:if (typep element 'tfm::character-metrics)
-	  :do (incf width (* (tfm:design-size (tfm:font element))
-			     (tfm:width element)))
-	:else :if (kernp element)
-		:do (incf width (value element))
-	:else :if (gluep element)
-		:do (incf width (value element))
-		:and :do (incf stretch (stretch element))
-		:and :do (incf shrink (shrink element))
+	:do (incf width (width element))
+	:when (gluep element)
+	  :do (incf stretch (stretch element))
+	  :and :do (incf shrink (shrink element))
 	:finally (return (values width stretch shrink))))
 
 (defun lineup-max-width (lineup start end)
-  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
     (declare (ignore shrink))
-    (+ natural stretch)))
+    (+ width stretch)))
 
 (defun lineup-min-width (lineup start end)
-  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
     (declare (ignore stretch))
-    (- natural shrink)))
+    (- width shrink)))
 
-(defun lineup-scale (lineup start end width)
-  (multiple-value-bind (natural stretch shrink) (lineup-width lineup start end)
-    (cond ((< natural width)
+(defun lineup-scale (lineup start end target)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+    (cond ((< width target)
 	   (unless (zerop stretch)
-	     (values :stretch (/ (- width natural) stretch))))
-	  ((> natural width)
+	     (values :stretch (/ (- target width) stretch))))
+	  ((> width target)
 	   (unless (zerop shrink)
-	     (values :shrink (/ (- natural width) shrink)))))))
+	     (values :shrink (/ (- width target) shrink)))))))
 
 (defun delta (lineup start end width)
   (/ (- width (lineup-width lineup start end))
