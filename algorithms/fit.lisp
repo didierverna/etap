@@ -49,20 +49,24 @@
 			(t (car underfull-span))))
 		 (:best
 		  (if fit-spans
-		    ;; #### NOTE: two choices might be best-equals,
-		    ;; when we get the same delta, once for shrink and
-		    ;; once for stretch. We could offer those two
-		    ;; alternatives.
-		    (car
-		     (first
-		      (sort
-		       (mapcar
-			   (lambda (fit-span &aux (i (car fit-span)))
-			     (cons i (multiple-value-list
-				      (lineup-scale lineup start i width))))
-			 fit-spans)
-		       #'<
-		       :key (lambda (elt) (caddr elt)))))
+		    (if (= (length fit-spans) 1)
+		      (caar fit-spans)
+		      (let ((sorted-scales
+			      (sort
+			       (mapcar
+				   (lambda (fit-span &aux (i (car fit-span)))
+				     (cons i (multiple-value-list
+					      (lineup-scale lineup start i
+							    width))))
+				 fit-spans)
+			       #'<
+			       :key (lambda (elt) (caddr elt)))))
+			(if (= (caddr (first sorted-scales))
+			       (caddr (second sorted-scales)))
+			  (if prefer-shrink
+			    (car (first sorted-scales))
+			    (car (second sorted-scales)))
+			  (car (first sorted-scales)))))
 		    (let ((underfull-delta
 			    (when underfull-span
 			      (- width
