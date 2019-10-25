@@ -16,9 +16,9 @@
 	    :finally (return i))))
   (:method (start lineup width (disposition (eql :justified)) variant
 	    &key prefer-shrink)
-    (loop :with underfull-span
-	  :with fit-spans := (list)
-	  :with overfull-span
+    (loop :with underfull-i
+	  :with |fit-i's| := (list)
+	  :with overfull-i
 	  :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for s := (multiple-value-bind (width stretch shrink)
@@ -30,35 +30,35 @@
 			   (lineup-width lineup i ii)
 			 (list width (+ width stretch) (- width shrink))))
 	  ;; #### NOTE: s becomes NIL when doing (mapcar #'+ s NIL).
-	  :while (and s (not overfull-span))
+	  :while (and s (not overfull-i))
 	  :if (< (cadr s) width)
-	    :do (setq underfull-span (cons i s))
+	    :do (setq underfull-i i)
 	  :else :if (and (<= (caddr s) width) (>= (cadr s) width))
-		  :do (push (cons i s) fit-spans)
-	  :else :do (setq overfull-span (cons i s))
+		  :do (push i |fit-i's|)
+	  :else :do (setq overfull-i i)
 	  :finally
 	     (return
 	       (case variant
 		 (:first
-		  (cond (fit-spans (caar (last fit-spans)))
-			(underfull-span (car underfull-span))
-			(t (car overfull-span))))
+		  (cond (|fit-i's| (car (last |fit-i's|)))
+			(underfull-i underfull-i)
+			(t overfull-i)))
 		 (:last
-		  (cond (fit-spans (caar fit-spans))
-			(overfull-span (car overfull-span))
-			(t (car underfull-span))))
+		  (cond (|fit-i's| (car |fit-i's|))
+			(overfull-i overfull-i)
+			(t underfull-i)))
 		 (:best
-		  (if fit-spans
-		    (if (= (length fit-spans) 1)
-		      (caar fit-spans)
+		  (if |fit-i's|
+		    (if (= (length |fit-i's|) 1)
+		      (car |fit-i's|)
 		      (let ((sorted-scales
 			      (sort
 			       (mapcar
-				   (lambda (fit-span &aux (i (car fit-span)))
+				   (lambda (i)
 				     (cons i (multiple-value-list
 					      (lineup-scale lineup start i
 							    width))))
-				 fit-spans)
+				 |fit-i's|)
 			       #'<
 			       :key (lambda (elt) (caddr elt)))))
 			(if (= (caddr (first sorted-scales))
@@ -68,21 +68,19 @@
 			    (car (second sorted-scales)))
 			  (car (first sorted-scales)))))
 		    (let ((underfull-delta
-			    (when underfull-span
+			    (when underfull-i
 			      (- width
-				 (lineup-width
-				  lineup start (car underfull-span)))))
+				 (lineup-width lineup start underfull-i))))
 			  (overfull-delta
-			    (when overfull-span
-			      (- (lineup-width
-				  lineup start (car overfull-span))
+			    (when overfull-i
+			      (- (lineup-width lineup start overfull-i)
 				 width))))
 		      (cond ((and underfull-delta overfull-delta)
 			     (if (< underfull-delta overfull-delta)
-			       (car underfull-span)
-			       (car overfull-span)))
-			    (underfull-delta (car underfull-span))
-			    (t (car overfull-span)))))))))))
+			       underfull-i
+			       overfull-i))
+			    (underfull-delta underfull-i)
+			    (t overfull-i))))))))))
 
 (defgeneric fit-create-line
     (lineup start end width disposition variant &key &allow-other-keys)
