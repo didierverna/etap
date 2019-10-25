@@ -1,28 +1,30 @@
 (in-package :etap)
 
-(defgeneric fit-line-end (start lineup width disposition variant)
-  (:method (start lineup width disposition (variant (eql :first)))
+(defgeneric fit-line-end (start lineup width disposition variant
+			  &key &allow-other-keys)
+  (:method (start lineup width disposition (variant (eql :first)) &key)
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-max-width lineup start i) :then (+ w ww)
 	  :for ww := (when i (lineup-max-width lineup i ii))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
-  (:method (start lineup width disposition (variant (eql :best)))
+  (:method (start lineup width disposition (variant (eql :best)) &key)
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-width lineup start i) :then (+ w ww)
 	  :for ww := (when i (lineup-width lineup i ii))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
-  (:method (start lineup width disposition (variant (eql :last)))
+  (:method (start lineup width disposition (variant (eql :last)) &key)
     (loop :for i := (next-glue-position lineup start) :then ii
 	  :for ii := (when i (next-glue-position lineup (1+ i)))
 	  :for w := (lineup-min-width lineup start i) :then (+ w ww)
 	  :for ww := (when i (lineup-min-width lineup i ii))
 	  :while (and ww (<= (+ w ww) width))
 	  :finally (return i)))
-  (:method (start lineup width (disposition (eql :justified)) variant)
+  (:method (start lineup width (disposition (eql :justified)) variant
+	    &key prefer-shrink)
     (loop :with underfull-span
 	  :with fit-spans := (list)
 	  :with overfull-span
@@ -105,7 +107,7 @@
   (:method (lineup start end width disposition (variant (eql :best)) &key)
     (create-line lineup start end))
   (:method (lineup start end width disposition (variant (eql :last))
-	    &key  relax &aux (ratio 1))
+	    &key relax &aux (ratio 1))
     (if relax
       (setq ratio
 	    (multiple-value-bind (type ratio)
@@ -123,9 +125,10 @@
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
-     &key variant relax sloppy)
+     &key variant relax sloppy prefer-shrink)
   (loop :for start := 0 :then (when end (1+ end)) ; discard glue
 	:while start
-	:for end := (fit-line-end start lineup width disposition variant)
+	:for end := (fit-line-end start lineup width disposition variant
+		      :prefer-shrink prefer-shrink)
 	:collect (fit-create-line lineup start end width disposition variant
-				  :relax relax :sloppy sloppy)))
+		   :relax relax :sloppy sloppy)))

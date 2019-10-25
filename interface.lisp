@@ -160,16 +160,16 @@
      :retract-callback 'set-fixed-algorithm
      :reader fixed-options)
    (fit-variant radio-button-panel
-     :layout-class 'row-layout
+     :layout-class 'column-layout
      :title "Variant" :title-position :frame
      :items '(:first :best :last)
      :print-function 'keyword-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
    (fit-options check-button-panel
-     :layout-class 'row-layout
+     :layout-class 'column-layout
      :title "Options" :title-position :frame
-     :items '((:relax t) (:sloppy t))
+     :items '((:relax t) (:sloppy t) (:prefer-shrink t))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
@@ -268,6 +268,7 @@
 	   (let ((selection (list)))
 	     (when (cadr (member :relax algorithm)) (push 0 selection))
 	     (when (cadr (member :sloppy algorithm)) (push 1 selection))
+	     (when (cadr (member :prefer-shrink algorithm)) (push 2 selection))
 	     selection))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (setf (choice-selected-items (features etap)) (features state))
