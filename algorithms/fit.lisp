@@ -2,27 +2,18 @@
 
 (defgeneric fit-line-end (start lineup width disposition variant
 			  &key &allow-other-keys)
-  (:method (start lineup width disposition (variant (eql :first)) &key)
-    (loop :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (lineup-max-width lineup start i) :then (+ w ww)
-	  :for ww := (when i (lineup-max-width lineup i ii))
-	  :while (and ww (<= (+ w ww) width))
-	  :finally (return i)))
-  (:method (start lineup width disposition (variant (eql :best)) &key)
-    (loop :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (lineup-width lineup start i) :then (+ w ww)
-	  :for ww := (when i (lineup-width lineup i ii))
-	  :while (and ww (<= (+ w ww) width))
-	  :finally (return i)))
-  (:method (start lineup width disposition (variant (eql :last)) &key)
-    (loop :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for w := (lineup-min-width lineup start i) :then (+ w ww)
-	  :for ww := (when i (lineup-min-width lineup i ii))
-	  :while (and ww (<= (+ w ww) width))
-	  :finally (return i)))
+  (:method (start lineup width disposition variant &key)
+    (let ((lineup-width-function (case variant
+				   (:first #'lineup-max-width)
+				   (:best #'lineup-width)
+				   (:last #'lineup-min-width))))
+      (loop :for i := (next-glue-position lineup start) :then ii
+	    :for ii := (when i (next-glue-position lineup (1+ i)))
+	    :for w := (funcall lineup-width-function lineup start i)
+	      :then (+ w ww)
+	    :for ww := (when i (funcall lineup-width-function lineup i ii))
+	    :while (and ww (<= (+ w ww) width))
+	    :finally (return i))))
   (:method (start lineup width (disposition (eql :justified)) variant
 	    &key prefer-shrink)
     (loop :with underfull-span
