@@ -16,6 +16,8 @@ proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
 
 (defclass state ()
   ((font :initform (tfm:load-font +font-file+) :reader font)
+   (hyphenation-rules :initform (create-hyphenation-rules)
+		      :reader hyphenation-rules)
    (algorithm :initform '(:fixed) :accessor algorithm)
    (disposition :initform :flush-left :accessor disposition)
    (features :initform (list) :accessor features)

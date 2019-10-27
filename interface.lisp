@@ -6,7 +6,8 @@
 
 (defun update (interface &aux (state (state interface)))
   (setf (paragraph state)
-	(create-paragraph (lineup (text state) (font state) (features state))
+	(create-paragraph (lineup (text state) (font state) (features state)
+				  (hyphenation-rules state))
 			  (paragraph-width state)
 			  (disposition state)
 			  (algorithm state)))
