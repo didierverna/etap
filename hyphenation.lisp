@@ -36,13 +36,23 @@
 (defun parse-hyphenation-pattern (string)
   (loop :with word := (make-string (- (length string)
 				      (count-if #'digit-char-p string)))
+	:with digit-is-char := nil
 	:with hyphenation-points := (list)
 	:with i := 0
 	:for char :across string
 	:if (digit-char-p char)
-	  :do (push (cons i (- (char-code char) 48)) hyphenation-points)
+	  :if digit-is-char
+	    :do (setf (aref word i) char)
+	    :and :do (incf i)
+	    :and :do (setq digit-is-char nil)
+	  :else
+	    :do (push (cons i (- (char-code char) 48)) hyphenation-points)
+	    :and :do (setq digit-is-char t)
+	  :end
 	:else
-	  :do (setf (aref word i) char) :and :do (incf i)
+	  :do (setf (aref word i) char)
+	  :and :do (incf i)
+	  :and :do (setq digit-is-char nil)
 	:finally (return (values word hyphenation-points))))
 
 (defun parse-hyphenation-exception (string)
