@@ -51,7 +51,7 @@
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0
 		   :for i :from start :upto (1- end)
-		   :for element := (aref lineup i)
+		   :for element := (lineup-aref lineup i start end)
 		   :if (typep element 'tfm::character-metrics)
 		     :collect (make-pinned-character element :x x)
 		     :and :do (incf x (width element))

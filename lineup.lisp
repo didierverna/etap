@@ -1,6 +1,7 @@
 (in-package :etap)
 
 (defgeneric width (object)
+  (:method ((null (eql nil))) 0)
   (:method ((character-metrics tfm::character-metrics))
     (* (tfm:design-size (tfm:font character-metrics))
        (tfm:width character-metrics))))
@@ -26,7 +27,14 @@
   (make-instance 'kern :width width))
 
 
-(defclass discretionary ()
+(defclass break-point ()
+  ())
+
+(defun break-point-p (object)
+  (typep object 'break-point))
+
+
+(defclass discretionary (break-point)
   ((pre-break :initform nil :initarg :pre-break :accessor pre-break)
    (post-break :initform nil :initarg :post-break :accessor post-break)
    (no-break :initform nil :initarg :no-break :accessor no-break)))
@@ -39,7 +47,7 @@
   (apply #'make-instance 'discretionary initargs))
 
 
-(defclass glue ()
+(defclass glue (break-point)
   ((width :initarg :width :reader width)
    (stretch :initarg :stretch :reader stretch)
    (shrink :initarg :shrink :reader shrink)))
@@ -63,13 +71,20 @@
   (member character +blanks+))
 
 
+(defun lineup-aref (lineup i start end &aux (element (aref lineup i)))
+  (if (discretionaryp element)
+    (cond ((= i start) (post-break element))
+	  ((= i (1- end)) (pre-break element))
+	  (t (no-break element)))
+    element))
+
 (defun lineup-width (lineup start end)
   (unless end (setq end (length lineup)))
   (loop :with width := 0
 	:with stretch := 0
 	:with shrink := 0
 	:for i :from start :upto (1- end)
-	:for element := (aref lineup i)
+	:for element := (lineup-aref lineup i start end)
 	:do (incf width (width element))
 	:when (gluep element)
 	  :do (incf stretch (stretch element))
@@ -96,9 +111,22 @@
 	   (unless (zerop shrink)
 	     (values :shrink (/ (- width target) shrink)))))))
 
+;; #### FIXME: remove this.
 (defun next-glue-position (lineup &optional (start 0))
   (position-if #'gluep lineup :start start))
 
+(defun next-break-position
+    (lineup &optional (start 0)
+	    &aux (length (length lineup))
+		 (point (position-if #'break-point-p lineup :start start)))
+  (unless (= start length)
+    (if point
+      (let ((next (1+ point)))
+	;; (when (= next (length lineup)) (setq next nil))
+	(typecase (aref lineup point)
+	  (glue (list point next next))
+	  (discretionary (list next point next))))
+      (list length length length))))
 
 (defun collect-word (word font)
   (loop :for char :across word
