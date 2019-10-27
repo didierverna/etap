@@ -100,6 +100,31 @@
   (position-if #'gluep lineup :start start))
 
 
+(defun collect-word (word font)
+  (loop :for char :across word
+	:for character := (tfm:get-character (char-code char) font)
+	:when character :collect character))
+
+(defun hyphenate-word
+    (word rules font &aux (points (hyphenation-points word rules)))
+  (if points
+    (loop :with hyphen := (tfm:get-character (char-code #\-) font)
+	  :with elements
+	    := (collect-word (subseq word 0 (car points)) font)
+	  :for slices :on points
+	  :do (setq elements
+		    (append elements
+			    (list (make-discretionary :pre-break hyphen))
+			    (collect-word
+			     (subseq word (car slices) (cadr slices))
+			     font)))
+	  :finally (return elements))
+    (collect-word word font)))
+
+;; #### NOTE: TeX's rules for hyphenating are more strict than ours here. For
+;; instance, it will consider only one word betwee ntwo glues, so for instance
+;; in "... foo.bar ...", bar will never be hyphenated. We do on the other
+;; hand.
 (defun lineup (text font features hyphenation-rules &aux lineup)
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
@@ -111,11 +136,28 @@
 	      :if (blankp (aref text i))
 		:collect (make-interword-glue character)
 		:and :do (setq i (position-if-not #'blankp text :start i))
+	      :else :if (alpha-char-p (aref text i))
+		:collect (subseq text i
+			   (position-if-not #'alpha-char-p text :start i))
+		:and :do (setq i (position-if-not #'alpha-char-p text
+				   :start i))
 	      :else :if character
-		      :collect character
-		      :and :do (incf i)
+		:collect character
+		:and :do (incf i)
 	      :else
 		:do (incf i)))
+  (setq lineup
+	(if (member :hyphenation features)
+	  (loop :for element :in lineup
+		:if (stringp element)
+		  :append (hyphenate-word element hyphenation-rules font)
+		:else
+		  :collect element)
+	  (loop :for element :in lineup
+		:if (stringp element)
+		  :append (collect-word element font)
+		:else
+		  :collect element)))
   (when (member :ligatures features)
     (setq lineup
 	  (loop :with elements := lineup
