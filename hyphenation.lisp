@@ -1,5 +1,8 @@
 (in-package :etap)
 
+(defconstant +lefthyphenmin+ 2)
+(defconstant +righthyphenmin+ 3)
+
 (defconstant +hyphenation-patterns-file+
   (asdf:system-relative-pathname :etap #p"share/hyph-en-us.pat.txt"))
 
@@ -91,6 +94,10 @@
 			      pattern))
 	    :finally (return
 		       (sort
-			(mapcar #'car
-			  (remove-if-not #'oddp points :key #'cdr))
+			(remove-if (lambda (position)
+				     (or (< position +lefthyphenmin+)
+					 (> position
+					    (- length +righthyphenmin+ 1))))
+				   (mapcar #'car
+				     (remove-if-not #'oddp points :key #'cdr)))
 			#'<))))))
