@@ -26,6 +26,19 @@
   (make-instance 'kern :width width))
 
 
+(defclass discretionary ()
+  ((pre-break :initform nil :initarg :pre-break :accessor pre-break)
+   (post-break :initform nil :initarg :post-break :accessor post-break)
+   (no-break :initform nil :initarg :no-break :accessor no-break)))
+
+(defun discretionaryp (object)
+  (typep object 'discretionary))
+
+(defun make-discretionary (&rest initargs &key pre-break post-break no-break)
+  (declare (ignore pre-break post-break no-break))
+  (apply #'make-instance 'discretionary initargs))
+
+
 (defclass glue ()
   ((width :initarg :width :reader width)
    (stretch :initarg :stretch :reader stretch)
@@ -49,7 +62,45 @@
 (defun blankp (character)
   (member character +blanks+))
 
-(defun lineup (text font features &aux lineup)
+
+(defun lineup-width (lineup start end)
+  (unless end (setq end (length lineup)))
+  (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
+	:for i :from start :upto (1- end)
+	:for element := (aref lineup i)
+	:do (incf width (width element))
+	:when (gluep element)
+	  :do (incf stretch (stretch element))
+	  :and :do (incf shrink (shrink element))
+	:finally (return (values width stretch shrink))))
+
+(defun lineup-max-width (lineup start end)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+    (declare (ignore shrink))
+    (+ width stretch)))
+
+(defun lineup-min-width (lineup start end)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+    (declare (ignore stretch))
+    (- width shrink)))
+
+(defun lineup-scale (lineup start end target)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+    (cond ((= width target) (values :none 0))
+	  ((< width target)
+	   (unless (zerop stretch)
+	     (values :stretch (/ (- target width) stretch))))
+	  ((> width target)
+	   (unless (zerop shrink)
+	     (values :shrink (/ (- width target) shrink)))))))
+
+(defun next-glue-position (lineup &optional (start 0))
+  (position-if #'gluep lineup :start start))
+
+
+(defun lineup (text font features hyphenation-rules &aux lineup)
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
 	      :with length := (length text)
@@ -103,40 +154,3 @@
 		  :collect (make-kern (* (tfm:design-size (tfm:font elt1))
 					 kern)))))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
-
-
-(defun lineup-width (lineup start end)
-  (unless end (setq end (length lineup)))
-  (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
-	:for i :from start :upto (1- end)
-	:for element := (aref lineup i)
-	:do (incf width (width element))
-	:when (gluep element)
-	  :do (incf stretch (stretch element))
-	  :and :do (incf shrink (shrink element))
-	:finally (return (values width stretch shrink))))
-
-(defun lineup-max-width (lineup start end)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
-    (declare (ignore shrink))
-    (+ width stretch)))
-
-(defun lineup-min-width (lineup start end)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
-    (declare (ignore stretch))
-    (- width shrink)))
-
-(defun lineup-scale (lineup start end target)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
-    (cond ((= width target) (values :none 0))
-	  ((< width target)
-	   (unless (zerop stretch)
-	     (values :stretch (/ (- target width) stretch))))
-	  ((> width target)
-	   (unless (zerop shrink)
-	     (values :shrink (/ (- width target) shrink)))))))
-
-(defun next-glue-position (lineup &optional (start 0))
-  (position-if #'gluep lineup :start start))
