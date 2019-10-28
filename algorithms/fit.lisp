@@ -20,37 +20,35 @@
 	    :finally (return previous-boundary))))
   (:method (start lineup width (disposition (eql :justified)) variant
 	    &key prefer-shrink)
-    (loop :with underfull-i
-	  :with |fit-i's| := (list)
-	  :with overfull-i
-	  :for i := (next-glue-position lineup start) :then ii
-	  :for ii := (when i (next-glue-position lineup (1+ i)))
-	  :for s := (multiple-value-bind (width stretch shrink)
-			(lineup-width lineup start i)
-		      (list width (+ width stretch) (- width shrink)))
-	    :then (mapcar #'+ s ss)
-	  :for ss := (when i
-		       (multiple-value-bind (width stretch shrink)
-			   (lineup-width lineup i ii)
-			 (list width (+ width stretch) (- width shrink))))
-	  ;; #### NOTE: s becomes NIL when doing (mapcar #'+ s NIL).
-	  :while (and s (not overfull-i))
-	  :if (< (cadr s) width)
-	    :do (setq underfull-i i)
-	  :else :if (and (<= (caddr s) width) (>= (cadr s) width))
-		  :do (push i |fit-i's|)
-	  :else :do (setq overfull-i i)
+    (loop :with underfull-boundary
+	  :with fit-boundaries := (list)
+	  :with overfull-boundary
+	  ;; #### NOTE: this works even the first time because at worst,
+	  ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+	  ;; afterwards.
+	  :for boundary := (next-break-position lineup start)
+	    :then (next-break-position lineup (caddr boundary))
+	  :for span := (multiple-value-bind (width stretch shrink)
+			   (lineup-width lineup start (car boundary))
+			 (list width (+ width stretch) (- width shrink)))
+	  :while (and (caddr boundary) (not overfull-boundary))
+	  :if (< (cadr span) width)
+	    :do (setq underfull-boundary boundary)
+	  :else :if (and (<= (caddr span) width) (>= (cadr span) width))
+	    :do (push boundary fit-boundaries)
+	  :else
+	    :do (setq overfull-boundary boundary)
 	  :finally
 	     (return
 	       (case variant
 		 (:first
-		  (cond (|fit-i's| (car (last |fit-i's|)))
-			(underfull-i underfull-i)
-			(t overfull-i)))
+		  (cond (fit-boundaries (car (last fit-boundaries)))
+			(underfull-boundary underfull-boundary)
+			(t overfull-boundary)))
 		 (:last
-		  (cond (|fit-i's| (car |fit-i's|))
-			(overfull-i overfull-i)
-			(t underfull-i)))
+		  (cond (fit-boundaries (car fit-boundaries))
+			(overfull-boundary overfull-boundary)
+			(t underfull-boundary)))
 		 (:best
 		  (if |fit-i's|
 		    (if (= (length |fit-i's|) 1)
