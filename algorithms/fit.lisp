@@ -92,10 +92,10 @@
 	    &key relax &aux (ratio 1))
     (if relax
       (setq ratio
-	    (if end
-	      (let ((i (next-glue-position lineup (1+ end))))
+	    (if (< end (length lineup))
+	      (let ((next-end (car (next-break-position lineup search))))
 		(multiple-value-bind (type ratio)
-		    (lineup-scale lineup start i width)
+		    (lineup-scale lineup start next-end width)
 		  (if (eq type :stretch)
 		    ratio
 		    0)))
