@@ -1,7 +1,7 @@
 (in-package :etap)
 
-(defgeneric fit-line-boundaries (start lineup width disposition variant
-				 &key &allow-other-keys)
+(defgeneric fit-line-boundary (start lineup width disposition variant
+			       &key &allow-other-keys)
   (:method (start lineup width disposition variant &key)
     (let ((lineup-width-function (case variant
 				   (:first #'lineup-max-width)
@@ -10,14 +10,14 @@
       ;; #### NOTE: this works even the first time because at worst,
       ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
       ;; afterwards.
-      (loop :with previous-boundaries
+      (loop :with previous-boundary
 	    :for (end next-start next-search)
 	      := (next-break-position lineup start)
 		:then (next-break-position lineup next-search)
 	    :for w := (funcall lineup-width-function lineup start end)
 	    :while (and next-search (<= w width))
-	    :do (setq previous-boundaries (list end next-start next-search))
-	    :finally (return previous-boundaries))))
+	    :do (setq previous-boundary (list end next-start next-search))
+	    :finally (return previous-boundary))))
   (:method (start lineup width (disposition (eql :justified)) variant
 	    &key prefer-shrink)
     (loop :with underfull-i
@@ -127,7 +127,7 @@
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start next-search)
-	  := (fit-line-boundaries start lineup width disposition variant
+	  := (fit-line-boundary start lineup width disposition variant
 	       :prefer-shrink prefer-shrink)
 	:collect (fit-create-line lineup start end next-search width
 		     disposition variant
