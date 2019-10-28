@@ -50,8 +50,7 @@
 (defun create-line (lineup start end &key (stretch 0) (shrink 0))
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0
-		   :for i :from start :upto (1- end)
-		   :for element := (lineup-aref lineup i start end)
+		   :for element :in (flatten-lineup lineup start end)
 		   :if (typep element 'tfm::character-metrics)
 		     :collect (make-pinned-character element :x x)
 		     :and :do (incf x (width element))

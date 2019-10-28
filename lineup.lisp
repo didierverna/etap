@@ -1,7 +1,10 @@
 (in-package :etap)
 
 (defgeneric width (object)
-  (:method ((null (eql nil))) 0)
+  (:method ((null (eql nil)))
+    0)
+  (:method ((list list))
+    (reduce #'+ (mapcar #'width list)))
   (:method ((character-metrics tfm::character-metrics))
     (* (tfm:design-size (tfm:font character-metrics))
        (tfm:width character-metrics))))
@@ -77,6 +80,14 @@
 	  ((= i (1- end)) (pre-break element))
 	  (t (no-break element)))
     element))
+
+(defun flatten-lineup (lineup start end)
+  (loop :for i :from start :upto (1- end)
+	:for element := (lineup-aref lineup i start end)
+	:if (consp element)
+	  :append element
+	:else
+	  :collect element))
 
 (defun lineup-width (lineup start end)
   (unless end (setq end (length lineup)))
