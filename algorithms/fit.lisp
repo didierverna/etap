@@ -50,19 +50,22 @@
 			(overfull-boundary overfull-boundary)
 			(t underfull-boundary)))
 		 (:best
-		  (if |fit-i's|
-		    (if (= (length |fit-i's|) 1)
-		      (car |fit-i's|)
+		  (if fit-boundaries
+		    (if (= (length fit-boundaries) 1)
+		      (car fit-boundaries)
 		      (let ((sorted-scales
 			      (sort
 			       (mapcar
-				   (lambda (i)
-				     (cons i (multiple-value-list
-					      (lineup-scale lineup start i
-							    width))))
-				 |fit-i's|)
+				   (lambda (boundary)
+				     (cons boundary
+					   (multiple-value-list
+					    (lineup-scale lineup
+							  start
+							  (car boundary)
+							  width))))
+				 fit-boundaries)
 			       #'<
-			       :key (lambda (elt) (caddr elt)))))
+			       :key #'caddr)))
 			(if (= (caddr (first sorted-scales))
 			       (caddr (second sorted-scales)))
 			  (if prefer-shrink
@@ -70,19 +73,21 @@
 			    (car (second sorted-scales)))
 			  (car (first sorted-scales)))))
 		    (let ((underfull-delta
-			    (when underfull-i
+			    (when underfull-boundary
 			      (- width
-				 (lineup-width lineup start underfull-i))))
+				 (lineup-width
+				  lineup start (car underfull-boundary)))))
 			  (overfull-delta
-			    (when overfull-i
-			      (- (lineup-width lineup start overfull-i)
+			    (when overfull-boundary
+			      (- (lineup-width
+				  lineup start (car overfull-boundary))
 				 width))))
 		      (cond ((and underfull-delta overfull-delta)
 			     (if (< underfull-delta overfull-delta)
-			       underfull-i
-			       overfull-i))
-			    (underfull-delta underfull-i)
-			    (t overfull-i))))))))))
+			       underfull-boundary
+			       overfull-boundary))
+			    (underfull-delta underfull-boundary)
+			    (t overfull-boundary))))))))))
 
 (defgeneric fit-create-line
     (lineup start end search width disposition variant &key &allow-other-keys)
