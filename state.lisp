@@ -4,12 +4,14 @@
   (net.didierverna.tfm:nickname-package))
 
 (defconstant +initial-text+
-  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
-quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
-cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
-proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
+  "In olden times when wishing still helped one, there lived a king whose
+daughters were all beautiful; and the youngest was so beautiful that the sun
+itself, which has seen so much, was astonished whenever it shone in her face.
+Close by the king’s castle lay a great dark forest, and under an old lime-tree
+in the forest was a well, and when the day was very warm, the king’s child
+went out into the forest and sat down by the side of the cool fountain; and
+when she was bored she took a golden ball, and threw it up on high and caught
+it; and this ball was her favorite plaything.")
 
 (defconstant +font-file+
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
