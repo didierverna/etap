@@ -111,10 +111,6 @@
 	   (unless (zerop shrink)
 	     (values :shrink (/ (- width target) shrink)))))))
 
-;; #### FIXME: remove this.
-(defun next-glue-position (lineup &optional (start 0))
-  (position-if #'gluep lineup :start start))
-
 (defun next-break-position
     (lineup &optional (start 0)
 	    &aux (length (length lineup))
