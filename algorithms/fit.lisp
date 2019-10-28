@@ -1,19 +1,23 @@
 (in-package :etap)
 
-(defgeneric fit-line-end (start lineup width disposition variant
-			  &key &allow-other-keys)
+(defgeneric fit-line-boundaries (start lineup width disposition variant
+				 &key &allow-other-keys)
   (:method (start lineup width disposition variant &key)
     (let ((lineup-width-function (case variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
-      (loop :for i := (next-glue-position lineup start) :then ii
-	    :for ii := (when i (next-glue-position lineup (1+ i)))
-	    :for w := (funcall lineup-width-function lineup start i)
-	      :then (+ w ww)
-	    :for ww := (when i (funcall lineup-width-function lineup i ii))
-	    :while (and ww (<= (+ w ww) width))
-	    :finally (return i))))
+      ;; #### NOTE: this works even the first time because at worst,
+      ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+      ;; afterwards.
+      (loop :with previous-boundaries
+	    :for (end next-start next-search)
+	      := (next-break-position lineup start)
+		:then (next-break-position lineup next-search)
+	    :for w := (funcall lineup-width-function lineup start end)
+	    :while (and next-search (<= w width))
+	    :do (setq previous-boundaries (list end next-start next-search))
+	    :finally (return previous-boundaries))))
   (:method (start lineup width (disposition (eql :justified)) variant
 	    &key prefer-shrink)
     (loop :with underfull-i
@@ -83,8 +87,8 @@
 			    (t overfull-i))))))))))
 
 (defgeneric fit-create-line
-    (lineup start end width disposition variant &key &allow-other-keys)
-  (:method (lineup start end width disposition (variant (eql :first))
+    (lineup start end search width disposition variant &key &allow-other-keys)
+  (:method (lineup start end search width disposition (variant (eql :first))
 	    &key relax &aux (ratio 1))
     (if relax
       (setq ratio
@@ -97,9 +101,10 @@
 		    0)))
 	      0)))
     (create-line lineup start end :stretch ratio))
-  (:method (lineup start end width disposition (variant (eql :best)) &key)
+  (:method
+      (lineup start end search width disposition (variant (eql :best)) &key)
     (create-line lineup start end))
-  (:method (lineup start end width disposition (variant (eql :last))
+  (:method (lineup start end search width disposition (variant (eql :last))
 	    &key relax &aux (ratio 1))
     (if relax
       (setq ratio
@@ -109,7 +114,7 @@
 		0
 		ratio))))
     (create-line lineup start end :shrink ratio))
-  (:method (lineup start end width (disposition (eql :justified)) variant
+  (:method (lineup start end search width (disposition (eql :justified)) variant
 	    &key sloppy)
     (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
       (if type
@@ -119,9 +124,11 @@
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
      &key variant relax sloppy prefer-shrink)
-  (loop :for start := 0 :then (when end (1+ end)) ; discard glue
-	:while start
-	:for end := (fit-line-end start lineup width disposition variant
-		      :prefer-shrink prefer-shrink)
-	:collect (fit-create-line lineup start end width disposition variant
+  (loop :for start := 0 :then next-start
+	:until (= start (length lineup))
+	:for (end next-start next-search)
+	  := (fit-line-boundaries start lineup width disposition variant
+	       :prefer-shrink prefer-shrink)
+	:collect (fit-create-line lineup start end next-search width
+		     disposition variant
 		   :relax relax :sloppy sloppy)))
