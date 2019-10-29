@@ -155,10 +155,15 @@
 	  :finally (return elements))
     (collect-word word font)))
 
-;; #### NOTE: TeX's rules for hyphenating are more strict than ours here. For
-;; instance, it will consider only one word betwee ntwo glues, so for instance
-;; in "... foo.bar ...", bar will never be hyphenated. We do on the other
-;; hand.
+;; #### NOTE: the hyphenation process below is simple, different from what TeX
+;; #### does and should certainly be improved. For instance, TeX will consider
+;; #### only one word between two glues, so for instance in "... foo.bar ...",
+;; #### bar will never be hyphenated. There are also other rules that prevent
+;; #### hyphenation in some situations, which we do not have right now. The
+;; #### other thing is that TeX detects explicit hyphens (as in lime-tree) and
+;; #### inserts empty discretionaries, so that hyphenation can occur (but
+;; #### then, at no other points in a word). We should probably do something
+;; #### similar.
 (defun lineup (text font features hyphenation-rules &aux lineup)
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
