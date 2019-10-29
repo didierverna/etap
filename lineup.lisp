@@ -160,10 +160,10 @@
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now. The
-;; #### other thing is that TeX detects explicit hyphens (as in lime-tree) and
-;; #### inserts empty discretionaries, so that hyphenation can occur (but
-;; #### then, at no other points in a word). We should probably do something
-;; #### similar.
+;; #### other thing is that TeX detects explicit hyphens (as in lime-tree) or
+;; #### ligatures made with sequences ending in hyphens, and inserts empty
+;; #### discretionaries, so that hyphenation can occur (but then, at no other
+;; #### points in a word). We should probably do something similar.
 (defun lineup (text font features hyphenation-rules &aux lineup)
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
