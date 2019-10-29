@@ -175,11 +175,8 @@
     (when (post-break elt2)
       (let ((kerning (tfm:kerning (car (last (post-break elt2))) elt3)))
 	(when kerning
-	  (setf (post-break elt2)
-		(append (post-break elt2)
-			(list (make-kern
-			       (* kerning
-				  (tfm:design-size (tfm:font elt3))))))))))
+	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt3))))
+		   (post-break elt2)))))
     (if (no-break elt2)
       (let ((kerning1 (tfm:kerning elt1 (car (no-break elt2))))
 	    (kerning2 (tfm:kerning (car (last (no-break elt2))) elt3)))
@@ -187,11 +184,8 @@
 	  (push (make-kern (* kerning1 (tfm:design-size (tfm:font elt1))))
 		(no-break elt2)))
 	(when kerning2
-	  (setf (no-break elt2)
-		(append (no-break elt2)
-			(list (make-kern
-			       (* kerning2
-				  (tfm:design-size (tfm:font elt3)))))))))
+	  (endpush (make-kern (* kerning2 (tfm:design-size (tfm:font elt3))))
+		   (no-break elt2))))
       (let ((kerning (tfm:kerning elt1 elt3)))
 	(when kerning
 	  (setf (no-break elt2)

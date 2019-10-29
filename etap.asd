@@ -12,6 +12,7 @@
   :components ((:file "meta")
 	       (:file "glyphlist")
 	       (:file "lm-ec")
+	       (:file "util")
 	       (:file "state")
 	       (:file "hyphenation")
 	       (:file "lineup")
