@@ -45,6 +45,8 @@
 (defun discretionaryp (object)
   (typep object 'discretionary))
 
+;; #### NOTE: maybe one day we would need to process kerns and ligatures
+;; within user-defined discretionaries' pre/post/no-break values!
 (defun make-discretionary (&rest initargs &key pre-break post-break no-break)
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
@@ -156,6 +158,48 @@
 	  :finally (return elements))
     (collect-word word font)))
 
+(defgeneric collect-kern (elt1 elt2 elt3)
+  (:method (elt1 elt2 elt3)
+    nil)
+  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics) elt3
+	    &aux (kerning (tfm:kerning elt1 elt2)))
+    (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
+  (:method ((elt1 tfm::character-metrics)
+	    (elt2 discretionary)
+	    (elt3 tfm::character-metrics))
+    (when (pre-break elt2)
+      (let ((kerning (tfm:kerning elt1 (car (pre-break elt2)))))
+	(when kerning
+	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
+		(pre-break elt2)))))
+    (when (post-break elt2)
+      (let ((kerning (tfm:kerning (car (last (post-break elt2))) elt3)))
+	(when kerning
+	  (setf (post-break elt2)
+		(append (post-break elt2)
+			(list (make-kern
+			       (* kerning
+				  (tfm:design-size (tfm:font elt3))))))))))
+    (if (no-break elt2)
+      (let ((kerning1 (tfm:kerning elt1 (car (no-break elt2))))
+	    (kerning2 (tfm:kerning (car (last (no-break elt2))) elt3)))
+	(when kerning1
+	  (push (make-kern (* kerning1 (tfm:design-size (tfm:font elt1))))
+		(no-break elt2)))
+	(when kerning2
+	  (setf (no-break elt2)
+		(append (no-break elt2)
+			(list (make-kern
+			       (* kerning2
+				  (tfm:design-size (tfm:font elt3)))))))))
+      (let ((kerning (tfm:kerning elt1 elt3)))
+	(when kerning
+	  (setf (no-break elt2)
+		(list (make-kern (* kerning
+				    (tfm:design-size (tfm:font elt1)))))))))
+    nil))
+
+
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
@@ -228,11 +272,8 @@
 	  (loop :for elements :on lineup
 		:for elt1 := (car elements)
 		:for elt2 := (cadr elements)
-		:for kern := (when (and (typep elt1 'tfm::character-metrics)
-					(typep elt2 'tfm::character-metrics))
-			       (tfm:kerning elt1 elt2))
+		:for elt3 := (caddr elements)
+		:for kern := (collect-kern elt1 elt2 elt3)
 		:collect elt1
-		:when kern
-		  :collect (make-kern (* (tfm:design-size (tfm:font elt1))
-					 kern)))))
+		:when kern :collect kern)))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
