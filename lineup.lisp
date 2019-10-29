@@ -114,13 +114,12 @@
 
 (defun lineup-scale (lineup start end target)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
-    (cond ((= width target) (values :none 0))
+    (cond ((= width target)
+	   0)
 	  ((< width target)
-	   (unless (zerop stretch)
-	     (values :stretch (/ (- target width) stretch))))
+	   (unless (zerop stretch) (/ (- target width) stretch)))
 	  ((> width target)
-	   (unless (zerop shrink)
-	     (values :shrink (/ (- width target) shrink)))))))
+	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
 (defun next-break-position
     (lineup &optional (start 0)

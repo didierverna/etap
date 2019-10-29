@@ -58,16 +58,15 @@
 			       (mapcar
 				   (lambda (boundary)
 				     (cons boundary
-					   (multiple-value-list
-					    (lineup-scale lineup
-							  start
-							  (car boundary)
-							  width))))
+					   (lineup-scale lineup
+							 start
+							 (car boundary)
+							 width)))
 				 fit-boundaries)
 			       #'<
-			       :key #'caddr)))
-			(if (= (caddr (first sorted-scales))
-			       (caddr (second sorted-scales)))
+			       :key (lambda (elt) (abs (cdr elt))))))
+			(if (= (abs (cdr (first sorted-scales)))
+			       (abs (cdr (second sorted-scales))))
 			  (if prefer-shrink
 			    (car (first sorted-scales))
 			    (car (second sorted-scales)))
@@ -92,36 +91,36 @@
 (defgeneric fit-create-line
     (lineup start end search width disposition variant &key &allow-other-keys)
   (:method (lineup start end search width disposition (variant (eql :first))
-	    &key relax &aux (ratio 1))
-    (if relax
-      (setq ratio
+	    &key relax &aux (scale 1))
+    (when relax
+      (setq scale
 	    (if (< end (length lineup))
-	      (let ((next-end (car (next-break-position lineup search))))
-		(multiple-value-bind (type ratio)
-		    (lineup-scale lineup start next-end width)
-		  (if (eq type :stretch)
-		    ratio
-		    0)))
+	      (let ((scale
+		      (lineup-scale
+		       lineup start (car (next-break-position lineup search))
+		       width)))
+		(if (and scale (> scale 0)) scale 0))
 	      0)))
-    (create-line lineup start end :stretch ratio))
+    (create-line lineup start end scale))
   (:method
       (lineup start end search width disposition (variant (eql :best)) &key)
     (create-line lineup start end))
   (:method (lineup start end search width disposition (variant (eql :last))
-	    &key relax &aux (ratio 1))
-    (if relax
-      (setq ratio
-	    (multiple-value-bind (type ratio)
-		(lineup-scale lineup start end width)
-	      (if (eq type :stretch)
-		0
-		ratio))))
-    (create-line lineup start end :shrink ratio))
-  (:method (lineup start end search width (disposition (eql :justified)) variant
-	    &key sloppy)
-    (multiple-value-bind (type ratio) (lineup-scale lineup start end width)
-      (if type
-	(create-line lineup start end type (if sloppy ratio (min ratio 1)))
+	    &key relax &aux (scale -1))
+    (when relax
+      (setq scale (let ((scale (lineup-scale lineup start end width)))
+		    (if (and scale (< scale 0)) scale 0))))
+    (create-line lineup start end scale))
+  (:method
+      (lineup start end search width (disposition (eql :justified)) variant
+       &key sloppy)
+    (let ((scale (lineup-scale lineup start end width)))
+      (if scale
+	(create-line lineup start end
+		     (cond (sloppy scale)
+			   ((zerop scale) 0)
+			   ((< scale 0) (max scale -1))
+			   ((> scale 0) (min scale 1))))
 	(create-line lineup start end)))))
 
 (defmethod create-lines

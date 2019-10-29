@@ -47,7 +47,7 @@
   (apply #'make-instance 'line :pinned-characters pinned-characters initargs))
 
 
-(defun create-line (lineup start end &key (stretch 0) (shrink 0))
+(defun create-line (lineup start end &optional (scale 0))
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0
 		   :for element :in (flatten-lineup lineup start end)
@@ -55,8 +55,10 @@
 		     :collect (make-pinned-character element :x x)
 		     :and :do (incf x (width element))
 		   :else :if (kernp element)
-			   :do (incf x (width element))
+		     :do (incf x (width element))
 		   :else :if (gluep element)
-			   :do (incf x (+ (width element)
-					  (* stretch (stretch element))
-					  (- (* shrink (shrink element))))))))
+		     :do (incf x (width element))
+		     :and :unless (zerop scale)
+			    :do (incf x (if (> scale 0)
+					  (* scale (stretch element))
+					  (* scale (shrink element)))))))
