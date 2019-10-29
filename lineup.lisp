@@ -141,15 +141,28 @@
 	:for character := (tfm:get-character (char-code char) font)
 	:when character :collect character))
 
+(defun hyphen-points+1 (word)
+  (loop :for i :from 0
+	:for char :across word
+	;; we don't want to collect a final hyphen, because if a word ends
+	;; with one, there's not point in inserting a discretionary there.
+	;; Either the word is followed by a glue, so we will be able to break,
+	;; or it's followed by, e.g. punctuation, and we don't want to break
+	;; there.
+	:if (and (char= char #\-) (< i (1- (length word))))
+	  :collect (1+ i)))
+
 (defun hyphenate-word
-    (word rules font &aux (points (hyphenation-points word rules)))
+    (word rules font &aux (points (hyphen-points+1 word)) pre-break)
+  (unless points
+    (setq points (hyphenation-points word rules)
+	  pre-break (list (tfm:get-character (char-code #\-) font))))
   (if points
-    (loop :with hyphen := (tfm:get-character (char-code #\-) font)
-	  :for i := 0 :then (1+ i)
+    (loop :for i :from 0
 	  :for char :across word
 	  :for character := (tfm:get-character (char-code char) font)
 	  :if (member i points)
-	    :collect (make-discretionary :pre-break (list hyphen))
+	    :collect (make-discretionary :pre-break pre-break)
 	  :when character :collect character)
     (collect-word word font)))
 
@@ -189,15 +202,14 @@
     nil))
 
 
+(defun word-constituent-p (char)
+  (or (alpha-char-p char) (char= char #\-)))
+
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
 ;; #### bar will never be hyphenated. There are also other rules that prevent
-;; #### hyphenation in some situations, which we do not have right now. The
-;; #### other thing is that TeX detects explicit hyphens (as in lime-tree) or
-;; #### ligatures made with sequences ending in hyphens, and inserts empty
-;; #### discretionaries, so that hyphenation can occur (but then, at no other
-;; #### points in a word). We should probably do something similar.
+;; #### hyphenation in some situations, which we do not have right now.
 (defun lineup (text font features hyphenation-rules &aux lineup)
   (setq lineup
 	(loop :with text := (string-trim +blanks+ text)
@@ -211,9 +223,10 @@
 		:and :do (setq i (position-if-not #'blankp text :start i))
 	      :else :if (alpha-char-p (aref text i))
 		:collect (subseq text i
-			   (position-if-not #'alpha-char-p text :start i))
-		:and :do (setq i (position-if-not #'alpha-char-p text
-				   :start i))
+			   (position-if-not #'word-constituent-p text
+			     :start (1+ i)))
+		:and :do (setq i (position-if-not #'word-constituent-p text
+				   :start (1+ i)))
 	      :else :if character
 		:collect character
 		:and :do (incf i)
