@@ -148,7 +148,8 @@
 	  :for slices :on points
 	  :do (setq elements
 		    (append elements
-			    (list (make-discretionary :pre-break hyphen))
+			    (list (make-discretionary
+				   :pre-break (list hyphen)))
 			    (collect-word
 			     (subseq word (car slices) (cadr slices))
 			     font)))
