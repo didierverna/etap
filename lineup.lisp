@@ -172,6 +172,9 @@
   (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics) elt3
 	    &aux (kerning (tfm:kerning elt1 elt2)))
     (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
+  ;; #### NOTE: it is currently not possible that a discretionary wouldn't be
+  ;; followed by a character, or preceded by one, so the method below is
+  ;; enough.
   (:method ((elt1 tfm::character-metrics)
 	    (elt2 discretionary)
 	    (elt3 tfm::character-metrics))
@@ -200,6 +203,49 @@
 		(list (make-kern (* kerning
 				    (tfm:design-size (tfm:font elt1)))))))))
     nil))
+
+
+(defun collect-characters-ligature
+    (character1 character2
+     &aux (ligature (tfm:ligature character1 character2)) composition)
+  (cond (ligature
+	 (unless (tfm:delete-after ligature) (push character2 composition))
+	 (push (tfm:composite ligature) composition)
+	 (unless (tfm:delete-before ligature) (push character1 composition))
+	 (list (subseq composition 0 (tfm:pass-over ligature))
+	       ;; #### NOTE: because of the way TFM ligature programs work, we
+	       ;; know that there's at least one thing left in this remainder.
+	       ;; Indeed, the pass over cannot exceed the number of retained
+	       ;; original characters.
+	       (nthcdr (tfm:pass-over ligature) composition)))
+	(t
+	 (list (list character1) (list character2)))))
+
+(defgeneric collect-ligature-2 (elt1 elt2)
+  (:method (elt1 elt2)
+    (list (list elt1) (list elt2)))
+  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics))
+    (collect-characters-ligature elt1 elt2)))
+
+(defgeneric collect-ligature-3 (elt1 elt2 elt3 remainder)
+  (:method (elt1 elt2 elt3 remainder)
+    (list (list elt1) (cons elt2 (cons elt3 remainder))))
+  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics)
+	    elt3 remainder)
+    (destructuring-bind (done left) (collect-characters-ligature elt1 elt2)
+      ;; #### NOTE: see comment in COLLECT-CHARACTERS-LIGATURE. We know LEFT
+      ;; cannot be empty.
+      (list done (append left (cons elt3 remainder))))))
+
+(defun collect-ligature (elements)
+  (cond ((not (cdr elements))
+	 (list elements))
+	((not (cddr elements))
+	 (collect-ligature-2 (car elements) (cadr elements)))
+	(t
+	 (collect-ligature-3
+	  (car elements) (cadr elements) (caddr elements)
+	  (nthcdr 3 elements)))))
 
 
 (defun word-constituent-p (char)
@@ -243,35 +289,14 @@
 		:else
 		  :collect element)
 	  (loop :for element :in lineup
-		:if (stringp element)
-		  :append (collect-word element font)
-		:else
-		  :collect element)))
+		:if (stringp element) :append (collect-word element font)
+		:else :collect element)))
   (when (member :ligatures features)
     (setq lineup
-	  (loop :with elements := lineup
+	  (loop :for elements := lineup :then remainder
+		:for (done remainder) := (collect-ligature elements)
 		:while elements
-		:for elt1 := (car elements)
-		:for elt2 := (cadr elements)
-		:for lig := (when (and (typep elt1 'tfm::character-metrics)
-				       (typep elt2 'tfm::character-metrics))
-			      (tfm:ligature elt1 elt2))
-		:if lig
-		  :do (let ((composition (list)))
-			(unless (tfm:delete-after lig)
-			  (push elt2 composition))
-			(push (tfm:composite lig) composition)
-			(unless (tfm:delete-before lig)
-			  (push elt1 composition))
-			(setq elements (append composition (cddr elements))))
-		  :and :unless (zerop (tfm:pass-over lig))
-			 :append (subseq elements 0 (tfm:pass-over lig))
-			 :and :do (setq elements
-					(nthcdr (tfm:pass-over lig) elements))
-		       :end
-		:else
-		  :collect elt1
-		  :and :do (setq elements (cdr elements)))))
+		:append done)))
   (when (member :kerning features)
     (setq lineup
 	  (loop :for elements :on lineup
