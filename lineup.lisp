@@ -145,17 +145,12 @@
     (word rules font &aux (points (hyphenation-points word rules)))
   (if points
     (loop :with hyphen := (tfm:get-character (char-code #\-) font)
-	  :with elements
-	    := (collect-word (subseq word 0 (car points)) font)
-	  :for slices :on points
-	  :do (setq elements
-		    (append elements
-			    (list (make-discretionary
-				   :pre-break (list hyphen)))
-			    (collect-word
-			     (subseq word (car slices) (cadr slices))
-			     font)))
-	  :finally (return elements))
+	  :for i := 0 :then (1+ i)
+	  :for char :across word
+	  :for character := (tfm:get-character (char-code char) font)
+	  :if (member i points)
+	    :collect (make-discretionary :pre-break (list hyphen))
+	  :when character :collect character)
     (collect-word word font)))
 
 (defgeneric collect-kern (elt1 elt2 elt3)
