@@ -220,13 +220,16 @@
 		:= (tfm:get-character (char-code (aref text i)) font)
 	      :if (blankp (aref text i))
 		:collect (make-interword-glue character)
+	      ;; i cannot be NIL here because we've trimmed any end blanks.
 		:and :do (setq i (position-if-not #'blankp text :start i))
 	      :else :if (alpha-char-p (aref text i))
 		:collect (subseq text i
 			   (position-if-not #'word-constituent-p text
-			     :start (1+ i)))
-		:and :do (setq i (position-if-not #'word-constituent-p text
-				   :start (1+ i)))
+			     :start i))
+	      ;; this could happen here on the other hand.
+		:and :do (setq i (or (position-if-not #'word-constituent-p text
+				       :start i)
+				     length))
 	      :else :if character
 		:collect character
 		:and :do (incf i)
