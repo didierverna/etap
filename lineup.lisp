@@ -142,12 +142,13 @@
 	   (list next (if (= next length) next point) next))))
       (list length length length))))
 
+
 (defun collect-word (word font)
   (loop :for char :across word
 	:for character := (tfm:get-character (char-code char) font)
 	:when character :collect character))
 
-(defun hyphen-points+1 (word)
+(defun hyphen-positions+1 (word)
   (loop :for i :from 0
 	:for char :across word
 	;; we don't want to collect a final hyphen, because if a word ends
@@ -158,8 +159,8 @@
 	:if (and (char= char #\-) (< i (1- (length word))))
 	  :collect (1+ i)))
 
-(defun hyphenate-word
-    (word rules font &aux (points (hyphen-points+1 word)) pre-break)
+(defun collect-hyphenated-word
+    (word rules font &aux (points (hyphen-positions+1 word)) pre-break)
   (unless points
     (setq points (hyphenation-points word rules)
 	  pre-break (list (tfm:get-character (char-code #\-) font))))
@@ -171,6 +172,16 @@
 	    :collect (make-discretionary :pre-break pre-break)
 	  :when character :collect character)
     (collect-word word font)))
+
+(defun process-words (lineup hyphenate hyphenation-rules font)
+  (loop :for element :in lineup
+	:if (stringp element)
+	  :append (if hyphenate
+		    (collect-hyphenated-word element hyphenation-rules font)
+		    (collect-word element font))
+	:else
+	  :collect element))
+
 
 (defgeneric collect-kern (elt1 elt2 elt3)
   (:method (elt1 elt2 elt3)
@@ -344,6 +355,7 @@
 	:else
 	  :do (incf i)))
 
+
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
@@ -351,16 +363,8 @@
 ;; #### hyphenation in some situations, which we do not have right now.
 (defun lineup (string font features hyphenation-rules &aux lineup)
   (setq lineup (slice-string string font))
-  (setq lineup
-	(if (member :hyphenation features)
-	  (loop :for element :in lineup
-		:if (stringp element)
-		  :append (hyphenate-word element hyphenation-rules font)
-		:else
-		  :collect element)
-	  (loop :for element :in lineup
-		:if (stringp element) :append (collect-word element font)
-		:else :collect element)))
+  (setq lineup (process-words
+		lineup (member :hyphenation features) hyphenation-rules font))
   (when (member :ligatures features) (setq lineup (process-ligatures lineup)))
   (when (member :kerning features) (setq lineup (process-kerning lineup)))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
