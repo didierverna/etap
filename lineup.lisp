@@ -184,15 +184,14 @@
 	  :collect element))
 
 
+;; #### FIXME: Rework to explore all possible paths across characters and
+;; discretionaries branches.
 (defgeneric collect-kern (elt1 elt2 elt3)
   (:method (elt1 elt2 elt3)
     nil)
   (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics) elt3
 	    &aux (kerning (tfm:kerning elt1 elt2)))
     (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
-  ;; #### NOTE: it is currently not possible that a discretionary wouldn't be
-  ;; followed by a character, or preceded by one, so the method below is
-  ;; enough.
   (:method ((elt1 tfm::character-metrics)
 	    (elt2 discretionary)
 	    (elt3 tfm::character-metrics))
@@ -237,6 +236,8 @@
        (typep elt2 'tfm::character-metrics)
        (tfm:ligature elt1 elt2)))
 
+;; #### FIXME: Rework to explore all possible paths across characters and
+;; discretionaries branches.
 (defun collect-characters-ligature
     (character1 character2
      &aux (ligature (tfm:ligature character1 character2)) composition)
