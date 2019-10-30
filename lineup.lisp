@@ -70,12 +70,6 @@
 	     (* (tfm:interword-shrink font) design-size)))
 
 
-(defconstant +blanks+ '(#\Space #\Tab #\Newline))
-
-(defun blankp (character)
-  (member character +blanks+))
-
-
 (defun lineup-aref (lineup i start end &aux (element (aref lineup i)))
   (if (discretionaryp element)
     ;; #### WARNING: after all the pre-processing done on the lineup,
@@ -318,39 +312,45 @@
 	:append done))
 
 
+(defconstant +blanks+ '(#\Space #\Tab #\Newline))
+
+(defun blankp (character)
+  (member character +blanks+))
+
 (defun word-constituent-p (char)
   (or (alpha-char-p char) (char= char #\-)))
+
+(defun slice-string (string font)
+  (loop :with string := (string-trim +blanks+ string)
+	:with length := (length string)
+	:with i := 0
+	:while (< i length)
+	:for char := (aref string i)
+	:for character := (tfm:get-character (char-code char) font)
+	:if (blankp char)
+	  :collect (make-interword-glue character)
+	  ;; i cannot be NIL here because we've trimmed any end blanks.
+	  :and :do (setq i (position-if-not #'blankp string :start i))
+	:else :if (alpha-char-p char)
+	  :collect (subseq string i
+		     (position-if-not #'word-constituent-p string :start i))
+	  ;; this could happen here on the other hand.
+	  :and :do (setq i (or (position-if-not #'word-constituent-p string
+				 :start i)
+			       length))
+	:else :if character
+	  :collect character
+	  :and :do (incf i)
+	:else
+	  :do (incf i)))
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now.
-(defun lineup (text font features hyphenation-rules &aux lineup)
-  (setq lineup
-	(loop :with text := (string-trim +blanks+ text)
-	      :with length := (length text)
-	      :with i := 0
-	      :while (< i length)
-	      :for character
-		:= (tfm:get-character (char-code (aref text i)) font)
-	      :if (blankp (aref text i))
-		:collect (make-interword-glue character)
-	      ;; i cannot be NIL here because we've trimmed any end blanks.
-		:and :do (setq i (position-if-not #'blankp text :start i))
-	      :else :if (alpha-char-p (aref text i))
-		:collect (subseq text i
-			   (position-if-not #'word-constituent-p text
-			     :start i))
-	      ;; this could happen here on the other hand.
-		:and :do (setq i (or (position-if-not #'word-constituent-p text
-				       :start i)
-				     length))
-	      :else :if character
-		:collect character
-		:and :do (incf i)
-	      :else
-		:do (incf i)))
+(defun lineup (string font features hyphenation-rules &aux lineup)
+  (setq lineup (slice-string string font))
   (setq lineup
 	(if (member :hyphenation features)
 	  (loop :for element :in lineup
