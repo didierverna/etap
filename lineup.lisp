@@ -88,10 +88,7 @@
 (defun flatten-lineup (lineup start end)
   (loop :for i :from start :upto (1- end)
 	:for element := (lineup-aref lineup i start end)
-	:if (consp element)
-	  :append element
-	:else
-	  :collect element))
+	:if (consp element) :append element :else :collect element))
 
 (defun lineup-width (lineup start end)
   (unless end (setq end (length lineup)))
@@ -174,7 +171,7 @@
     (loop :for i :from 0
 	  :for char :across word
 	  :for character := (get-character char font)
-	  :if (member i points)
+	  :when (member i points)
 	    :collect (make-discretionary :pre-break pre-break)
 	  :collect character)
     (collect-word word font)))
