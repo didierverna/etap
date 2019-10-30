@@ -78,8 +78,16 @@
 
 (defun lineup-aref (lineup i start end &aux (element (aref lineup i)))
   (if (discretionaryp element)
-    (cond ((= i start) (post-break element))
-	  ((= i (1- end)) (pre-break element))
+    ;; #### WARNING: after all the pre-processing done on the lineup,
+    ;; including ligatures / kerning management in the presence of hyphenation
+    ;; points, we may end up with lineups beginning or ending with
+    ;; discretionaries (or even consecutive discretionaries for that matter).
+    ;; When discretionaries begin or end the lineup, we must not consider them
+    ;; as post- or pre-breaks though.
+    (cond ((and (= i start) (not (zerop start)))
+	   (post-break element))
+	  ((and (= i (1- end)) (not (= end (length lineup))))
+	   (pre-break element))
 	  (t (no-break element)))
     element))
 
@@ -133,7 +141,11 @@
 	;; (when (= next (length lineup)) (setq next nil))
 	(typecase (aref lineup point)
 	  (glue (list point next next))
-	  (discretionary (list next point next))))
+	  (discretionary
+	   ;; #### NOTE: a discretionary ending the lineup shouldn't be
+	   ;; considered as a break point, because there's nothing afterwards.
+	   ;; Hence, the behavior is that of (LENGTH LENGTH LENGTH).
+	   (list next (if (= next length) next point) next))))
       (list length length length))))
 
 (defun collect-word (word font)
@@ -205,6 +217,11 @@
     nil))
 
 
+(defun ligature (elt1 elt2)
+  (and (typep elt1 'tfm::character-metrics)
+       (typep elt2 'tfm::character-metrics)
+       (tfm:ligature elt1 elt2)))
+
 (defun collect-characters-ligature
     (character1 character2
      &aux (ligature (tfm:ligature character1 character2)) composition)
@@ -225,7 +242,18 @@
   (:method (elt1 elt2)
     (list (list elt1) (list elt2)))
   (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics))
-    (collect-characters-ligature elt1 elt2)))
+    (collect-characters-ligature elt1 elt2))
+  (:method ((elt1 discretionary) (elt2 tfm::character-metrics)
+	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
+			       (ligature (car (last (no-break elt1))) elt2))))
+    (cond (eat-elt2
+	   (setf (no-break elt1)
+		 (process-ligatures (append (no-break elt1) (list elt2)))
+		 (post-break elt1)
+		 (process-ligatures (append (post-break elt1) (list elt2))))
+	   (list (list elt1)))
+	  (t
+	   (list (list elt1) (list elt2))))))
 
 (defgeneric collect-ligature-3 (elt1 elt2 elt3 remainder)
   (:method (elt1 elt2 elt3 remainder)
@@ -235,7 +263,34 @@
     (destructuring-bind (done left) (collect-characters-ligature elt1 elt2)
       ;; #### NOTE: see comment in COLLECT-CHARACTERS-LIGATURE. We know LEFT
       ;; cannot be empty.
-      (list done (append left (cons elt3 remainder))))))
+      (list done (append left (cons elt3 remainder)))))
+  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) elt3 remainder
+	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
+			       (ligature (car (last (no-break elt1))) elt2))))
+    (cond (eat-elt2
+	   (setf (no-break elt1)
+		 (process-ligatures (append (no-break elt1) (list elt2)))
+		 (post-break elt1)
+		 (process-ligatures (append (post-break elt1) (list elt2))))
+	   (list nil (cons elt1 (cons elt3 remainder))))
+	  (t
+	   (list (list elt1) (cons elt2 (cons elt3 remainder))))))
+  (:method ((elt1 tfm::character-metrics)
+	    (elt2 discretionary)
+	    (elt3 tfm::character-metrics)
+	    remainder
+	    &aux (eat-elt1 (or (ligature elt1 (car (pre-break elt2)))
+			       (ligature elt1 (car (no-break elt2)))
+			       (and (null (no-break elt2))
+				    (ligature elt1 elt3)))))
+    (cond (eat-elt1
+	   (setf (pre-break elt2)
+		 (process-ligatures (cons elt1 (pre-break elt2)))
+		 (no-break elt2)
+		 (process-ligatures (cons elt1 (no-break elt2))))
+	   (list nil (cons elt2 (cons elt3 remainder))))
+	  (t
+	   (list (list elt1) (cons elt2 (cons elt3 remainder)))))))
 
 (defun collect-ligature (elements)
   (cond ((not (cdr elements))
@@ -246,6 +301,12 @@
 	 (collect-ligature-3
 	  (car elements) (cadr elements) (caddr elements)
 	  (nthcdr 3 elements)))))
+
+(defun process-ligatures (lineup)
+  (loop :for elements := lineup :then remainder
+	:for (done remainder) := (collect-ligature elements)
+	:while elements
+	:append done))
 
 
 (defun word-constituent-p (char)
@@ -291,12 +352,7 @@
 	  (loop :for element :in lineup
 		:if (stringp element) :append (collect-word element font)
 		:else :collect element)))
-  (when (member :ligatures features)
-    (setq lineup
-	  (loop :for elements := lineup :then remainder
-		:for (done remainder) := (collect-ligature elements)
-		:while elements
-		:append done)))
+  (when (member :ligatures features) (setq lineup (process-ligatures lineup)))
   (when (member :kerning features)
     (setq lineup
 	  (loop :for elements :on lineup
