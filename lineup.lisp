@@ -151,15 +151,14 @@
   (map 'list (lambda (char) (get-character char font)) word))
 
 (defun hyphen-positions+1 (word)
-  (loop :for i :from 0
+  (loop :for i :from 1
 	:for char :across word
-	;; we don't want to collect a final hyphen, because if a word ends
-	;; with one, there's not point in inserting a discretionary there.
-	;; Either the word is followed by a glue, so we will be able to break,
-	;; or it's followed by, e.g. punctuation, and we don't want to break
-	;; there.
-	:if (and (char= char #\-) (< i (1- (length word))))
-	  :collect (1+ i)))
+	;; we don't want to collect a final hyphen's position, because if a
+	;; word ends with one, there's not point in inserting a discretionary
+	;; there. Either the word is followed by a glue, so we will be able to
+	;; break, or it's followed by, e.g. punctuation, and we don't want to
+	;; break there.
+	:when (and (char= char #\-) (< i (length word))) :collect i))
 
 (defun collect-hyphenated-word
     (word rules font &aux (points (hyphen-positions+1 word)) pre-break)
