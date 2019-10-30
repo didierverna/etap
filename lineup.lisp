@@ -130,7 +130,6 @@
   (unless (= start length)
     (if point
       (let ((next (1+ point)))
-	;; (when (= next (length lineup)) (setq next nil))
 	(typecase (aref lineup point)
 	  (glue (list point next next))
 	  (discretionary
@@ -334,6 +333,11 @@
 (defun word-constituent-p (char)
   (or (alpha-char-p char) (char= char #\-)))
 
+;; #### NOTE: the hyphenation process below is simple, different from what TeX
+;; #### does and should certainly be improved. For instance, TeX will consider
+;; #### only one word between two glues, so for instance in "... foo.bar ...",
+;; #### bar will never be hyphenated. There are also other rules that prevent
+;; #### hyphenation in some situations, which we do not have right now.
 (defun slice-string (string font)
   (loop :with string := (string-trim +blanks+ string)
 	:with length := (length string)
@@ -357,11 +361,6 @@
 	  :and :do (incf i)))
 
 
-;; #### NOTE: the hyphenation process below is simple, different from what TeX
-;; #### does and should certainly be improved. For instance, TeX will consider
-;; #### only one word between two glues, so for instance in "... foo.bar ...",
-;; #### bar will never be hyphenated. There are also other rules that prevent
-;; #### hyphenation in some situations, which we do not have right now.
 (defun lineup (string font features hyphenation-rules &aux lineup)
   (setq lineup (slice-string string font))
   (setq lineup (process-words
