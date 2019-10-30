@@ -184,8 +184,9 @@
 	  :collect element))
 
 
-;; #### FIXME: Rework to explore all possible paths across characters and
-;; discretionaries branches.
+;; #### NOTE: this is good enough for most cases, but just like ligature
+;; processing, it is not a general solution because it is impossible to do
+;; statically. See comment below in the ligatures section.
 (defgeneric collect-kern (elt1 elt2 elt3)
   (:method (elt1 elt2 elt3)
     nil)
