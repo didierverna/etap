@@ -248,6 +248,19 @@
 (defun adjacent-characters (lineup)
   (when lineup (adjacent-characters-1 (car lineup) (cdr lineup))))
 
+
+;; #### NOTE: after processing ligatures, we may end up with adjacent
+;; #### discretionaries. For example, in the word ef-fi-cient, what we get
+;; #### eventually is e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
+;; #### When this happens, we don't attempt to handle more cross-ligatures
+;; #### because it's impossible to do in the general case. For example, if we
+;; #### end up with different potential ligatures starting from a post-break
+;; #### element and going to both a no-break and a pre-break later on, we
+;; #### can't represent that statically. The only truely general solution is
+;; #### to delay ligature and kerning processing until the lineup is
+;; #### flattened. But then, this means that we also need to do that every
+;; #### time we want to poll the size of various lineup chunks. This could be
+;; #### rather expensive (although I haven't tried it).
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
   (:method (elt1 elt2 remainder)
     (list (list elt1) (cons elt2 remainder)))
@@ -280,8 +293,8 @@
 	  (t
 	   (list (list elt1) (cons elt2 remainder)))))
   (:method ((elt1 discretionary) (elt2 tfm::character-metrics) remainder
-	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
-			       (ligature (car (last (no-break elt1))) elt2))))
+	    &aux (eat-elt2 (or (ligature (car (last (no-break elt1))) elt2)
+			       (ligature (car (last (post-break elt1))) elt2))))
     (cond (eat-elt2
 	   (setf (no-break elt1)
 		 (process-ligatures (append (no-break elt1) (list elt2)))
@@ -290,7 +303,6 @@
 	   (list nil (cons elt1 remainder)))
 	  (t
 	   (list (list elt1) (cons elt2 remainder))))))
-;;  (:method ((elt1 discretionary) (elt2 discretionary) remainder
 
 (defun process-ligatures-1 (element remainder)
   (if remainder
