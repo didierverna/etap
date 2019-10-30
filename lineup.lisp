@@ -125,6 +125,7 @@
 	  ((> width target)
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
+
 (defun next-break-position
     (lineup &optional (start 0)
 	    &aux (length (length lineup))
@@ -143,10 +144,15 @@
       (list length length length))))
 
 
+(defun get-character (char font)
+  ;; #### FIXME: no input encoding support yet.
+  (or (tfm:get-character (char-code char) font)
+      ;; #### WARNING: this one had better be available! Fall back to a null
+      ;; character?
+      (tfm:get-character (char-code #\?) font)))
+
 (defun collect-word (word font)
-  (loop :for char :across word
-	:for character := (tfm:get-character (char-code char) font)
-	:when character :collect character))
+  (map 'list (lambda (char) (get-character char font)) word))
 
 (defun hyphen-positions+1 (word)
   (loop :for i :from 0
@@ -163,14 +169,14 @@
     (word rules font &aux (points (hyphen-positions+1 word)) pre-break)
   (unless points
     (setq points (hyphenation-points word rules)
-	  pre-break (list (tfm:get-character (char-code #\-) font))))
+	  pre-break (list (get-character #\- font))))
   (if points
     (loop :for i :from 0
 	  :for char :across word
-	  :for character := (tfm:get-character (char-code char) font)
+	  :for character := (get-character char font)
 	  :if (member i points)
 	    :collect (make-discretionary :pre-break pre-break)
-	  :when character :collect character)
+	  :collect character)
     (collect-word word font)))
 
 (defun process-words (lineup hyphenate hyphenation-rules font)
@@ -337,7 +343,7 @@
 	:with i := 0
 	:while (< i length)
 	:for char := (aref string i)
-	:for character := (tfm:get-character (char-code char) font)
+	:for character := (get-character char font)
 	:if (blankp char)
 	  :collect (make-interword-glue character)
 	  ;; i cannot be NIL here because we've trimmed any end blanks.
@@ -349,11 +355,9 @@
 	  :and :do (setq i (or (position-if-not #'word-constituent-p string
 				 :start i)
 			       length))
-	:else :if character
-	  :collect character
-	  :and :do (incf i)
 	:else
-	  :do (incf i)))
+	  :collect character
+	  :and :do (incf i)))
 
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
