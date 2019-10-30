@@ -216,6 +216,15 @@
 				    (tfm:design-size (tfm:font elt1)))))))))
     nil))
 
+(defun process-kerning (lineup)
+  (loop :for elements :on lineup
+	:for elt1 := (car elements)
+	:for elt2 := (cadr elements)
+	:for elt3 := (caddr elements)
+	:for kern := (collect-kern elt1 elt2 elt3)
+	:collect elt1
+	:when kern :collect kern))
+
 
 (defun ligature (elt1 elt2)
   (and (typep elt1 'tfm::character-metrics)
@@ -353,13 +362,5 @@
 		:if (stringp element) :append (collect-word element font)
 		:else :collect element)))
   (when (member :ligatures features) (setq lineup (process-ligatures lineup)))
-  (when (member :kerning features)
-    (setq lineup
-	  (loop :for elements :on lineup
-		:for elt1 := (car elements)
-		:for elt2 := (cadr elements)
-		:for elt3 := (caddr elements)
-		:for kern := (collect-kern elt1 elt2 elt3)
-		:collect elt1
-		:when kern :collect kern)))
+  (when (member :kerning features) (setq lineup (process-kerning lineup)))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
