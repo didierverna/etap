@@ -236,91 +236,71 @@
        (typep elt2 'tfm::character-metrics)
        (tfm:ligature elt1 elt2)))
 
-;; #### FIXME: Rework to explore all possible paths across characters and
-;; discretionaries branches.
-(defun collect-characters-ligature
-    (character1 character2
-     &aux (ligature (tfm:ligature character1 character2)) composition)
-  (cond (ligature
-	 (unless (tfm:delete-after ligature) (push character2 composition))
-	 (push (tfm:composite ligature) composition)
-	 (unless (tfm:delete-before ligature) (push character1 composition))
-	 (list (subseq composition 0 (tfm:pass-over ligature))
-	       ;; #### NOTE: because of the way TFM ligature programs work, we
-	       ;; know that there's at least one thing left in this remainder.
-	       ;; Indeed, the pass over cannot exceed the number of retained
-	       ;; original characters.
-	       (nthcdr (tfm:pass-over ligature) composition)))
-	(t
-	 (list (list character1) (list character2)))))
+(defgeneric adjacent-characters-1 (element remainder)
+  (:method (element remainder)
+    nil)
+  (:method ((element tfm::character-metrics) remainder)
+    (list element))
+  (:method ((element discretionary) remainder)
+    (append (adjacent-characters (pre-break element))
+	    (adjacent-characters (append (no-break element) remainder)))))
 
-(defgeneric collect-ligature-2 (elt1 elt2)
-  (:method (elt1 elt2)
-    (list (list elt1) (list elt2)))
-  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics))
-    (collect-characters-ligature elt1 elt2))
-  (:method ((elt1 discretionary) (elt2 tfm::character-metrics)
-	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
-			       (ligature (car (last (no-break elt1))) elt2))))
-    (cond (eat-elt2
-	   (setf (no-break elt1)
-		 (process-ligatures (append (no-break elt1) (list elt2)))
-		 (post-break elt1)
-		 (process-ligatures (append (post-break elt1) (list elt2))))
-	   (list (list elt1)))
-	  (t
-	   (list (list elt1) (list elt2))))))
+(defun adjacent-characters (lineup)
+  (when lineup (adjacent-characters-1 (car lineup) (cdr lineup))))
 
-(defgeneric collect-ligature-3 (elt1 elt2 elt3 remainder)
-  (:method (elt1 elt2 elt3 remainder)
-    (list (list elt1) (cons elt2 (cons elt3 remainder))))
+(defgeneric process-ligatures-2 (elt1 elt2 remainder)
+  (:method (elt1 elt2 remainder)
+    (list (list elt1) (cons elt2 remainder)))
   (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics)
-	    elt3 remainder)
-    (destructuring-bind (done left) (collect-characters-ligature elt1 elt2)
-      ;; #### NOTE: see comment in COLLECT-CHARACTERS-LIGATURE. We know LEFT
-      ;; cannot be empty.
-      (list done (append left (cons elt3 remainder)))))
-  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) elt3 remainder
-	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
-			       (ligature (car (last (no-break elt1))) elt2))))
-    (cond (eat-elt2
-	   (setf (no-break elt1)
-		 (process-ligatures (append (no-break elt1) (list elt2)))
-		 (post-break elt1)
-		 (process-ligatures (append (post-break elt1) (list elt2))))
-	   (list nil (cons elt1 (cons elt3 remainder))))
-	  (t
-	   (list (list elt1) (cons elt2 (cons elt3 remainder))))))
-  (:method ((elt1 tfm::character-metrics)
-	    (elt2 discretionary)
-	    (elt3 tfm::character-metrics)
 	    remainder
-	    &aux (eat-elt1 (or (ligature elt1 (car (pre-break elt2)))
-			       (ligature elt1 (car (no-break elt2)))
-			       (and (null (no-break elt2))
-				    (ligature elt1 elt3)))))
+	    &aux (ligature (tfm:ligature elt1 elt2)) composition)
+    (cond (ligature
+	   (unless (tfm:delete-after ligature) (push elt2 composition))
+	   (push (tfm:composite ligature) composition)
+	   (unless (tfm:delete-before ligature) (push elt1 composition))
+	   (list (subseq composition 0 (tfm:pass-over ligature))
+		 ;; #### NOTE: because of the way TFM ligature programs work,
+		 ;; we know that there's at least one thing left in this
+		 ;; remainder. Indeed, the pass over cannot exceed the number
+		 ;; of retained original characters.
+		 (append (nthcdr (tfm:pass-over ligature) composition)
+			 remainder)))
+	  (t
+	   (list (list elt1) (cons elt2 remainder)))))
+  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) remainder
+	    &aux (eat-elt1 (some
+			    (lambda (character) (tfm:ligature elt1 character))
+			    (adjacent-characters (cons elt2 remainder)))))
     (cond (eat-elt1
 	   (setf (pre-break elt2)
 		 (process-ligatures (cons elt1 (pre-break elt2)))
 		 (no-break elt2)
 		 (process-ligatures (cons elt1 (no-break elt2))))
-	   (list nil (cons elt2 (cons elt3 remainder))))
+	   (list nil (cons elt2 remainder)))
 	  (t
-	   (list (list elt1) (cons elt2 (cons elt3 remainder)))))))
+	   (list (list elt1) (cons elt2 remainder)))))
+  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) remainder
+	    &aux (eat-elt2 (or (ligature (car (last (post-break elt1))) elt2)
+			       (ligature (car (last (no-break elt1))) elt2))))
+    (cond (eat-elt2
+	   (setf (no-break elt1)
+		 (process-ligatures (append (no-break elt1) (list elt2)))
+		 (post-break elt1)
+		 (process-ligatures (append (post-break elt1) (list elt2))))
+	   (list nil (cons elt1 remainder)))
+	  (t
+	   (list (list elt1) (cons elt2 remainder))))))
+;;  (:method ((elt1 discretionary) (elt2 discretionary) remainder
 
-(defun collect-ligature (elements)
-  (cond ((not (cdr elements))
-	 (list elements))
-	((not (cddr elements))
-	 (collect-ligature-2 (car elements) (cadr elements)))
-	(t
-	 (collect-ligature-3
-	  (car elements) (cadr elements) (caddr elements)
-	  (nthcdr 3 elements)))))
+(defun process-ligatures-1 (element remainder)
+  (if remainder
+    (process-ligatures-2 element (car remainder) (cdr remainder))
+    (list (list element))))
 
 (defun process-ligatures (lineup)
   (loop :for elements := lineup :then remainder
-	:for (done remainder) := (collect-ligature elements)
+	:for (done remainder)
+	  := (process-ligatures-1 (car elements) (cdr elements))
 	:while elements
 	:append done))
 
