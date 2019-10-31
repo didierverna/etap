@@ -184,9 +184,20 @@
 	  :collect element))
 
 
-;; #### NOTE: this is good enough for most cases, but just like ligature
-;; processing, it is not a general solution because it is impossible to do
-;; statically. See comment below in the ligatures section.
+;; #### NOTE: the procedures handling ligatures and kerning below are aware of
+;; #### discretionaries, but they are really meant for those inserted
+;; #### automatically during the hyphenation process, that is,
+;; #### \discretionary{-}{}{} in the middle of a word. They may be useful in
+;; #### the future, for some more general cases, but combining ligatures,
+;; #### kerning, and discretionaries is impossible to do statically in
+;; #### general. For example, if we end up with different potential ligatures
+;; #### starting from a post-break element and going to both a no-break and a
+;; #### pre-break later on, we can't represent that statically. The only truly
+;; #### general solution is to delay ligature and kerning processing until the
+;; #### lineup is flattened. But then, this means that we also need to do that
+;; #### every time we want to poll the size of various lineup chunks. This
+;; #### could be rather expensive (although I haven't tried it).
+
 (defgeneric collect-kern (elt1 elt2 elt3)
   (:method (elt1 elt2 elt3)
     nil)
@@ -251,17 +262,9 @@
 
 
 ;; #### NOTE: after processing ligatures, we may end up with adjacent
-;; #### discretionaries. For example, in the word ef-fi-cient, what we get
-;; #### eventually is e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
-;; #### When this happens, we don't attempt to handle more cross-ligatures
-;; #### because it's impossible to do in the general case. For example, if we
-;; #### end up with different potential ligatures starting from a post-break
-;; #### element and going to both a no-break and a pre-break later on, we
-;; #### can't represent that statically. The only truely general solution is
-;; #### to delay ligature and kerning processing until the lineup is
-;; #### flattened. But then, this means that we also need to do that every
-;; #### time we want to poll the size of various lineup chunks. This could be
-;; #### rather expensive (although I haven't tried it).
+;; #### discretionaries, but this is normal. For example, in the word
+;; #### ef-fi-cient, what we get eventually is
+;; #### e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
   (:method (elt1 elt2 remainder)
     (list (list elt1) (cons elt2 remainder)))
