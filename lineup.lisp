@@ -357,10 +357,11 @@
 	  :and :do (incf i)))
 
 
-(defun lineup (string font hyphenation-rules features &aux lineup)
+(defun lineup (string font hyphenation-rules
+	       &key kerning ligatures hyphenation
+	       &aux lineup)
   (setq lineup (slice-string string font))
-  (setq lineup (process-words
-		lineup (member :hyphenation features) hyphenation-rules font))
-  (when (member :ligatures features) (setq lineup (process-ligatures lineup)))
-  (when (member :kerning features) (setq lineup (process-kerning lineup)))
+  (setq lineup (process-words lineup hyphenation hyphenation-rules font))
+  (when ligatures (setq lineup (process-ligatures lineup)))
+  (when kerning (setq lineup (process-kerning lineup)))
   (when lineup (make-array (length lineup) :initial-contents lineup)))

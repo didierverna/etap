@@ -7,8 +7,8 @@
 (defun update (interface &aux (state (state interface)))
   (setf (paragraph interface)
 	(create-paragraph
-	 (lineup (text state) (font state) (hyphenation-rules state)
-		 (features state))
+	 (apply #'lineup (text state) (font state) (hyphenation-rules state)
+		(features state))
 	 (paragraph-width state)
 	 (disposition state)
 	 (algorithm state)))
@@ -17,7 +17,7 @@
 (defun set-features (value interface)
   (declare (ignore value))
   (setf (features (state interface))
-	(choice-selected-items (features interface)))
+	(apply #'append (choice-selected-items (features interface))))
   (update interface))
 
 (defun set-fixed-algorithm (value interface)
@@ -189,8 +189,8 @@
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :visible-max-width nil
-     :items '(:kerning :ligatures :hyphenation)
-     :print-function 'keyword-capitalize
+     :items '((:kerning t) (:ligatures t) (:hyphenation t))
+     :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-features
      :retract-callback 'set-features
      :reader features)
@@ -257,24 +257,33 @@
      :visible-max-width 250))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod interface-display :before
-    ((etap etap) &aux (state (state etap)) (algorithm (algorithm state)))
-  (case (car algorithm)
-    (:fixed
-     (setf (choice-selection (algorithms etap)) 0)
-     (when (cdr algorithm) (setf (choice-selection (fixed-options etap)) 0)))
-    (:fit
-     (setf (choice-selection (algorithms etap)) 1)
-     (setf (choice-selected-item (fit-variant etap))
-	   (or (cadr (member :variant algorithm)) :first))
-     (setf (choice-selection (fit-options etap))
-	   (let ((selection (list)))
-	     (when (cadr (member :relax algorithm)) (push 0 selection))
-	     (when (cadr (member :sloppy algorithm)) (push 1 selection))
-	     (when (cadr (member :prefer-shrink algorithm)) (push 2 selection))
-	     selection))))
+(defmethod interface-display :before ((etap etap) &aux (state (state etap)))
+  (let ((algorithm (algorithm state)))
+    (case (car algorithm)
+      (:fixed
+       (setf (choice-selection (algorithms etap)) 0)
+       (when (cdr algorithm) (setf (choice-selection (fixed-options etap)) 0)))
+      (:fit
+       (setf (choice-selection (algorithms etap)) 1)
+       (setf (choice-selected-item (fit-variant etap))
+	     (or (cadr (member :variant algorithm)) :first))
+       (setf (choice-selection (fit-options etap))
+	     (let ((selection (list)))
+	       (when (cadr (member :relax algorithm))
+		 (push 0 selection))
+	       (when (cadr (member :sloppy algorithm))
+		 (push 1 selection))
+	       (when (cadr (member :prefer-shrink algorithm))
+		 (push 2 selection))
+	       selection)))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
-  (setf (choice-selected-items (features etap)) (features state))
+  (let ((features (features state)))
+    (setf (choice-selection (features etap))
+	  (let ((selection (list)))
+	    (when (cadr (member :kerning features)) (push 0 selection))
+	    (when (cadr (member :ligatures features)) (push 1 selection))
+	    (when (cadr (member :hyphenation features)) (push 2 selection))
+	    selection)))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
   (setf (editor-pane-text (text etap)) (text state)))
 
