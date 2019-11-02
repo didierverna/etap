@@ -5,13 +5,13 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 (defun update (interface &aux (state (state interface)))
-  (setf (paragraph state)
+  (setf (paragraph interface)
 	(create-paragraph (lineup (text state) (font state) (features state)
 				  (hyphenation-rules state))
 			  (paragraph-width state)
 			  (disposition state)
 			  (algorithm state)))
-  (gp:invalidate-rectangle (paragraph interface)))
+  (gp:invalidate-rectangle (view interface)))
 
 (defun set-features (value interface)
   (declare (ignore value))
@@ -61,18 +61,18 @@
 (defun set-zoom (pane value status)
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
-  (gp:invalidate-rectangle (paragraph (top-level-interface pane))))
+  (gp:invalidate-rectangle (view (top-level-interface pane))))
 
 (defun |(un)set-clues| (value interface)
   (declare (ignore value))
-  (gp:invalidate-rectangle (paragraph interface)))
+  (gp:invalidate-rectangle (view interface)))
 
 
 (defun render-paragraph
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (state (state interface))
-	  (paragraph (paragraph state))
+	  (paragraph (paragraph interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   (declare (ignore x y width height))
@@ -141,7 +141,8 @@
 				    y)))))))
 
 (define-interface etap ()
-  ((state :initform (make-state) :reader state))
+  ((state :initform (make-state) :reader state)
+   (paragraph :accessor paragraph))
   (:panes
    (algorithms tab-layout
      :title "Algorithms"
@@ -229,7 +230,7 @@
      :visible-max-height '(character 30)
      :change-callback 'set-text
      :reader text)
-   (paragraph output-pane
+   (view output-pane
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
@@ -238,9 +239,9 @@
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
-     :reader paragraph))
+     :reader view))
   (:layouts
-   (main column-layout '(settings paragraph))
+   (main column-layout '(settings view))
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options)
      :visible-max-width t)

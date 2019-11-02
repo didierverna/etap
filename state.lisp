@@ -25,8 +25,7 @@ it; and this ball was her favorite plaything.")
    (features :initform (list) :accessor features)
    ;; 284.52756pt = 10cm
    (paragraph-width :initform 284 :accessor paragraph-width)
-   (text :initform +initial-text+ :accessor text)
-   (paragraph :accessor paragraph)))
+   (text :initform +initial-text+ :accessor text)))
 
 (defun make-state ()
   (make-instance 'state))
