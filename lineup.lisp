@@ -203,13 +203,13 @@
        (typep elt2 'tfm::character-metrics)
        (tfm:kerning elt1 elt2)))
 
-(defgeneric collect-kern (elt1 elt2 elt3)
-  (:method (elt1 elt2 elt3)
+(defgeneric collect-kern (elt1 elt2 remainder)
+  (:method (elt1 elt2 remainder)
     nil)
-  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics) elt3
-	    &aux (kerning (tfm:kerning elt1 elt2)))
+  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics)
+	    remainder &aux (kerning (tfm:kerning elt1 elt2)))
     (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
-  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) elt3)
+  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) remainder)
     (when (pre-break elt2)
       (let ((kerning (kerning elt1 (car (pre-break elt2)))))
 	(when kerning
@@ -220,13 +220,13 @@
 	(when kerning
 	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
 		(no-break elt2))))
-      (let ((kerning (kerning elt1 elt3)))
+      (let ((kerning (kerning elt1 (car remainder))))
 	(when kerning
 	  (setf (no-break elt2)
 		(list (make-kern (* kerning
 				    (tfm:design-size (tfm:font elt1)))))))))
     nil)
-  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) elt3)
+  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) remainder)
     (when (no-break elt1)
       (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
 	(when kerning
@@ -243,8 +243,8 @@
   (loop :for elements :on lineup
 	:for elt1 := (car elements)
 	:for elt2 := (cadr elements)
-	:for elt3 := (caddr elements)
-	:for kern := (collect-kern elt1 elt2 elt3)
+	:for remainder := (cddr elements)
+	:for kern := (collect-kern elt1 elt2 remainder)
 	:collect elt1
 	:when kern :collect kern))
 
