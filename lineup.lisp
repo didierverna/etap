@@ -357,7 +357,7 @@
 	  :and :do (incf i)))
 
 
-(defun lineup (string font features hyphenation-rules &aux lineup)
+(defun lineup (string font hyphenation-rules features &aux lineup)
   (setq lineup (slice-string string font))
   (setq lineup (process-words
 		lineup (member :hyphenation features) hyphenation-rules font))

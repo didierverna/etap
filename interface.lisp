@@ -6,11 +6,12 @@
 
 (defun update (interface &aux (state (state interface)))
   (setf (paragraph interface)
-	(create-paragraph (lineup (text state) (font state) (features state)
-				  (hyphenation-rules state))
-			  (paragraph-width state)
-			  (disposition state)
-			  (algorithm state)))
+	(create-paragraph
+	 (lineup (text state) (font state) (hyphenation-rules state)
+		 (features state))
+	 (paragraph-width state)
+	 (disposition state)
+	 (algorithm state)))
   (gp:invalidate-rectangle (view interface)))
 
 (defun set-features (value interface)
