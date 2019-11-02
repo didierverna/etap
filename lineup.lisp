@@ -5,17 +5,17 @@
     0)
   (:method ((list list))
     (reduce #'+ (mapcar #'width list)))
-  (:method ((character-metrics tfm::character-metrics))
+  (:method ((character-metrics tfm:character-metrics))
     (* (tfm:design-size (tfm:font character-metrics))
        (tfm:width character-metrics))))
 
 (defgeneric height (object)
-  (:method ((character-metrics tfm::character-metrics))
+  (:method ((character-metrics tfm:character-metrics))
     (* (tfm:design-size (tfm:font character-metrics))
        (tfm:height character-metrics))))
 
 (defgeneric depth (object)
-  (:method ((character-metrics tfm::character-metrics))
+  (:method ((character-metrics tfm:character-metrics))
     (* (tfm:design-size (tfm:font character-metrics))
        (tfm:depth character-metrics))))
 
@@ -199,17 +199,17 @@
 ;; #### could be rather expensive (although I haven't tried it).
 
 (defun kerning (elt1 elt2)
-  (and (typep elt1 'tfm::character-metrics)
-       (typep elt2 'tfm::character-metrics)
+  (and (typep elt1 'tfm:character-metrics)
+       (typep elt2 'tfm:character-metrics)
        (tfm:kerning elt1 elt2)))
 
 (defgeneric collect-kern (elt1 elt2 remainder)
   (:method (elt1 elt2 remainder)
     nil)
-  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics)
+  (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder &aux (kerning (tfm:kerning elt1 elt2)))
     (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
-  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) remainder)
+  (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder)
     (when (pre-break elt2)
       (let ((kerning (kerning elt1 (car (pre-break elt2)))))
 	(when kerning
@@ -226,7 +226,7 @@
 		(list (make-kern (* kerning
 				    (tfm:design-size (tfm:font elt1)))))))))
     nil)
-  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) remainder)
+  (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder)
     (when (no-break elt1)
       (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
 	(when kerning
@@ -250,14 +250,14 @@
 
 
 (defun ligature (elt1 elt2)
-  (and (typep elt1 'tfm::character-metrics)
-       (typep elt2 'tfm::character-metrics)
+  (and (typep elt1 'tfm:character-metrics)
+       (typep elt2 'tfm:character-metrics)
        (tfm:ligature elt1 elt2)))
 
 (defgeneric adjacent-characters-1 (element remainder)
   (:method (element remainder)
     nil)
-  (:method ((element tfm::character-metrics) remainder)
+  (:method ((element tfm:character-metrics) remainder)
     (list element))
   (:method ((element discretionary) remainder)
     (append (adjacent-characters (pre-break element))
@@ -274,7 +274,7 @@
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
   (:method (elt1 elt2 remainder)
     (list (list elt1) (cons elt2 remainder)))
-  (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics)
+  (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder
 	    &aux (ligature (tfm:ligature elt1 elt2)) composition)
     (cond (ligature
@@ -290,7 +290,7 @@
 			 remainder)))
 	  (t
 	   (list (list elt1) (cons elt2 remainder)))))
-  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) remainder
+  (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder
 	    &aux (eat-elt1 (some
 			    (lambda (character) (tfm:ligature elt1 character))
 			    (adjacent-characters (cons elt2 remainder)))))
@@ -302,7 +302,7 @@
 	   (list nil (cons elt2 remainder)))
 	  (t
 	   (list (list elt1) (cons elt2 remainder)))))
-  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) remainder
+  (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder
 	    &aux (eat-elt2 (or (ligature (car (last (no-break elt1))) elt2)
 			       (ligature (car (last (post-break elt1))) elt2))))
     (cond (eat-elt2
