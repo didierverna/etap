@@ -198,39 +198,45 @@
 ;; #### every time we want to poll the size of various lineup chunks. This
 ;; #### could be rather expensive (although I haven't tried it).
 
+(defun kerning (elt1 elt2)
+  (and (typep elt1 'tfm::character-metrics)
+       (typep elt2 'tfm::character-metrics)
+       (tfm:kerning elt1 elt2)))
+
 (defgeneric collect-kern (elt1 elt2 elt3)
   (:method (elt1 elt2 elt3)
     nil)
   (:method ((elt1 tfm::character-metrics) (elt2 tfm::character-metrics) elt3
 	    &aux (kerning (tfm:kerning elt1 elt2)))
     (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
-  (:method ((elt1 tfm::character-metrics)
-	    (elt2 discretionary)
-	    (elt3 tfm::character-metrics))
+  (:method ((elt1 tfm::character-metrics) (elt2 discretionary) elt3)
     (when (pre-break elt2)
-      (let ((kerning (tfm:kerning elt1 (car (pre-break elt2)))))
+      (let ((kerning (kerning elt1 (car (pre-break elt2)))))
 	(when kerning
 	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
 		(pre-break elt2)))))
-    (when (post-break elt2)
-      (let ((kerning (tfm:kerning (car (last (post-break elt2))) elt3)))
-	(when kerning
-	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt3))))
-		   (post-break elt2)))))
     (if (no-break elt2)
-      (let ((kerning1 (tfm:kerning elt1 (car (no-break elt2))))
-	    (kerning2 (tfm:kerning (car (last (no-break elt2))) elt3)))
-	(when kerning1
-	  (push (make-kern (* kerning1 (tfm:design-size (tfm:font elt1))))
-		(no-break elt2)))
-	(when kerning2
-	  (endpush (make-kern (* kerning2 (tfm:design-size (tfm:font elt3))))
-		   (no-break elt2))))
-      (let ((kerning (tfm:kerning elt1 elt3)))
+      (let ((kerning (kerning elt1 (car (no-break elt2)))))
+	(when kerning
+	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
+		(no-break elt2))))
+      (let ((kerning (kerning elt1 elt3)))
 	(when kerning
 	  (setf (no-break elt2)
 		(list (make-kern (* kerning
 				    (tfm:design-size (tfm:font elt1)))))))))
+    nil)
+  (:method ((elt1 discretionary) (elt2 tfm::character-metrics) elt3)
+    (when (no-break elt1)
+      (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
+	(when kerning
+	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt2))))
+		   (no-break elt1)))))
+    (when (post-break elt1)
+      (let ((kerning (kerning (car (last (post-break elt1))) elt2)))
+	(when kerning
+	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt2))))
+		   (post-break elt1)))))
     nil))
 
 (defun process-kerning (lineup)
