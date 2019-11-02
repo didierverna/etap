@@ -39,7 +39,7 @@
 			     (t underfull-boundary)))))))))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :fixed))
+    (lineup disposition width (algorithm (eql :fixed))
      &key prefer-overfull-lines)
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))

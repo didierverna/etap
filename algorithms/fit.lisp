@@ -124,7 +124,7 @@
 	(create-line lineup start end)))))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :fit))
+    (lineup disposition width (algorithm (eql :fit))
      &key variant relax sloppy prefer-shrink)
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))

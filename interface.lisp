@@ -9,8 +9,8 @@
 	(create-paragraph
 	 (apply #'lineup (text state) (font state) (hyphenation-rules state)
 		(features state))
-	 (paragraph-width state)
 	 (disposition state)
+	 (paragraph-width state)
 	 (algorithm state)))
   (gp:invalidate-rectangle (view interface)))
 
