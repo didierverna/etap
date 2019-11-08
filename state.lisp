@@ -17,7 +17,7 @@ it; and this ball was her favorite plaything.")
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
 (defclass state ()
-  ((font :initform (tfm:load-font +font-file+) :reader font)
+  ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules)
    (algorithm :initform '(:fixed) :accessor algorithm)

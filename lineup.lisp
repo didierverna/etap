@@ -6,18 +6,15 @@
   (:method ((list list))
     (reduce #'+ (mapcar #'width list)))
   (:method ((character-metrics tfm:character-metrics))
-    (* (tfm:design-size (tfm:font character-metrics))
-       (tfm:width character-metrics))))
+    (tfm:width character-metrics)))
 
 (defgeneric height (object)
   (:method ((character-metrics tfm:character-metrics))
-    (* (tfm:design-size (tfm:font character-metrics))
-       (tfm:height character-metrics))))
+    (tfm:height character-metrics)))
 
 (defgeneric depth (object)
   (:method ((character-metrics tfm:character-metrics))
-    (* (tfm:design-size (tfm:font character-metrics))
-       (tfm:depth character-metrics))))
+    (tfm:depth character-metrics)))
 
 
 (defclass kern ()
@@ -63,11 +60,10 @@
 (defun make-glue (width stretch shrink)
   (make-instance 'glue :width width :stretch stretch :shrink shrink))
 
-(defun make-interword-glue
-    (blank &aux (font (tfm:font blank)) (design-size (tfm:design-size font)))
-  (make-glue (* (tfm:interword-space font) design-size)
-	     (* (tfm:interword-stretch font) design-size)
-	     (* (tfm:interword-shrink font) design-size)))
+(defun make-interword-glue (blank &aux (font (tfm:font blank)))
+  (make-glue (tfm:interword-space font)
+	     (tfm:interword-stretch font)
+	     (tfm:interword-shrink font)))
 
 
 (defun lineup-aref (lineup i start end &aux (element (aref lineup i)))
@@ -208,35 +204,24 @@
     nil)
   (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder &aux (kerning (tfm:kerning elt1 elt2)))
-    (when kerning (make-kern (* kerning (tfm:design-size (tfm:font elt1))))))
+    (when kerning (make-kern kerning)))
   (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder)
     (when (pre-break elt2)
       (let ((kerning (kerning elt1 (car (pre-break elt2)))))
-	(when kerning
-	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
-		(pre-break elt2)))))
+	(when kerning (push (make-kern kerning) (pre-break elt2)))))
     (if (no-break elt2)
       (let ((kerning (kerning elt1 (car (no-break elt2)))))
-	(when kerning
-	  (push (make-kern (* kerning (tfm:design-size (tfm:font elt1))))
-		(no-break elt2))))
+	(when kerning (push (make-kern kerning) (no-break elt2))))
       (let ((kerning (kerning elt1 (car remainder))))
-	(when kerning
-	  (setf (no-break elt2)
-		(list (make-kern (* kerning
-				    (tfm:design-size (tfm:font elt1)))))))))
+	(when kerning (setf (no-break elt2) (list (make-kern kerning))))))
     nil)
   (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder)
     (when (no-break elt1)
       (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
-	(when kerning
-	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt2))))
-		   (no-break elt1)))))
+	(when kerning (endpush (make-kern kerning) (no-break elt1)))))
     (when (post-break elt1)
       (let ((kerning (kerning (car (last (post-break elt1))) elt2)))
-	(when kerning
-	  (endpush (make-kern (* kerning (tfm:design-size (tfm:font elt2))))
-		   (post-break elt1)))))
+	(when kerning (endpush (make-kern kerning) (post-break elt1)))))
     nil))
 
 (defun process-kerning (lineup)
