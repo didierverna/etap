@@ -1,3 +1,16 @@
+;; This algorithm uses only the normal, fixed, inter-word spacing (hence, it
+;; can practically never justify properly). The "Underfull" variant only
+;; allows underfull lines (unless there is no choice). The "Overfull" one does
+;; the opposite. The "Best" one chooses which is closest to the paragraph
+;; width.
+
+;; In the "Best" variant, when the underfull and overfull lines are equally
+;; distant from the paragraph width, the underfull one is chosen, unless the
+;; "Prefer Overfull Lines" option is checked.
+
+;; Note that because the inter-word spacing is fixed, there is no difference
+;; between the flush left and justified dispositions.
+
 (in-package :etap)
 
 (defun fixed-line-boundary
