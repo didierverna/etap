@@ -125,7 +125,7 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fit))
-     &key variant relax sloppy prefer-shrink)
+     &key (variant :first) relax sloppy prefer-shrink)
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start next-search)
