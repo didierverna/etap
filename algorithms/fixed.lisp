@@ -1,7 +1,7 @@
 (in-package :etap)
 
 (defun fixed-line-boundary
-    (start lineup width disposition prefer-overfull-lines)
+    (start lineup width variant prefer-overfull-lines)
   (loop :with underfull-boundary
 	:with underfull-w
 	:with fit-boundary
@@ -26,10 +26,12 @@
 		   ((and underfull-w (not overfull-w)) underfull-boundary)
 		   ((and overfull-w (not underfull-w)) overfull-boundary)
 		   (t
-		    (case disposition
-		      ((:flush-left :centered :flush-right)
+		    (case variant
+		      (:underfull
 		       underfull-boundary)
-		      (:justified
+		      (:overfull
+		       overfull-boundary)
+		      (:best
 		       (cond ((< (- width underfull-w) (- overfull-w width))
 			      underfull-boundary)
 			     ((< (- overfull-w width) (- width underfull-w))
@@ -40,10 +42,10 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fixed))
-     &key prefer-overfull-lines)
+     &key (variant :underfull) prefer-overfull-lines)
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start)
-	  := (fixed-line-boundary start lineup width disposition
-				  prefer-overfull-lines)
+	  := (fixed-line-boundary
+	      start lineup width variant prefer-overfull-lines)
 	:collect (create-line lineup start end)))

@@ -24,6 +24,7 @@
   (declare (ignore value))
   (setf (algorithm (state interface))
 	`(:fixed
+	  :variant ,(choice-selected-item (fixed-variant interface))
 	  ,@(apply #'append (choice-selected-items (fixed-options interface)))))
   (update interface))
 
@@ -154,8 +155,15 @@
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
+   (fixed-variant radio-button-panel
+     :layout-class 'column-layout
+     :title "Variant" :title-position :frame
+     :items '(:underfull :best :overfull)
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-fixed-algorithm
+     :reader fixed-variant)
    (fixed-options check-button-panel
-     :layout-class 'row-layout
+     :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '((:prefer-overfull-lines t))
      :print-function (lambda (item) (keyword-capitalize (car item)))
@@ -246,7 +254,7 @@
    (settings row-layout '(configuration text))
    (configuration column-layout '(algorithms options)
      :visible-max-width t)
-   (fixed-settings column-layout '(fixed-options))
+   (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
@@ -262,7 +270,13 @@
     (case (car algorithm)
       (:fixed
        (setf (choice-selection (algorithms etap)) 0)
-       (when (cdr algorithm) (setf (choice-selection (fixed-options etap)) 0)))
+       (setf (choice-selected-item (fixed-variant etap))
+	     (or (cadr (member :variant algorithm)) :underfull))
+       (setf (choice-selection (fixed-options etap))
+	     (let ((selection (list)))
+	       (when (cadr (member :prefer-overfull-lines algorithm))
+		 (push 0 selection))
+	       selection)))
       (:fit
        (setf (choice-selection (algorithms etap)) 1)
        (setf (choice-selected-item (fit-variant etap))
