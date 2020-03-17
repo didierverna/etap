@@ -36,10 +36,16 @@
 	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
 
+(defun set-barnett-algorithm (value interface)
+  (declare (ignore value))
+  (setf (algorithm (state interface)) `(:barnett))
+  (update interface))
+
 (defun set-algorithm (value interface)
   (case (car value)
     (:fixed (set-fixed-algorithm value interface))
-    (:fit (set-fit-algorithm value interface))))
+    (:fit (set-fit-algorithm value interface))
+    (:barnett (set-barnett-algorithm value interface))))
 
 (defun set-disposition (value interface)
   (setf (disposition (state interface)) value)
@@ -180,7 +186,9 @@ amount of scaling is the same.")))))))
      :title "Algorithms"
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:fixed fixed-settings) (:fit fit-settings))
+     :items '((:fixed fixed-settings)
+	      (:fit fit-settings)
+	      (:barnett barnett-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
@@ -292,6 +300,7 @@ amount of scaling is the same.")))))))
      :visible-max-width t)
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
+   (barnett-settings row-layout '())
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
@@ -325,7 +334,9 @@ amount of scaling is the same.")))))))
 		 (push 1 selection))
 	       (when (cadr (member :prefer-shrink algorithm))
 		 (push 2 selection))
-	       selection)))))
+	       selection)))
+      (:barnett
+       (setf (choice-selection (algorithms etap)) 2))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (let ((features (features state)))
     (setf (choice-selection (features etap))

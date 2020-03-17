@@ -20,6 +20,7 @@
 	       (:module "algorithms"
 		:components ((:file "base")
 			     (:file "fixed" :depends-on ("base"))
-			     (:file "fit" :depends-on  ("base"))))
+			     (:file "fit" :depends-on  ("base"))
+			     (:file "barnett" :depends-on  ("base"))))
 	       (:file "paragraph")
 	       (:file "interface")))
