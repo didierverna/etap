@@ -143,6 +143,7 @@
 				    y)))))))
 
 (defun show-help (interface pane type key)
+  (declare (ignore interface pane))
   (case type
     (:tooltip
      (typecase key
