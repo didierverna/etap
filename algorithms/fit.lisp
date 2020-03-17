@@ -1,3 +1,32 @@
+;; This is the classical *-fit algorithms family, making full use of
+;; inter-word (elastic) glue. As their name suggest (and as in the case of the
+;; Fixed algorithm), there is no paragraph-wide optimization. Lines are
+;; constructed sequentially, with no backtracking.
+
+;; The "First" variant stops as soon as a line fits, that is, with the minimum
+;; number of characters, and the maximum stretch. The "Last" one does the
+;; opposite. The "Best" one tries to makes lines as close as possible to the
+;; natural inter-word space.
+
+;; The "Relax" option only affects the First and Last variants, and all but
+;; the Justified disposition. It essentially decreases the raggedness. When
+;; checked, lines are "de-stretched" or "de-shrunk", after having been
+;; created, and without changing their potential contents. More specifically:
+;; - for the First Fit, lines are de-stretched as much as possible towards the
+;;   natural inter-word space, but not to the point that another word would
+;;   fit in. The effect is thus to make the paragraph more compact.
+;; - for the Last Fit, lines are de-shrunk as much as possible towards the
+;;   natural inter-word space, without producing overfull lines. The effect is
+;;   thus to make the paragraph less compact.
+
+;; These algorithms don't have a notion of break-point cost. In particular,
+;; hyphens are seen as just additional break opportunities.
+
+;; Note that except for the Justified disposition, the Best-Fit algorithm is
+;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
+;; effect on it).
+
+
 (in-package :etap)
 
 (defgeneric fit-line-boundary (start lineup width disposition variant

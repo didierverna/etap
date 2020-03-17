@@ -4,7 +4,7 @@
 ;; the opposite. The "Best" one chooses which is closest to the paragraph
 ;; width.
 
-;; In the "Best" variant, when the underfull and overfull lines are equally
+;; In the Best variant, when the underfull and overfull lines are equally
 ;; distant from the paragraph width, the underfull one is chosen, unless the
 ;; "Prefer Overfull Lines" option is checked.
 
@@ -12,7 +12,7 @@
 ;; hyphens are seen as just additional break opportunities.
 
 ;; Note that because the inter-word spacing is fixed, there is no difference
-;; between the flush left and justified dispositions.
+;; between the Flush Left and Justified dispositions.
 
 (in-package :etap)
 
