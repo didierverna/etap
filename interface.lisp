@@ -149,11 +149,12 @@
        (symbol
 	(case key
 	  (:fixed-variant-underfull "Always prefer underfull lines.")
-	  (:fixed-variant-best "Prefer lines closer to the paragraph width,
-whether underfull or overfull.")
+	  (:fixed-variant-best
+	   "Prefer lines closer to the paragraph
+width, whether underfull or overfull.")
 	  (:fixed-variant-overfull "Always prefer overfull lines.")
 	  (:fixed-option-prefer-overfull-lines
-	   "For the \"Best\" variant, when the underfull and overfull
+	   "For the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one.")
 	  (:fit-variant-first)
