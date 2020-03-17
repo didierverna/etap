@@ -19,6 +19,24 @@
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
+;; The "Sloppy" option only affects the Justified disposition. When checked,
+;; lines are always stretched or shrunk to the paragraph width (hence
+;; eliminating all overfull or underfull lines), after they are created. In
+;; other words, the maximum inter-word stretch and shrink values are ignored,
+;; and the resulting lines may be over-stretched or over-shrunk.
+;; #### NOTE: the sloppy option is Boolean. For a finer grain of sloppiness,
+;; #### we could instead modify the inter-word glue.
+
+;; The "Prefer Shrink" option only affects the Best Fit variant in Justified
+;; disposition. When two lines (one stretched and one shrunk) fit the
+;; paragraph width with the same amount of scaling, the stretched one is
+;; preferred unless this option is checked.
+;; #### NOTE: scaling equality in absolute value may not be the most pertinent
+;; #### criterion. Indeed, the aesthetic cost of shrinking and stretching are
+;; #### not the same, as in most fonts, the maximum stretch and shrink ratios
+;; #### are not equal. Maybe a more pertinent measure would be the amount of
+;; #### stretch / shrink relative to the maximum value.
+
 ;; These algorithms don't have a notion of break-point cost. In particular,
 ;; hyphens are seen as just additional break opportunities.
 
