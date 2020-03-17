@@ -157,12 +157,19 @@ width, whether underfull or overfull.")
 	   "For the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one.")
-	  (:fit-variant-first)
-	  (:fit-variant-best)
-	  (:fit-variant-last)
-	  (:fit-option-relax)
-	  (:fit-option-sloppy)
-	  (:fit-option-prefer-shrink)))))))
+	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
+	  (:fit-variant-best "Minimize scaling.")
+	  (:fit-variant-last "Prefer lines with more words (more shrink).")
+	  (:fit-option-relax
+	   "For the First and Last variants, in ragged dispositions,
+de-stretch or de-shrink lines afterwards.")
+	  (:fit-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
+	  (:fit-option-prefer-shrink
+	   "For the Best variant, in Justified disposition,
+prefer shrinking over stretching when the
+amount of scaling is the same.")))))))
 
 (define-interface etap ()
   ((state :initform (make-state) :reader state)
