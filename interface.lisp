@@ -38,7 +38,10 @@
 
 (defun set-barnett-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface)) `(:barnett))
+  (setf (algorithm (state interface))
+	`(:barnett
+	  ,@(apply #'append
+	      (choice-selected-items (barnett-options interface)))))
   (update interface))
 
 (defun set-algorithm (value interface)
@@ -176,7 +179,10 @@ ignoring the font's inter-word spacing boundaries.")
 	  (:fit-option-prefer-shrink
 	   "For the Best variant, in Justified disposition,
 prefer shrinking over stretching when the
-amount of scaling is the same.")))))))
+amount of scaling is the same.")
+	  (:barnett-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")))))))
 
 (define-interface etap ()
   ((state :initform (make-state) :reader state)
@@ -229,6 +235,15 @@ amount of scaling is the same.")))))))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
+   (barnett-options check-button-panel
+     :layout-class 'column-layout
+     :title "Options" :title-position :frame
+     :items '((:sloppy t))
+     :help-keys '(:barnett-option-sloppy)
+     :print-function (lambda (item) (keyword-capitalize (car item)))
+     :selection-callback 'set-barnett-algorithm
+     :retract-callback 'set-barnett-algorithm
+     :reader barnett-options)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -300,7 +315,7 @@ amount of scaling is the same.")))))))
      :visible-max-width t)
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
-   (barnett-settings row-layout '())
+   (barnett-settings row-layout '(barnett-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
@@ -336,7 +351,12 @@ amount of scaling is the same.")))))))
 		 (push 2 selection))
 	       selection)))
       (:barnett
-       (setf (choice-selection (algorithms etap)) 2))))
+       (setf (choice-selection (algorithms etap)) 2)
+       (setf (choice-selection (barnett-options etap))
+	     (let ((selection (list)))
+	       (when (cadr (member :sloppy algorithm))
+		 (push 1 selection))
+	       selection)))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (let ((features (features state)))
     (setf (choice-selection (features etap))
