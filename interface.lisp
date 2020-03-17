@@ -142,6 +142,27 @@
 				    (+ x (x pinned-character))
 				    y)))))))
 
+(defun show-help (interface pane type key)
+  (case type
+    (:tooltip
+     (typecase key
+       (symbol
+	(case key
+	  (:fixed-variant-underfull "Always prefer underfull lines.")
+	  (:fixed-variant-best "Prefer lines closer to the paragraph width,
+whether underfull or overfull.")
+	  (:fixed-variant-overfull "Always prefer overfull lines.")
+	  (:fixed-option-prefer-overfull-lines
+	   "For the \"Best\" variant, when the underfull and overfull
+lines are equally distant from the paragraph width,
+choose the overfull rather than the underfull one.")
+	  (:fit-variant-first)
+	  (:fit-variant-best)
+	  (:fit-variant-last)
+	  (:fit-option-relax)
+	  (:fit-option-sloppy)
+	  (:fit-option-prefer-shrink)))))))
+
 (define-interface etap ()
   ((state :initform (make-state) :reader state)
    (paragraph :accessor paragraph))
@@ -159,6 +180,8 @@
      :layout-class 'column-layout
      :title "Variant" :title-position :frame
      :items '(:underfull :best :overfull)
+     :help-keys '(:fixed-variant-underfull :fixed-variant-best
+		  :fixed-variant-overfull)
      :print-function 'keyword-capitalize
      :selection-callback 'set-fixed-algorithm
      :reader fixed-variant)
@@ -166,6 +189,7 @@
      :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '((:prefer-overfull-lines t))
+     :help-keys '(:fixed-option-prefer-overfull-lines)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
@@ -174,6 +198,7 @@
      :layout-class 'column-layout
      :title "Variant" :title-position :frame
      :items '(:first :best :last)
+     :help-keys '(:fit-variant-first :fit-variant-best :fit-variant-last)
      :print-function 'keyword-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
@@ -181,6 +206,8 @@
      :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '((:relax t) (:sloppy t) (:prefer-shrink t))
+     :help-keys '(:fit-option-relax :fit-option-sloppy
+		  :fit-option-prefer-shrink)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
@@ -307,4 +334,5 @@
 ;; Entry Point
 ;; ===========
 
-(defun run () (display (make-instance 'etap)))
+(defun run ()
+  (display (make-instance 'etap :help-callback 'show-help)))
