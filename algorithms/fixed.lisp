@@ -8,6 +8,9 @@
 ;; distant from the paragraph width, the underfull one is chosen, unless the
 ;; "Prefer Overfull Lines" option is checked.
 
+;; This algorithm doesn't have a notion of break-point cost. In particular,
+;; hyphens are seen as just additional break opportunities.
+
 ;; Note that because the inter-word spacing is fixed, there is no difference
 ;; between the flush left and justified dispositions.
 
