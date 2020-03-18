@@ -183,6 +183,11 @@ hyphenating words when possible.")
 	   "For the Best variant, in Justified disposition,
 prefer shrinking over stretching when the
 amount of scaling is the same.")
+	  (:fit-option-prefer-overfull-lines
+"For the Best variant, in Justified disposition,
+when there is no perfect fit and the underfull and overfull
+lines are equally distant from the paragraph width,
+choose the overfull rather than the underfull one.")
 	  (:barnett-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))
@@ -232,9 +237,11 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :layout-class 'grid-layout
      :layout-args '(:orientation :column)
      :title "Options" :title-position :frame
-     :items '((:relax t) (:sloppy t) (:avoid-hyphens t) (:prefer-shrink t))
+     :items '((:relax t) (:sloppy t) (:avoid-hyphens t)
+	      (:prefer-shrink t) (:prefer-overfull-lines t))
      :help-keys '(:fit-option-relax :fit-option-sloppy
-		  :fit-option-avoid-hyphens :fit-option-prefer-shrink)
+		  :fit-option-avoid-hyphens
+		  :fit-option-prefer-shrink :fit-option-prefer-overfull-lines)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm

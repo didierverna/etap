@@ -88,7 +88,7 @@
 	    :do (setq previous-boundary (list end next-start next-search))
 	    :finally (return previous-boundary))))
   (:method (lineup start width (disposition (eql :justified)) variant
-	    &key avoid-hyphens prefer-shrink)
+	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
     (loop :with underfull-boundary
 	  :with fit-boundaries := (list)
 	  :with overfull-boundary
@@ -182,9 +182,13 @@
 			      (width-delta lineup start width
 					   overfull-boundary)))
 			(cond ((and underfull-delta overfull-delta)
-			       (if (< underfull-delta overfull-delta)
-				 underfull-boundary
-				 overfull-boundary))
+			       (cond ((= underfull-delta overfull-delta)
+				      (if prefer-overfull-lines
+					overfull-boundary
+					underfull-boundary))
+				     ((< underfull-delta overfull-delta)
+				      underfull-boundary)
+				     (t overfull-boundary)))
 			      (underfull-delta underfull-boundary)
 			      (t overfull-boundary)))))))))))
 
@@ -225,12 +229,15 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fit))
-     &key (variant :first) relax sloppy avoid-hyphens prefer-shrink)
+     &key (variant :first) relax sloppy avoid-hyphens
+	  prefer-shrink prefer-overfull-lines)
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start next-search)
 	  := (fit-line-boundary lineup start width disposition variant
-	       :avoid-hyphens avoid-hyphens :prefer-shrink prefer-shrink)
+	       :avoid-hyphens avoid-hyphens
+	       :prefer-shrink prefer-shrink
+	       :prefer-overfull-lines prefer-overfull-lines)
 	:collect (fit-create-line lineup start end next-search width
 		     disposition variant
 		   :relax relax :sloppy sloppy)))
