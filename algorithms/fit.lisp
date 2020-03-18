@@ -143,24 +143,78 @@
 			  (t underfull-boundary)))
 		   (:best
 		    (if fit-boundaries
-		      (let ((sorted-scales
-			      (sort
-			       (mapcar
-				   (lambda (boundary)
-				     (cons boundary
-					   (lineup-scale lineup
-							 start
-							 (car boundary)
-							 width)))
-				 fit-boundaries)
-			       #'<
-			       :key (lambda (elt) (abs (cdr elt))))))
-			(if (= (abs (cdr (first sorted-scales)))
-			       (abs (cdr (second sorted-scales))))
-			  (if prefer-shrink
-			    (car (first sorted-scales))
-			    (car (second sorted-scales)))
-			  (car (first sorted-scales))))
+		      (if avoid-hyphens
+			(let ((word-boundaries
+				(remove-if-not
+				 (lambda (end)
+				   (or (= end (length lineup))
+				       (gluep (aref lineup end))))
+				 fit-boundaries
+				 :key #'car))
+			      (hyphen-boundaries
+				(remove-if
+				 (lambda (end)
+				   (or (= end (length lineup))
+				       (gluep (aref lineup end))))
+				 fit-boundaries
+				 :key #'car)))
+			  (if word-boundaries
+			    (let ((sorted-scales
+				    (sort
+				     (mapcar
+					 (lambda (boundary)
+					   (cons boundary
+						 (lineup-scale lineup
+							       start
+							       (car boundary)
+							       width)))
+				       word-boundaries)
+				     #'<
+				     :key (lambda (elt) (abs (cdr elt))))))
+			      (if (and (> (length sorted-scales) 1)
+				       (= (abs (cdr (first sorted-scales)))
+					  (abs (cdr (second sorted-scales)))))
+				(if prefer-shrink
+				  (car (first sorted-scales))
+				  (car (second sorted-scales)))
+				(car (first sorted-scales))))
+			    (let ((sorted-scales
+				    (sort
+				     (mapcar
+					 (lambda (boundary)
+					   (cons boundary
+						 (lineup-scale lineup
+							       start
+							       (car boundary)
+							       width)))
+				       hyphen-boundaries)
+				     #'<
+				     :key (lambda (elt) (abs (cdr elt))))))
+			      (if (and (> (length sorted-scales) 1)
+				       (= (abs (cdr (first sorted-scales)))
+					  (abs (cdr (second sorted-scales)))))
+				(if prefer-shrink
+				  (car (first sorted-scales))
+				  (car (second sorted-scales)))
+				(car (first sorted-scales))))))
+			(let ((sorted-scales
+				(sort
+				 (mapcar
+				     (lambda (boundary)
+				       (cons boundary
+					     (lineup-scale lineup
+							   start
+							   (car boundary)
+							   width)))
+				   fit-boundaries)
+				 #'<
+				 :key (lambda (elt) (abs (cdr elt))))))
+			  (if (= (abs (cdr (first sorted-scales)))
+				 (abs (cdr (second sorted-scales))))
+			    (if prefer-shrink
+			      (car (first sorted-scales))
+			      (car (second sorted-scales)))
+			    (car (first sorted-scales)))))
 		      (let ((underfull-delta
 			      (when underfull-boundary
 				(- width
