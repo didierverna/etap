@@ -27,6 +27,11 @@
 ;; #### TODO: the sloppy option is Boolean. For a finer grain of sloppiness,
 ;; #### we could instead modify the inter-word glue.
 
+;; The "Avoid Hyphens" option only affects the Justified disposition. When
+;; checked, line solutions without hyphenation are always preferred when there
+;; is a choice. Note that in ragged dispositions, this option would
+;; essentially be equivalent to turning hyphenation off.
+
 ;; The "Prefer Shrink" option only affects the Best Fit variant in Justified
 ;; disposition. When two lines (one stretched and one shrunk) fit the
 ;; paragraph width with the same amount of scaling, the stretched one is
