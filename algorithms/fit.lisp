@@ -100,18 +100,14 @@
 			   (if avoid-hyphens
 			     (let ((word-boundaries
 				     (remove-if-not
-				      (lambda (end)
-					(or (= end (length lineup))
-					    (gluep (aref lineup end))))
-				      fit-boundaries
-				      :key #'car))
+				      (lambda (boundary)
+					(word-break-position-p lineup boundary))
+				      fit-boundaries))
 				   (hyphen-boundaries
 				     (remove-if
-				      (lambda (end)
-					(or (= end (length lineup))
-					    (gluep (aref lineup end))))
-				      fit-boundaries
-				      :key #'car)))
+				      (lambda (boundary)
+					(word-break-position-p lineup boundary))
+				      fit-boundaries)))
 			       (if word-boundaries
 				 (car (last word-boundaries))
 				 (car (last hyphen-boundaries))))
@@ -123,18 +119,14 @@
 			   (if avoid-hyphens
 			     (let ((word-boundaries
 				     (remove-if-not
-				      (lambda (end)
-					(or (= end (length lineup))
-					    (gluep (aref lineup end))))
-				      fit-boundaries
-				      :key #'car))
+				      (lambda (boundary)
+					(word-break-position-p lineup boundary))
+				      fit-boundaries))
 				   (hyphen-boundaries
 				     (remove-if
-				      (lambda (end)
-					(or (= end (length lineup))
-					    (gluep (aref lineup end))))
-				      fit-boundaries
-				      :key #'car)))
+				      (lambda (boundary)
+					(word-break-position-p lineup boundary))
+				      fit-boundaries)))
 			       (if word-boundaries
 				 (car word-boundaries)
 				 (car hyphen-boundaries)))
@@ -146,18 +138,14 @@
 		      (if avoid-hyphens
 			(let ((word-boundaries
 				(remove-if-not
-				 (lambda (end)
-				   (or (= end (length lineup))
-				       (gluep (aref lineup end))))
-				 fit-boundaries
-				 :key #'car))
+				 (lambda (boundary)
+				   (word-break-position-p lineup boundary))
+				 fit-boundaries))
 			      (hyphen-boundaries
 				(remove-if
-				 (lambda (end)
-				   (or (= end (length lineup))
-				       (gluep (aref lineup end))))
-				 fit-boundaries
-				 :key #'car)))
+				 (lambda (boundary)
+				   (word-break-position-p lineup boundary))
+				 fit-boundaries)))
 			  (if word-boundaries
 			    (let ((sorted-scales
 				    (sort

@@ -130,6 +130,9 @@
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
 
+(defun word-break-position-p (lineup break &aux (end (car break)))
+  (or (= end (length lineup)) (gluep (aref lineup end))))
+
 (defun next-break-position
     (lineup &optional (start 0)
 	    &aux (length (length lineup))
