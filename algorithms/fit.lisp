@@ -66,6 +66,9 @@
    #'<
    :key (lambda (elt) (abs (cdr elt)))))
 
+(defun width-delta (lineup start width boundary)
+  (when boundary (abs (- width (lineup-width lineup start (car boundary))))))
+
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
   (:method (lineup start width disposition variant &key)
@@ -173,15 +176,11 @@
 			      (car (second sorted-scales)))
 			    (car (first sorted-scales)))))
 		      (let ((underfull-delta
-			      (when underfull-boundary
-				(- width
-				   (lineup-width
-				    lineup start (car underfull-boundary)))))
+			      (width-delta lineup start width
+					   underfull-boundary))
 			    (overfull-delta
-			      (when overfull-boundary
-				(- (lineup-width
-				    lineup start (car overfull-boundary))
-				   width))))
+			      (width-delta lineup start width
+					   overfull-boundary)))
 			(cond ((and underfull-delta overfull-delta)
 			       (if (< underfull-delta overfull-delta)
 				 underfull-boundary
