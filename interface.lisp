@@ -176,6 +176,9 @@ de-stretch or de-shrink lines afterwards.")
 	  (:fit-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")
+	  (:fit-option-avoid-hyphens
+	   "In Justified disposition, avoid
+hyphenating words when possible.")
 	  (:fit-option-prefer-shrink
 	   "For the Best variant, in Justified disposition,
 prefer shrinking over stretching when the
@@ -226,11 +229,12 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
    (fit-options check-button-panel
-     :layout-class 'column-layout
+     :layout-class 'grid-layout
+     :layout-args '(:orientation :column)
      :title "Options" :title-position :frame
-     :items '((:relax t) (:sloppy t) (:prefer-shrink t))
+     :items '((:relax t) (:sloppy t) (:avoid-hyphens t) (:prefer-shrink t))
      :help-keys '(:fit-option-relax :fit-option-sloppy
-		  :fit-option-prefer-shrink)
+		  :fit-option-avoid-hyphens :fit-option-prefer-shrink)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
@@ -347,8 +351,10 @@ ignoring the font's inter-word spacing boundaries.")))))))
 		 (push 0 selection))
 	       (when (cadr (member :sloppy algorithm))
 		 (push 1 selection))
-	       (when (cadr (member :prefer-shrink algorithm))
+	       (when (cadr (member :avoid-hyphens algorithm))
 		 (push 2 selection))
+	       (when (cadr (member :prefer-shrink algorithm))
+		 (push 3 selection))
 	       selection)))
       (:barnett
        (setf (choice-selection (algorithms etap)) 2)
