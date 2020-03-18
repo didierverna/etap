@@ -49,6 +49,14 @@
 
 (in-package :etap)
 
+(defun word-boundaries (lineup boundaries)
+  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
+		 boundaries))
+
+(defun hyphen-boundaries (lineup boundaries)
+  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
+	     boundaries))
+
 (defgeneric fit-line-boundary
     (start lineup width disposition variant &key &allow-other-keys)
   (:method (start lineup width disposition variant &key)
@@ -96,15 +104,9 @@
 		    (cond (fit-boundaries
 			   (if avoid-hyphens
 			     (let ((word-boundaries
-				     (remove-if-not
-				      (lambda (boundary)
-					(word-boundary-p lineup boundary))
-				      fit-boundaries))
+				     (word-boundaries lineup fit-boundaries))
 				   (hyphen-boundaries
-				     (remove-if
-				      (lambda (boundary)
-					(word-boundary-p lineup boundary))
-				      fit-boundaries)))
+				     (hyphen-boundaries lineup fit-boundaries)))
 			       (if word-boundaries
 				 (car (last word-boundaries))
 				 (car (last hyphen-boundaries))))
@@ -115,15 +117,9 @@
 		    (cond (fit-boundaries
 			   (if avoid-hyphens
 			     (let ((word-boundaries
-				     (remove-if-not
-				      (lambda (boundary)
-					(word-boundary-p lineup boundary))
-				      fit-boundaries))
+				     (word-boundaries lineup fit-boundaries))
 				   (hyphen-boundaries
-				     (remove-if
-				      (lambda (boundary)
-					(word-boundary-p lineup boundary))
-				      fit-boundaries)))
+				     (hyphen-boundaries lineup fit-boundaries)))
 			       (if word-boundaries
 				 (car word-boundaries)
 				 (car hyphen-boundaries)))
@@ -134,15 +130,9 @@
 		    (if fit-boundaries
 		      (if avoid-hyphens
 			(let ((word-boundaries
-				(remove-if-not
-				 (lambda (boundary)
-				   (word-boundary-p lineup boundary))
-				 fit-boundaries))
+				(word-boundaries lineup fit-boundaries))
 			      (hyphen-boundaries
-				(remove-if
-				 (lambda (boundary)
-				   (word-boundary-p lineup boundary))
-				 fit-boundaries)))
+				(hyphen-boundaries lineup fit-boundaries)))
 			  (if word-boundaries
 			    (let ((sorted-scales
 				    (sort
