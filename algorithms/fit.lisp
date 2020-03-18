@@ -111,86 +111,53 @@
 	     (return
 	       (if (= (length fit-boundaries) 1)
 		 (car fit-boundaries)
-		 (case variant
-		   (:first
-		    (cond (fit-boundaries
-			   (if avoid-hyphens
-			     (let ((word-boundaries
-				     (word-boundaries lineup fit-boundaries))
-				   (hyphen-boundaries
-				     (hyphen-boundaries lineup fit-boundaries)))
-			       (if word-boundaries
-				 (car (last word-boundaries))
-				 (car (last hyphen-boundaries))))
-			     (car (last fit-boundaries))))
-			  (underfull-boundary underfull-boundary)
-			  (t overfull-boundary)))
-		   (:last
-		    (cond (fit-boundaries
-			   (if avoid-hyphens
-			     (let ((word-boundaries
-				     (word-boundaries lineup fit-boundaries))
-				   (hyphen-boundaries
-				     (hyphen-boundaries lineup fit-boundaries)))
-			       (if word-boundaries
-				 (car word-boundaries)
-				 (car hyphen-boundaries)))
-			     (car fit-boundaries)))
-			  (overfull-boundary overfull-boundary)
-			  (t underfull-boundary)))
-		   (:best
-		    (if fit-boundaries
-		      (if avoid-hyphens
-			(let ((word-boundaries
-				(word-boundaries lineup fit-boundaries))
-			      (hyphen-boundaries
-				(hyphen-boundaries lineup fit-boundaries)))
-			  (if word-boundaries
-			    (let ((sorted-scales
-				    (sorted-scales lineup start width
-						   word-boundaries)))
-			      (if (and (> (length sorted-scales) 1)
-				       (= (abs (cdr (first sorted-scales)))
-					  (abs (cdr (second sorted-scales)))))
-				(if prefer-shrink
-				  (car (first sorted-scales))
-				  (car (second sorted-scales)))
-				(car (first sorted-scales))))
-			    (let ((sorted-scales
-				    (sorted-scales lineup start width
-						   hyphen-boundaries)))
-			      (if (and (> (length sorted-scales) 1)
-				       (= (abs (cdr (first sorted-scales)))
-					  (abs (cdr (second sorted-scales)))))
-				(if prefer-shrink
-				  (car (first sorted-scales))
-				  (car (second sorted-scales)))
-				(car (first sorted-scales))))))
-			(let ((sorted-scales
-				(sorted-scales lineup start width
-					       fit-boundaries)))
-			  (if (= (abs (cdr (first sorted-scales)))
-				 (abs (cdr (second sorted-scales))))
-			    (if prefer-shrink
-			      (car (first sorted-scales))
-			      (car (second sorted-scales)))
-			    (car (first sorted-scales)))))
-		      (let ((underfull-delta
-			      (width-delta lineup start width
-					   underfull-boundary))
-			    (overfull-delta
-			      (width-delta lineup start width
-					   overfull-boundary)))
-			(cond ((and underfull-delta overfull-delta)
-			       (cond ((= underfull-delta overfull-delta)
-				      (if prefer-overfull-lines
-					overfull-boundary
-					underfull-boundary))
-				     ((< underfull-delta overfull-delta)
-				      underfull-boundary)
-				     (t overfull-boundary)))
-			      (underfull-delta underfull-boundary)
-			      (t overfull-boundary)))))))))))
+		 (let ((boundaries
+			 (if avoid-hyphens
+			   ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
+			   (or (word-boundaries lineup fit-boundaries)
+			       (hyphen-boundaries lineup fit-boundaries))
+			   fit-boundaries)))
+		   (case variant
+		     (:first
+		      (cond (boundaries (car (last boundaries)))
+			    (underfull-boundary underfull-boundary)
+			    (t overfull-boundary)))
+		     (:last
+		      (cond (boundaries (car boundaries))
+			    (overfull-boundary overfull-boundary)
+			    (t underfull-boundary)))
+		     (:best
+		      (cond ((= (length boundaries) 1)
+			     ;; #### NOTE: this test again because we may have
+			     ;; filtered FIT-BOUNDARIES.
+			     (car boundaries))
+			    (boundaries
+			     (let ((sorted-scales
+				     (sorted-scales lineup start width
+						    boundaries)))
+			       (if (= (abs (cdr (first sorted-scales)))
+				      (abs (cdr (second sorted-scales))))
+				 (if prefer-shrink
+				   (car (first sorted-scales))
+				   (car (second sorted-scales)))
+				 (car (first sorted-scales)))))
+			    (t
+			     (let ((underfull-delta
+				     (width-delta lineup start width
+						  underfull-boundary))
+				   (overfull-delta
+				     (width-delta lineup start width
+						  overfull-boundary)))
+			       (cond ((and underfull-delta overfull-delta)
+				      (cond ((= underfull-delta overfull-delta)
+					     (if prefer-overfull-lines
+					       overfull-boundary
+					       underfull-boundary))
+					    ((< underfull-delta overfull-delta)
+					     underfull-boundary)
+					    (t overfull-boundary)))
+				     (underfull-delta underfull-boundary)
+				     (t overfull-boundary)))))))))))))
 
 (defgeneric fit-create-line
     (lineup start end search width disposition variant &key &allow-other-keys)
