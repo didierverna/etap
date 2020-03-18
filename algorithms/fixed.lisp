@@ -16,7 +16,7 @@
 
 (in-package :etap)
 
-(defun fixed-line-boundary (start lineup width variant prefer-overfull-lines)
+(defun fixed-line-boundary (lineup start width variant prefer-overfull-lines)
   (loop :with underfull-boundary
 	:with underfull-w
 	:with fit-boundary
@@ -62,5 +62,5 @@
 	:until (= start (length lineup))
 	:for (end next-start)
 	  := (fixed-line-boundary
-	      start lineup width variant prefer-overfull-lines)
+	      lineup start width variant prefer-overfull-lines)
 	:collect (create-line lineup start end)))

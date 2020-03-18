@@ -67,8 +67,8 @@
    :key (lambda (elt) (abs (cdr elt)))))
 
 (defgeneric fit-line-boundary
-    (start lineup width disposition variant &key &allow-other-keys)
-  (:method (start lineup width disposition variant &key)
+    (lineup start width disposition variant &key &allow-other-keys)
+  (:method (lineup start width disposition variant &key)
     (let ((lineup-width-function (case variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
@@ -84,7 +84,7 @@
 	    :while (and next-search (<= w width))
 	    :do (setq previous-boundary (list end next-start next-search))
 	    :finally (return previous-boundary))))
-  (:method (start lineup width (disposition (eql :justified)) variant
+  (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens prefer-shrink)
     (loop :with underfull-boundary
 	  :with fit-boundaries := (list)
@@ -230,7 +230,7 @@
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start next-search)
-	  := (fit-line-boundary start lineup width disposition variant
+	  := (fit-line-boundary lineup start width disposition variant
 	       :avoid-hyphens avoid-hyphens :prefer-shrink prefer-shrink)
 	:collect (fit-create-line lineup start end next-search width
 		     disposition variant
