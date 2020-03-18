@@ -94,11 +94,49 @@
 	     (return
 	       (case variant
 		 (:first
-		  (cond (fit-boundaries (car (last fit-boundaries)))
+		  (cond (fit-boundaries
+			 (if avoid-hyphens
+			   (let ((word-boundaries
+				   (remove-if-not
+				    (lambda (end)
+				      (or (= end (length lineup))
+					  (gluep (aref lineup end))))
+				    fit-boundaries
+				    :key #'car))
+				 (hyphen-boundaries
+				   (remove-if
+				    (lambda (end)
+				      (or (= end (length lineup))
+					  (gluep (aref lineup end))))
+				    fit-boundaries
+				    :key #'car)))
+			     (if word-boundaries
+			       (car (last word-boundaries))
+			       (car (last hyphen-boundaries))))
+			   (car (last fit-boundaries))))
 			(underfull-boundary underfull-boundary)
 			(t overfull-boundary)))
 		 (:last
-		  (cond (fit-boundaries (car fit-boundaries))
+		  (cond (fit-boundaries
+			 (if avoid-hyphens
+			   (let ((word-boundaries
+				   (remove-if-not
+				    (lambda (end)
+				      (or (= end (length lineup))
+					  (gluep (aref lineup end))))
+				    fit-boundaries
+				    :key #'car))
+				 (hyphen-boundaries
+				   (remove-if
+				    (lambda (end)
+				      (or (= end (length lineup))
+					  (gluep (aref lineup end))))
+				    fit-boundaries
+				    :key #'car)))
+			     (if word-boundaries
+			       (car word-boundaries)
+			       (car hyphen-boundaries)))
+			   (car fit-boundaries)))
 			(overfull-boundary overfull-boundary)
 			(t underfull-boundary)))
 		 (:best
