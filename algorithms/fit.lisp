@@ -8,10 +8,10 @@
 ;; opposite. The "Best" one tries to makes lines as close as possible to the
 ;; natural inter-word space.
 
-;; The "Relax" option only affects the First and Last variants, and all but
-;; the Justified disposition. It essentially decreases the raggedness. When
-;; checked, lines are "de-stretched" or "de-shrunk", after having been
-;; created, and without changing their potential contents. More specifically:
+;; The "Relax" option only affects the First and Last variants, in the ragged
+;; dispositions. It essentially decreases the raggedness. When checked, lines
+;; are "de-stretched" or "de-shrunk", after having been created, but without
+;; changing their potential contents. More specifically:
 ;; - for the First Fit, lines are de-stretched as much as possible towards the
 ;;   natural inter-word space, but not to the point that another word would
 ;;   fit in. The effect is thus to make the paragraph more compact.
