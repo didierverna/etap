@@ -1,3 +1,14 @@
+;; #### WARNING: there are a number of characteristics in the lineup that
+;; #### affect the way algorithms are implemented. These specificities should
+;; #### be kept in mind because should they change, said algorithms may become
+;; #### buggy. In particular:
+;; #### - the paragraph string is trimmed for spaces, so there is no glue at
+;; ####   the end (we don't have TeX's last line specific treatment notably).
+;; #### - the only discretionaries that we have come from the hyphenation
+;; ####   step, which mean that said discretionaries only appear in the middle
+;; ####   of words (we may, however, have discretionaries at the beginning or
+;; ####   end of the lineup).
+
 (in-package :etap)
 
 (defgeneric width (object)
