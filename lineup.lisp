@@ -130,10 +130,10 @@
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
 
-(defun word-break-position-p (lineup break &aux (end (car break)))
+(defun word-boundary-p (lineup boundary &aux (end (car boundary)))
   (or (= end (length lineup)) (gluep (aref lineup end))))
 
-(defun next-break-position
+(defun next-boundary
     (lineup &optional (start 0)
 	    &aux (length (length lineup))
 		 (point (position-if #'break-point-p lineup :start start)))

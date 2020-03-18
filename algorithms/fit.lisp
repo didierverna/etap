@@ -42,9 +42,6 @@
 ;; #### are not equal. Maybe a more pertinent measure would be the amount of
 ;; #### stretch / shrink relative to the maximum value.
 
-;; These algorithms don't have a notion of break-point cost. In particular,
-;; hyphens are seen as just additional break opportunities.
-
 ;; Note that except for the Justified disposition, the Best-Fit algorithm is
 ;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
 ;; effect on it).
@@ -52,8 +49,8 @@
 
 (in-package :etap)
 
-(defgeneric fit-line-boundary (start lineup width disposition variant
-			       &key &allow-other-keys)
+(defgeneric fit-line-boundary
+    (start lineup width disposition variant &key &allow-other-keys)
   (:method (start lineup width disposition variant &key)
     (let ((lineup-width-function (case variant
 				   (:first #'lineup-max-width)
@@ -64,8 +61,8 @@
       ;; afterwards.
       (loop :with previous-boundary
 	    :for (end next-start next-search)
-	      := (next-break-position lineup start)
-		:then (next-break-position lineup next-search)
+	      := (next-boundary lineup start)
+		:then (next-boundary lineup next-search)
 	    :for w := (funcall lineup-width-function lineup start end)
 	    :while (and next-search (<= w width))
 	    :do (setq previous-boundary (list end next-start next-search))
@@ -78,8 +75,8 @@
 	  ;; #### NOTE: this works even the first time because at worst,
 	  ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
 	  ;; afterwards.
-	  :for boundary := (next-break-position lineup start)
-	    :then (next-break-position lineup (caddr boundary))
+	  :for boundary := (next-boundary lineup start)
+	    :then (next-boundary lineup (caddr boundary))
 	  :for span := (multiple-value-bind (width stretch shrink)
 			   (lineup-width lineup start (car boundary))
 			 (list width (+ width stretch) (- width shrink)))
@@ -101,12 +98,12 @@
 			     (let ((word-boundaries
 				     (remove-if-not
 				      (lambda (boundary)
-					(word-break-position-p lineup boundary))
+					(word-boundary-p lineup boundary))
 				      fit-boundaries))
 				   (hyphen-boundaries
 				     (remove-if
 				      (lambda (boundary)
-					(word-break-position-p lineup boundary))
+					(word-boundary-p lineup boundary))
 				      fit-boundaries)))
 			       (if word-boundaries
 				 (car (last word-boundaries))
@@ -120,12 +117,12 @@
 			     (let ((word-boundaries
 				     (remove-if-not
 				      (lambda (boundary)
-					(word-break-position-p lineup boundary))
+					(word-boundary-p lineup boundary))
 				      fit-boundaries))
 				   (hyphen-boundaries
 				     (remove-if
 				      (lambda (boundary)
-					(word-break-position-p lineup boundary))
+					(word-boundary-p lineup boundary))
 				      fit-boundaries)))
 			       (if word-boundaries
 				 (car word-boundaries)
@@ -139,12 +136,12 @@
 			(let ((word-boundaries
 				(remove-if-not
 				 (lambda (boundary)
-				   (word-break-position-p lineup boundary))
+				   (word-boundary-p lineup boundary))
 				 fit-boundaries))
 			      (hyphen-boundaries
 				(remove-if
 				 (lambda (boundary)
-				   (word-break-position-p lineup boundary))
+				   (word-boundary-p lineup boundary))
 				 fit-boundaries)))
 			  (if word-boundaries
 			    (let ((sorted-scales
@@ -229,7 +226,7 @@
 	    (if (< end (length lineup))
 	      (let ((scale
 		      (lineup-scale
-		       lineup start (car (next-break-position lineup search))
+		       lineup start (car (next-boundary lineup search))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))

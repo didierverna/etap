@@ -16,8 +16,7 @@
 
 (in-package :etap)
 
-(defun fixed-line-boundary
-    (start lineup width variant prefer-overfull-lines)
+(defun fixed-line-boundary (start lineup width variant prefer-overfull-lines)
   (loop :with underfull-boundary
 	:with underfull-w
 	:with fit-boundary
@@ -26,8 +25,8 @@
 	;; #### NOTE: this works even the first time because at worst,
 	;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
 	;; afterwards.
-	:for (end next-start next-search) := (next-break-position lineup start)
-	  :then (next-break-position lineup next-search)
+	:for (end next-start next-search) := (next-boundary lineup start)
+	  :then (next-boundary lineup next-search)
 	:for w := (lineup-width lineup start end)
 	:while (and next-search (not overfull-boundary))
 	:if (< w width)
