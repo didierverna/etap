@@ -133,6 +133,20 @@
 (defun word-boundary-p (lineup boundary &aux (end (car boundary)))
   (or (= end (length lineup)) (gluep (aref lineup end))))
 
+(defun word-boundaries (lineup boundaries)
+  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
+		 boundaries))
+
+(defun hyphen-boundaries (lineup boundaries)
+  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
+	     boundaries))
+
+(defun boundary-scales (lineup start width boundaries)
+  (mapcar
+      (lambda (boundary)
+	(cons boundary (lineup-scale lineup start (car boundary) width)))
+    boundaries))
+
 (defun next-boundary
     (lineup &optional (start 0)
 	    &aux (length (length lineup))

@@ -49,20 +49,6 @@
 
 (in-package :etap)
 
-(defun word-boundaries (lineup boundaries)
-  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
-		 boundaries))
-
-(defun hyphen-boundaries (lineup boundaries)
-  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
-	     boundaries))
-
-(defun boundary-scales (lineup start width boundaries)
-  (mapcar
-      (lambda (boundary)
-	(cons boundary (lineup-scale lineup start (car boundary) width)))
-    boundaries))
-
 (defun sorted-scales (lineup start width boundaries)
   (sort (boundary-scales lineup start width boundaries) #'<
     :key (lambda (elt) (abs (cdr elt)))))
