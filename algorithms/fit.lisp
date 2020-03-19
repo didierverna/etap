@@ -57,14 +57,15 @@
   (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
 	     boundaries))
 
+(defun boundary-scales (lineup start width boundaries)
+  (mapcar
+      (lambda (boundary)
+	(cons boundary (lineup-scale lineup start (car boundary) width)))
+    boundaries))
+
 (defun sorted-scales (lineup start width boundaries)
-  (sort
-   (mapcar
-       (lambda (boundary)
-	 (cons boundary (lineup-scale lineup start (car boundary) width)))
-     boundaries)
-   #'<
-   :key (lambda (elt) (abs (cdr elt)))))
+  (sort (boundary-scales lineup start width boundaries) #'<
+    :key (lambda (elt) (abs (cdr elt)))))
 
 (defun width-delta (lineup start width boundary)
   (when boundary (abs (- width (lineup-width lineup start (car boundary))))))
