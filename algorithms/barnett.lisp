@@ -12,6 +12,22 @@
 ;; will fit; if no suitable hyphenation points can be found, this may result
 ;; in a line whose spaces exceed the given maximum.
 
+;; From what I gather, this algorithm looks like a mixture of different *-Fit
+;; policies, but not quite, for the following reasons.
+;; 1. It is similar to the Best Fit, in that it tries the normal spacing
+;;    first, but if the line with the additional word can be shrunk, it will
+;;    do so even if stretching without that word would have been closer to the
+;;    normal spacing.
+;; 2. When hyphenation is necessary, it appears to put in "as much as will
+;;    fit", which is a form of Last Fit (maybe putting a bit less in would
+;;    have given a result closer to the normal spacing).
+;; 3. Finally, it also seems to always prefer overfull lines over underfull
+;;    ones when no perfect match is found.
+
+;; #### FIXME: I don't know if Barnett is restricted to the Justified
+;; #### disposition, or if it does something for the ragged ones.
+
+
 (in-package :etap)
 
 (defun barnett-line-boundary (lineup start width)

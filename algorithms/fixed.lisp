@@ -14,6 +14,7 @@
 ;; Note that because the inter-word spacing is fixed, there is no difference
 ;; between the Flush Left and Justified dispositions.
 
+
 (in-package :etap)
 
 (defun fixed-line-boundary (lineup start width variant prefer-overfull-lines)
