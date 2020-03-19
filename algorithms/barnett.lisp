@@ -14,7 +14,53 @@
 
 (in-package :etap)
 
-(defun barnett-create-line (lineup start end search width sloppy)
+(defun barnett-line-boundary (lineup start width)
+  (loop :with underfull-boundary
+	:with fit-boundaries := (list)
+	:with overfull-boundary
+	;; #### NOTE: this works even the first time because at worst,
+	;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+	;; afterwards.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (caddr boundary))
+	:for span := (multiple-value-bind (width stretch shrink)
+			 (lineup-width lineup start (car boundary))
+		       (list width (+ width stretch) (- width shrink)))
+	:while (and (caddr boundary) (not overfull-boundary))
+	:if (< (cadr span) width)
+	  :do (setq underfull-boundary boundary)
+	:else :if (and (<= (caddr span) width) (>= (cadr span) width))
+		:do (push boundary fit-boundaries)
+	:else
+	  :do (setq overfull-boundary boundary)
+	:finally
+	   (return
+	     (if (= (length fit-boundaries) 1)
+	       (car fit-boundaries)
+	       (let ((word-scales
+		       ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
+		       (boundary-scales
+			lineup start width
+			(word-boundaries lineup fit-boundaries)))
+		     (hyphen-boundaries
+		       ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
+		       (hyphen-boundaries lineup fit-boundaries)))
+		 (cond (word-scales
+			;; #### NOTE: this test again because we may have
+			;; filtered FIT-BOUNDARIES.
+			(if (or (= (length word-scales) 1)
+				(>= (cdar word-scales) 0))
+			  (caar word-scales)
+			  (loop :for scales :on word-scales
+				:until (or (null (cdr scales))
+					   (> (cdadr scales) 0))
+				:finally (return (caar scales)))))
+		       (hyphen-boundaries
+			(car hyphen-boundaries))
+		       (t
+			(or overfull-boundary underfull-boundary))))))))
+
+(defun barnett-create-line (lineup start end width sloppy)
   (let ((scale (lineup-scale lineup start end width)))
     (if scale
       (create-line lineup start end
@@ -26,9 +72,9 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :barnett)) &key sloppy)
+  (declare (ignore disposition))
   (loop :for start := 0 :then next-start
 	:until (= start (length lineup))
 	:for (end next-start next-search)
-	  := (barnett-line-boundary start lineup width)
-	:collect (barnett-create-line lineup start end next-search width
-				      sloppy)))
+	  := (barnett-line-boundary lineup start width)
+	:collect (barnett-create-line lineup start end width sloppy)))
