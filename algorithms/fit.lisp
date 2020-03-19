@@ -112,8 +112,8 @@
 	       (if (= (length fit-boundaries) 1)
 		 (car fit-boundaries)
 		 (let ((boundaries
+			 ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
 			 (if avoid-hyphens
-			   ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
 			   (or (word-boundaries lineup fit-boundaries)
 			       (hyphen-boundaries lineup fit-boundaries))
 			   fit-boundaries)))
