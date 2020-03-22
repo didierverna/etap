@@ -120,6 +120,20 @@
     (declare (ignore stretch))
     (- width shrink)))
 
+
+(defstruct (span
+	    :conc-name
+	    (:constructor make-span (normal-width min-width max-width)))
+  normal-width min-width max-width)
+
+(defmethod width ((span span))
+  (normal-width span))
+
+(defun lineup-span (lineup start stop)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (make-span width (- width shrink) (+ width stretch))))
+
+
 (defun lineup-scale (lineup start end target)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
     (cond ((= width target)
