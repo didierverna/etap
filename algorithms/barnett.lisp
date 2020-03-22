@@ -35,14 +35,14 @@
 	:with fit-boundaries := (list)
 	:with overfull-boundary
 	;; #### NOTE: this works even the first time because at worst,
-	;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (caddr boundary))
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not overfull-boundary))
 	:for span := (multiple-value-bind (width stretch shrink)
-			 (lineup-width lineup start (car boundary))
+			 (lineup-width lineup start (stop boundary))
 		       (list width (+ width stretch) (- width shrink)))
-	:while (and (caddr boundary) (not overfull-boundary))
 	:if (< (cadr span) width)
 	  :do (setq underfull-boundary boundary)
 	:else :if (and (<= (caddr span) width) (>= (cadr span) width))
@@ -88,9 +88,8 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :barnett)) &key sloppy)
-  (declare (ignore disposition))
-  (loop :for start := 0 :then next-start
+  (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
-	:for (end next-start next-search)
-	  := (barnett-line-boundary lineup start width)
-	:collect (barnett-create-line lineup start end width sloppy)))
+	:for boundary := (barnett-line-boundary lineup start width)
+	:collect (barnett-create-line lineup start (stop boundary)
+				      width sloppy)))
