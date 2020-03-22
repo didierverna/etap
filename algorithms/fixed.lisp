@@ -24,18 +24,18 @@
 	:with overfull-boundary
 	:with overfull-w
 	;; #### NOTE: this works even the first time because at worst,
-	;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
-	:for (end next-start next-search) := (next-boundary lineup start)
-	  :then (next-boundary lineup next-search)
-	:for w := (lineup-width lineup start end)
-	:while (and next-search (not overfull-boundary))
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not overfull-boundary))
+	:for w := (lineup-width lineup start (stop boundary))
 	:if (< w width)
-	  :do (setq underfull-boundary (list end next-start) underfull-w w)
+	  :do (setq underfull-boundary boundary underfull-w w)
 	:else :if (= w width)
-	  :do (setq fit-boundary (list end next-start))
+	  :do (setq fit-boundary boundary)
 	:else
-	  :do (setq overfull-boundary (list end next-start) overfull-w w)
+	  :do (setq overfull-boundary boundary overfull-w w)
 	:finally
 	   (return
 	     (cond (fit-boundary fit-boundary)
@@ -59,9 +59,8 @@
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fixed))
      &key (variant :underfull) prefer-overfull-lines)
-  (loop :for start := 0 :then next-start
+  (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
-	:for (end next-start)
-	  := (fixed-line-boundary
-	      lineup start width variant prefer-overfull-lines)
-	:collect (create-line lineup start end)))
+	:for boundary := (fixed-line-boundary
+			  lineup start width variant prefer-overfull-lines)
+	:collect (create-line lineup start (stop boundary))))
