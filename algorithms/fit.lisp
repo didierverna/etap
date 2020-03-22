@@ -54,7 +54,7 @@
     :key (lambda (elt) (abs (cdr elt)))))
 
 (defun width-delta (lineup start width boundary)
-  (when boundary (abs (- width (lineup-width lineup start (car boundary))))))
+  (when boundary (abs (- width (lineup-width lineup start (stop boundary))))))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
@@ -63,16 +63,16 @@
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
-      ;; #### NOTE: this works even the first time because at worst,
-      ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
-      ;; afterwards.
+      ;; #### NOTE: this works even the first time because at worst, BOUNDARY
+      ;; is gonna be #S(LENGTH LENGTH :ENGTH) first, and NIL only afterwards.
       (loop :with previous-boundary
-	    :for (end next-start next-search)
-	      := (next-boundary lineup start)
-		:then (next-boundary lineup next-search)
-	    :for w := (funcall lineup-width-function lineup start end)
-	    :while (and next-search (<= w width))
-	    :do (setq previous-boundary (list end next-start next-search))
+	    :for boundary := (next-boundary lineup start)
+	      :then (next-boundary lineup (next-search boundary))
+	    :while (and boundary
+			(<= (funcall lineup-width-function
+			      lineup start (stop boundary))
+			    width))
+	    :do (setq previous-boundary boundary)
 	    :finally (return previous-boundary))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
@@ -80,14 +80,14 @@
 	  :with fit-boundaries := (list)
 	  :with overfull-boundary
 	  ;; #### NOTE: this works even the first time because at worst,
-	  ;; NEXT-SEARCH is gonna be (length lineup) first, and NIL only
+	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (caddr boundary))
+	    :then (next-boundary lineup (next-search boundary))
+	  :while (and boundary (not overfull-boundary))
 	  :for span := (multiple-value-bind (width stretch shrink)
-			   (lineup-width lineup start (car boundary))
+			   (lineup-width lineup start (stop boundary))
 			 (list width (+ width stretch) (- width shrink)))
-	  :while (and (caddr boundary) (not overfull-boundary))
 	  :if (< (cadr span) width)
 	    :do (setq underfull-boundary boundary)
 	  :else :if (and (<= (caddr span) width) (>= (cadr span) width))
@@ -147,51 +147,52 @@
 				     (t overfull-boundary)))))))))))))
 
 (defgeneric fit-create-line
-    (lineup start end search width disposition variant &key &allow-other-keys)
-  (:method (lineup start end search width disposition (variant (eql :first))
-	    &key relax &aux (scale 1))
+    (lineup start stop disposition variant &key &allow-other-keys)
+  (:method (lineup start stop disposition (variant (eql :first))
+	    &key width search relax
+	    &aux (scale 1))
     (when relax
       (setq scale
-	    (if (< end (length lineup))
+	    (if (< stop (length lineup))
 	      (let ((scale
 		      (lineup-scale
-		       lineup start (car (next-boundary lineup search))
+		       lineup start (stop (next-boundary lineup search))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))
-    (create-line lineup start end scale))
-  (:method
-      (lineup start end search width disposition (variant (eql :best)) &key)
-    (create-line lineup start end))
-  (:method (lineup start end search width disposition (variant (eql :last))
-	    &key relax &aux (scale -1))
+    (create-line lineup start stop scale))
+  (:method (lineup start stop disposition (variant (eql :best)) &key)
+    (create-line lineup start stop))
+  (:method (lineup start stop disposition (variant (eql :last))
+	    &key width relax
+	    &aux (scale -1))
     (when relax
-      (setq scale (let ((scale (lineup-scale lineup start end width)))
+      (setq scale (let ((scale (lineup-scale lineup start stop width)))
 		    (if (and scale (< scale 0)) scale 0))))
-    (create-line lineup start end scale))
-  (:method
-      (lineup start end search width (disposition (eql :justified)) variant
-       &key sloppy)
-    (let ((scale (lineup-scale lineup start end width)))
+    (create-line lineup start stop scale))
+  (:method (lineup start stop (disposition (eql :justified)) variant
+	    &key width sloppy)
+    (let ((scale (lineup-scale lineup start stop width)))
       (if scale
-	(create-line lineup start end
+	(create-line lineup start stop
 		     (cond (sloppy scale)
 			   ((zerop scale) 0)
 			   ((< scale 0) (max scale -1))
 			   ((> scale 0) (min scale 1))))
-	(create-line lineup start end)))))
+	(create-line lineup start stop)))))
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fit))
      &key (variant :first) relax sloppy avoid-hyphens
 	  prefer-shrink prefer-overfull-lines)
-  (loop :for start := 0 :then next-start
+  (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
-	:for (end next-start next-search)
+	:for boundary
 	  := (fit-line-boundary lineup start width disposition variant
 	       :avoid-hyphens avoid-hyphens
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfull-lines prefer-overfull-lines)
-	:collect (fit-create-line lineup start end next-search width
+	:collect (fit-create-line lineup start (stop boundary)
 		     disposition variant
+		   :width width :search (next-search boundary)
 		   :relax relax :sloppy sloppy)))

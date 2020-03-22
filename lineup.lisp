@@ -130,8 +130,13 @@
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
 
-(defun word-boundary-p (lineup boundary &aux (end (car boundary)))
-  (or (= end (length lineup)) (gluep (aref lineup end))))
+(defstruct (boundary
+	    :conc-name
+	    (:constructor make-boundary (stop next-start next-search)))
+  stop next-start next-search)
+
+(defun word-boundary-p (lineup boundary &aux (stop (stop boundary)))
+  (or (= stop (length lineup)) (gluep (aref lineup stop))))
 
 (defun word-boundaries (lineup boundaries)
   (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
@@ -144,14 +149,8 @@
 (defun boundary-scales (lineup start width boundaries)
   (mapcar
       (lambda (boundary)
-	(cons boundary (lineup-scale lineup start (car boundary) width)))
+	(cons boundary (lineup-scale lineup start (stop boundary) width)))
     boundaries))
-
-
-(defstruct (boundary
-	    :conc-name
-	    (:constructor make-boundary (stop next-start next-search)))
-  stop next-start next-search)
 
 (defun next-boundary
     (lineup &optional (start 0)
