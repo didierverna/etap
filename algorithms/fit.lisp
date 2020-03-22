@@ -51,7 +51,7 @@
 
 (defun sorted-scales (lineup start width boundaries)
   (sort (boundary-scales lineup start width boundaries) #'<
-    :key (lambda (elt) (abs (cdr elt)))))
+    :key (lambda (scale) (abs (cdr scale)))))
 
 (defun width-delta (lineup start width boundary)
   (when boundary (abs (- width (lineup-width lineup start (stop boundary))))))
