@@ -25,4 +25,5 @@
 			     (:file "barnett" :depends-on  ("base"))
 			     (:file "duncan" :depends-on  ("base"))))
 	       (:file "paragraph")
-	       (:file "interface")))
+	       (:module "interface"
+		:components ((:file "capi")))))
