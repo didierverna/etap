@@ -71,6 +71,9 @@
 	   (return
 	     (make-solution lines hyphens underfulls overfulls))))
 
+;; #### NOTE: with the defaults (default text, 284pt, all features), there are
+;; #### 66576 paragraph solutions including going through under and overfull
+;; #### lines. The raw tree of all such solutions has 150860 nodes.
 (defun print-solutions
     (state
      &key (width (paragraph-width state))
