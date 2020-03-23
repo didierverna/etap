@@ -44,11 +44,20 @@
 	      (choice-selected-items (barnett-options interface)))))
   (update interface))
 
+(defun set-duncan-algorithm (value interface)
+  (declare (ignore value))
+  (setf (algorithm (state interface))
+	`(:duncan
+	  ,@(apply #'append
+	      (choice-selected-items (barnett-options interface)))))
+  (update interface))
+
 (defun set-algorithm (value interface)
   (case (car value)
     (:fixed (set-fixed-algorithm value interface))
     (:fit (set-fit-algorithm value interface))
-    (:barnett (set-barnett-algorithm value interface))))
+    (:barnett (set-barnett-algorithm value interface))
+    (:duncan (set-duncan-algorithm value interface))))
 
 (defun set-disposition (value interface)
   (setf (disposition (state interface)) value)
@@ -190,6 +199,9 @@ lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one.")
 	  (:barnett-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
+	  (:duncan-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))
 
 (define-interface etap ()
@@ -202,7 +214,8 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :combine-child-constraints t
      :items '((:fixed fixed-settings)
 	      (:fit fit-settings)
-	      (:barnett barnett-settings))
+	      (:barnett barnett-settings)
+	      (:duncan duncan-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
@@ -255,6 +268,15 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-barnett-algorithm
      :retract-callback 'set-barnett-algorithm
      :reader barnett-options)
+   (duncan-options check-button-panel
+     :layout-class 'column-layout
+     :title "Options" :title-position :frame
+     :items '((:sloppy t))
+     :help-keys '(:duncan-option-sloppy)
+     :print-function (lambda (item) (keyword-capitalize (car item)))
+     :selection-callback 'set-duncan-algorithm
+     :retract-callback 'set-duncan-algorithm
+     :reader duncan-options)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -327,6 +349,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
    (barnett-settings row-layout '(barnett-options))
+   (duncan-settings row-layout '(duncan-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
@@ -368,7 +391,14 @@ ignoring the font's inter-word spacing boundaries.")))))))
        (setf (choice-selection (barnett-options etap))
 	     (let ((selection (list)))
 	       (when (cadr (member :sloppy algorithm))
-		 (push 1 selection))
+		 (push 0 selection))
+	       selection)))
+      (:duncan
+       (setf (choice-selection (algorithms etap)) 3)
+       (setf (choice-selection (duncan-options etap))
+	     (let ((selection (list)))
+	       (when (cadr (member :sloppy algorithm))
+		 (push 0 selection))
 	       selection)))))
   (setf (choice-selected-item (disposition etap)) (disposition state))
   (let ((features (features state)))
