@@ -144,13 +144,17 @@
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
 
+(defun word-stop-p (lineup stop)
+  (or (= stop (length lineup)) (gluep (aref lineup stop))))
+
+
 (defstruct (boundary
 	    :conc-name
 	    (:constructor make-boundary (stop next-start next-search)))
   stop next-start next-search)
 
-(defun word-boundary-p (lineup boundary &aux (stop (stop boundary)))
-  (or (= stop (length lineup)) (gluep (aref lineup stop))))
+(defun word-boundary-p (lineup boundary)
+  (word-stop-p lineup (stop boundary)))
 
 (defun word-boundaries (lineup boundaries)
   (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
