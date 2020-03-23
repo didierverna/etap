@@ -3,7 +3,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (net.didierverna.tfm:nickname-package))
 
-(defconstant +initial-text+
+(define-constant +initial-text+
   "In olden times when wishing still helped one, there lived a king whose
 daughters were all beautiful; and the youngest was so beautiful that the sun
 itself, which has seen so much, was astonished whenever it shone in her face.
@@ -13,7 +13,7 @@ went out into the forest and sat down by the side of the cool fountain; and
 when she was bored she took a golden ball, and threw it up on high and caught
 it; and this ball was her favorite plaything.")
 
-(defconstant +font-file+
+(define-constant +font-file+
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
 (defclass state ()

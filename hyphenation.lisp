@@ -1,12 +1,12 @@
 (in-package :etap)
 
-(defconstant +lefthyphenmin+ 2)
-(defconstant +righthyphenmin+ 3)
+(define-constant +lefthyphenmin+ 2)
+(define-constant +righthyphenmin+ 3)
 
-(defconstant +hyphenation-patterns-file+
+(define-constant +hyphenation-patterns-file+
   (asdf:system-relative-pathname :etap #p"share/hyph-en-us.pat.txt"))
 
-(defconstant +hyphenation-exceptions-file+
+(define-constant +hyphenation-exceptions-file+
   (asdf:system-relative-pathname :etap #p"share/hyph-en-us.hyp.txt"))
 
 (defclass hyphenation-rules ()

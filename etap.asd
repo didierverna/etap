@@ -10,9 +10,9 @@
   :depends-on (:net.didierverna.tfm)
   :serial t
   :components ((:file "meta")
+	       (:file "util")
 	       (:file "glyphlist")
 	       (:file "lm-ec")
-	       (:file "util")
 	       (:file "state")
 	       (:file "hyphenation")
 	       (:file "lineup")
@@ -26,4 +26,5 @@
 			     (:file "duncan" :depends-on  ("base"))))
 	       (:file "paragraph")
 	       (:module "interface"
-		:components ((:file "capi")))))
+		:components ((:file "capi" :if-feature :lispworks)))
+	       (:file "post")))

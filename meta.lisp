@@ -1,4 +1,6 @@
+(in-package :cl-user)
+
 (defpackage :etap
-  (:add-use-defaults t)
-  (:use :capi)
-  (:export :run))
+  #+lispworks (:add-use-defaults t)
+  (:use #+lispworks :capi #-lispworks :cl)
+  (:export #+lispworks :run :print-solutions))

@@ -385,7 +385,7 @@
 	:append done))
 
 
-(defconstant +blanks+ '(#\Space #\Tab #\Newline))
+(define-constant +blanks+ '(#\Space #\Tab #\Newline))
 
 (defun blankp (character)
   (member character +blanks+))

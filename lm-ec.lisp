@@ -10,7 +10,7 @@
 ;; Missing from +glyph-list+:
 ;; cwm, perthousandzero, uni2423, hyphen.alt, and Germandbls.
 
-(defconstant +lm-ec-encoding+
+(define-constant +lm-ec-encoding+
   '(
     |grave|
     |acute|

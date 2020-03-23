@@ -82,9 +82,9 @@
 	   (lineup text (font state) (hyphenation-rules state)
 	     :kerning kerning :ligatures ligatures :hyphenation hyphenation))
 	 (solutions
-	   (mapcar (lambda (lines) (make-solution lineup width lines))
+	   (mapcar (lambda (lines) (create-solution lineup width lines))
 	     (root-node-lines (root-node lineup width)))))
-    solution))
+    solutions))
 
 
 #|(paragraph (or (find-if
