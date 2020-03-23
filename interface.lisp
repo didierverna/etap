@@ -49,7 +49,7 @@
   (setf (algorithm (state interface))
 	`(:duncan
 	  ,@(apply #'append
-	      (choice-selected-items (barnett-options interface)))))
+	      (choice-selected-items (duncan-options interface)))))
   (update interface))
 
 (defun set-algorithm (value interface)
