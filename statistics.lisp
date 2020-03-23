@@ -73,7 +73,8 @@
 
 ;; #### NOTE: with the defaults (default text, 284pt, all features), there are
 ;; #### 66576 paragraph solutions including going through under and overfull
-;; #### lines. The raw tree of all such solutions has 150860 nodes.
+;; #### lines (21096 without hyphenation). The raw tree of all such solutions
+;; #### has 150860 nodes (48338 without hyphenation).
 (defun print-solutions
     (state
      &key (width (paragraph-width state))
