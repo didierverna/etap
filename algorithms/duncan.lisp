@@ -13,33 +13,7 @@
 
 (in-package :etap)
 
-(defstruct (duncan-node (:constructor make-duncan-node (boundary children)))
-  boundary children)
-
-(defun duncan-make-node (lineup boundary width)
-  (when boundary
-    (if (= (stop boundary) (length lineup))
-      (make-duncan-node boundary nil)
-      (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
-	  (next-boundaries lineup (next-start boundary) width)
-	(when underfull-boundary (push underfull-boundary fit-boundaries))
-	(when overfull-boundary (push overfull-boundary fit-boundaries))
-	(make-duncan-node
-	 boundary
-	 (mapcar (lambda (boundary) (duncan-make-node lineup boundary width))
-	   fit-boundaries))))))
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :duncan)) &key sloppy)
-  (let ((root-node
-	  (multiple-value-bind
-		(underfull-boundary fit-boundaries overfull-boundary)
-	      (next-boundaries lineup 0 width)
-	    (when underfull-boundary (push underfull-boundary fit-boundaries))
-	    (when overfull-boundary (push overfull-boundary fit-boundaries))
-	    (make-duncan-node
-	     nil
-	     (mapcar
-		 (lambda (boundary) (duncan-make-node lineup boundary width))
-	       fit-boundaries)))))
-    root-node))
+  nil)
