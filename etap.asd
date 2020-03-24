@@ -17,7 +17,7 @@
 	       (:file "hyphenation")
 	       (:file "lineup")
 	       (:file "typesetting")
-	       (:file "statistics")
+	       (:file "node")
 	       (:module "algorithms"
 		:components ((:file "base")
 			     (:file "fixed" :depends-on ("base"))
