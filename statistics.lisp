@@ -4,7 +4,7 @@
 (defstruct (node (:constructor make-node (boundary children)))
   boundary children)
 
-(defun create-node (lineup boundary width hash)
+(defun create-node (lineup boundary width hash &optional preventive-fulls)
   (when boundary
     (or (gethash (stop boundary) hash)
 	(setf (gethash (stop boundary) hash)
@@ -13,25 +13,28 @@
 		(multiple-value-bind
 		      (underfull-boundary fit-boundaries overfull-boundary)
 		    (next-boundaries lineup (next-start boundary) width)
-		  (when underfull-boundary
-		    (push underfull-boundary fit-boundaries))
-		  (when overfull-boundary
-		    (push overfull-boundary fit-boundaries))
+		  (when (or preventive-fulls (not fit-boundaries))
+		    (when underfull-boundary
+		      (push underfull-boundary fit-boundaries))
+		    (when overfull-boundary
+		      (push overfull-boundary fit-boundaries)))
 		  (make-node
 		   boundary
 		   (mapcar (lambda (boundary)
 			     (create-node lineup boundary width hash))
 		     fit-boundaries))))))))
 
-(defun root-node (lineup width)
+(defun root-node (lineup width &optional preventive-fulls)
   (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
       (next-boundaries lineup 0 width)
-    (when underfull-boundary (push underfull-boundary fit-boundaries))
-    (when overfull-boundary (push overfull-boundary fit-boundaries))
+    (when (or preventive-fulls (not fit-boundaries))
+      (when underfull-boundary (push underfull-boundary fit-boundaries))
+      (when overfull-boundary (push overfull-boundary fit-boundaries)))
     (let ((hash (make-hash-table)))
       (make-node
        nil
-       (mapcar (lambda (boundary) (create-node lineup boundary width hash))
+       (mapcar (lambda (boundary)
+		 (create-node lineup boundary width hash preventive-fulls))
 	 fit-boundaries)))))
 
 
@@ -87,19 +90,27 @@
 ;; #### that there is a lot of room for re-using branches. And indeed, when
 ;; #### sharing nodes, we fall from 150860 to 98 (from 48338 to 83 without
 ;; #### hyphenation).
+
+;; #### If we avoid preventive fulls, that is, if we include only under- and
+;; #### overfull solutions when there is not fit, the number of paragraph
+;; #### solutions falls to 37 (it actually raises up to 61 without
+;; #### hyphenation, all mistfits). The raw tree of all such solutions has
+;; #### only 109 nodes (192 without hyphenations). Once shared, the actual
+;; #### number of nodes falls down to 30 (33 without hyphenation).
 (defun report-solutions
     (state
      &key (width (paragraph-width state))
 	  (text (text state))
 	  (kerning (cadr (member :kerning (features state))))
 	  (ligatures (cadr (member :ligatures (features state))))
-	  (hyphenation (cadr (member :hyphenation (features state)))))
+	  (hyphenation (cadr (member :hyphenation (features state))))
+	  preventive-fulls)
   (let* ((lineup
 	   (lineup text (font state) (hyphenation-rules state)
 	     :kerning kerning :ligatures ligatures :hyphenation hyphenation))
 	 (solutions
 	   (mapcar (lambda (lines) (create-solution lineup width lines))
-	     (root-node-lines (root-node lineup width))))
+	     (root-node-lines (root-node lineup width preventive-fulls))))
 	 (length 0)
 	 (fits 0)
 	 (fits-hyphened (make-hash-table))
