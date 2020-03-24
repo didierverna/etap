@@ -12,6 +12,8 @@
 (in-package :etap)
 
 (defgeneric width (object)
+  (:method ((clue (eql :hyphenation-clue)))
+    0)
   (:method ((null (eql nil)))
     0)
   (:method ((list list))
@@ -103,6 +105,11 @@
 	:with stretch := 0
 	:with shrink := 0
 	:for i :from start :upto (1- end)
+	;; #### FIXME: this works for now, but it is not quite right in the
+	;; #### general case. When ELEMENT is a list (typically the contents
+	;; #### ;; of a discretionary, there could be anything inside,
+	;; #### including, e.g., glues. See also the long comment above the
+	;; KERNING function.
 	:for element := (lineup-aref lineup i start end)
 	:do (incf width (width element))
 	:when (gluep element)
@@ -239,7 +246,8 @@
 	  :for char :across word
 	  :for character := (get-character char font)
 	  :when (member i points)
-	    :collect (make-discretionary :pre-break pre-break)
+	    :collect (make-discretionary :pre-break pre-break
+					 :no-break (list :hyphenation-clue))
 	  :collect character)
     (collect-word word font)))
 

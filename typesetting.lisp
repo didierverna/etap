@@ -9,6 +9,9 @@
   ((character-metrics
     :initarg :character-metrics :accessor character-metrics)))
 
+(defun pinned-character-p (object)
+  (typep object 'pinned-character))
+
 (defmethod width ((pinned-character pinned-character))
   (width (character-metrics pinned-character)))
 
@@ -23,6 +26,25 @@
   (apply #'make-instance 'pinned-character
     :character-metrics character-metrics initargs))
 
+
+(defclass pinned-hyphenation-clue (pinned)
+  ())
+
+(defun pinned-hyphenation-clue-p (object)
+  (typep object 'pinned-hyphenation-clue))
+
+(defmethod width ((pinned-hyphenation-clue pinned-hyphenation-clue))
+  0)
+
+(defmethod height ((pinned-hyphenation-clue pinned-hyphenation-clue))
+  0)
+
+(defmethod depth ((pinned-hyphenation-clue pinned-hyphenation-clue))
+  0)
+
+(defun make-pinned-hyphenation-clue (&rest initargs &key x y)
+  (declare (ignore x y))
+  (apply #'make-instance 'pinned-hyphenation-clue initargs))
 
 
 (defclass line ()
@@ -51,7 +73,9 @@
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0
 		   :for element :in (flatten-lineup lineup start end)
-		   :if (typep element 'tfm:character-metrics)
+		   :if (eq element :hyphenation-clue)
+		     :collect (make-pinned-hyphenation-clue :x x)
+		   :else :if (typep element 'tfm:character-metrics)
 		     :collect (make-pinned-character element :x x)
 		     :and :do (incf x (width element))
 		   :else :if (kernp element)
