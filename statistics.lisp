@@ -4,28 +4,35 @@
 (defstruct (node (:constructor make-node (boundary children)))
   boundary children)
 
-(defun create-node (lineup boundary width)
+(defun create-node (lineup boundary width hash)
   (when boundary
-    (if (= (stop boundary) (length lineup))
-      (make-node boundary nil)
-      (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
-	  (next-boundaries lineup (next-start boundary) width)
-	(when underfull-boundary (push underfull-boundary fit-boundaries))
-	(when overfull-boundary (push overfull-boundary fit-boundaries))
-	(make-node
-	 boundary
-	 (mapcar (lambda (boundary) (create-node lineup boundary width))
-	   fit-boundaries))))))
+    (or (gethash (stop boundary) hash)
+	(setf (gethash (stop boundary) hash)
+	      (if (= (stop boundary) (length lineup))
+		(make-node boundary nil)
+		(multiple-value-bind
+		      (underfull-boundary fit-boundaries overfull-boundary)
+		    (next-boundaries lineup (next-start boundary) width)
+		  (when underfull-boundary
+		    (push underfull-boundary fit-boundaries))
+		  (when overfull-boundary
+		    (push overfull-boundary fit-boundaries))
+		  (make-node
+		   boundary
+		   (mapcar (lambda (boundary)
+			     (create-node lineup boundary width hash))
+		     fit-boundaries))))))))
 
 (defun root-node (lineup width)
   (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
       (next-boundaries lineup 0 width)
     (when underfull-boundary (push underfull-boundary fit-boundaries))
     (when overfull-boundary (push overfull-boundary fit-boundaries))
-    (make-node
-     nil
-     (mapcar (lambda (boundary) (create-node lineup boundary width))
-       fit-boundaries))))
+    (let ((hash (make-hash-table)))
+      (make-node
+       nil
+       (mapcar (lambda (boundary) (create-node lineup boundary width hash))
+	 fit-boundaries)))))
 
 
 (defun node-lines (node)
@@ -74,8 +81,13 @@
 ;; #### NOTE: with the defaults (default text, 284pt, all features), there are
 ;; #### 66576 paragraph solutions including going through under and overfull
 ;; #### lines (21096 without hyphenation). The raw tree of all such solutions
-;; #### has 150860 nodes (48338 without hyphenation).
-(defun print-solutions
+;; #### has 150860 nodes (48338 without hyphenation). However, once a line
+;; #### stop has been decided, all possible solutions for the next lines
+;; #### remain the same, however we reached that possible stop. This means
+;; #### that there is a lot of room for re-using branches. And indeed, when
+;; #### sharing nodes, we fall from 150860 to 98 (from 48338 to 83 without
+;; #### hyphenation).
+(defun report-solutions
     (state
      &key (width (paragraph-width state))
 	  (text (text state))
@@ -87,21 +99,31 @@
 	     :kerning kerning :ligatures ligatures :hyphenation hyphenation))
 	 (solutions
 	   (mapcar (lambda (lines) (create-solution lineup width lines))
-	     (root-node-lines (root-node lineup width)))))
-    solutions))
-
-
-#|(paragraph (or (find-if
-			 (lambda (paragraph)
-			   (and (zerop (duncan-paragraph-hyphens paragraph))
-				(zerop (duncan-paragraph-underfulls paragraph))
-				(zerop (duncan-paragraph-overfulls paragraph))))
-			 paragraphs)
-    (if selection
-      (mapcar (lambda (line)
-		(duncan-create-line lineup (car line) (cdr line)
-				    width sloppy))
-	(duncan-paragraph-lines (car selection)))
-
-	  )))
-|#
+	     (root-node-lines (root-node lineup width))))
+	 (length 0)
+	 (fits 0)
+	 (fits-hyphened (make-hash-table))
+	 (misfits 0))
+    (loop :for solution :in solutions
+	  :do (incf length)
+	  :if (and (zerop (solution-hyphens solution))
+		   (zerop (solution-underfulls solution))
+		   (zerop (solution-overfulls solution)))
+	    :do (incf fits)
+	  :else :if (and (zerop (solution-underfulls solution))
+			 (zerop (solution-overfulls solution)))
+	    :do (if (gethash (solution-hyphens solution) fits-hyphened)
+		  (setf (gethash (solution-hyphens solution) fits-hyphened)
+			(1+ (gethash (solution-hyphens solution)
+				     fits-hyphened)))
+		  (setf (gethash (solution-hyphens solution) fits-hyphened) 1))
+	  :else
+	    :do (incf misfits))
+    (format t "~A solutions in total.~%
+~A fit solutions without hyphens.~%"
+      length fits)
+    (maphash (lambda (key value)
+	       (format t "~A fit solutions with ~A hyphen~:P.~%"
+		 value key))
+	     fits-hyphened)
+    (format t "~A mistfit solutions.~%" misfits)))

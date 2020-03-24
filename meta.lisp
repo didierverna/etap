@@ -3,4 +3,4 @@
 (defpackage :etap
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
-  (:export #+lispworks :run :print-solutions))
+  (:export #+lispworks :run :report-solutions))
