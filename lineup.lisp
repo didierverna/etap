@@ -246,8 +246,7 @@
 	  :for char :across word
 	  :for character := (get-character char font)
 	  :when (member i points)
-	    :collect (make-discretionary :pre-break pre-break
-					 :no-break (list :hyphenation-clue))
+	    :collect (make-discretionary :pre-break pre-break)
 	  :collect character)
     (collect-word word font)))
 
@@ -436,4 +435,9 @@
   (setq lineup (process-words lineup hyphenation hyphenation-rules font))
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
+  (when (and lineup hyphenation)
+    (mapc (lambda (element)
+	    (when (discretionaryp element)
+	      (push :hyphenation-clue (no-break element))))
+      lineup))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
