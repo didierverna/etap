@@ -79,7 +79,7 @@
 	     (tfm:interword-shrink font)))
 
 
-(defun lineup-aref (lineup i start end &aux (element (aref lineup i)))
+(defun lineup-aref (lineup i start stop &aux (element (aref lineup i)))
   (if (discretionaryp element)
     ;; #### WARNING: after all the pre-processing done on the lineup,
     ;; including ligatures / kerning management in the presence of hyphenation
@@ -89,41 +89,41 @@
     ;; as post- or pre-breaks though.
     (cond ((and (= i start) (not (zerop start)))
 	   (post-break element))
-	  ((and (= i (1- end)) (not (= end (length lineup))))
+	  ((and (= i (1- stop)) (not (= stop (length lineup))))
 	   (pre-break element))
 	  (t (no-break element)))
     element))
 
-(defun flatten-lineup (lineup start end)
-  (loop :for i :from start :upto (1- end)
-	:for element := (lineup-aref lineup i start end)
+(defun flatten-lineup (lineup start stop)
+  (loop :for i :from start :upto (1- stop)
+	:for element := (lineup-aref lineup i start stop)
 	:if (consp element) :append element :else :collect element))
 
-(defun lineup-width (lineup start end)
-  (unless end (setq end (length lineup)))
+(defun lineup-width (lineup start stop)
+  (unless stop (setq stop (length lineup)))
   (loop :with width := 0
 	:with stretch := 0
 	:with shrink := 0
-	:for i :from start :upto (1- end)
+	:for i :from start :upto (1- stop)
 	;; #### FIXME: this works for now, but it is not quite right in the
 	;; #### general case. When ELEMENT is a list (typically the contents
 	;; #### ;; of a discretionary, there could be anything inside,
 	;; #### including, e.g., glues. See also the long comment above the
 	;; KERNING function.
-	:for element := (lineup-aref lineup i start end)
+	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
 	  :do (incf stretch (stretch element))
 	  :and :do (incf shrink (shrink element))
 	:finally (return (values width stretch shrink))))
 
-(defun lineup-max-width (lineup start end)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+(defun lineup-max-width (lineup start stop)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (declare (ignore shrink))
     (+ width stretch)))
 
-(defun lineup-min-width (lineup start end)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+(defun lineup-min-width (lineup start stop)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (declare (ignore stretch))
     (- width shrink)))
 
@@ -141,8 +141,8 @@
     (make-span width (- width shrink) (+ width stretch))))
 
 
-(defun lineup-scale (lineup start end target)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start end)
+(defun lineup-scale (lineup start stop target)
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (cond ((= width target)
 	   0)
 	  ((< width target)
