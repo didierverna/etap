@@ -57,15 +57,15 @@
 	      (t
 	       (or overfull-boundary underfull-boundary)))))))
 
-(defun barnett-create-line (lineup start end width sloppy)
-  (let ((scale (lineup-scale lineup start end width)))
+(defun barnett-create-line (lineup start stop width sloppy)
+  (let ((scale (lineup-scale lineup start stop width)))
     (if scale
-      (create-line lineup start end
+      (create-line lineup start stop
 		   (cond (sloppy scale)
 			 ((zerop scale) 0)
 			 ((< scale 0) (max scale -1))
 			 ((> scale 0) (min scale 1))))
-      (create-line lineup start end))))
+      (create-line lineup start stop))))
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :barnett)) &key sloppy)
