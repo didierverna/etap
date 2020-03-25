@@ -139,26 +139,36 @@
 		      :foreground :purple)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (loop :for pinned-character
-			    :in (pinned-characters (line pinned-line))
-			  :when (member :character-boxes clues)
-			    :do (gp:draw-rectangle pane
-				    (+ x (x pinned-character))
-				    (- y (height pinned-character))
-				    (width pinned-character)
-				    (+ (height pinned-character)
-				       (depth pinned-character)))
-			  :when (member :characters clues)
-			    :do (gp:draw-character pane
-				    (cadr
-				     (assoc
-				      (elt +lm-ec-encoding+
-					   (tfm:code
-					    (character-metrics
-					     pinned-character)))
-				      +glyph-list+))
-				    (+ x (x pinned-character))
-				    y)))))))
+		:do (mapc (lambda (object)
+			    (cond ((pinned-character-p object)
+				   (when (member :character-boxes clues)
+				     (gp:draw-rectangle pane
+					 (+ x (x object))
+					 (- y (height object))
+					 (width object)
+					 (+ (height object)
+					    (depth object))))
+				   (when (member :characters clues)
+				     (gp:draw-character pane
+					 (cadr
+					  (assoc
+					   (elt +lm-ec-encoding+
+						(tfm:code
+						 (character-metrics object)))
+					   +glyph-list+))
+					 (+ x (x object))
+					 y)))
+				  ((pinned-hyphenation-clue-p object)
+				   (when (member :hyphenation-points clues)
+				     (gp:draw-polygon pane
+				       (list (+ x (x object)) y
+					     (+ x (x object) -3) (+ y 5)
+					     (+ x (x object) +3) (+ y 5))
+				       :filled t
+				       :foreground :orange)))))
+		      (pinned-characters  (line pinned-line))))))))
+
+
 
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
@@ -315,7 +325,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
      :visible-max-width nil
-     :items '(:characters
+     :items '(:characters :hyphenation-points
 	      :paragraph-box :line-boxes :character-boxes :baselines
 	      :over/underfull-boxes)
      :selected-items '(:characters)
