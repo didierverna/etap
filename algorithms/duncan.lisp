@@ -39,15 +39,15 @@
 	     (make-duncan-solution lines hyphens underfulls overfulls))))
 
 ;; #### FIXME: same as Barnett, and Fit Justified.
-(defun duncan-create-line (lineup start end width sloppy)
-  (let ((scale (lineup-scale lineup start end width)))
+(defun duncan-create-line (lineup start stop width sloppy)
+  (let ((scale (lineup-scale lineup start stop width)))
     (if scale
-      (create-line lineup start end
+      (create-line lineup start stop
 		   (cond (sloppy scale)
 			 ((zerop scale) 0)
 			 ((< scale 0) (max scale -1))
 			 ((> scale 0) (min scale 1))))
-      (create-line lineup start end))))
+      (create-line lineup start stop))))
 
 (defun duncan-create-lines (lineup solution width sloppy)
   (mapcar (lambda (line)
