@@ -36,6 +36,7 @@
 ;; disposition. When two lines (one stretched and one shrunk) fit the
 ;; paragraph width with the same amount of scaling, the stretched one is
 ;; preferred unless this option is checked.
+
 ;; #### TODO: scaling equality in absolute value may not be the most pertinent
 ;; #### criterion. Indeed, the aesthetic cost of shrinking and stretching are
 ;; #### not the same, as in most fonts, the maximum stretch and shrink ratios
