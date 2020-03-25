@@ -52,12 +52,21 @@
 	      (choice-selected-items (duncan-options interface)))))
   (update interface))
 
+(defun set-knuth-plass-algorithm (value interface)
+  (declare (ignore value))
+  (setf (algorithm (state interface))
+	`(:knuth-plass
+	  ,@(apply #'append
+	      (choice-selected-items (knuth-plass-options interface)))))
+  (update interface))
+
 (defun set-algorithm (value interface)
   (case (car value)
     (:fixed (set-fixed-algorithm value interface))
     (:fit (set-fit-algorithm value interface))
     (:barnett (set-barnett-algorithm value interface))
-    (:duncan (set-duncan-algorithm value interface))))
+    (:duncan (set-duncan-algorithm value interface))
+    (:knuth-plass (set-knuth-plass-algorithm value interface))))
 
 (defun set-disposition (value interface)
   (setf (disposition (state interface)) value)
@@ -212,6 +221,9 @@ choose the overfull rather than the underfull one.")
 ignoring the font's inter-word spacing boundaries.")
 	  (:duncan-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
+	  (:knuth-plass-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))
 
 (define-interface etap ()
@@ -225,7 +237,8 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :items '((:fixed fixed-settings)
 	      (:fit fit-settings)
 	      (:barnett barnett-settings)
-	      (:duncan duncan-settings))
+	      (:duncan duncan-settings)
+	      (:knuth-plass knuth-plass-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
@@ -287,6 +300,15 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-duncan-algorithm
      :retract-callback 'set-duncan-algorithm
      :reader duncan-options)
+   (knuth-plass-options check-button-panel
+     :layout-class 'column-layout
+     :title "Options" :title-position :frame
+     :items '((:sloppy t))
+     :help-keys '(:knuth-plass-option-sloppy)
+     :print-function (lambda (item) (keyword-capitalize (car item)))
+     :selection-callback 'set-knuth-plass-algorithm
+     :retract-callback 'set-knuth-plass-algorithm
+     :reader knuth-plass-options)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -360,6 +382,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (fit-settings row-layout '(fit-variant fit-options))
    (barnett-settings row-layout '(barnett-options))
    (duncan-settings row-layout '(duncan-options))
+   (knuth-plass-settings row-layout '(knuth-plass-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition features)
      :visible-min-width 150
@@ -406,6 +429,13 @@ ignoring the font's inter-word spacing boundaries.")))))))
       (:duncan
        (setf (choice-selection (algorithms etap)) 3)
        (setf (choice-selection (duncan-options etap))
+	     (let ((selection (list)))
+	       (when (cadr (member :sloppy algorithm))
+		 (push 0 selection))
+	       selection)))
+      (:knuth-plass
+       (setf (choice-selection (algorithms etap)) 4)
+       (setf (choice-selection (knuth-plass-options etap))
 	     (let ((selection (list)))
 	       (when (cadr (member :sloppy algorithm))
 		 (push 0 selection))
