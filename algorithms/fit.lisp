@@ -152,14 +152,7 @@
     (create-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy)
-    (let ((scale (lineup-scale lineup start stop width)))
-      (if scale
-	(create-line lineup start stop
-		     (cond (sloppy scale)
-			   ((zerop scale) 0)
-			   ((< scale 0) (max scale -1))
-			   ((> scale 0) (min scale 1))))
-	(create-line lineup start stop)))))
+    (create-justified-line lineup start stop width sloppy)))
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fit))

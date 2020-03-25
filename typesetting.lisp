@@ -86,3 +86,14 @@
 			    :do (incf x (if (> scale 0)
 					  (* scale (stretch element))
 					  (* scale (shrink element)))))))
+
+(defun create-justified-line
+    (lineup start stop width sloppy
+     &aux (scale (lineup-scale lineup start stop width)))
+  (if scale
+    (create-line lineup start stop
+		 (cond (sloppy scale)
+		       ((zerop scale) 0)
+		       ((< scale 0) (max scale -1))
+		       ((> scale 0) (min scale 1))))
+    (create-line lineup start stop)))
