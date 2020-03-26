@@ -16,11 +16,9 @@
   (declare (ignore x y))
   (apply #'make-instance 'pinned-line :line line initargs))
 
-(defun create-pinned-lines (lineup width disposition algorithm)
-  (loop :for line
-	  :in (apply #'create-lines
-		lineup width disposition (car algorithm) (cdr algorithm))
-	:for x := (case (car disposition)
+(defun create-pinned-lines (lines width disposition)
+  (loop :for line :in lines
+	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
@@ -46,5 +44,8 @@
 
 (defun create-paragraph (lineup width disposition algorithm)
   (make-paragraph width
-   :pinned-lines (when lineup
-		   (create-pinned-lines lineup width disposition algorithm))))
+    :pinned-lines (create-pinned-lines
+		   (when lineup
+		     (apply #'create-lines lineup width disposition
+			    (car algorithm) (cdr algorithm)))
+		   width (car disposition))))
