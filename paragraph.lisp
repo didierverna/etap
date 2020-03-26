@@ -44,7 +44,7 @@
   (declare (ignore pinned-lines))
   (apply #'make-instance 'paragraph :width width initargs))
 
-(defun create-paragraph (lineup disposition width algorithm)
+(defun create-paragraph (lineup width disposition algorithm)
   (make-paragraph width
    :pinned-lines (when lineup
 		   (create-pinned-lines lineup disposition width algorithm))))
