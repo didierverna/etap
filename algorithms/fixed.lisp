@@ -9,7 +9,9 @@
 ;; "Prefer Overfull Lines" option is checked.
 
 ;; This algorithm doesn't have a notion of break-point cost. In particular,
-;; hyphens are seen as just additional break opportunities.
+;; hyphens are just seen as additional break opportunities. There isn't an
+;; "Avoid Hyphens" option, as this would be equivalent to just turning
+;; hyphenation off.
 
 ;; Note that because the inter-word spacing is fixed, there is no difference
 ;; between the Flush Left and Justified dispositions.
