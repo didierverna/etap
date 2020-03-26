@@ -74,7 +74,7 @@
 			      lineup start (stop boundary))
 			    width))
 	    :do (setq previous-boundary boundary)
-	    :finally (return previous-boundary))))
+	    :finally (return (or previous-boundary boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
     (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
