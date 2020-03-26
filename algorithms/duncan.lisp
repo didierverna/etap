@@ -44,7 +44,7 @@
     (duncan-lines solution)))
 
 (defmethod create-lines
-    (lineup disposition width (algorithm (eql :duncan))
+    (lineup width disposition (algorithm (eql :duncan))
      &key
      &aux (sloppy (cadr (member :sloppy disposition))))
   (let* ((solutions

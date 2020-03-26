@@ -18,8 +18,8 @@
 
 (defun create-pinned-lines (lineup width disposition algorithm)
   (loop :for line
-	  :in (apply #'create-lines lineup disposition width (car algorithm)
-		     (cdr algorithm))
+	  :in (apply #'create-lines
+		lineup width disposition (car algorithm) (cdr algorithm))
 	:for x := (case (car disposition)
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))

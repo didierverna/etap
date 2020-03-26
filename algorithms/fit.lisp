@@ -155,7 +155,7 @@
     (create-justified-line lineup start stop width sloppy)))
 
 (defmethod create-lines
-    (lineup disposition width (algorithm (eql :fit))
+    (lineup width disposition (algorithm (eql :fit))
      &key (variant :first)
 	  relax avoid-hyphens prefer-shrink prefer-overfull-lines)
   (loop :for start := 0 :then (next-start boundary)

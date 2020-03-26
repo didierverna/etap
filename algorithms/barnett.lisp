@@ -58,7 +58,7 @@
 	       (or overfull-boundary underfull-boundary)))))))
 
 (defmethod create-lines
-    (lineup disposition width (algorithm (eql :barnett)) &key)
+    (lineup width disposition (algorithm (eql :barnett)) &key)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary := (barnett-line-boundary lineup start width)

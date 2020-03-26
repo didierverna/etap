@@ -1,4 +1,4 @@
 (in-package :etap)
 
-(defgeneric create-lines (lineup disposition width algorithm
-			  &key &allow-other-keys))
+(defgeneric create-lines
+    (lineup width disposition algorithm &key &allow-other-keys))
