@@ -156,16 +156,16 @@
 
 (defmethod create-lines
     (lineup disposition width (algorithm (eql :fit))
-     &key (variant :first) relax sloppy avoid-hyphens
-	  prefer-shrink prefer-overfull-lines)
+     &key (variant :first)
+	  relax avoid-hyphens prefer-shrink prefer-overfull-lines)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
-	  := (fit-line-boundary lineup start width disposition variant
+	  := (fit-line-boundary lineup start width (car disposition) variant
 	       :avoid-hyphens avoid-hyphens
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfull-lines prefer-overfull-lines)
 	:collect (fit-create-line lineup start (stop boundary)
-		     disposition variant
+		     (car disposition) variant
 		   :width width :search (next-search boundary)
-		   :relax relax :sloppy sloppy)))
+		   :relax relax :sloppy (cadr (member :sloppy disposition)))))

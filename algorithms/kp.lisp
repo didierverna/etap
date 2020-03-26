@@ -6,5 +6,5 @@
 
 
 (defmethod create-lines
-    (lineup disposition width (algorithm (eql :knuth-plass)) &key sloppy)
+    (lineup disposition width (algorithm (eql :knuth-plass)) &key)
 )

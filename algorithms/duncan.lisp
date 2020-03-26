@@ -44,7 +44,9 @@
     (duncan-lines solution)))
 
 (defmethod create-lines
-    (lineup disposition width (algorithm (eql :duncan)) &key sloppy)
+    (lineup disposition width (algorithm (eql :duncan))
+     &key
+     &aux (sloppy (cadr (member :sloppy disposition))))
   (let* ((solutions
 	   (mapcar (lambda (lines) (duncan-make-solution lineup width lines))
 	     (root-node-lines (root-node lineup width))))

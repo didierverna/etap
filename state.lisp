@@ -21,7 +21,7 @@ it; and this ball was her favorite plaything.")
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules)
    (algorithm :initform '(:fixed) :accessor algorithm)
-   (disposition :initform :flush-left :accessor disposition)
+   (disposition :initform '(:flush-left) :accessor disposition)
    (features :initform (list) :accessor features)
    ;; 284.52756pt = 10cm
    (paragraph-width :initform 284 :accessor paragraph-width)
