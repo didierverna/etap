@@ -14,6 +14,12 @@
 	 (algorithm state)))
   (gp:invalidate-rectangle (view interface)))
 
+(defun set-features (value interface)
+  (declare (ignore value))
+  (setf (features (state interface))
+	(apply #'append (choice-selected-items (features interface))))
+  (update interface))
+
 (defun set-fixed-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (state interface))
@@ -63,17 +69,7 @@
     (:knuth-plass (set-knuth-plass-algorithm value interface))))
 
 (defun set-disposition (value interface)
-  (declare (ignore value))
-  (setf (disposition (state interface))
-	`(,(choice-selected-item (disposition interface))
-	  ,@(apply #'append
-	      (choice-selected-items (disposition-options interface)))))
-  (update interface))
-
-(defun set-features (value interface)
-  (declare (ignore value))
-  (setf (features (state interface))
-	(apply #'append (choice-selected-items (features interface))))
+  (setf (disposition (state interface)) value)
   (update interface))
 
 (defun set-text (pane point old-length new-length
@@ -139,7 +135,7 @@
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange :filled t)
-		:else :if (and (eq (car (disposition state)) :justified)
+		:else :if (and (eq (disposition state) :justified)
 			       (< (width pinned-line) (width paragraph)))
 			:do (gp:draw-rectangle pane
 				(+ x (width pinned-line) 5)
@@ -182,6 +178,7 @@
 		      (pinned-characters  (line pinned-line))))))))
 
 
+
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
   (case type
@@ -201,6 +198,12 @@ choose the overfull rather than the underfull one.")
 	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
 	  (:fit-variant-best "Minimize scaling.")
 	  (:fit-variant-last "Prefer lines with more words (more shrink).")
+	  (:fit-option-relax
+	   "For the First and Last variants, in ragged dispositions,
+de-stretch or de-shrink lines afterwards.")
+	  (:fit-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
 	  (:fit-option-avoid-hyphens
 	   "In Justified disposition, avoid
 hyphenating words when possible.")
@@ -213,9 +216,13 @@ amount of scaling is the same.")
 when there is no perfect fit and the underfull and overfull
 lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one.")
-	  (:disposition-option-relax
-	   "In ragged dispositions, de-stretch or de-shrink lines afterwards.")
-	  (:disposition-option-sloppy
+	  (:barnett-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
+	  (:duncan-option-sloppy
+	   "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries.")
+	  (:knuth-plass-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))
 
@@ -310,16 +317,6 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :print-function 'keyword-capitalize
      :selection-callback 'set-disposition
      :reader disposition)
-   (disposition-options check-button-panel
-     :layout-class 'column-layout
-     :title "Disposition Options" :title-position :frame
-     :visible-max-width nil
-     :items '((:relax t) (:sloppy t))
-     :help-keys '(:disposition-option-relax :disposition-option-sloppy)
-     :print-function (lambda (item) (keyword-capitalize (car item)))
-     :selection-callback 'set-disposition
-     :retract-callback 'set-disposition
-     :reader disposition-options)
    (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
@@ -387,7 +384,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (duncan-settings row-layout '(duncan-options))
    (knuth-plass-settings row-layout '(knuth-plass-options))
    (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(disposition disposition-options features)
+   (options-1 column-layout '(disposition features)
      :visible-min-width 150
      :visible-max-width 150)
    (options-2 column-layout '(paragraph-width zoom clues)
@@ -443,13 +440,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
 	       (when (cadr (member :sloppy algorithm))
 		 (push 0 selection))
 	       selection)))))
-  (setf (choice-selected-item (disposition etap)) (car (disposition state)))
-  (let ((options (cdr (disposition state))))
-    (setf (choice-selection (disposition-options etap))
-	  (let ((selection (list)))
-	    (when (cadr (member :relax options)) (push 0 selection))
-	    (when (cadr (member :sloppy options)) (push 1 selection))
-	    selection)))
+  (setf (choice-selected-item (disposition etap)) (disposition state))
   (let ((features (features state)))
     (setf (choice-selection (features etap))
 	  (let ((selection (list)))

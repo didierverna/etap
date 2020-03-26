@@ -20,7 +20,7 @@
   (loop :for line
 	  :in (apply #'create-lines lineup disposition width (car algorithm)
 		     (cdr algorithm))
-	:for x := (case (car disposition)
+	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
