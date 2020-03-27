@@ -3,29 +3,33 @@
 ;; Fixed algorithm), there is no paragraph-wide optimization. Lines are
 ;; constructed sequentially, with no backtracking.
 
-;; The "First" variant stops as soon as a line fits, that is, with the minimum
-;; number of characters, and the maximum stretch. The "Last" one does the
-;; opposite. The "Best" one tries to makes lines as close as possible to the
-;; natural inter-word space.
+;; In ragged dispositions, the "First" variant stops as soon as a line fits,
+;; that is, with the minimum number of characters and the maximum stretch,
+;; while remaining below the paragraph width. The "Last" variant does the
+;; opposite (maximum number of characters and maximum shrink). Finally, the
+;; "Best" variant preserves the natural inter-word spacing. In ragged
+;; dispositions, there isn't a notion of break-point cost. In particular,
+;; hyphens are just seen as additional break opportunities. There isn't an
+;; "Avoid Hyphens" option, as this would be equivalent to just turning
+;; hyphenation off.
 
-;; The "Relax" option only affects the First and Last variants, in the ragged
+;; The "Relax" option only affects the First and Last variants, in ragged
 ;; dispositions. It essentially decreases the raggedness. When checked, lines
-;; are "de-stretched" or "de-shrunk", after having been created, but without
-;; changing their potential contents. More specifically:
-;; - for the First Fit, lines are de-stretched as much as possible towards the
-;;   natural inter-word space, but not to the point that another word would
-;;   fit in. The effect is thus to make the paragraph more compact.
+;; are "de-stretched" or "de-shrunk" towards the natural inter-word spacing
+;; (which is why it is meaningless for the Best variant), after having been
+;; created, but without changing their potential contents.
+;; More specifically:
+;; - for the First Fit, lines are de-stretched as much as possible, but not to
+;;   the point that another word would fit in. The effect is thus to make the
+;;   paragraph more compact.
 ;; - for the Last Fit, lines are de-shrunk as much as possible towards the
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
-;; The "Sloppy" option only affects the Justified disposition. When checked,
-;; lines are always stretched or shrunk to the paragraph width (hence
-;; eliminating all overfull or underfull lines), after they are created. In
-;; other words, the maximum inter-word stretch and shrink values are ignored,
-;; and the resulting lines may be over-stretched or over-shrunk.
-;; #### TODO: the sloppy option is Boolean. For a finer grain of sloppiness,
-;; #### we could instead modify the inter-word glue.
+;; In the Justified disposition, the First variant selects the first line that
+;; fits the paragraph width exactly (hence, also with the minimum number of
+;; characters and the maximum stretch). The Last variant does the opposite
+;; (maximum number of characters and maximum shrink).
 
 ;; The "Avoid Hyphens" option only affects the Justified disposition. When
 ;; checked, line solutions without hyphenation are always preferred when there
@@ -42,6 +46,11 @@
 ;; #### not the same, as in most fonts, the maximum stretch and shrink ratios
 ;; #### are not equal. Maybe a more pertinent measure would be the amount of
 ;; #### stretch / shrink relative to the maximum value.
+
+;; Note that our notion of "fit" is different from that of Donald Knuth. In
+;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
+;; algorithm, choosing the first solution that stays close to the natural
+;; inter-word space.
 
 ;; Note that except for the Justified disposition, the Best-Fit algorithm is
 ;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
