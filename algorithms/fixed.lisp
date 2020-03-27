@@ -17,23 +17,6 @@
 
 (in-package :etap)
 
-(defun first-overfull (overfull hyphen-overfull word-overfull)
-  (if (and hyphen-overfull word-overfull)
-    (if (eq overfull hyphen-overfull)
-      word-overfull
-      hyphen-overfull)
-    overfull))
-
-(defun best-*full
-    (underfull underfull-w overfull overfull-w width prefer-overfull-lines)
-  (cond ((< (- width underfull-w) (- overfull-w width))
-	 underfull)
-	((< (- overfull-w width) (- width underfull-w))
-	 overfull)
-	(prefer-overfull-lines
-	 overfull)
-	(t underfull)))
-
 (defun fixed-line-boundary
     (lineup start width
      &key (variant :underfull) avoid-hyphens prefer-overfull-lines)
@@ -63,65 +46,73 @@
 		     (setq hyphen-overfull boundary hyphen-overfull-w w))
 	:finally
 	   (return
-	     (ecase variant
-	       (:underfull
-		(cond ((and fit
-			    (not (word-boundary-p lineup fit))
-			    avoid-hyphens)
-		       (or word-underfull fit))
-		      (fit fit)
-		      (underfull
-		       (if avoid-hyphens
-			 (or word-underfull underfull)
-			 ;; #### NOTE: this underfull the last one.
-			 underfull))
-		      (t
-		       (first-overfull
-			overfull hyphen-overfull word-overfull))))
-	       (:overfull
-		(cond ((and fit
-			    (not (word-boundary-p lineup fit))
-			    avoid-hyphens)
-		       (or word-overfull fit))
-		      (fit fit)
-		      (overfull
-		       (if avoid-hyphens
-			 (or word-overfull overfull)
-			 (first-overfull
-			  overfull hyphen-overfull word-overfull)))
-		      ;; #### NOTE: this underfull the last one.
-		      (t underfull)))
-	       (:best
-		(cond (fit fit)
-		      ((and underfull (not overfull))
-		       ;; #### NOTE: this underfull the last one.
-		       underfull)
-		      ((and overfull (not underfull))
-		       (first-overfull overfull hyphen-overfull word-overfull))
-		      (t
-		       (if avoid-hyphens
-			 (cond ((and word-underfull (not word-overfull))
-				word-underfull)
-			       ((and (not word-underfull) word-overfull)
-				word-overfull)
-			       ((and word-underfull word-overfull)
-				(best-*full word-underfull word-underfull-w
-					    word-overfull word-overfull-w
-					    width prefer-overfull-lines))
-			       (t
-				(best-*full underfull underfull-w
-					    overfull overfull-w
-					    width prefer-overfull-lines)))
-			 (let* ((first-overfull
-				  (first-overfull
-				   overfull hyphen-overfull word-overfull))
-				(first-overfull-w
-				  (if (eq first-overfull hyphen-overfull)
-				    hyphen-overfull-w
-				    word-overfull-w)))
-			   (best-*full underfull underfull-w
-				       first-overfull first-overfull-w
-				       width prefer-overfull-lines))))))))))
+	     ;; #### NOTE: UNDERFULL is the last of the two possible ones, so
+	     ;; the closest to the paragraph width. The closest overfull, on
+	     ;; the other hand, is the first one, not the last.
+	     (let ((first-overfull
+		     (if (and hyphen-overfull word-overfull)
+		       (if (eq overfull hyphen-overfull)
+			 word-overfull
+			 hyphen-overfull)
+		       overfull)))
+	       (ecase variant
+		 (:underfull
+		  (cond ((and fit
+			      (not (word-boundary-p lineup fit))
+			      avoid-hyphens)
+			 (or word-underfull fit))
+			(fit fit)
+			(underfull
+			 (if avoid-hyphens
+			   (or word-underfull underfull)
+			   underfull))
+			(t first-overfull)))
+		 (:overfull
+		  (cond ((and fit
+			      (not (word-boundary-p lineup fit))
+			      avoid-hyphens)
+			 (or word-overfull fit))
+			(fit fit)
+			(overfull
+			 (if avoid-hyphens
+			   (or word-overfull overfull)
+			   first-overfull))
+			(t underfull)))
+		 (:best
+		  (cond (fit fit)
+			((and underfull (not overfull))
+			 underfull)
+			((and overfull (not underfull))
+			 first-overfull)
+			(t
+			 (flet ((best-*full (underfull underfull-w
+					     overfull overfull-w)
+				  (cond ((< (- width underfull-w)
+					    (- overfull-w width))
+					 underfull)
+					((< (- overfull-w width)
+					    (- width underfull-w))
+					 overfull)
+					(prefer-overfull-lines overfull)
+					(t underfull))))
+			   (if avoid-hyphens
+			     (cond ((and word-underfull (not word-overfull))
+				    word-underfull)
+				   ((and (not word-underfull) word-overfull)
+				    word-overfull)
+				   ((and word-underfull word-overfull)
+				    (best-*full word-underfull word-underfull-w
+						word-overfull word-overfull-w))
+				   (t
+				    (best-*full underfull underfull-w
+						overfull overfull-w)))
+			     (let ((first-overfull-w
+				     (if (eq first-overfull hyphen-overfull)
+				       hyphen-overfull-w
+				       word-overfull-w)))
+			       (best-*full
+				underfull underfull-w
+				first-overfull first-overfull-w))))))))))))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fixed))
