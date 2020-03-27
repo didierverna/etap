@@ -1,7 +1,6 @@
 ;; This is the classical *-fit algorithms family, making full use of
-;; inter-word (elastic) glue. As their name suggest (and as in the case of the
-;; Fixed algorithm), there is no paragraph-wide optimization. Lines are
-;; constructed sequentially, with no backtracking.
+;; inter-word (elastic) glue. Lines are created sequentially, without
+;; look-ahead or backtracking: there are no paragraph-wide considerations.
 
 ;; In ragged dispositions, the "First" variant stops as soon as a line fits,
 ;; that is, with the minimum number of characters and the maximum stretch,
@@ -74,7 +73,7 @@
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
       ;; #### NOTE: this works even the first time because at worst, BOUNDARY
-      ;; is gonna be #S(LENGTH LENGTH :ENGTH) first, and NIL only afterwards.
+      ;; is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only afterwards.
       (loop :with previous-boundary
 	    :for boundary := (next-boundary lineup start)
 	      :then (next-boundary lineup (next-search boundary))
