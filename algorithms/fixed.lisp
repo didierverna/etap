@@ -2,7 +2,8 @@
 ;; can practically never justify properly). The "Underfull" variant only
 ;; allows underfull lines (unless there is no choice). The "Overfull" one does
 ;; the opposite. The "Best" one chooses which is closest to the paragraph
-;; width.
+;; width. Lines are created sequentially, without look-ahead or backtracking:
+;; there are no paragraph-wide considerations.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
 ;; hyphenation are always preferred when there is a choice.
