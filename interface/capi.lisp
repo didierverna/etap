@@ -202,6 +202,7 @@
 	   "Prefer lines closer to the paragraph
 width, whether underfull or overfull.")
 	  (:fixed-variant-overfull "Always prefer overfull lines.")
+	  (:fixed-option-avoid-hyphens "Avoid hyphenating words when possible.")
 	  (:fixed-option-prefer-overfull-lines
 	   "For the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
@@ -257,8 +258,9 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (fixed-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
-     :items '((:prefer-overfull-lines t))
-     :help-keys '(:fixed-option-prefer-overfull-lines)
+     :items '((:avoid-hyphens t) (:prefer-overfull-lines t))
+     :help-keys '(:fixed-option-avoid-hyphens
+		  :fixed-option-prefer-overfull-lines)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
@@ -412,8 +414,10 @@ ignoring the font's inter-word spacing boundaries.")))))))
 	     (or (cadr (member :variant algorithm)) :underfull))
        (setf (choice-selection (fixed-options etap))
 	     (let ((selection (list)))
-	       (when (cadr (member :prefer-overfull-lines algorithm))
+	       (when (cadr (member :avoid-hyphens algorithm))
 		 (push 0 selection))
+	       (when (cadr (member :prefer-overfull-lines algorithm))
+		 (push 1 selection))
 	       selection)))
       (:fit
        (setf (choice-selection (algorithms etap)) 1)
