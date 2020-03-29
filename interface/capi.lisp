@@ -36,7 +36,7 @@
   (declare (ignore value))
   (setf (algorithm (state interface))
 	`(:barnett
-	  ,@(apply #'append
+	  #+(),@(apply #'append
 	      (choice-selected-items (barnett-options interface)))))
   (update interface))
 
@@ -44,7 +44,7 @@
   (declare (ignore value))
   (setf (algorithm (state interface))
 	`(:duncan
-	  ,@(apply #'append
+	  #+(),@(apply #'append
 	      (choice-selected-items (duncan-options interface)))))
   (update interface))
 
@@ -52,7 +52,7 @@
   (declare (ignore value))
   (setf (algorithm (state interface))
 	`(:knuth-plass
-	  ,@(apply #'append
+	  #+(),@(apply #'append
 	      (choice-selected-items (knuth-plass-options interface)))))
   (update interface))
 
@@ -283,7 +283,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
-   (barnett-options check-button-panel
+   #+()(barnett-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '()
@@ -292,7 +292,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-barnett-algorithm
      :retract-callback 'set-barnett-algorithm
      :reader barnett-options)
-   (duncan-options check-button-panel
+   #+()(duncan-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '()
@@ -301,7 +301,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-duncan-algorithm
      :retract-callback 'set-duncan-algorithm
      :reader duncan-options)
-   (knuth-plass-options check-button-panel
+   #+()(knuth-plass-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items '()
@@ -391,9 +391,9 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :visible-max-width t)
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options))
-   (barnett-settings row-layout '(barnett-options))
-   (duncan-settings row-layout '(duncan-options))
-   (knuth-plass-settings row-layout '(knuth-plass-options))
+   (barnett-settings row-layout '(#+()barnett-options))
+   (duncan-settings row-layout '(#+()duncan-options))
+   (knuth-plass-settings row-layout '(#+()knuth-plass-options))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features)
      :visible-min-width 150
