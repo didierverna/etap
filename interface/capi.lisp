@@ -210,12 +210,10 @@ choose the overfull rather than the underfull one.")
 	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
 	  (:fit-variant-best "Minimize scaling.")
 	  (:fit-variant-last "Prefer lines with more words (more shrink).")
+	  (:fit-option-avoid-hyphens "Avoid hyphenating words when possible.")
 	  (:fit-option-relax
 	   "For the First and Last variants, in ragged dispositions,
 de-stretch or de-shrink lines afterwards.")
-	  (:fit-option-avoid-hyphens
-	   "In Justified disposition, avoid
-hyphenating words when possible.")
 	  (:fit-option-prefer-shrink
 	   "For the Best variant, in Justified disposition,
 prefer shrinking over stretching when the
@@ -277,9 +275,9 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :layout-class 'grid-layout
      :layout-args '(:orientation :column)
      :title "Options" :title-position :frame
-     :items '((:relax t) (:avoid-hyphens t)
+     :items '((:avoid-hyphens t) (:relax t)
 	      (:prefer-shrink t) (:prefer-overfull-lines t))
-     :help-keys '(:fit-option-relax :fit-option-avoid-hyphens
+     :help-keys '(:fit-option-avoid-hyphens :fit-option-relax
 		  :fit-option-prefer-shrink :fit-option-prefer-overfull-lines)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm

@@ -6,11 +6,15 @@
 ;; that is, with the minimum number of characters and the maximum stretch,
 ;; while remaining below the paragraph width. The "Last" variant does the
 ;; opposite (maximum number of characters and maximum shrink). Finally, the
-;; "Best" variant preserves the natural inter-word spacing. In ragged
-;; dispositions, there isn't a notion of break-point cost. In particular,
-;; hyphens are just seen as additional break opportunities. There isn't an
-;; "Avoid Hyphens" option, as this would be equivalent to just turning
-;; hyphenation off.
+;; "Best" variant preserves the natural inter-word spacing.
+
+;; In the Justified disposition, the First variant selects the first line that
+;; fits the paragraph width exactly (hence, also with the minimum number of
+;; characters and the maximum stretch). The Last variant does the opposite
+;; (maximum number of characters and maximum shrink).
+
+;; When the "Avoid Hyphens" option is checked, line solutions without
+;; hyphenation are always preferred when there is a choice.
 
 ;; The "Relax" option only affects the First and Last variants, in ragged
 ;; dispositions. It essentially decreases the raggedness. When checked, lines
@@ -24,16 +28,6 @@
 ;; - for the Last Fit, lines are de-shrunk as much as possible towards the
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
-
-;; In the Justified disposition, the First variant selects the first line that
-;; fits the paragraph width exactly (hence, also with the minimum number of
-;; characters and the maximum stretch). The Last variant does the opposite
-;; (maximum number of characters and maximum shrink).
-
-;; The "Avoid Hyphens" option only affects the Justified disposition. When
-;; checked, line solutions without hyphenation are always preferred when there
-;; is a choice. Note that in ragged dispositions, this option would
-;; essentially be equivalent to turning hyphenation off.
 
 ;; The "Prefer Shrink" option only affects the Best Fit variant in Justified
 ;; disposition. When two lines (one stretched and one shrunk) fit the
@@ -67,22 +61,28 @@
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
-  (:method (lineup start width disposition variant &key)
+  (:method (lineup start width disposition variant &key avoid-hyphens)
     (let ((lineup-width-function (case variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
       ;; #### NOTE: this works even the first time because at worst, BOUNDARY
       ;; is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only afterwards.
-      (loop :with previous-boundary
+      (loop :with previous :with word-previous
 	    :for boundary := (next-boundary lineup start)
 	      :then (next-boundary lineup (next-search boundary))
 	    :while (and boundary
 			(<= (funcall lineup-width-function
 			      lineup start (stop boundary))
 			    width))
-	    :do (setq previous-boundary boundary)
-	    :finally (return (or previous-boundary boundary)))))
+	    :do (setq previous boundary)
+	    :do (when (word-boundary-p lineup boundary)
+		  (setq word-previous boundary))
+	    :finally (return (if previous
+			       (if avoid-hyphens
+				 (or word-previous previous)
+				 previous)
+			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
     (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
