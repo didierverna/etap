@@ -104,7 +104,7 @@
   (gp:invalidate-rectangle (view (top-level-interface pane))))
 
 
-(defun |(un)set-clues| (value interface)
+(defun set-clues (value interface)
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
 
@@ -363,8 +363,8 @@ ignoring the font's inter-word spacing boundaries.")))))))
 	      :over/underfull-boxes)
      :selected-items '(:characters)
      :print-function 'keyword-capitalize
-     :selection-callback '|(un)set-clues|
-     :retract-callback '|(un)set-clues|
+     :selection-callback 'set-clues
+     :retract-callback 'set-clues
      :reader clues)
    (text editor-pane
      :title "Source text" :title-position :frame
