@@ -161,9 +161,9 @@
 		   :key #'car)))
 	    (cond ((and (numberp (caar weights)) (numberp (caadr weights))
 			(= (caar weights) (caadr weights)))
-		   (if prefer-shrink (cdadr weights) (cdar weights)))
+		   (if prefer-shrink (cdar weights) (cdadr weights)))
 		  ((and (null (caar weights)) (null (caadr weights)))
-		   (if prefer-overfull-lines (cdadr weights) (cdar weights)))
+		   (if prefer-overfull-lines (cdar weights) (cdadr weights)))
 		  (t
 		   (cdar weights)))))))))
 
