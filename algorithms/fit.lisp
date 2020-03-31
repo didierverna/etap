@@ -59,6 +59,13 @@
 (defun width-delta (lineup start width boundary)
   (when boundary (abs (- width (lineup-width lineup start (stop boundary))))))
 
+;; #### NOTE: this function returns all the possible fits, but only the last
+;; underfull and the first overfull, regardless of whether they are hyphenated
+;; or not. I think this makes sense for algorithms that don't do
+;; paragraph-wide optimization. The rationale is that if we can't find a fit,
+;; we'd better stick as close to the paragraph's border as possible anyway,
+;; regardless of the Avoid Hyphens option, or the weight of hyphens in the
+;; besting function.
 (defun fit-next-boundaries (lineup start width)
   (loop :with underfull
 	:with fits := (list)
