@@ -59,6 +59,28 @@
 (defun width-delta (lineup start width boundary)
   (when boundary (abs (- width (lineup-width lineup start (stop boundary))))))
 
+(defun fit-next-boundaries (lineup start width)
+  (loop :with underfull
+	:with fits := (list)
+	:with overfull
+	;; #### NOTE: this works even the first time because at worst,
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	;; afterwards.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not overfull))
+	:for span := (lineup-span lineup start (stop boundary))
+	:if (< (max-width span) width)
+	  :do (setq underfull boundary)
+	:else :if (and (<= (min-width span) width)
+		       (>= (max-width span) width))
+		:do (push boundary fits)
+	:else
+	  :do (setq overfull boundary)
+	:finally
+	   (return
+	     (values underfull fits overfull))))
+
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
   (:method (lineup start width disposition variant &key avoid-hyphens)
@@ -85,29 +107,29 @@
 			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
-    (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
-	(next-boundaries lineup start width)
-      (if (= (length fit-boundaries) 1)
-	(car fit-boundaries)
+    (multiple-value-bind (underfull fits overfull)
+	(fit-next-boundaries lineup start width)
+      (if (= (length fits) 1)
+	(car fits)
 	(let ((boundaries
-		;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
+		;; #### NOTE: NIL if FITS is anyway.
 		(if avoid-hyphens
-		  (or (word-boundaries lineup fit-boundaries)
-		      (hyphen-boundaries lineup fit-boundaries))
-		  fit-boundaries)))
+		  (or (word-boundaries lineup fits)
+		      (hyphen-boundaries lineup fits))
+		  fits)))
 	  (case variant
 	    (:first
 	     (cond (boundaries (car (last boundaries)))
-		   (underfull-boundary underfull-boundary)
-		   (t overfull-boundary)))
+		   (underfull underfull)
+		   (t overfull)))
 	    (:last
 	     (cond (boundaries (car boundaries))
-		   (overfull-boundary overfull-boundary)
-		   (t underfull-boundary)))
+		   (overfull overfull)
+		   (t underfull)))
 	    (:best
 	     (cond ((= (length boundaries) 1)
 		    ;; #### NOTE: this test again because we may have filtered
-		    ;; FIT-BOUNDARIES.
+		    ;; FITS.
 		    (car boundaries))
 		   (boundaries
 		    (let ((sorted-scales
@@ -120,19 +142,19 @@
 			(car (first sorted-scales)))))
 		   (t
 		    (let ((underfull-delta
-			    (width-delta lineup start width underfull-boundary))
+			    (width-delta lineup start width underfull))
 			  (overfull-delta
-			    (width-delta lineup start width overfull-boundary)))
+			    (width-delta lineup start width overfull)))
 		      (cond ((and underfull-delta overfull-delta)
 			     (cond ((= underfull-delta overfull-delta)
 				    (if prefer-overfull-lines
-				      overfull-boundary
-				      underfull-boundary))
+				      overfull
+				      underfull))
 				   ((< underfull-delta overfull-delta)
-				    underfull-boundary)
-				   (t overfull-boundary)))
-			    (underfull-delta underfull-boundary)
-			    (t overfull-boundary))))))))))))
+				    underfull)
+				   (t overfull)))
+			    (underfull-delta underfull)
+			    (t overfull))))))))))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
