@@ -79,14 +79,12 @@
 	:for span := (lineup-span lineup start (stop boundary))
 	:if (< (max-width span) width)
 	  :do (setq underfull boundary)
-	:else :if (and (<= (min-width span) width)
-		       (>= (max-width span) width))
-		:do (push boundary fits)
+	:else :if (and (<= (min-width span) width) (>= (max-width span) width))
+	  :do (push boundary fits)
 	:else
 	  :do (setq overfull boundary)
 	:finally
-	   (return
-	     (values underfull fits overfull))))
+	   (return (values underfull fits overfull))))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
