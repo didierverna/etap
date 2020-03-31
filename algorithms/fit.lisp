@@ -53,15 +53,17 @@
 (in-package :etap)
 
 
-(defun fit-weight (lineup start width boundary
+(defun fit-weight (lineup start width boundary hyphen-penalty
 		   &aux (weight (badness lineup start (stop boundary) width)))
   (unless (word-boundary-p lineup boundary)
-    (setq weight (!+ weight 50)))
+    (setq weight
+	  (!+ weight (unless (= hyphen-penalty 10000) hyphen-penalty))))
   weight)
 
-(defun fit-weights (lineup start width boundaries)
+(defun fit-weights (lineup start width boundaries hyphen-penalty)
   (mapcar (lambda (boundary)
-	    (cons (fit-weight lineup start width boundary) boundary))
+	    (cons (fit-weight lineup start width boundary hyphen-penalty)
+		  boundary))
     boundaries))
 
 
@@ -139,26 +141,31 @@
 		   (t underfull))))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
-	    &key prefer-shrink prefer-overfull-lines)
+	    &key hyphen-penalty prefer-shrink prefer-overfull-lines)
     (multiple-value-bind (underfull fits overfull)
 	(fit-next-boundaries lineup start width)
-      (if (= (length fits) 1)
-	(car fits)
-	(let ((boundaries fits))
-	  (when underfull (push underfull boundaries))
-	  (when overfull (endpush overfull boundaries))
-	  (if (= (length boundaries) 1)
-	    (car boundaries)
-	    (let ((weights (stable-sort
-			    (fit-weights lineup start width boundaries) #'!<
-			    :key #'car)))
-	      (cond ((and (numberp (caar weights)) (numberp (caadr weights))
-			  (= (caar weights) (caadr weights)))
-		     (if prefer-shrink (cdadr weights) (cdar weights)))
-		    ((and (null (caar weights)) (null (caadr weights)))
-		     (if prefer-overfull-lines (cdadr weights) (cdar weights)))
-		    (t
-		     (cdar weights))))))))))
+      ;; #### NOTE: fits and *fulls get merged here, because the besting
+      ;; function will choose. For example, with a very high hyphen penalty,
+      ;; we may end up preferring underfull lines. If one day we generalize
+      ;; the besting function, we can expect any other decision selecting
+      ;; *fulls over fits.
+      (let ((boundaries (when underfull (list underfull))))
+	(when fits (setq boundaries (append fits boundaries)))
+	(when overfull (push overfull boundaries))
+	(if (= (length boundaries) 1)
+	  (car boundaries)
+	  (let ((weights
+		  (stable-sort
+		   (fit-weights lineup start width boundaries hyphen-penalty)
+		   #'!<
+		   :key #'car)))
+	    (cond ((and (numberp (caar weights)) (numberp (caadr weights))
+			(= (caar weights) (caadr weights)))
+		   (if prefer-shrink (cdadr weights) (cdar weights)))
+		  ((and (null (caar weights)) (null (caadr weights)))
+		   (if prefer-overfull-lines (cdadr weights) (cdar weights)))
+		  (t
+		   (cdar weights)))))))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
@@ -190,12 +197,13 @@
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
-     &key (variant :first)
+     &key (variant :first) (hyphen-penalty 50)
 	  relax avoid-hyphens prefer-shrink prefer-overfull-lines)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
 	  := (fit-line-boundary lineup start width (car disposition) variant
+	       :hyphen-penalty hyphen-penalty
 	       :avoid-hyphens avoid-hyphens
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfull-lines prefer-overfull-lines)

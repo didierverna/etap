@@ -29,8 +29,15 @@
   (setf (algorithm (state interface))
 	`(:fit
 	  :variant ,(choice-selected-item (fit-variant interface))
+	  :hyphen-penalty ,(range-slug-start (fit-hyphen-penalty interface))
 	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
+
+(defun set-fit-hyphen-penalty (pane value status)
+  (declare (ignore status))
+  (setf (titled-object-title pane) (format nil "Hyphen Penalty: ~D" value))
+  (set-fit-algorithm nil (top-level-interface pane)))
+
 
 (defun set-barnett-algorithm (value interface)
   (declare (ignore value))
@@ -284,6 +291,15 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
+   (fit-hyphen-penalty slider
+     :title "Hyphen Penalty: 50"
+     :orientation :horizontal
+     :start 0
+     :end 10000
+     :slug-start 50
+     :tick-frequency 0
+     :callback 'set-fit-hyphen-penalty
+     :reader fit-hyphen-penalty)
    #+()(barnett-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
@@ -391,7 +407,8 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (configuration column-layout '(algorithms options)
      :visible-max-width t)
    (fixed-settings row-layout '(fixed-variant fixed-options))
-   (fit-settings row-layout '(fit-variant fit-options))
+   (fit-settings row-layout '(fit-variant fit-parameters))
+   (fit-parameters column-layout '(fit-options fit-hyphen-penalty))
    (barnett-settings row-layout '(#+()barnett-options))
    (duncan-settings row-layout '(#+()duncan-options))
    (knuth-plass-settings row-layout '(#+()knuth-plass-options))
@@ -432,7 +449,10 @@ ignoring the font's inter-word spacing boundaries.")))))))
 		 (push 2 selection))
 	       (when (cadr (member :prefer-overfull-lines algorithm))
 		 (push 3 selection))
-	       selection)))
+	       selection))
+       (when (cadr (member :hyphen-penalty algorithm))
+	 (setf (range-slug-start (fit-hyphen-penalty etap))
+	       (cadr (member :hyphen-penalty algorithm)))))
       (:barnett
        (setf (choice-selection (algorithms etap)) 2)
        #+()(setf (choice-selection (barnett-options etap))
