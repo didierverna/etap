@@ -210,19 +210,20 @@ choose the overfull rather than the underfull one.")
 	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
 	  (:fit-variant-best "Minimize scaling.")
 	  (:fit-variant-last "Prefer lines with more words (more shrink).")
-	  (:fit-option-avoid-hyphens "Avoid hyphenating words when possible.")
+	  (:fit-option-avoid-hyphens
+	   "Except for the Best variant in Justified disposition,
+avoid hyphenating words when possible.")
 	  (:fit-option-relax
-	   "For the First and Last variants, in ragged dispositions,
+	   "For the First and Last variants in ragged dispositions,
 de-stretch or de-shrink lines afterwards.")
 	  (:fit-option-prefer-shrink
-	   "For the Best variant, in Justified disposition,
-prefer shrinking over stretching when the
-amount of scaling is the same.")
+	   "For the Best variant in Justified disposition,
+prefer shrinking over stretching for equally
+good solutions.")
 	  (:fit-option-prefer-overfull-lines
-"For the Best variant, in Justified disposition,
-when there is no perfect fit and the underfull and overfull
-lines are equally distant from the paragraph width,
-choose the overfull rather than the underfull one.")
+	   "For the Best variant in Justified disposition,
+prefer overfull over underfull for equally
+bad solutions.")
 	  (:disposition-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))

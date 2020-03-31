@@ -52,12 +52,18 @@
 
 (in-package :etap)
 
-(defun sorted-scales (lineup start width boundaries)
-  (sort (boundary-scales lineup start width boundaries) #'<
-    :key (lambda (scale) (abs (cdr scale)))))
 
-(defun width-delta (lineup start width boundary)
-  (when boundary (abs (- width (lineup-width lineup start (stop boundary))))))
+(defun fit-weight (lineup start width boundary
+		   &aux (weight (badness lineup start (stop boundary) width)))
+  (unless (word-boundary-p lineup boundary)
+    (setq weight (!+ weight 50)))
+  weight)
+
+(defun fit-weights (lineup start width boundaries)
+  (mapcar (lambda (boundary)
+	    (cons (fit-weight lineup start width boundary) boundary))
+    boundaries))
+
 
 ;; #### NOTE: this function returns all the possible fits, but only the last
 ;; underfull and the first overfull, regardless of whether they are hyphenated
@@ -89,7 +95,7 @@
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
   (:method (lineup start width disposition variant &key avoid-hyphens)
-    (let ((lineup-width-function (case variant
+    (let ((lineup-width-function (ecase variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
@@ -111,7 +117,7 @@
 				 previous)
 			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
-	    &key avoid-hyphens prefer-shrink prefer-overfull-lines)
+	    &key avoid-hyphens)
     (multiple-value-bind (underfull fits overfull)
 	(fit-next-boundaries lineup start width)
       (if (= (length fits) 1)
@@ -122,7 +128,7 @@
 		  (or (word-boundaries lineup fits)
 		      (hyphen-boundaries lineup fits))
 		  fits)))
-	  (case variant
+	  (ecase variant
 	    (:first
 	     (cond (boundaries (car (last boundaries)))
 		   (underfull underfull)
@@ -130,36 +136,29 @@
 	    (:last
 	     (cond (boundaries (car boundaries))
 		   (overfull overfull)
-		   (t underfull)))
-	    (:best
-	     (cond ((= (length boundaries) 1)
-		    ;; #### NOTE: this test again because we may have filtered
-		    ;; FITS.
-		    (car boundaries))
-		   (boundaries
-		    (let ((sorted-scales
-			    (sorted-scales lineup start width boundaries)))
-		      (if (= (abs (cdr (first sorted-scales)))
-			     (abs (cdr (second sorted-scales))))
-			(if prefer-shrink
-			  (car (first sorted-scales))
-			  (car (second sorted-scales)))
-			(car (first sorted-scales)))))
-		   (t
-		    (let ((underfull-delta
-			    (width-delta lineup start width underfull))
-			  (overfull-delta
-			    (width-delta lineup start width overfull)))
-		      (cond ((and underfull-delta overfull-delta)
-			     (cond ((= underfull-delta overfull-delta)
-				    (if prefer-overfull-lines
-				      overfull
-				      underfull))
-				   ((< underfull-delta overfull-delta)
-				    underfull)
-				   (t overfull)))
-			    (underfull-delta underfull)
-			    (t overfull))))))))))))
+		   (t underfull))))))))
+  (:method (lineup start width
+	    (disposition (eql :justified)) (variant (eql :best))
+	    &key prefer-shrink prefer-overfull-lines)
+    (multiple-value-bind (underfull fits overfull)
+	(fit-next-boundaries lineup start width)
+      (if (= (length fits) 1)
+	(car fits)
+	(let ((boundaries fits))
+	  (when underfull (push underfull boundaries))
+	  (when overfull (endpush overfull boundaries))
+	  (if (= (length boundaries) 1)
+	    (car boundaries)
+	    (let ((weights (stable-sort
+			    (fit-weights lineup start width boundaries) #'!<
+			    :key #'car)))
+	      (cond ((and (numberp (caar weights)) (numberp (caadr weights))
+			  (= (caar weights) (caadr weights)))
+		     (if prefer-shrink (cdadr weights) (cdar weights)))
+		    ((and (null (caar weights)) (null (caadr weights)))
+		     (if prefer-overfull-lines (cdadr weights) (cdar weights)))
+		    (t
+		     (cdar weights))))))))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)

@@ -150,12 +150,6 @@
 	  ((> width target)
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
-(defun badness (lineup width start stop
-		&aux (scale (lineup-scale lineup start stop width)))
-  (unless (or (null scale) (< scale -1))
-    (* 100 (expt (abs scale) 3))))
-
-
 (defun word-stop-p (lineup stop)
   (or (= stop (length lineup)) (gluep (aref lineup stop))))
 
