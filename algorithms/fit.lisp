@@ -34,8 +34,8 @@
 ;; two line solutions (one stretched and one shrunk) get the same weight, the
 ;; stretched one is preferred unless this option is checked.
 
-;; The "Prefer Overfull Lines" option only affects the Best/Justified version.
-;; When two line solutions are equally bad (that is, one underfull and one
+;; The "Prefer Overfulls" option only affects the Best/Justified version. When
+;; two line solutions are equally bad (that is, one underfull and one
 ;; overfull, with infinite weight), the underfull one is preferred, unless
 ;; this option is checked.
 
@@ -146,7 +146,7 @@
 		   (t underfull))))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
-	    &key hyphen-penalty prefer-shrink prefer-overfull-lines)
+	    &key hyphen-penalty prefer-shrink prefer-overfulls)
     (multiple-value-bind (underfull fits overfull)
 	(fit-next-boundaries lineup start width)
       ;; #### NOTE: fits and *fulls get merged here, because the besting
@@ -168,7 +168,7 @@
 			(= (caar weights) (caadr weights)))
 		   (if prefer-shrink (cdar weights) (cdadr weights)))
 		  ((and (null (caar weights)) (null (caadr weights)))
-		   (if prefer-overfull-lines (cdar weights) (cdadr weights)))
+		   (if prefer-overfulls (cdar weights) (cdadr weights)))
 		  (t
 		   (cdar weights)))))))))
 
@@ -203,7 +203,7 @@
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
      &key (variant :first) (hyphen-penalty 50)
-	  relax avoid-hyphens prefer-shrink prefer-overfull-lines)
+	  relax avoid-hyphens prefer-shrink prefer-overfulls)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
@@ -211,7 +211,7 @@
 	       :hyphen-penalty hyphen-penalty
 	       :avoid-hyphens avoid-hyphens
 	       :prefer-shrink prefer-shrink
-	       :prefer-overfull-lines prefer-overfull-lines)
+	       :prefer-overfulls prefer-overfulls)
 	:collect (fit-create-line lineup start (stop boundary)
 		     (car disposition) variant
 		   :width width :search (next-search boundary)

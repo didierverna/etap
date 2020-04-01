@@ -12,7 +12,7 @@
 
 ;; In the Best variant, when the underfull and overfull line solutions are
 ;; equally distant from the paragraph width, the underfull one is chosen,
-;; unless the "Prefer Overfull Lines" option is checked.
+;; unless the "Prefer Overfulls" option is checked.
 
 ;; Note that because the inter-word spacing is fixed, there is no difference
 ;; between the Flush Left and Justified dispositions.
@@ -22,7 +22,7 @@
 
 (defun fixed-line-boundary
     (lineup start width
-     &key (variant :underfull) avoid-hyphens prefer-overfull-lines)
+     &key (variant :underfull) avoid-hyphens prefer-overfulls)
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underfull-w :with hyphen-underfull-w :with word-underfull-w
 	:with fit
@@ -96,7 +96,7 @@
 					((< (- overfull-w width)
 					    (- width underfull-w))
 					 overfull)
-					(prefer-overfull-lines overfull)
+					(prefer-overfulls overfull)
 					(t underfull))))
 			   (if avoid-hyphens
 			     (cond ((and word-underfull (not word-overfull))
@@ -120,8 +120,8 @@
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fixed))
      &rest keys
-     &key variant avoid-hyphens prefer-overfull-lines)
-  (declare (ignore variant avoid-hyphens prefer-overfull-lines))
+     &key variant avoid-hyphens prefer-overfulls)
+  (declare (ignore variant avoid-hyphens prefer-overfulls))
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary := (apply #'fixed-line-boundary lineup start width keys)

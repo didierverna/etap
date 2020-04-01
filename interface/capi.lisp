@@ -210,27 +210,24 @@
 width, whether underfull or overfull.")
 	  (:fixed-variant-overfull "Always prefer overfull lines.")
 	  (:fixed-option-avoid-hyphens "Avoid hyphenating words when possible.")
-	  (:fixed-option-prefer-overfull-lines
+	  (:fixed-option-prefer-overfulls
 	   "For the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one.")
 	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
 	  (:fit-variant-best "Minimize scaling.")
 	  (:fit-variant-last "Prefer lines with more words (more shrink).")
-	  (:fit-option-avoid-hyphens
-	   "Except for the Best variant in Justified disposition,
+	  (:fit-option-avoid-hyphens "Except for the Best/Justified version,
 avoid hyphenating words when possible.")
 	  (:fit-option-relax
 	   "For the First and Last variants in ragged dispositions,
 de-stretch or de-shrink lines afterwards.")
-	  (:fit-option-prefer-shrink
-	   "For the Best variant in Justified disposition,
-prefer shrinking over stretching for equally
-good solutions.")
-	  (:fit-option-prefer-overfull-lines
-	   "For the Best variant in Justified disposition,
-prefer overfull over underfull for equally
-bad solutions.")
+	  (:fit-option-prefer-shrink "In the Best/Justified version,
+prefer shrinking over stretching
+for equally good solutions.")
+	  (:fit-option-prefer-overfulls "In the Best/Justified version,
+prefer overfull over underfull
+for equally bad solutions.")
 	  (:disposition-option-sloppy
 	   "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries.")))))))
@@ -264,9 +261,8 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (fixed-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
-     :items '((:avoid-hyphens t) (:prefer-overfull-lines t))
-     :help-keys '(:fixed-option-avoid-hyphens
-		  :fixed-option-prefer-overfull-lines)
+     :items '((:avoid-hyphens t) (:prefer-overfulls t))
+     :help-keys '(:fixed-option-avoid-hyphens :fixed-option-prefer-overfulls)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
@@ -284,9 +280,9 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :layout-args '(:orientation :column)
      :title "Options" :title-position :frame
      :items '((:avoid-hyphens t) (:relax t)
-	      (:prefer-shrink t) (:prefer-overfull-lines t))
+	      (:prefer-shrink t) (:prefer-overfulls t))
      :help-keys '(:fit-option-avoid-hyphens :fit-option-relax
-		  :fit-option-prefer-shrink :fit-option-prefer-overfull-lines)
+		  :fit-option-prefer-shrink :fit-option-prefer-overfulls)
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
@@ -432,7 +428,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
 	     (let ((selection (list)))
 	       (when (cadr (member :avoid-hyphens algorithm))
 		 (push 0 selection))
-	       (when (cadr (member :prefer-overfull-lines algorithm))
+	       (when (cadr (member :prefer-overfulls algorithm))
 		 (push 1 selection))
 	       selection)))
       (:fit
@@ -447,7 +443,7 @@ ignoring the font's inter-word spacing boundaries.")))))))
 		 (push 1 selection))
 	       (when (cadr (member :prefer-shrink algorithm))
 		 (push 2 selection))
-	       (when (cadr (member :prefer-overfull-lines algorithm))
+	       (when (cadr (member :prefer-overfulls algorithm))
 		 (push 3 selection))
 	       selection))
        (when (cadr (member :hyphen-penalty algorithm))
