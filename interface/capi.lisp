@@ -193,7 +193,7 @@
 
 
 (define-constant +tooltips+
-    `(,@+fixed-tooltips+
+    `(,@+fixed-tooltips+ ,@+fit-tooltips+
       :disposition-option-sloppy
       "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries."))
@@ -205,21 +205,6 @@ ignoring the font's inter-word spacing boundaries."))
      (typecase key
        (symbol (cadr (member key +tooltips+)))))))
 
-#|	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
-	  (:fit-variant-best "Minimize scaling.")
-	  (:fit-variant-last "Prefer lines with more words (more shrink).")
-	  (:fit-option-avoid-hyphens "Except for the Best/Justified version,
-avoid hyphenating words when possible.")
-	  (:fit-option-relax
-	   "For the First and Last variants in ragged dispositions,
-de-stretch or de-shrink lines afterwards.")
-	  (:fit-option-prefer-shrink "In the Best/Justified version,
-prefer shrinking over stretching
-for equally good solutions.")
-	  (:fit-option-prefer-overfulls "In the Best/Justified version,
-prefer overfull over underfull
-for equally bad solutions.")
-|#
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
@@ -258,8 +243,8 @@ for equally bad solutions.")
    (fit-variant radio-button-panel
      :layout-class 'column-layout
      :title "Variant" :title-position :frame
-     :items '(:first :best :last)
-     :help-keys '(:fit-variant-first :fit-variant-best :fit-variant-last)
+     :items +fit-variants+
+     :help-keys +fit-variants-help-keys+
      :print-function 'keyword-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
@@ -267,10 +252,8 @@ for equally bad solutions.")
      :layout-class 'grid-layout
      :layout-args '(:orientation :column)
      :title "Options" :title-position :frame
-     :items '((:avoid-hyphens t) (:relax t)
-	      (:prefer-shrink t) (:prefer-overfulls t))
-     :help-keys '(:fit-option-avoid-hyphens :fit-option-relax
-		  :fit-option-prefer-shrink :fit-option-prefer-overfulls)
+     :items +fit-options+
+     :help-keys +fit-options-help-keys+
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
@@ -278,9 +261,9 @@ for equally bad solutions.")
    (fit-hyphen-penalty slider
      :title "Hyphen Penalty: 50"
      :orientation :horizontal
-     :start 0
-     :end 10000
-     :slug-start 50
+     :start +fit-min-hyphen-penalty+
+     :end +fit-max-hyphen-penalty+
+     :slug-start +fit-default-hyphen-penalty+
      :tick-frequency 0
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
@@ -421,21 +404,18 @@ for equally bad solutions.")
       (:fit
        (setf (choice-selection (algorithms etap)) 1)
        (setf (choice-selected-item (fit-variant etap))
-	     (or (cadr (member :variant algorithm)) :first))
+	     (or (cadr (member :variant algorithm)) (car +fit-variants+)))
        (setf (choice-selection (fit-options etap))
-	     (let ((selection (list)))
-	       (when (cadr (member :avoid-hyphens algorithm))
-		 (push 0 selection))
-	       (when (cadr (member :relax algorithm))
-		 (push 1 selection))
-	       (when (cadr (member :prefer-shrink algorithm))
-		 (push 2 selection))
-	       (when (cadr (member :prefer-overfulls algorithm))
-		 (push 3 selection))
-	       selection))
-       (when (cadr (member :hyphen-penalty algorithm))
-	 (setf (range-slug-start (fit-hyphen-penalty etap))
-	       (cadr (member :hyphen-penalty algorithm)))))
+	     (loop :for option :in +fit-options+
+		   :for i :from 0
+		   :when (cadr (member (car option) algorithm))
+		     :collect i))
+       (setf (range-slug-start (fit-hyphen-penalty etap))
+	     (or (cadr (member :hyphen-penalty algorithm))
+		 +fit-default-hyphen-penalty+))
+       (setf (titled-object-title (fit-hyphen-penalty etap))
+	     (format nil "Hyphen Penalty: ~D"
+	       (range-slug-start (fit-hyphen-penalty etap)))))
       (:barnett
        (setf (choice-selection (algorithms etap)) 2)
        #+()(setf (choice-selection (barnett-options etap))

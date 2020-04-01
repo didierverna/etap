@@ -58,11 +58,46 @@
 (in-package :etap)
 
 
+(define-constant +fit-variants+
+    '(:first :best :last))
+
+(define-constant +fit-variants-help-keys+
+    '(:fit-variant-first :fit-variant-best :fit-variant-last))
+
+(define-constant +fit-options+
+    '((:avoid-hyphens t) (:relax t) (:prefer-shrink t) (:prefer-overfulls t)))
+
+(define-constant +fit-options-help-keys+
+    '(:fit-option-avoid-hyphens :fit-option-relax
+      :fit-option-prefer-shrink :fit-option-prefer-overfulls))
+
+(define-constant +fit-default-hyphen-penalty+ 50)
+(define-constant +fit-min-hyphen-penalty+ 0)
+(define-constant +fit-max-hyphen-penalty+ 10000)
+
+(define-constant +fit-tooltips+
+    '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
+      :fit-variant-best "Minimize scaling."
+      :fit-variant-last "Prefer lines with more words (more shrink)."
+      :fit-option-avoid-hyphens "Except for the Best/Justified version,
+avoid hyphenating words when possible."
+      :fit-option-relax "For the First and Last variants in ragged dispositions,
+de-stretch or de-shrink lines afterwards."
+      :fit-option-prefer-shrink "In the Best/Justified version,
+prefer shrinking over stretching
+for equally good solutions."
+      :fit-option-prefer-overfulls "In the Best/Justified version,
+prefer overfull over underfull
+for equally bad solutions."))
+
+
 (defun fit-weight (lineup start width boundary hyphen-penalty
 		   &aux (weight (badness lineup start (stop boundary) width)))
   (unless (word-boundary-p lineup boundary)
     (setq weight
-	  (!+ weight (unless (= hyphen-penalty 10000) hyphen-penalty))))
+	  (!+ weight
+	      (unless (= hyphen-penalty +fit-max-hyphen-penalty+)
+		hyphen-penalty))))
   weight)
 
 (defun fit-weights (lineup start width boundaries hyphen-penalty)
@@ -96,8 +131,7 @@
 	  :do (push boundary fits)
 	:else
 	  :do (setq overfull boundary)
-	:finally
-	   (return (values underfull fits overfull))))
+	:finally (return (values underfull fits overfull))))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
@@ -202,8 +236,9 @@
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
-     &key (variant :first) (hyphen-penalty 50)
-	  relax avoid-hyphens prefer-shrink prefer-overfulls)
+     &key (variant (car +fit-variants+))
+       (hyphen-penalty +fit-default-hyphen-penalty+)
+       relax avoid-hyphens prefer-shrink prefer-overfulls)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
