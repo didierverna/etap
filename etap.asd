@@ -13,7 +13,7 @@
 	       (:file "util")
 	       (:file "glyphlist")
 	       (:file "lm-ec")
-	       (:file "state")
+	       (:file "context")
 	       (:file "hyphenation")
 	       (:file "lineup")
 	       (:file "typesetting")

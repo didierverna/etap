@@ -2,4 +2,4 @@
 
 (defpackage :etap-user
   (:use :cl :etap)
-  (:import-from :etap :make-state))
+  (:import-from :etap :make-context))

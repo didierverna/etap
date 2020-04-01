@@ -5,28 +5,29 @@
   (nsubstitute #\Space #\- (string-capitalize keyword)))
 
 
-(defun update (interface &aux (state (state interface)))
+(defun update (interface &aux (context (context interface)))
   (setf (paragraph interface)
 	(create-paragraph
-	 (apply #'lineup
-	   (text state) (font state) (hyphenation-rules state) (features state))
-	 (paragraph-width state)
-	 (disposition state)
-	 (algorithm state)))
+	 (apply #'lineup (text context) (font context)
+		(hyphenation-rules context) (features context))
+	 (paragraph-width context)
+	 (disposition context)
+	 (algorithm context)))
   (gp:invalidate-rectangle (view interface)))
 
 
 (defun set-fixed-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface))
+  (setf (algorithm (context interface))
 	`(:fixed
 	  :variant ,(choice-selected-item (fixed-variant interface))
-	  ,@(apply #'append (choice-selected-items (fixed-options interface)))))
+	  ,@(apply #'append
+	      (choice-selected-items (fixed-options interface)))))
   (update interface))
 
 (defun set-fit-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface))
+  (setf (algorithm (context interface))
 	`(:fit
 	  :variant ,(choice-selected-item (fit-variant interface))
 	  :hyphen-penalty ,(range-slug-start (fit-hyphen-penalty interface))
@@ -41,7 +42,7 @@
 
 (defun set-barnett-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface))
+  (setf (algorithm (context interface))
 	`(:barnett
 	  #+(),@(apply #'append
 	      (choice-selected-items (barnett-options interface)))))
@@ -49,7 +50,7 @@
 
 (defun set-duncan-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface))
+  (setf (algorithm (context interface))
 	`(:duncan
 	  #+(),@(apply #'append
 	      (choice-selected-items (duncan-options interface)))))
@@ -57,7 +58,7 @@
 
 (defun set-knuth-plass-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (state interface))
+  (setf (algorithm (context interface))
 	`(:knuth-plass
 	  #+(),@(apply #'append
 	      (choice-selected-items (knuth-plass-options interface)))))
@@ -74,7 +75,7 @@
 
 (defun set-disposition (value interface)
   (declare (ignore value))
-  (setf (disposition (state interface))
+  (setf (disposition (context interface))
 	`(,(choice-selected-item (disposition interface))
 	  ,@(apply #'append
 	      (choice-selected-items (disposition-options interface)))))
@@ -83,7 +84,7 @@
 
 (defun set-features (value interface)
   (declare (ignore value))
-  (setf (features (state interface))
+  (setf (features (context interface))
 	(apply #'append (choice-selected-items (features interface))))
   (update interface))
 
@@ -91,7 +92,7 @@
 (defun set-text (pane point old-length new-length
 		 &aux (interface (top-level-interface pane)))
   (declare (ignore point old-length new-length))
-  (setf (text (state interface)) (editor-pane-text pane))
+  (setf (text (context interface)) (editor-pane-text pane))
   (update interface))
 
 
@@ -101,7 +102,7 @@
   (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  value (/ value 28.452755)))
-  (setf (paragraph-width (state interface)) value)
+  (setf (paragraph-width (context interface)) value)
   (update interface))
 
 
@@ -119,7 +120,7 @@
 (defun render-paragraph
     (pane x y width height
      &aux (interface (top-level-interface pane))
-	  (state (state interface))
+	  (context (context interface))
 	  (paragraph (paragraph interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
@@ -154,7 +155,7 @@
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange :filled t)
-		:else :if (and (eq (car (disposition state)) :justified)
+		:else :if (and (eq (car (disposition context)) :justified)
 			       (< (width pinned-line) (width paragraph)))
 			:do (gp:draw-rectangle pane
 				(+ x (width pinned-line) 5)
@@ -233,7 +234,7 @@ for equally bad solutions.")
 ignoring the font's inter-word spacing boundaries.")))))))
 
 (define-interface etap ()
-  ((state :initform (make-state) :reader state)
+  ((context :initform (make-context) :reader context)
    (paragraph :accessor paragraph))
   (:panes
    (algorithms tab-layout
@@ -417,8 +418,9 @@ ignoring the font's inter-word spacing boundaries.")))))))
      :visible-max-width 250))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod interface-display :before ((etap etap) &aux (state (state etap)))
-  (let ((algorithm (algorithm state)))
+(defmethod interface-display :before
+    ((etap etap) &aux (context (context etap)))
+  (let ((algorithm (algorithm context)))
     (case (car algorithm)
       (:fixed
        (setf (choice-selection (algorithms etap)) 0)
@@ -464,21 +466,21 @@ ignoring the font's inter-word spacing boundaries.")))))))
        #+()(setf (choice-selection (knuth-plass-options etap))
 	     (let ((selection (list)))
 	       selection)))))
-  (setf (choice-selected-item (disposition etap)) (car (disposition state)))
-  (let ((options (cdr (disposition state))))
+  (setf (choice-selected-item (disposition etap)) (car (disposition context)))
+  (let ((options (cdr (disposition context))))
     (setf (choice-selection (disposition-options etap))
 	  (let ((selection (list)))
 	    (when (cadr (member :sloppy options)) (push 0 selection))
 	    selection)))
-  (let ((features (features state)))
+  (let ((features (features context)))
     (setf (choice-selection (features etap))
 	  (let ((selection (list)))
 	    (when (cadr (member :kerning features)) (push 0 selection))
 	    (when (cadr (member :ligatures features)) (push 1 selection))
 	    (when (cadr (member :hyphenation features)) (push 2 selection))
 	    selection)))
-  (setf (range-slug-start (paragraph-width etap)) (paragraph-width state))
-  (setf (editor-pane-text (text etap)) (text state)))
+  (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
+  (setf (editor-pane-text (text etap)) (text context)))
 
 
 

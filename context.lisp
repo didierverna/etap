@@ -16,7 +16,7 @@ it; and this ball was her favorite plaything.")
 (define-constant +font-file+
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
-(defclass state ()
+(defclass context ()
   ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules)
@@ -29,6 +29,6 @@ it; and this ball was her favorite plaything.")
 		    :accessor paragraph-width)
    (text :initform +initial-text+ :initarg :text :accessor text)))
 
-(defun make-state
+(defun make-context
     (&rest keys &key algorithm disposition features paragraph-width text)
-  (apply #'make-instance 'state keys))
+  (apply #'make-instance 'context keys))
