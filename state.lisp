@@ -20,12 +20,15 @@ it; and this ball was her favorite plaything.")
   ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules)
-   (algorithm :initform '(:fixed) :accessor algorithm)
-   (disposition :initform '(:flush-left) :accessor disposition)
-   (features :initform (list) :accessor features)
+   (algorithm :initform '(:fixed) :initarg :algorithm :accessor algorithm)
+   (disposition :initform '(:flush-left) :initarg :disposition
+		:accessor disposition)
+   (features :initform (list) :initarg :features :accessor features)
    ;; 284.52756pt = 10cm
-   (paragraph-width :initform 284 :accessor paragraph-width)
-   (text :initform +initial-text+ :accessor text)))
+   (paragraph-width :initform 284 :initarg :paragraph-width
+		    :accessor paragraph-width)
+   (text :initform +initial-text+ :initarg :text :accessor text)))
 
-(defun make-state ()
-  (make-instance 'state))
+(defun make-state
+    (&rest keys &key algorithm disposition features paragraph-width text)
+  (apply #'make-instance 'state keys))
