@@ -193,10 +193,7 @@
 
 
 (define-constant +tooltips+
-    `(,@+fixed-tooltips+ ,@+fit-tooltips+
-      :disposition-option-sloppy
-      "In Justified disposition, stretch or shrink as needed,
-ignoring the font's inter-word spacing boundaries."))
+    `(,@+fixed-tooltips+ ,@+fit-tooltips+ ,@+disposition-options-tooltips+))
 
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
@@ -298,7 +295,7 @@ ignoring the font's inter-word spacing boundaries."))
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
      :visible-max-width nil
-     :items '(:flush-left :centered :flush-right :justified)
+     :items +dispositions+
      :print-function 'keyword-capitalize
      :selection-callback 'set-disposition
      :reader disposition)
@@ -306,8 +303,8 @@ ignoring the font's inter-word spacing boundaries."))
      :layout-class 'column-layout
      :title "Disposition Options" :title-position :frame
      :visible-max-width nil
-     :items '((:sloppy t))
-     :help-keys '(:disposition-option-sloppy)
+     :items +disposition-options+
+     :help-keys +disposition-options-help-keys+
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
@@ -434,9 +431,10 @@ ignoring the font's inter-word spacing boundaries."))
   (setf (choice-selected-item (disposition etap)) (car (disposition context)))
   (let ((options (cdr (disposition context))))
     (setf (choice-selection (disposition-options etap))
-	  (let ((selection (list)))
-	    (when (cadr (member :sloppy options)) (push 0 selection))
-	    selection)))
+	  (loop :for option :in +disposition-options+
+		:for i :from 0
+		:when (cadr (member (car option) options))
+		  :collect i)))
   (let ((features (features context)))
     (setf (choice-selection (features etap))
 	  (loop :for feature :in +features+

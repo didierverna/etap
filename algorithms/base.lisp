@@ -1,5 +1,20 @@
 (in-package :etap)
 
+
+(define-constant +dispositions+
+    '(:flush-left :centered :flush-right :justified))
+
+(define-constant +disposition-options+ '((:sloppy t)))
+
+(define-constant +disposition-options-help-keys+
+    '(:disposition-option-sloppy))
+
+(define-constant +disposition-options-tooltips+
+    '(:disposition-option-sloppy
+      "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries."))
+
+
 (defgeneric create-lines
     (lineup width disposition algorithm &key &allow-other-keys))
 
