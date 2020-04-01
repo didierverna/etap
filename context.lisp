@@ -17,8 +17,6 @@ it; and this ball was her favorite plaything.")
 (define-constant +font-file+
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
-(define-constant +paragraph-default-width+ 284) ;; 284.52756pt = 10cm
-
 
 (defclass context ()
   ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
@@ -28,7 +26,7 @@ it; and this ball was her favorite plaything.")
    (disposition :initform '(:flush-left) :initarg :disposition
 		:accessor disposition)
    (features :initform (list) :initarg :features :accessor features)
-   (paragraph-width :initform +paragraph-default-width+
+   (paragraph-width :initform 284 ;; 284.52756pt = 10cm
 		    :initarg :paragraph-width :accessor paragraph-width)
    (text :initform +initial-text+ :initarg :text :accessor text)))
 
