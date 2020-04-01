@@ -33,3 +33,5 @@ it; and this ball was her favorite plaything.")
     (&rest keys &key algorithm disposition features paragraph-width text)
   (declare (ignore algorithm disposition features paragraph-width text))
   (apply #'make-instance 'context keys))
+
+(defvar *context* (make-context))

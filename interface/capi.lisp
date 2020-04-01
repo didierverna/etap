@@ -228,7 +228,7 @@ for equally bad solutions.")
 ignoring the font's inter-word spacing boundaries.")))))))
 
 (define-interface etap ()
-  ((context :initform (make-context) :reader context)
+  ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph))
   (:panes
    (algorithms tab-layout
@@ -482,5 +482,5 @@ ignoring the font's inter-word spacing boundaries.")))))))
 ;; Entry Point
 ;; ===========
 
-(defun run ()
-  (display (make-instance 'etap :help-callback 'show-help)))
+(defun run (&optional (context *context*))
+  (display (make-instance 'etap :context context :help-callback 'show-help)))
