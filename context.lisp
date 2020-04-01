@@ -3,6 +3,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (net.didierverna.tfm:nickname-package))
 
+
 (define-constant +initial-text+
   "In olden times when wishing still helped one, there lived a king whose
 daughters were all beautiful; and the youngest was so beautiful that the sun
@@ -16,6 +17,9 @@ it; and this ball was her favorite plaything.")
 (define-constant +font-file+
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
 
+(define-constant +paragraph-default-width+ 284) ;; 284.52756pt = 10cm
+
+
 (defclass context ()
   ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
    (hyphenation-rules :initform (create-hyphenation-rules)
@@ -24,14 +28,14 @@ it; and this ball was her favorite plaything.")
    (disposition :initform '(:flush-left) :initarg :disposition
 		:accessor disposition)
    (features :initform (list) :initarg :features :accessor features)
-   ;; 284.52756pt = 10cm
-   (paragraph-width :initform 284 :initarg :paragraph-width
-		    :accessor paragraph-width)
+   (paragraph-width :initform +paragraph-default-width+
+		    :initarg :paragraph-width :accessor paragraph-width)
    (text :initform +initial-text+ :initarg :text :accessor text)))
 
 (defun make-context
     (&rest keys &key algorithm disposition features paragraph-width text)
   (declare (ignore algorithm disposition features paragraph-width text))
   (apply #'make-instance 'context keys))
+
 
 (defvar *context* (make-context))

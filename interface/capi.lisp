@@ -259,7 +259,7 @@ ignoring the font's inter-word spacing boundaries."))
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
    (fit-hyphen-penalty slider
-     :title "Hyphen Penalty: 50"
+     :title "Hyphen Penalty: XX"
      :orientation :horizontal
      :start +fit-min-hyphen-penalty+
      :end +fit-max-hyphen-penalty+
@@ -322,10 +322,10 @@ ignoring the font's inter-word spacing boundaries."))
      :retract-callback 'set-features
      :reader features)
    (paragraph-width slider
-     :title "Paragraph width: 284pt (10cm)"
+     :title "Paragraph width: XXXpt (XXcm)"
      :orientation :horizontal
-     :start 142 ;; 142.26378pt = 5cm
-     :end 569 ;; 569.0551pt = 20cm
+     :start +paragraph-min-width+
+     :end +paragraph-max-width+
      :tick-frequency 0
      :callback 'set-paragraph-width
      :reader paragraph-width)
@@ -444,6 +444,9 @@ ignoring the font's inter-word spacing boundaries."))
 		:when (cadr (member (car feature) features))
 		  :collect i)))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
+  (setf (titled-object-title (paragraph-width etap))
+	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
+	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
   (setf (editor-pane-text (text etap)) (text context)))
 
 
