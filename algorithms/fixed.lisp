@@ -47,7 +47,7 @@ choose the overfull rather than the underfull one."))
 
 (defun fixed-line-boundary
     (lineup start width
-     &key (variant :underfull) avoid-hyphens prefer-overfulls)
+     &key (variant (car +fixed-variants+)) avoid-hyphens prefer-overfulls)
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underfull-w :with hyphen-underfull-w :with word-underfull-w
 	:with fit
