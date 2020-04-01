@@ -316,7 +316,7 @@ ignoring the font's inter-word spacing boundaries."))
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :visible-max-width nil
-     :items '((:kerning t) (:ligatures t) (:hyphenation t))
+     :items +features+
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-features
      :retract-callback 'set-features
@@ -439,11 +439,10 @@ ignoring the font's inter-word spacing boundaries."))
 	    selection)))
   (let ((features (features context)))
     (setf (choice-selection (features etap))
-	  (let ((selection (list)))
-	    (when (cadr (member :kerning features)) (push 0 selection))
-	    (when (cadr (member :ligatures features)) (push 1 selection))
-	    (when (cadr (member :hyphenation features)) (push 2 selection))
-	    selection)))
+	  (loop :for feature :in +features+
+		:for i :from 0
+		:when (cadr (member (car feature) features))
+		  :collect i)))
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
   (setf (editor-pane-text (text etap)) (text context)))
 

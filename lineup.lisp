@@ -11,6 +11,10 @@
 
 (in-package :etap)
 
+
+(define-constant +features+ '((:kerning t) (:ligatures t) (:hyphenation t)))
+
+
 (defgeneric width (object)
   (:method ((clue (eql :hyphenation-clue)))
     0)
