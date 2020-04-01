@@ -11,34 +11,36 @@
 ;; In the Justified disposition, the First variant selects the first line that
 ;; fits the paragraph width exactly (hence, also with the minimum number of
 ;; characters and the maximum stretch). The Last variant does the opposite
-;; (maximum number of characters and maximum shrink).
+;; (maximum number of characters and maximum shrink). The Best variant uses
+;; TeX's "badness + hyphen penalty" to weight solutions.
 
-;; When the "Avoid Hyphens" option is checked, line solutions without
+;; The "Avoid Hyphens" option affects all Boolean decision versions, that is,
+;; all but the Best/Justified one. When checked, line solutions without
 ;; hyphenation are always preferred when there is a choice.
 
-;; The "Relax" option only affects the First and Last variants, in ragged
-;; dispositions. It essentially decreases the raggedness. When checked, lines
-;; are "de-stretched" or "de-shrunk" towards the natural inter-word spacing
-;; (which is why it is meaningless for the Best variant), after having been
-;; created, but without changing their potential contents.
-;; More specifically:
-;; - for the First Fit, lines are de-stretched as much as possible, but not to
+;; The "Relax" option affects the First and Last variants in ragged
+;; dispositions. When checked, lines are "de-stretched" or "de-shrunk" towards
+;; the natural inter-word spacing (which is why it is meaningless for the Best
+;; variant), after having been created, and without changing their potential
+;; contents. More specifically:
+;; - For the First Fit, lines are de-stretched as much as possible, but not to
 ;;   the point that another word would fit in. The effect is thus to make the
 ;;   paragraph more compact.
-;; - for the Last Fit, lines are de-shrunk as much as possible towards the
+;; - For the Last Fit, lines are de-shrunk as much as possible towards the
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
-;; The "Prefer Shrink" option only affects the Best Fit variant in Justified
-;; disposition. When two lines (one stretched and one shrunk) fit the
-;; paragraph width with the same amount of scaling, the stretched one is
-;; preferred unless this option is checked.
+;; The "Prefer Shrink" option only affects the Best/Justified version. When
+;; two line solutions (one stretched and one shrunk) get the same weight, the
+;; stretched one is preferred unless this option is checked.
 
-;; #### TODO: scaling equality in absolute value may not be the most pertinent
-;; #### criterion. Indeed, the aesthetic cost of shrinking and stretching are
-;; #### not the same, as in most fonts, the maximum stretch and shrink ratios
-;; #### are not equal. Maybe a more pertinent measure would be the amount of
-;; #### stretch / shrink relative to the maximum value.
+;; The "Prefer Overfull Lines" option only affects the Best/Justified version.
+;; When two line solutions are equally bad (that is, one underfull and one
+;; overfull, with infinite weight), the underfull one is preferred, unless
+;; this option is checked.
+
+;; The "Hyphen Penalty" slider affects the Best/Justified version's weight
+;; function in the obvious TeX way.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
@@ -49,6 +51,9 @@
 ;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
 ;; effect on it).
 
+
+;; #### TODO: maybe we could think of other potential weight functions for the
+;; #### Best/Justified version, and provide a choice?
 
 (in-package :etap)
 
