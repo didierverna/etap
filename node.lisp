@@ -99,15 +99,8 @@
 ;; #### number of nodes falls down to 30 (33 without hyphenation).
 (defun report-solutions
     (context
-     &key (width (paragraph-width context))
-	  (text (text context))
-	  (kerning (cadr (member :kerning (features context))))
-	  (ligatures (cadr (member :ligatures (features context))))
-	  (hyphenation (cadr (member :hyphenation (features context))))
-	  preventive-fulls)
-  (let* ((lineup
-	   (lineup text (font context) (hyphenation-rules context)
-	     :kerning kerning :ligatures ligatures :hyphenation hyphenation))
+     &key (width (paragraph-width context)) preventive-fulls)
+  (let* ((lineup (create-lineup context))
 	 (solutions
 	   (mapcar (lambda (lines) (create-solution lineup width lines))
 	     (root-node-lines (root-node lineup width preventive-fulls))))

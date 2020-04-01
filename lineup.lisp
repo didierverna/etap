@@ -427,9 +427,9 @@
 	  :and :do (incf i)))
 
 
-(defun lineup (string font hyphenation-rules
-	       &key kerning ligatures hyphenation
-	       &aux lineup)
+(defun make-lineup (string font hyphenation-rules
+		    &key kerning ligatures hyphenation
+		    &aux lineup)
   (setq lineup (slice-string string font))
   (setq lineup (process-words lineup hyphenation hyphenation-rules font))
   (when ligatures (setq lineup (process-ligatures lineup)))
@@ -440,3 +440,10 @@
 	      (push :hyphenation-clue (no-break element))))
       lineup))
   (when lineup (make-array (length lineup) :initial-contents lineup)))
+
+(defun create-lineup (context)
+  (apply #'make-lineup
+    (text context)
+    (font context)
+    (hyphenation-rules context)
+    (features context)))

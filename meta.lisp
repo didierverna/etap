@@ -3,4 +3,7 @@
 (defpackage :etap
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
-  (:export #+lispworks :run :report-solutions :make-context))
+  (:export
+    :make-context :create-lineup :create-paragraph
+    :report-solutions
+    #+lispworks :run))

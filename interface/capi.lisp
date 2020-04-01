@@ -6,13 +6,7 @@
 
 
 (defun update (interface &aux (context (context interface)))
-  (setf (paragraph interface)
-	(create-paragraph
-	 (apply #'lineup (text context) (font context)
-		(hyphenation-rules context) (features context))
-	 (paragraph-width context)
-	 (disposition context)
-	 (algorithm context)))
+  (setf (paragraph interface) (create-paragraph context))
   (gp:invalidate-rectangle (view interface)))
 
 
