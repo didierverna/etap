@@ -192,24 +192,20 @@
 		      (pinned-characters  (line pinned-line))))))))
 
 
+(define-constant +tooltips+
+    `(,@+fixed-tooltips+
+      :disposition-option-sloppy
+      "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries."))
+
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
   (case type
     (:tooltip
      (typecase key
-       (symbol
-	(case key
-	  (:fixed-variant-underfull "Always prefer underfull lines.")
-	  (:fixed-variant-best
-	   "Prefer lines closer to the paragraph
-width, whether underfull or overfull.")
-	  (:fixed-variant-overfull "Always prefer overfull lines.")
-	  (:fixed-option-avoid-hyphens "Avoid hyphenating words when possible.")
-	  (:fixed-option-prefer-overfulls
-	   "For the Best variant, when the underfull and overfull
-lines are equally distant from the paragraph width,
-choose the overfull rather than the underfull one.")
-	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
+       (symbol (cadr (member key +tooltips+)))))))
+
+#|	  (:fit-variant-first "Prefer lines with fewer words (more stretch).")
 	  (:fit-variant-best "Minimize scaling.")
 	  (:fit-variant-last "Prefer lines with more words (more shrink).")
 	  (:fit-option-avoid-hyphens "Except for the Best/Justified version,
@@ -223,9 +219,7 @@ for equally good solutions.")
 	  (:fit-option-prefer-overfulls "In the Best/Justified version,
 prefer overfull over underfull
 for equally bad solutions.")
-	  (:disposition-option-sloppy
-	   "In Justified disposition, stretch or shrink as needed,
-ignoring the font's inter-word spacing boundaries.")))))))
+|#
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
@@ -247,17 +241,16 @@ ignoring the font's inter-word spacing boundaries.")))))))
    (fixed-variant radio-button-panel
      :layout-class 'column-layout
      :title "Variant" :title-position :frame
-     :items '(:underfull :best :overfull)
-     :help-keys '(:fixed-variant-underfull :fixed-variant-best
-		  :fixed-variant-overfull)
+     :items +fixed-variants+
+     :help-keys +fixed-variants-help-keys+
      :print-function 'keyword-capitalize
      :selection-callback 'set-fixed-algorithm
      :reader fixed-variant)
    (fixed-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
-     :items '((:avoid-hyphens t) (:prefer-overfulls t))
-     :help-keys '(:fixed-option-avoid-hyphens :fixed-option-prefer-overfulls)
+     :items +fixed-options+
+     :help-keys +fixed-options-help-keys+
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
@@ -419,14 +412,12 @@ ignoring the font's inter-word spacing boundaries.")))))))
       (:fixed
        (setf (choice-selection (algorithms etap)) 0)
        (setf (choice-selected-item (fixed-variant etap))
-	     (or (cadr (member :variant algorithm)) :underfull))
+	     (or (cadr (member :variant algorithm)) (car +fixed-variants+)))
        (setf (choice-selection (fixed-options etap))
-	     (let ((selection (list)))
-	       (when (cadr (member :avoid-hyphens algorithm))
-		 (push 0 selection))
-	       (when (cadr (member :prefer-overfulls algorithm))
-		 (push 1 selection))
-	       selection)))
+	     (loop :for option :in +fixed-options+
+		   :for i :from 0
+		   :when (cadr (member (car option) algorithm))
+		     :collect i)))
       (:fit
        (setf (choice-selection (algorithms etap)) 1)
        (setf (choice-selected-item (fit-variant etap))

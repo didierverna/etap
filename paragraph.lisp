@@ -35,8 +35,7 @@
 
 (defmethod depth ((paragraph paragraph))
   (with-accessors ((pinned-lines pinned-lines)) paragraph
-    (+ (* (1- (length pinned-lines)) 12)
-       (depth (car (last pinned-lines))))))
+    (+ (* (1- (length pinned-lines)) 12) (depth (car (last pinned-lines))))))
 
 (defun make-paragraph (width &rest initargs &key pinned-lines)
   (declare (ignore pinned-lines))
