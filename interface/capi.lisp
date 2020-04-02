@@ -257,7 +257,7 @@
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
    (fit-hyphen-penalty slider
-     :title "Hyphen Penalty: XX"
+     :title (format nil "Hyphen Penalty: ~D" +fit-default-hyphen-penalty+)
      :orientation :horizontal
      :start +fit-min-hyphen-penalty+
      :end +fit-max-hyphen-penalty+
