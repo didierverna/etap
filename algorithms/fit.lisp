@@ -207,7 +207,7 @@ for equally bad solutions."))
 					   start (stop (cdadr weights)))))
 		     (cond ((< (abs (- width w1)) (abs (- width w2)))
 			    (cdar weights))
-			   ((> (abs (- width w1) (- width w2)))
+			   ((> (abs (- width w1)) (abs (- width w2)))
 			    (cdadr weights))
 			   (t
 			    (if prefer-overfulls
