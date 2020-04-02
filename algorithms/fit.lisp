@@ -242,12 +242,14 @@ for equally bad solutions."))
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
-	  := (fit-line-boundary lineup start width (car disposition) variant
-	       :hyphen-penalty hyphen-penalty
+	  := (fit-line-boundary lineup start width
+		 (disposition-type disposition) variant
 	       :avoid-hyphens avoid-hyphens
+	       :hyphen-penalty hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
-	:collect (fit-create-line lineup start (stop boundary)
-		     (car disposition) variant
-		   :width width :search (next-search boundary)
-		   :relax relax :sloppy (cadr (member :sloppy disposition)))))
+	:collect (apply #'fit-create-line lineup start (stop boundary)
+			(disposition-type disposition) variant
+			:width width :search (next-search boundary)
+			:relax relax
+			(disposition-options disposition))))

@@ -15,8 +15,21 @@
 ignoring the font's inter-word spacing boundaries."))
 
 
-(defgeneric create-lines
-    (lineup width disposition algorithm &key &allow-other-keys))
+(defun car-or-symbol (object)
+  (etypecase object
+    (cons (car object))
+    (symbol object)))
+
+(defun cdr-or-nil (object)
+  (etypecase object
+    (cons (cdr object))
+    (symbol nil)))
+
+
+(defun algorithm-type (algorithm) (car-or-symbol algorithm))
+(defun algorithm-options (algorithm) (cdr-or-nil algorithm))
+(defun disposition-type (disposition) (car-or-symbol disposition))
+(defun disposition-options (disposition) (cdr-or-nil disposition))
 
 (defun badness (lineup start stop width
 		&aux (scale (lineup-scale lineup start stop width)))
@@ -32,3 +45,7 @@ ignoring the font's inter-word spacing boundaries."))
 (defun !+ (x y)
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	(t nil)))
+
+
+(defgeneric create-lines
+    (lineup width disposition algorithm &key &allow-other-keys))

@@ -72,7 +72,7 @@
   (setf (disposition (context interface))
 	`(,(choice-selected-item (disposition interface))
 	  ,@(apply #'append
-	      (choice-selected-items (disposition-options interface)))))
+	      (choice-selected-items (disposition-options-panel interface)))))
   (update interface))
 
 
@@ -149,14 +149,15 @@
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange :filled t)
-		:else :if (and (eq (car (disposition context)) :justified)
-			       (< (width pinned-line) (width paragraph)))
-			:do (gp:draw-rectangle pane
-				(+ x (width pinned-line) 5)
-				(- y (height pinned-line))
-				5
-				(+ (height pinned-line) (depth pinned-line))
-			      :foreground :orange)
+	      :else :if (and (eq (disposition-type (disposition context))
+				 :justified)
+			     (< (width pinned-line) (width paragraph)))
+		      :do (gp:draw-rectangle pane
+			      (+ x (width pinned-line) 5)
+			      (- y (height pinned-line))
+			      5
+			      (+ (height pinned-line) (depth pinned-line))
+			    :foreground :orange)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple)
@@ -308,7 +309,7 @@
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
-     :reader disposition-options)
+     :reader disposition-options-panel)
    (features check-button-panel
      :layout-class 'column-layout
      :title "Features" :title-position :frame
@@ -387,28 +388,29 @@
 
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
-  (let ((algorithm (algorithm context)))
-    (case (car algorithm)
+  (let ((algorithm (algorithm-type (algorithm context)))
+	(options (algorithm-options (algorithm context))))
+    (case algorithm
       (:fixed
        (setf (choice-selection (algorithms etap)) 0)
        (setf (choice-selected-item (fixed-variant etap))
-	     (or (cadr (member :variant algorithm)) (car +fixed-variants+)))
+	     (or (cadr (member :variant options)) (car +fixed-variants+)))
        (setf (choice-selection (fixed-options etap))
 	     (loop :for option :in +fixed-options+
 		   :for i :from 0
-		   :when (cadr (member (car option) algorithm))
+		   :when (cadr (member (car option) options))
 		     :collect i)))
       (:fit
        (setf (choice-selection (algorithms etap)) 1)
        (setf (choice-selected-item (fit-variant etap))
-	     (or (cadr (member :variant algorithm)) (car +fit-variants+)))
+	     (or (cadr (member :variant options)) (car +fit-variants+)))
        (setf (choice-selection (fit-options etap))
 	     (loop :for option :in +fit-options+
 		   :for i :from 0
-		   :when (cadr (member (car option) algorithm))
+		   :when (cadr (member (car option) options))
 		     :collect i))
        (setf (range-slug-start (fit-hyphen-penalty etap))
-	     (or (cadr (member :hyphen-penalty algorithm))
+	     (or (cadr (member :hyphen-penalty options))
 		 +fit-default-hyphen-penalty+))
        (setf (titled-object-title (fit-hyphen-penalty etap))
 	     (format nil "Hyphen Penalty: ~D"
@@ -428,9 +430,10 @@
        #+()(setf (choice-selection (knuth-plass-options etap))
 	     (let ((selection (list)))
 	       selection)))))
-  (setf (choice-selected-item (disposition etap)) (car (disposition context)))
-  (let ((options (cdr (disposition context))))
-    (setf (choice-selection (disposition-options etap))
+  (setf (choice-selected-item (disposition etap))
+	(disposition-type (disposition context)))
+  (let ((options (disposition-options (disposition context))))
+    (setf (choice-selection (disposition-options-panel etap))
 	  (loop :for option :in +disposition-options+
 		:for i :from 0
 		:when (cadr (member (car option) options))

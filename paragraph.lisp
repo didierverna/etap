@@ -56,7 +56,7 @@
 		       lineup
 		       width
 		       (disposition context)
-		       (car (algorithm context))
-		       (cdr (algorithm context))))
+		       (algorithm-type (algorithm context))
+		       (algorithm-options (algorithm context))))
 		   width
-		   (car (disposition context)))))
+		   (disposition-type (disposition context)))))

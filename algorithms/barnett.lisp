@@ -62,6 +62,6 @@
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary := (barnett-line-boundary lineup start width)
-	:collect (create-justified-line lineup start (stop boundary)
-					width
-					(cadr (member :sloppy disposition)))))
+	:collect (create-justified-line
+		  lineup start (stop boundary) width
+		  (cadr (member :sloppy (disposition-options disposition))))))

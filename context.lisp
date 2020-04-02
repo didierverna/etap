@@ -22,8 +22,8 @@ it; and this ball was her favorite plaything.")
   ((font :initform (tfm:load-font +font-file+ :freeze t) :reader font)
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules)
-   (algorithm :initform '(:fixed) :initarg :algorithm :accessor algorithm)
-   (disposition :initform '(:flush-left) :initarg :disposition
+   (algorithm :initform :fixed :initarg :algorithm :accessor algorithm)
+   (disposition :initform :flush-left :initarg :disposition
 		:accessor disposition)
    (features :initform (list) :initarg :features :accessor features)
    (paragraph-width :initform 284 ;; 284.52756pt = 10cm
