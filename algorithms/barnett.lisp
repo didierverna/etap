@@ -30,32 +30,55 @@
 
 (in-package :etap)
 
+
 (defun barnett-line-boundary (lineup start width)
-  (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
-      (next-boundaries lineup start width)
-    (if (= (length fit-boundaries) 1)
-      (car fit-boundaries)
-      (let ((word-scales
-	      ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
-	      (boundary-scales lineup start width
-			       (word-boundaries lineup fit-boundaries)))
-	    (hyphen-boundaries
-	      ;; #### NOTE: NIL if FIT-BOUNDARIES is anyway.
-	      (hyphen-boundaries lineup fit-boundaries)))
-	(cond (word-scales
-	       ;; #### NOTE: this test again because we may have filtered
-	       ;; FIT-BOUNDARIES.
-	       (if (or (= (length word-scales) 1)
-		       (>= (cdar word-scales) 0))
-		 (caar word-scales)
-		 (loop :for scales :on word-scales
-		       :until (or (null (cdr scales))
-				  (> (cdadr scales) 0))
-		       :finally (return (caar scales)))))
-	      (hyphen-boundaries
-	       (car hyphen-boundaries))
-	      (t
-	       (or overfull-boundary underfull-boundary)))))))
+  (loop :with word-underfull :with hyphens :with word-overfull
+	;; #### NOTE: this works even the first time because at worst,
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	;; afterwards.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not word-overfull))
+	:for w := (lineup-width lineup start (stop boundary))
+	:if (and (word-boundary-p lineup boundary) (< w width))
+	  :do (setq word-underfull boundary hyphens nil)
+	:else :if (and (word-boundary-p lineup boundary) (>= w width))
+	  :do (setq word-overfull boundary)
+	:else
+	  :do (push boundary hyphens)
+	:finally
+	   (return
+	     (cond ((and word-overfull
+			 (let ((scale (lineup-scale lineup start
+						    (stop word-overfull)
+						    width)))
+			   (and scale (>= scale -1))))
+		    word-overfull)
+		   ((and word-underfull
+			 (let ((scale (lineup-scale lineup start
+						    (stop word-underfull)
+						    width)))
+			   (and scale (<= scale 1))))
+		    word-underfull)
+		   (hyphens
+		    (loop :with last-overfull
+			  :for hyphen :in hyphens
+			  :for scale
+			    := (lineup-scale lineup start (stop hyphen) width)
+			  :while (if scale
+				   (<= scale 0)
+				   (>= (lineup-width lineup
+						     start (stop hyphen))
+				       width))
+			  :if (or (null scale) (< scale -1))
+			    :do (setq last-overfull hyphen)
+			  :else
+			    :do (return hyphen)
+			  :finally
+			     (return
+			       (or last-overfull word-overfull))))
+		   (t
+		    (or word-overfull word-underfull))))))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :barnett)) &key)
