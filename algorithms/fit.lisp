@@ -36,8 +36,8 @@
 
 ;; The "Prefer Overfulls" option only affects the Best/Justified version. When
 ;; two line solutions are equally bad (that is, one underfull and one
-;; overfull, with infinite weight), the underfull one is preferred, unless
-;; this option is checked.
+;; overfull, with infinite weight and same absolute distance to the desired
+;; width), the underfull one is preferred, unless this option is checked.
 
 ;; The "Hyphen Penalty" slider affects the Best/Justified version's weight
 ;; function in the obvious TeX way.
@@ -201,7 +201,18 @@ for equally bad solutions."))
 			(= (caar weights) (caadr weights)))
 		   (if prefer-shrink (cdar weights) (cdadr weights)))
 		  ((and (null (caar weights)) (null (caadr weights)))
-		   (if prefer-overfulls (cdar weights) (cdadr weights)))
+		   (let ((w1 (lineup-width lineup
+					   start (stop (cdar weights))))
+			 (w2 (lineup-width lineup
+					   start (stop (cdadr weights)))))
+		     (cond ((< (abs (- width w1)) (abs (- width w2)))
+			    (cdar weights))
+			   ((> (abs (- width w1) (- width w2)))
+			    (cdadr weights))
+			   (t
+			    (if prefer-overfulls
+			      (cdar weights)
+			      (cdadr weights))))))
 		  (t
 		   (cdar weights)))))))))
 
