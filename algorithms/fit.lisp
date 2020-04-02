@@ -106,7 +106,6 @@ for equally bad solutions."))
 		  boundary))
     boundaries))
 
-
 ;; #### NOTE: this function returns all the possible fits, but only the last
 ;; underfull and the first overfull, regardless of whether they are hyphenated
 ;; or not. I think this makes sense for algorithms that don't do
