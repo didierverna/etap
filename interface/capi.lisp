@@ -223,6 +223,7 @@
      :reader algorithms)
    (fixed-variant radio-button-panel
      :layout-class 'column-layout
+     :visible-max-height nil
      :title "Variant" :title-position :frame
      :items +fixed-variants+
      :help-keys +fixed-variants-help-keys+
@@ -231,6 +232,7 @@
      :reader fixed-variant)
    (fixed-options check-button-panel
      :layout-class 'column-layout
+     :visible-max-height nil
      :title "Options" :title-position :frame
      :items +fixed-options+
      :help-keys +fixed-options-help-keys+
@@ -240,6 +242,7 @@
      :reader fixed-options)
    (fit-variant radio-button-panel
      :layout-class 'column-layout
+     :visible-max-height nil
      :title "Variant" :title-position :frame
      :items +fit-variants+
      :help-keys +fit-variants-help-keys+
@@ -314,6 +317,7 @@
      :layout-class 'column-layout
      :title "Features" :title-position :frame
      :visible-max-width nil
+     :visible-max-height nil
      :items +features+
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :selection-callback 'set-features
@@ -370,8 +374,9 @@
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
    (settings-1 column-layout '(options paragraph-width zoom))
-   (options row-layout '(options-1 clues))
+   (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
+   (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text))
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-parameters))
