@@ -340,6 +340,7 @@
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
      :visible-max-width nil
+     :visible-max-height nil
      :items '(:characters :hyphenation-points
 	      :paragraph-box :line-boxes :character-boxes :baselines
 	      :over/underfull-boxes)
@@ -360,7 +361,6 @@
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
-     :visible-min-width 850
      :visible-min-height 350
      :horizontal-scroll t
      :vertical-scroll t
@@ -368,22 +368,17 @@
      :reader view))
   (:layouts
    (main column-layout '(settings view))
-   (settings row-layout '(configuration text))
-   (configuration column-layout '(algorithms options)
-     :visible-max-width t)
+   (settings row-layout '(settings-1 settings-2))
+   (settings-1 column-layout '(options paragraph-width zoom))
+   (options row-layout '(options-1 clues))
+   (options-1 column-layout '(disposition disposition-options features))
+   (settings-2 column-layout '(algorithms text))
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-parameters))
    (fit-parameters column-layout '(fit-options fit-hyphen-penalty))
    (barnett-settings row-layout '(#+()barnett-options))
    (duncan-settings row-layout '(#+()duncan-options))
-   (knuth-plass-settings row-layout '(#+()knuth-plass-options))
-   (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(disposition disposition-options features)
-     :visible-min-width 150
-     :visible-max-width 150)
-   (options-2 column-layout '(paragraph-width zoom clues)
-     :visible-min-width 250
-     :visible-max-width 250))
+   (knuth-plass-settings row-layout '(#+()knuth-plass-options)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before
