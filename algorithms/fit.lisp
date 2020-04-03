@@ -73,7 +73,7 @@
 
 (define-constant +fit-default-hyphen-penalty+ 50)
 (define-constant +fit-min-hyphen-penalty+ 0)
-(define-constant +fit-max-hyphen-penalty+ 10000)
+(define-constant +fit-max-hyphen-penalty+ 1000)
 
 (define-constant +fit-tooltips+
     '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
