@@ -158,25 +158,48 @@ for equally bad solutions."))
 			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens)
-    (multiple-value-bind (underfull fits overfull)
-	(fit-next-boundaries lineup start width)
-      (if (= (length fits) 1)
-	(car fits)
-	(let ((boundaries
-		;; #### NOTE: NIL if FITS is anyway.
-		(if avoid-hyphens
-		  (or (word-boundaries lineup fits)
-		      (hyphen-boundaries lineup fits))
-		  fits)))
-	  (ecase variant
-	    (:first
-	     (cond (boundaries (car (last boundaries)))
-		   (underfull underfull)
-		   (t overfull)))
-	    (:last
-	     (cond (boundaries (car boundaries))
-		   (overfull overfull)
-		   (t underfull))))))))
+    ;; #### NOTE: here, we collect all the possible fits, but only the last
+    ;; underfull and the first overfull, regardless of whether they are
+    ;; hyphenated or not. The rationale is that if we can't find a fit, we'd
+    ;; better stick as close to the paragraph's border as possible anyway. In
+    ;; other words, "Avoid Hyphens" really means avoid, not strictly prohibit
+    ;; (strictly prohibit can be achieved by not hyphenating the lineup).
+    (loop :with underfull
+	  :with fits := (list)
+	  :with overfull
+	  ;; #### NOTE: this works even the first time because at worst,
+	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	  ;; afterwards.
+	  :for boundary := (next-boundary lineup start)
+	    :then (next-boundary lineup (next-search boundary))
+	  :while (and boundary (not overfull))
+	  :for span := (lineup-span lineup start (stop boundary))
+	  :if (< (max-width span) width)
+	    :do (setq underfull boundary)
+	  :else :if (and (<= (min-width span) width)
+			 (>= (max-width span) width))
+	    :do (push boundary fits)
+	  :else
+	    :do (setq overfull boundary)
+	  :finally
+	     (return
+	       (if (= (length fits) 1)
+		 (car fits)
+		 (let ((boundaries
+			 ;; #### NOTE: NIL if FITS is anyway.
+			 (if avoid-hyphens
+			   (or (word-boundaries lineup fits)
+			       (hyphen-boundaries lineup fits))
+			   fits)))
+		   (ecase variant
+		     (:first
+		      (cond (boundaries (car (last boundaries)))
+			    (underfull underfull)
+			    (t overfull)))
+		     (:last
+		      (cond (boundaries (car boundaries))
+			    (overfull overfull)
+			    (t underfull)))))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key hyphen-penalty prefer-shrink prefer-overfulls)
