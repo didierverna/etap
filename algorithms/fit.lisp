@@ -53,7 +53,10 @@
 
 
 ;; #### TODO: maybe we could think of other potential weight functions for the
-;; #### Best/Justified version, and provide a choice?
+;; #### Best/Justified version, and provide a choice? Note however that the
+;; #### way we collect possible line endings in the Best/Justified version is
+;; #### tightly coupled to our knowledge of the besting function, so this may
+;; #### need to evolve as well.
 
 (in-package :etap)
 
@@ -105,32 +108,6 @@ for equally bad solutions."))
 	    (cons (fit-weight lineup start width boundary hyphen-penalty)
 		  boundary))
     boundaries))
-
-;; #### NOTE: this function returns all the possible fits, but only the last
-;; underfull and the first overfull, regardless of whether they are hyphenated
-;; or not. I think this makes sense for algorithms that don't do
-;; paragraph-wide optimization. The rationale is that if we can't find a fit,
-;; we'd better stick as close to the paragraph's border as possible anyway,
-;; regardless of the Avoid Hyphens option, or the weight of hyphens in the
-;; besting function.
-(defun fit-next-boundaries (lineup start width)
-  (loop :with underfull
-	:with fits := (list)
-	:with overfull
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-search boundary))
-	:while (and boundary (not overfull))
-	:for span := (lineup-span lineup start (stop boundary))
-	:if (< (max-width span) width)
-	  :do (setq underfull boundary)
-	:else :if (and (<= (min-width span) width) (>= (max-width span) width))
-	  :do (push boundary fits)
-	:else
-	  :do (setq overfull boundary)
-	:finally (return (values underfull fits overfull))))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
@@ -203,41 +180,59 @@ for equally bad solutions."))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key hyphen-penalty prefer-shrink prefer-overfulls)
-    (multiple-value-bind (underfull fits overfull)
-	(fit-next-boundaries lineup start width)
-      ;; #### NOTE: fits and *fulls get merged here, because the besting
-      ;; function will choose. For example, with a very high hyphen penalty,
-      ;; we may end up preferring underfull lines. If one day we generalize
-      ;; the besting function, we can expect any other decision selecting
-      ;; *fulls over fits.
-      (let ((boundaries (when underfull (list underfull))))
-	(when fits (setq boundaries (append fits boundaries)))
-	(when overfull (push overfull boundaries))
-	(if (= (length boundaries) 1)
-	  (car boundaries)
-	  (let ((weights
-		  (stable-sort
-		   (fit-weights lineup start width boundaries hyphen-penalty)
-		   #'!<
-		   :key #'car)))
-	    (cond ((and (numberp (caar weights)) (numberp (caadr weights))
-			(= (caar weights) (caadr weights)))
-		   (if prefer-shrink (cdar weights) (cdadr weights)))
-		  ((and (null (caar weights)) (null (caadr weights)))
-		   (let ((w1 (lineup-width lineup
-					   start (stop (cdar weights))))
-			 (w2 (lineup-width lineup
-					   start (stop (cdadr weights)))))
-		     (cond ((< (abs (- width w1)) (abs (- width w2)))
-			    (cdar weights))
-			   ((> (abs (- width w1)) (abs (- width w2)))
-			    (cdadr weights))
-			   (t
-			    (if prefer-overfulls
-			      (cdar weights)
-			      (cdadr weights))))))
-		  (t
-		   (cdar weights)))))))))
+    ;; #### NOTE: here on the contrary, we can't collect only the last
+    ;; underfull, but all underfulls since the last word-underfull. Indeed, if
+    ;; the hyphen penalty turns out to be infinite (in other words, not only
+    ;; avoid, but prohibit hyphenation, we may need to go back to the last
+    ;; word boundary to finish up the line. On the other hand, because the
+    ;; badness is infinite for overfull lines, there's no point in collecting
+    ;; more than one. Note that the choice of
+    (loop :with boundaries := (list)
+	  :with overfull
+	  ;; #### NOTE: this works even the first time because at worst,
+	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	  ;; afterwards.
+	  :for boundary := (next-boundary lineup start)
+	    :then (next-boundary lineup (next-search boundary))
+	  :while (and boundary (not overfull))
+	  :for span := (lineup-span lineup start (stop boundary))
+	  :if (< (max-width span) width)
+	    :do (if (word-boundary-p lineup boundary)
+		  (setq boundaries (list boundary))
+		  (push boundary boundaries))
+	  :else :if (and (<= (min-width span) width)
+			 (>= (max-width span) width))
+	    :do (push boundary boundaries)
+	  :else
+	    :do (setq overfull t)
+	    :and :do (push boundary boundaries)
+	  :finally
+	     (return
+	       (if (= (length boundaries) 1)
+		 (car boundaries)
+		 (let ((weights (stable-sort
+				 (fit-weights lineup start width boundaries
+					      hyphen-penalty)
+				 #'!< :key #'car)))
+		   (cond ((and (numberp (caar weights))
+			       (numberp (caadr weights))
+			       (= (caar weights) (caadr weights)))
+			  (if prefer-shrink (cdar weights) (cdadr weights)))
+			 ((and (null (caar weights)) (null (caadr weights)))
+			  (let ((w1 (lineup-width lineup
+						  start (stop (cdar weights))))
+				(w2 (lineup-width lineup
+						  start (stop (cdadr weights)))))
+			    (cond ((< (abs (- width w1)) (abs (- width w2)))
+				   (cdar weights))
+				  ((> (abs (- width w1)) (abs (- width w2)))
+				   (cdadr weights))
+				  (t
+				   (if prefer-overfulls
+				     (cdar weights)
+				     (cdadr weights))))))
+			 (t
+			  (cdar weights)))))))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
