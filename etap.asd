@@ -17,14 +17,14 @@
 	       (:file "context")
 	       (:file "lineup")
 	       (:file "typesetting")
-	       (:file "node")
 	       (:module "algorithms"
 		:components ((:file "base")
+			     (:file "node" :depends-on ("base"))
 			     (:file "fixed" :depends-on ("base"))
 			     (:file "fit" :depends-on  ("base"))
 			     (:file "barnett" :depends-on  ("base"))
-			     (:file "duncan" :depends-on  ("base"))
-			     (:file "kp" :depends-on  ("base"))))
+			     (:file "duncan" :depends-on  ("node"))
+			     (:file "kp" :depends-on  ("node"))))
 	       (:file "paragraph")
 	       (:module "interface"
 		:components ((:file "capi" :if-feature :lispworks)))

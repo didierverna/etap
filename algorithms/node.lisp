@@ -4,38 +4,34 @@
 (defstruct (node (:constructor make-node (boundary children)))
   boundary children)
 
-(defun create-node (lineup boundary width hash &optional preventive-fulls)
+(defun create-node (lineup width algorithm boundary hash)
   (when boundary
     (or (gethash (stop boundary) hash)
 	(setf (gethash (stop boundary) hash)
 	      (if (= (stop boundary) (length lineup))
 		(make-node boundary nil)
-		(multiple-value-bind
-		      (underfull-boundary fit-boundaries overfull-boundary)
-		    (next-boundaries lineup (next-start boundary) width)
-		  (when (or preventive-fulls (not fit-boundaries))
-		    (when underfull-boundary
-		      (push underfull-boundary fit-boundaries))
-		    (when overfull-boundary
-		      (push overfull-boundary fit-boundaries)))
+		(let ((boundaries (apply #'next-boundaries
+				    lineup (next-start boundary) width
+				    (algorithm-type algorithm)
+				    (algorithm-options algorithm))))
 		  (make-node
 		   boundary
-		   (mapcar (lambda (boundary)
-			     (create-node lineup boundary width hash))
-		     fit-boundaries))))))))
+		   (mapcar
+		       (lambda (boundary)
+			 (create-node lineup width algorithm boundary hash))
+		     boundaries))))))))
 
-(defun root-node (lineup width &optional preventive-fulls)
-  (multiple-value-bind (underfull-boundary fit-boundaries overfull-boundary)
-      (next-boundaries lineup 0 width)
-    (when (or preventive-fulls (not fit-boundaries))
-      (when underfull-boundary (push underfull-boundary fit-boundaries))
-      (when overfull-boundary (push overfull-boundary fit-boundaries)))
-    (let ((hash (make-hash-table)))
-      (make-node
-       nil
-       (mapcar (lambda (boundary)
-		 (create-node lineup boundary width hash preventive-fulls))
-	 fit-boundaries)))))
+(defun create-root-node
+    (lineup width algorithm
+     &aux (boundaries (apply #'next-boundaries lineup 0 width
+			     (algorithm-type algorithm)
+			     (algorithm-options algorithm)))
+	  (hash (make-hash-table)))
+  (make-node
+   nil
+   (mapcar
+       (lambda (boundary) (create-node lineup width algorithm boundary hash))
+     boundaries)))
 
 
 (defun node-lines (node)
@@ -44,8 +40,7 @@
 				   (stop (node-boundary child))))
 		  (next-lines (node-lines child)))
 	      (if next-lines
-		(mapcar (lambda (lines) (cons head-line lines))
-		  next-lines)
+		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
 		(list (list head-line)))))
     (node-children node)))
 
@@ -54,17 +49,16 @@
 	    (let ((head-line (cons 0 (stop (node-boundary child))))
 		  (next-lines (node-lines child)))
 	      (if next-lines
-		(mapcar (lambda (lines) (cons head-line lines))
-		  next-lines)
+		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
 		(list (list head-line)))))
     (node-children node)))
 
 
-(defstruct (solution
+#+()(defstruct (solution
 	    (:constructor make-solution (lines hyphens underfulls overfulls)))
   lines hyphens underfulls overfulls)
 
-(defun create-solution (lineup width lines)
+#+()(defun create-solution (lineup width lines)
   (loop :with hyphens := 0
 	:with underfulls := 0
 	:with overfulls := 0
@@ -97,7 +91,7 @@
 ;; #### hyphenation, all mistfits). The raw tree of all such solutions has
 ;; #### only 109 nodes (192 without hyphenations). Once shared, the actual
 ;; #### number of nodes falls down to 30 (33 without hyphenation).
-(defun report-solutions
+#+()(defun report-solutions
     (context
      &key (width (paragraph-width context)) preventive-fulls)
   (let* ((lineup (create-lineup context))

@@ -49,3 +49,6 @@ ignoring the font's inter-word spacing boundaries."))
 
 (defgeneric create-lines
     (lineup width disposition algorithm &key &allow-other-keys))
+
+(defgeneric next-boundaries
+    (lineup start width algorithm &key &allow-other-keys))

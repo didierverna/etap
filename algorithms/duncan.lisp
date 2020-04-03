@@ -13,8 +13,41 @@
 
 (in-package :etap)
 
-;; #### WARNING: this is currently a duplicate of the reporting code in
-;; node.lisp.
+
+(defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
+  (loop :with underfull
+	:with fits := (list)
+	:with overfull
+	;; #### NOTE: this works even the first time because at worst,
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	;; afterwards.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not overfull))
+	:for span := (lineup-span lineup start (stop boundary))
+	:if (< (max-width span) width)
+	  :do (setq underfull boundary)
+	:else :if (and (<= (min-width span) width)
+		       (>= (max-width span) width))
+	  :do (push boundary fits)
+	:else
+	  :do (setq overfull boundary)
+	:finally
+	   ;; #### WARNING: here we avoid preventive fulls, that is, we don't
+	   ;; return *full boundaries if there is at least one fit boundary.
+	   ;; Experience shows that including preventive fulls leads to
+	   ;; an explosion of the graph size. On the other hand, maybe it is
+	   ;; possible that we miss better solutions like this. For example,
+	   ;; it could be possible that by making a line arbitrarily underfull
+	   ;; instead of fit, we reduce the number of subsequent *fulls. I
+	   ;; hope that if it's possible, it would only affect very rare
+	   ;; cases.
+	   (return (cond (fits fits)
+			 ((and underfull overfull) (list overfull underfull))
+			 (overfull (list overfull))
+			 (underfull (list underfull))))))
+
+
 (defstruct
     (duncan-solution
      (:conc-name duncan-)
@@ -47,9 +80,11 @@
     (lineup width disposition (algorithm (eql :duncan))
      &key
      &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (let* ((solutions
-	   (mapcar (lambda (lines) (duncan-make-solution lineup width lines))
-	     (root-node-lines (root-node lineup width))))
+  (let* ((root-node (create-root-node lineup width :duncan))
+	 (root-lines (root-node-lines root-node))
+	 (solutions (mapcar (lambda (lines)
+			      (duncan-make-solution lineup width lines))
+		      root-lines))
 	 (perfects
 	   (remove-if-not (lambda (solution)
 			    (and (zerop (duncan-hyphens solution))

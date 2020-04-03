@@ -196,28 +196,6 @@
 	   (make-boundary next (if (= next length) next point) next))))
       (make-boundary length length length))))
 
-(defun next-boundaries (lineup start width)
-  (loop :with underfull-boundary
-	:with fit-boundaries := (list)
-	:with overfull-boundary
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-search boundary))
-	:while (and boundary (not overfull-boundary))
-	:for span := (lineup-span lineup start (stop boundary))
-	:if (< (max-width span) width)
-	  :do (setq underfull-boundary boundary)
-	:else :if (and (<= (min-width span) width)
-		       (>= (max-width span) width))
-		:do (push boundary fit-boundaries)
-	:else
-	  :do (setq overfull-boundary boundary)
-	:finally
-	   (return
-	     (values underfull-boundary fit-boundaries overfull-boundary))))
-
 
 (defun get-character (char font)
   ;; #### FIXME: no input encoding support yet.
