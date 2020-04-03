@@ -373,11 +373,13 @@
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom))
+   (settings-1 column-layout '(options paragraph-width zoom)
+     :reader settings-1)
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
-   (settings-2 column-layout '(algorithms text))
+   (settings-2 column-layout '(algorithms text)
+     :reader settings-2)
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-parameters))
    (fit-parameters column-layout '(fit-options fit-hyphen-penalty))
@@ -448,8 +450,16 @@
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
-  (setf (editor-pane-text (text etap)) (text context)))
-
+  (setf (editor-pane-text (text etap)) (text context))
+  (let ((size
+	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
+    (set-hint-table (settings-1 etap)
+      `(:visible-min-width ,(car size) :visible-max-width t
+	:visible-min-height ,(cadr size) :visible-max-height t)))
+    (let ((size
+	  (multiple-value-list (simple-pane-visible-size (settings-2 etap)))))
+    (set-hint-table (settings-2 etap)
+      `(:visible-min-height ,(cadr size) :visible-max-height t))))
 
 
 ;; ===========
