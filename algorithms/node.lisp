@@ -5,21 +5,20 @@
   boundary children)
 
 (defun create-node (lineup width algorithm boundary hash)
-  (when boundary
-    (or (gethash (stop boundary) hash)
-	(setf (gethash (stop boundary) hash)
-	      (if (= (stop boundary) (length lineup))
-		(make-node boundary nil)
-		(let ((boundaries (apply #'next-boundaries
-				    lineup (next-start boundary) width
-				    (algorithm-type algorithm)
-				    (algorithm-options algorithm))))
-		  (make-node
-		   boundary
-		   (mapcar
-		       (lambda (boundary)
-			 (create-node lineup width algorithm boundary hash))
-		     boundaries))))))))
+  (or (gethash (stop boundary) hash)
+      (setf (gethash (stop boundary) hash)
+	    (if (= (stop boundary) (length lineup))
+	      (make-node boundary nil)
+	      (let ((boundaries (apply #'next-boundaries
+				  lineup (next-start boundary) width
+				  (algorithm-type algorithm)
+				  (algorithm-options algorithm))))
+		(make-node
+		 boundary
+		 (mapcar
+		     (lambda (boundary)
+		       (create-node lineup width algorithm boundary hash))
+		   boundaries)))))))
 
 (defun create-root-node
     (lineup width algorithm
