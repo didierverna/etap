@@ -1,10 +1,12 @@
 (in-package :etap)
 
 
+(defclass child () ((node :initarg :node :reader node)))
+
 (defstruct (node (:constructor make-node (boundary children)))
   boundary children)
 
-(defun create-node (lineup width algorithm boundary hash)
+(defun create-node (lineup width algorithm child-type boundary hash)
   (or (gethash (stop boundary) hash)
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
@@ -17,36 +19,43 @@
 		 boundary
 		 (mapcar
 		     (lambda (boundary)
-		       (create-node lineup width algorithm boundary hash))
+		       (make-instance child-type
+			 :node (create-node lineup width algorithm child-type
+					    boundary hash)))
 		   boundaries)))))))
 
 (defun create-root-node
     (lineup width algorithm
-     &aux (boundaries (apply #'next-boundaries lineup 0 width
+     &aux (child-type
+	   (intern (format nil "~A-CHILD" (algorithm-type algorithm)) :etap))
+	  (boundaries (apply #'next-boundaries lineup 0 width
 			     (algorithm-type algorithm)
 			     (algorithm-options algorithm)))
 	  (hash (make-hash-table)))
   (make-node
    nil
    (mapcar
-       (lambda (boundary) (create-node lineup width algorithm boundary hash))
+       (lambda (boundary)
+	 (make-instance child-type
+	   :node (create-node lineup width algorithm child-type
+			      boundary hash)))
      boundaries)))
 
 
-(defun node-lines (node)
+(defun child-lines
+    (child &aux (start (next-start (node-boundary (node child)))))
   (mapcan (lambda (child)
-	    (let ((head-line (cons (next-start (node-boundary node))
-				   (stop (node-boundary child))))
-		  (next-lines (node-lines child)))
+	    (let ((head-line (cons start (stop (node-boundary (node child)))))
+		  (next-lines (child-lines child)))
 	      (if next-lines
 		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
 		(list (list head-line)))))
-    (node-children node)))
+    (node-children (node child))))
 
 (defun root-node-lines (node)
   (mapcan (lambda (child)
-	    (let ((head-line (cons 0 (stop (node-boundary child))))
-		  (next-lines (node-lines child)))
+	    (let ((head-line (cons 0 (stop (node-boundary (node child)))))
+		  (next-lines (child-lines child)))
 	      (if next-lines
 		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
 		(list (list head-line)))))

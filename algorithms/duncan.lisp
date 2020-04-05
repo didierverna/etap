@@ -14,6 +14,8 @@
 (in-package :etap)
 
 
+(defclass duncan-child (child) ())
+
 (defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
   (loop :with underfull
 	:with fits := (list)

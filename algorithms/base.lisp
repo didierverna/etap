@@ -51,4 +51,4 @@ ignoring the font's inter-word spacing boundaries."))
     (lineup width disposition algorithm &key &allow-other-keys))
 
 (defgeneric next-boundaries
-    (lineup start width algorithm &key &allow-other-keys))
+    (lineup start width child-type &key &allow-other-keys))
