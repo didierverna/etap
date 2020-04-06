@@ -10,16 +10,89 @@
 (define-constant +kp-max-hyphen-penalty+ 1000)
 
 
-#+()(defclass kp-edge (paragraph-edge)
-  ((badness :initform 0 :accessor badness)
-   (penalty :initform 0 :accessor penalty)))
+(defclass kp-edge (paragraph-edge)
+  ((demerits :initform 0 :accessor demerits)))
 
-#+()(defmethod initialize-instance :after
+(defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup width start
-     &aux (stop (stop (boundary (node edge)))))
-)
+     &key lineup width start (hyphen-penalty +kp-default-hyphen-penalty+)
+     &aux (stop (stop (boundary (node edge))))
+	  (badness (badness lineup start stop width))
+	  (penalty (if (word-stop-p lineup stop)
+		     0
+		     (unless (= hyphen-penalty +kp-max-hyphen-penalty+)
+		       hyphen-penalty))))
+  ;; #### WARNING: this is not the complete demerits function because 1. we
+  ;; assume only positive hyphen penalties for now, and 2. it only takes the
+  ;; current line into account. Additional weights like double hyphen
+  ;; penalties will need to be handled later.
+  (setf (demerits edge) (!expt (!+ 1 (!+ badness penalty)) 2)))
+
+
+(defmethod next-boundaries
+    (lineup start width (algorithm (eql :kp)) &key)
+  ;; #### NOTE: as in the Best/Justified Fit version, we can't collect only
+  ;; the last underfull, but all underfulls since the last word-underfull.
+  ;; Indeed, if the hyphen penalty turns out to be infinite (in other words,
+  ;; not only avoid, but prohibit hyphenation, we may need to go back to the
+  ;; last word boundary to finish up the line. On the other hand, because the
+  ;; badness is infinite for overfull lines, there's no point in collecting
+  ;; more than one. Also, note that this only works because our hyphen
+  ;; penalties are constant, and positive. If we allow negative penalties, we
+  ;; would need to keep all underfulls since the last hyphen-underfull. I'm
+  ;; not even speaking of forcing breaks on hyphens (-\infty penalty), and
+  ;; variable penalties, in which cases it would be completely unrealistic to
+  ;; work on the graph representation.
+  (loop :with boundaries := (list)
+	:with overfull
+	;; #### NOTE: this works even the first time because at worst,
+	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
+	;; afterwards.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (next-search boundary))
+	:while (and boundary (not overfull))
+	:for span := (lineup-span lineup start (stop boundary))
+	:if (< (max-width span) width)
+	  :do (if (word-boundary-p lineup boundary)
+		(setq boundaries (list boundary))
+		(push boundary boundaries))
+	:else :if (and (<= (min-width span) width)
+		       (>= (max-width span) width))
+		:do (push boundary boundaries)
+	:else
+	  :do (setq overfull boundary)
+	:finally (return (or boundaries (list overfull)))))
+
+
+(defclass kp-layout (paragraph-layout)
+  ((demerits :initform 0 :accessor demerits)))
+
+(defmethod update-paragraph-layout ((layout kp-layout) (edge kp-edge))
+  (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
+
+
+(defun kp-create-lines (lineup layout width sloppy)
+  (loop :for node :in (cdr (nodes layout))
+	:and start := 0 :then (next-start (boundary node))
+	:for stop := (stop (boundary node))
+	:collect (create-justified-line lineup start stop width sloppy)))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :knuth-plass)) &key)
-  )
+    (lineup width disposition (algorithm (eql :knuth-plass))
+     &rest options &key
+     &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
+  (let* ((graph (apply #'paragraph-graph lineup width :kp options))
+	 (layouts (paragraph-layouts graph :kp))
+	 (acceptable (remove-if (lambda (layout) (null (demerits layout)))
+				layouts))
+	 (fallbacks (remove-if-not (lambda (layout) (null (demerits layout)))
+				   layouts)))
+    ;; #### FIXME: options to do better than just returning the first ones.
+    (cond (acceptable
+	   (let ((minimum-demerits (loop :for layout :in acceptable
+					 :minimize (demerits layout))))
+	     (kp-create-lines lineup (find minimum-demerits acceptable
+					   :key #'demerits)
+			      width sloppy)))
+	  (t
+	   (kp-create-lines lineup (car fallbacks) width sloppy)))))

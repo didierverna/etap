@@ -46,9 +46,9 @@ ignoring the font's inter-word spacing boundaries."))
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	(t nil)))
 
+(defun !expt (base power)
+  (unless (null base) (expt base power)))
+
 
 (defgeneric create-lines
     (lineup width disposition algorithm &key &allow-other-keys))
-
-(defgeneric next-boundaries
-    (lineup start width child-type &key &allow-other-keys))

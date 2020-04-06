@@ -11,6 +11,9 @@
 (defun make-paragraph-node (boundary edges)
   (make-instance 'paragraph-node :boundary boundary :edges edges))
 
+(defgeneric next-boundaries
+    (lineup start width child-type &key &allow-other-keys))
+
 (defun create-paragraph-node
     (lineup width algorithm-type edge-type boundary hash &rest options)
   (or (gethash (stop boundary) hash)
@@ -35,10 +38,9 @@
 		   next-boundaries)))))))
 
 (defun paragraph-graph
-    (lineup width algorithm
-     &aux (algorithm-type (algorithm-type algorithm))
-	  (options (algorithm-options algorithm))
-	  (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
+    (lineup width algorithm-type
+     &rest options
+     &aux (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
 	  (next-boundaries (apply #'next-boundaries lineup 0 width
 				  algorithm-type options))
 	  (hash (make-hash-table)))
