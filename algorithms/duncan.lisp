@@ -14,7 +14,7 @@
 (in-package :etap)
 
 
-(defclass duncan-edge (edge)
+(defclass duncan-edge (paragraph-edge)
   ((hyphen :initform 0 :accessor hyphen)
    (overfull :initform 0 :accessor overfull)
    (underfull :initform 0 :accessor underfull)))
@@ -22,7 +22,7 @@
 (defmethod initialize-instance :after
     ((edge duncan-edge)
      &key lineup width start
-     &aux (stop (stop (node-boundary (node edge)))))
+     &aux (stop (stop (boundary (node edge)))))
   (unless (word-stop-p lineup stop)
     (setf (hyphen edge) 1))
   (cond ((< (lineup-max-width lineup start stop) width)
@@ -64,76 +64,68 @@
 			 (underfull (list underfull))))))
 
 
-(defstruct
-    (duncan-solution
-     (:conc-name duncan-)
-     (:constructor make-duncan-solution (nodes)))
-  nodes (hyphens 0) (underfulls 0) (overfulls 0))
+(defclass duncan-layout (paragraph-layout)
+  ((hyphens :initform 0 :accessor hyphens)
+   (underfulls :initform 0 :accessor underfulls)
+   (overfulls :initform 0 :accessor overfulls)))
 
-(defun duncan-solutions (node)
-  (if (node-edges node)
-    (mapcan (lambda (edge)
-	      (mapc (lambda (solution)
-		      (push node (duncan-nodes solution))
-		      (incf (duncan-hyphens solution) (hyphen edge))
-		      (incf (duncan-underfulls solution) (underfull edge))
-		      (incf (duncan-overfulls solution) (overfull edge)))
-		(duncan-solutions (node edge))))
-      (node-edges node))
-    (list (make-duncan-solution (list node)))))
+(defmethod update-paragraph-layout ((layout duncan-layout) (edge duncan-edge))
+  (incf (hyphens layout) (hyphen edge))
+  (incf (underfulls layout) (underfull edge))
+  (incf (overfulls layout) (overfull edge)))
 
 
-(defun duncan-create-lines (lineup solution width sloppy)
-  (loop :for node :in (cdr (duncan-nodes solution))
-	:and start := 0 :then (next-start (node-boundary node))
-	:for stop := (stop (node-boundary node))
+(defun duncan-create-lines (lineup layout width sloppy)
+  (loop :for node :in (cdr (nodes layout))
+	:and start := 0 :then (next-start (boundary node))
+	:for stop := (stop (boundary node))
 	:collect (create-justified-line lineup start stop width sloppy)))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :duncan))
      &key
      &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (let* ((layouts-graph (layouts-graph lineup width :duncan))
-	 (solutions (duncan-solutions layouts-graph))
+  (let* ((graph (paragraph-graph lineup width :duncan))
+	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects
-	   (remove-if-not (lambda (solution)
-			    (and (zerop (duncan-hyphens solution))
-				 (zerop (duncan-underfulls solution))
-				 (zerop (duncan-overfulls solution))))
-			  solutions))
+	   (remove-if-not (lambda (layout)
+			    (and (zerop (hyphens layout))
+				 (zerop (underfulls layout))
+				 (zerop (overfulls layout))))
+			  layouts))
 	 (hyphened
-	   (remove-if-not (lambda (solution)
-			    (and (not (zerop (duncan-hyphens solution)))
-				 (zerop (duncan-underfulls solution))
-				 (zerop (duncan-overfulls solution))))
-			  solutions))
+	   (remove-if-not (lambda (layout)
+			    (and (not (zerop (hyphens layout)))
+				 (zerop (underfulls layout))
+				 (zerop (overfulls layout))))
+			  layouts))
 	 (misfits
-	   (remove-if (lambda (solution)
-			(and (zerop (duncan-underfulls solution))
-			     (zerop (duncan-overfulls solution))))
-		      solutions)))
+	   (remove-if (lambda (layout)
+			(and (zerop (underfulls layout))
+			     (zerop (overfulls layout))))
+		      layouts)))
     ;; #### FIXME: options to do better than just returning the first ones.
     (cond (perfects
 	   (duncan-create-lines lineup (car perfects) width sloppy))
 	  (hyphened
-	   (let ((minimum-hyphens (loop :for solution :in hyphened
-					:minimize (duncan-hyphens solution))))
+	   (let ((minimum-hyphens (loop :for layout :in hyphened
+					:minimize (hyphens layout))))
 	     (duncan-create-lines lineup (find minimum-hyphens hyphened
-					       :key #'duncan-hyphens)
+					       :key #'hyphens)
 				  width sloppy)))
 	  (t
 	   (let* ((minimum-fulls
 		    (loop :for misfit :in misfits
-			  :minimize (+ (duncan-underfulls misfit)
-				       (duncan-overfulls misfit))))
+			  :minimize (+ (underfulls misfit)
+				       (overfulls misfit))))
 		  (best-misfits
 		    (remove-if-not (lambda (misfit)
-				     (= (+ (duncan-underfulls misfit)
-					   (duncan-overfulls misfit))
+				     (= (+ (underfulls misfit)
+					   (overfulls misfit))
 					minimum-fulls))
 				   misfits))
 		  (minimum-hyphens (loop :for misfit :in best-misfits
-					 :minimize (duncan-hyphens misfit))))
+					 :minimize (hyphens misfit))))
 	     (duncan-create-lines lineup (find minimum-hyphens best-misfits
-					       :key #'duncan-hyphens)
+					       :key #'hyphens)
 				  width sloppy))))))

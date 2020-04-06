@@ -1,32 +1,38 @@
 (in-package :etap)
 
 
-(defclass edge () ((node :initarg :node :reader node)))
+(defclass paragraph-edge ()
+  ((node :initarg :node :reader node)))
 
-(defstruct (node (:constructor make-node (boundary edges)))
-  boundary edges)
+(defclass paragraph-node ()
+  ((boundary :initarg :boundary :reader boundary)
+   (edges :initarg :edges :reader edges)))
 
-(defun create-node (lineup width algorithm edge-type boundary hash)
+(defun make-paragraph-node (boundary edges)
+  (make-instance 'paragraph-node :boundary boundary :edges edges))
+
+(defun create-paragraph-node (lineup width algorithm edge-type boundary hash)
   (or (gethash (stop boundary) hash)
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
-	      (make-node boundary nil)
+	      (make-paragraph-node boundary nil)
 	      (let ((next-boundaries (apply #'next-boundaries
 				       lineup (next-start boundary) width
 				       (algorithm-type algorithm)
 				       (algorithm-options algorithm))))
-		(make-node
+		(make-paragraph-node
 		 boundary
 		 (mapcar
 		     (lambda (next-boundary)
 		       (make-instance edge-type
 			 :lineup lineup :width width
 			 :start (next-start boundary)
-			 :node (create-node lineup width algorithm edge-type
-					    next-boundary hash)))
+			 :node (create-paragraph-node
+				lineup width algorithm edge-type next-boundary
+				hash)))
 		   next-boundaries)))))))
 
-(defun layouts-graph
+(defun paragraph-graph
     (lineup width algorithm
      &aux (edge-type
 	   (intern (format nil "~A-EDGE" (algorithm-type algorithm)) :etap))
@@ -34,37 +40,41 @@
 				  (algorithm-type algorithm)
 				  (algorithm-options algorithm)))
 	  (hash (make-hash-table)))
-  (make-node
+  (make-paragraph-node
    nil
    (mapcar
        (lambda (next-boundary)
 	 (make-instance edge-type
 	   :lineup lineup :width width :start 0
-	   :node (create-node lineup width algorithm edge-type
-			      next-boundary hash)))
+	   :node (create-paragraph-node lineup width algorithm edge-type
+					next-boundary hash)))
      next-boundaries)))
 
 
-#+()(defstruct (solution
-	    (:constructor make-solution (lines hyphens underfulls overfulls)))
-  lines hyphens underfulls overfulls)
+(defclass paragraph-layout () ((nodes :initarg :nodes :accessor nodes)))
 
-#+()(defun create-solution (lineup width lines)
-  (loop :with hyphens := 0
-	:with underfulls := 0
-	:with overfulls := 0
-	:for line :in lines
-	:unless (word-stop-p lineup (cdr line))
-	  :do (incf hyphens)
-	;; #### WARNING: dirty trick to not count the last line as underfull!
-	:when (and (< (cdr line) (length lineup))
-		   (< (lineup-max-width lineup (car line) (cdr line)) width))
-	  :do (incf underfulls)
-	:when (> (lineup-min-width lineup (car line) (cdr line)) width)
-	  :do (incf overfulls)
-	:finally
-	   (return
-	     (make-solution lines hyphens underfulls overfulls))))
+(defmethod initialize-instance :around ((layout paragraph-layout) &key node)
+  (call-next-method layout :nodes (list node)))
+
+(defgeneric update-paragraph-layout (layout edge))
+
+(defun %paragraph-layouts (node layout-type)
+  (if (edges node)
+    (mapcan (lambda (edge)
+	      (mapc (lambda (layout)
+		      (push node (nodes layout))
+		      (update-paragraph-layout layout edge))
+		(%paragraph-layouts (node edge) layout-type)))
+      (edges node))
+    (list (make-instance layout-type :node node))))
+
+(defun paragraph-layouts
+    (node algorithm
+     &aux (layout-type
+	   (intern (format nil "~A-LAYOUT" (algorithm-type algorithm)) :etap)))
+  (%paragraph-layouts node layout-type))
+
+
 
 ;; #### NOTE: with the defaults (default text, 284pt, all features), there are
 ;; #### 66576 paragraph solutions including going through under and overfull
