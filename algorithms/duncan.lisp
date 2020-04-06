@@ -14,7 +14,21 @@
 (in-package :etap)
 
 
-(defclass duncan-child (child) ())
+(defclass duncan-child (child)
+  ((hyphen :initform 0 :accessor hyphen)
+   (overfull :initform 0 :accessor overfull)
+   (underfull :initform 0 :accessor underfull)))
+
+(defmethod initialize-instance :after
+    ((child duncan-child)
+     &key lineup width start
+     &aux (stop (stop (node-boundary (node child)))))
+  (unless (word-stop-p lineup stop)
+    (setf (hyphen child) 1))
+  (cond ((< (lineup-max-width lineup start stop) width)
+	 (setf (underfull child) 1))
+	((> (lineup-min-width lineup start stop) width)
+	 (setf (overfull child) 1))))
 
 (defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
   (loop :with underfull

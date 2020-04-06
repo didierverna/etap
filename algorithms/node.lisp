@@ -11,35 +11,38 @@
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
 	      (make-node boundary nil)
-	      (let ((boundaries (apply #'next-boundaries
-				  lineup (next-start boundary) width
-				  (algorithm-type algorithm)
-				  (algorithm-options algorithm))))
+	      (let ((next-boundaries (apply #'next-boundaries
+				       lineup (next-start boundary) width
+				       (algorithm-type algorithm)
+				       (algorithm-options algorithm))))
 		(make-node
 		 boundary
 		 (mapcar
-		     (lambda (boundary)
+		     (lambda (next-boundary)
 		       (make-instance child-type
+			 :lineup lineup :width width
+			 :start (next-start boundary)
 			 :node (create-node lineup width algorithm child-type
-					    boundary hash)))
-		   boundaries)))))))
+					    next-boundary hash)))
+		   next-boundaries)))))))
 
 (defun create-root-node
     (lineup width algorithm
      &aux (child-type
 	   (intern (format nil "~A-CHILD" (algorithm-type algorithm)) :etap))
-	  (boundaries (apply #'next-boundaries lineup 0 width
-			     (algorithm-type algorithm)
-			     (algorithm-options algorithm)))
+	  (next-boundaries (apply #'next-boundaries lineup 0 width
+				  (algorithm-type algorithm)
+				  (algorithm-options algorithm)))
 	  (hash (make-hash-table)))
   (make-node
    nil
    (mapcar
-       (lambda (boundary)
+       (lambda (next-boundary)
 	 (make-instance child-type
+	   :lineup lineup :width width :start 0
 	   :node (create-node lineup width algorithm child-type
-			      boundary hash)))
-     boundaries)))
+			      next-boundary hash)))
+     next-boundaries)))
 
 
 (defun child-lines
