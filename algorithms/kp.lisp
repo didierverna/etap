@@ -29,21 +29,21 @@
   (setf (demerits edge) (!expt (!+ 1 (!+ badness penalty)) 2)))
 
 
+;; #### NOTE: in this version, we collect only the fit solutions if any,
+;; otherwise the last underfull if any, and as a last resort the first
+;; overfull. In order to properly handle potentially infinite hyphen
+;; penalties, we would need to collect all boundaries from the last
+;; word-underfull one, up to the first overfull, as in the Best/Justified Fit
+;; version. However, it is unrealistic to work on a paragraph graph in such a
+;; case. For example, with all features enabled (hyphenation most
+;; importantly), the default paragraph leads to a graph which has more than
+;; 12032 solutions. And even then, we haven't even begun to handle negative
+;; hyphen penalties (in which case we would need to go back to the last
+;; hyphen-underfull), let alone -\infty ones, or variable penalties.
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp)) &key)
-  ;; #### NOTE: as in the Best/Justified Fit version, we can't collect only
-  ;; the last underfull, but all underfulls since the last word-underfull.
-  ;; Indeed, if the hyphen penalty turns out to be infinite (in other words,
-  ;; not only avoid, but prohibit hyphenation, we may need to go back to the
-  ;; last word boundary to finish up the line. On the other hand, because the
-  ;; badness is infinite for overfull lines, there's no point in collecting
-  ;; more than one. Also, note that this only works because our hyphen
-  ;; penalties are constant, and positive. If we allow negative penalties, we
-  ;; would need to keep all underfulls since the last hyphen-underfull. I'm
-  ;; not even speaking of forcing breaks on hyphens (-\infty penalty), and
-  ;; variable penalties, in which cases it would be completely unrealistic to
-  ;; work on the graph representation.
-  (loop :with boundaries := (list)
+  (loop :with underfull
+	:with fits := (list)
 	:with overfull
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
@@ -53,15 +53,20 @@
 	:while (and boundary (not overfull))
 	:for span := (lineup-span lineup start (stop boundary))
 	:if (< (max-width span) width)
-	  :do (if (word-boundary-p lineup boundary)
-		(setq boundaries (list boundary))
-		(push boundary boundaries))
+	  :do (setq underfull boundary)
 	:else :if (and (<= (min-width span) width)
 		       (>= (max-width span) width))
-		:do (push boundary boundaries)
+	  :do (push boundary fits)
 	:else
 	  :do (setq overfull boundary)
-	:finally (return (or boundaries (list overfull)))))
+	:finally
+	   (return (cond (fits fits)
+			 ;; #### NOTE: contrary to the Duncan version, we
+			 ;; don't even bother to return both an underfull and
+			 ;; an overfull here, since we already know that the
+			 ;; badness for overfull is +\infty.
+			 (underfull (list underfull))
+			 (t (list overfull))))))
 
 
 (defclass kp-layout (paragraph-layout)
