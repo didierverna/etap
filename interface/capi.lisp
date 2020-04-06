@@ -50,13 +50,20 @@
 	      (choice-selected-items (duncan-options interface)))))
   (update interface))
 
-(defun set-knuth-plass-algorithm (value interface)
+(defun set-kp-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
 	`(:knuth-plass
+	  :hyphen-penalty ,(range-slug-start (kp-hyphen-penalty interface))
 	  #+(),@(apply #'append
-	      (choice-selected-items (knuth-plass-options interface)))))
+		  (choice-selected-items (knuth-plass-options interface)))))
   (update interface))
+
+(defun set-kp-hyphen-penalty (pane value status)
+  (declare (ignore status))
+  (setf (titled-object-title pane) (format nil "Hyphen Penalty: ~D" value))
+  (set-kp-algorithm nil (top-level-interface pane)))
+
 
 (defun set-algorithm (value interface)
   (case (car value)
@@ -64,7 +71,7 @@
     (:fit (set-fit-algorithm value interface))
     (:barnett (set-barnett-algorithm value interface))
     (:duncan (set-duncan-algorithm value interface))
-    (:knuth-plass (set-knuth-plass-algorithm value interface))))
+    (:knuth-plass (set-kp-algorithm value interface))))
 
 
 (defun set-disposition (value interface)
@@ -216,7 +223,7 @@
 	      (:fit fit-settings)
 	      (:barnett barnett-settings)
 	      (:duncan duncan-settings)
-	      (:knuth-plass knuth-plass-settings))
+	      (:knuth-plass kp-settings))
      :print-function (lambda (item) (keyword-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
@@ -295,6 +302,15 @@
      :selection-callback 'set-knuth-plass-algorithm
      :retract-callback 'set-knuth-plass-algorithm
      :reader knuth-plass-options)
+   (kp-hyphen-penalty slider
+     :title (format nil "Hyphen Penalty: ~D" +kp-default-hyphen-penalty+)
+     :orientation :horizontal
+     :start +kp-min-hyphen-penalty+
+     :end +kp-max-hyphen-penalty+
+     :slug-start +kp-default-hyphen-penalty+
+     :tick-frequency 0
+     :callback 'set-kp-hyphen-penalty
+     :reader kp-hyphen-penalty)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -385,7 +401,7 @@
    (fit-parameters column-layout '(fit-options fit-hyphen-penalty))
    (barnett-settings row-layout '(#+()barnett-options))
    (duncan-settings row-layout '(#+()duncan-options))
-   (knuth-plass-settings row-layout '(#+()knuth-plass-options)))
+   (kp-settings row-layout '(#+()knuth-plass-options kp-hyphen-penalty)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before
@@ -431,7 +447,13 @@
        (setf (choice-selection (algorithms etap)) 4)
        #+()(setf (choice-selection (knuth-plass-options etap))
 	     (let ((selection (list)))
-	       selection)))))
+	       selection))))
+    (setf (range-slug-start (kp-hyphen-penalty etap))
+	  (or (cadr (member :hyphen-penalty options))
+	      +kp-default-hyphen-penalty+))
+    (setf (titled-object-title (kp-hyphen-penalty etap))
+	  (format nil "Hyphen Penalty: ~D"
+	    (range-slug-start (kp-hyphen-penalty etap)))))
   (setf (choice-selected-item (disposition etap))
 	(disposition-type (disposition context)))
   (let ((options (disposition-options (disposition context))))

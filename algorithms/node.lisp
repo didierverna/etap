@@ -11,43 +11,48 @@
 (defun make-paragraph-node (boundary edges)
   (make-instance 'paragraph-node :boundary boundary :edges edges))
 
-(defun create-paragraph-node (lineup width algorithm edge-type boundary hash)
+(defun create-paragraph-node
+    (lineup width algorithm-type edge-type boundary hash &rest options)
   (or (gethash (stop boundary) hash)
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
 	      (make-paragraph-node boundary nil)
 	      (let ((next-boundaries (apply #'next-boundaries
 				       lineup (next-start boundary) width
-				       (algorithm-type algorithm)
-				       (algorithm-options algorithm))))
+				       algorithm-type options)))
 		(make-paragraph-node
 		 boundary
 		 (mapcar
 		     (lambda (next-boundary)
-		       (make-instance edge-type
-			 :lineup lineup :width width
-			 :start (next-start boundary)
-			 :node (create-paragraph-node
-				lineup width algorithm edge-type next-boundary
-				hash)))
+		       (apply #'make-instance edge-type
+			      :lineup lineup :width width
+			      :start (next-start boundary)
+			      :node (apply #'create-paragraph-node
+				      lineup width algorithm-type edge-type
+				      next-boundary hash
+				      options)
+			      options))
 		   next-boundaries)))))))
 
 (defun paragraph-graph
     (lineup width algorithm
-     &aux (edge-type
-	   (intern (format nil "~A-EDGE" (algorithm-type algorithm)) :etap))
+     &aux (algorithm-type (algorithm-type algorithm))
+	  (options (algorithm-options algorithm))
+	  (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
 	  (next-boundaries (apply #'next-boundaries lineup 0 width
-				  (algorithm-type algorithm)
-				  (algorithm-options algorithm)))
+				  algorithm-type options))
 	  (hash (make-hash-table)))
   (make-paragraph-node
    nil
    (mapcar
        (lambda (next-boundary)
-	 (make-instance edge-type
-	   :lineup lineup :width width :start 0
-	   :node (create-paragraph-node lineup width algorithm edge-type
-					next-boundary hash)))
+	 (apply #'make-instance edge-type
+		:lineup lineup :width width :start 0
+		:node (apply #'create-paragraph-node
+			lineup width algorithm-type edge-type
+			next-boundary hash
+			options)
+		options))
      next-boundaries)))
 
 
