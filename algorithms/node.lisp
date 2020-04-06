@@ -45,26 +45,6 @@
      next-boundaries)))
 
 
-(defun child-lines
-    (child &aux (start (next-start (node-boundary (node child)))))
-  (mapcan (lambda (child)
-	    (let ((head-line (cons start (stop (node-boundary (node child)))))
-		  (next-lines (child-lines child)))
-	      (if next-lines
-		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
-		(list (list head-line)))))
-    (node-children (node child))))
-
-(defun root-node-lines (node)
-  (mapcan (lambda (child)
-	    (let ((head-line (cons 0 (stop (node-boundary (node child)))))
-		  (next-lines (child-lines child)))
-	      (if next-lines
-		(mapcar (lambda (lines) (cons head-line lines)) next-lines)
-		(list (list head-line)))))
-    (node-children node)))
-
-
 #+()(defstruct (solution
 	    (:constructor make-solution (lines hyphens underfulls overfulls)))
   lines hyphens underfulls overfulls)

@@ -67,40 +67,34 @@
 (defstruct
     (duncan-solution
      (:conc-name duncan-)
-     (:constructor make-duncan-solution (lines hyphens underfulls overfulls)))
-  lines hyphens underfulls overfulls)
+     (:constructor make-duncan-solution (nodes)))
+  nodes (hyphens 0) (underfulls 0) (overfulls 0))
 
-(defun duncan-make-solution (lineup width lines)
-  (loop :with hyphens := 0
-	:with underfulls := 0
-	:with overfulls := 0
-	:for line :in lines
-	:unless (word-stop-p lineup (cdr line))
-	  :do (incf hyphens)
-	;; #### WARNING: dirty trick to not count the last line as underfull!
-	:when (and (< (cdr line) (length lineup))
-		   (< (lineup-max-width lineup (car line) (cdr line)) width))
-	  :do (incf underfulls)
-	:when (> (lineup-min-width lineup (car line) (cdr line)) width)
-	  :do (incf overfulls)
-	:finally
-	   (return
-	     (make-duncan-solution lines hyphens underfulls overfulls))))
+(defun duncan-solutions (node)
+  (if (node-children node)
+    (mapcan (lambda (child)
+	      (mapc (lambda (solution)
+		      (push node (duncan-nodes solution))
+		      (incf (duncan-hyphens solution) (hyphen child))
+		      (incf (duncan-underfulls solution) (underfull child))
+		      (incf (duncan-overfulls solution) (overfull child)))
+		(duncan-solutions (node child))))
+      (node-children node))
+    (list (make-duncan-solution (list node)))))
+
 
 (defun duncan-create-lines (lineup solution width sloppy)
-  (mapcar (lambda (line)
-	    (create-justified-line lineup (car line) (cdr line) width sloppy))
-    (duncan-lines solution)))
+  (loop :for node :in (cdr (duncan-nodes solution))
+	:and start := 0 :then (next-start (node-boundary node))
+	:for stop := (stop (node-boundary node))
+	:collect (create-justified-line lineup start stop width sloppy)))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :duncan))
      &key
      &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (let* ((root-node (create-root-node lineup width :duncan))
-	 (root-lines (root-node-lines root-node))
-	 (solutions (mapcar (lambda (lines)
-			      (duncan-make-solution lineup width lines))
-		      root-lines))
+	 (solutions (duncan-solutions root-node))
 	 (perfects
 	   (remove-if-not (lambda (solution)
 			    (and (zerop (duncan-hyphens solution))
