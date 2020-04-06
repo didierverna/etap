@@ -1,12 +1,12 @@
 (in-package :etap)
 
 
-(defclass child () ((node :initarg :node :reader node)))
+(defclass edge () ((node :initarg :node :reader node)))
 
-(defstruct (node (:constructor make-node (boundary children)))
-  boundary children)
+(defstruct (node (:constructor make-node (boundary edges)))
+  boundary edges)
 
-(defun create-node (lineup width algorithm child-type boundary hash)
+(defun create-node (lineup width algorithm edge-type boundary hash)
   (or (gethash (stop boundary) hash)
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
@@ -19,17 +19,17 @@
 		 boundary
 		 (mapcar
 		     (lambda (next-boundary)
-		       (make-instance child-type
+		       (make-instance edge-type
 			 :lineup lineup :width width
 			 :start (next-start boundary)
-			 :node (create-node lineup width algorithm child-type
+			 :node (create-node lineup width algorithm edge-type
 					    next-boundary hash)))
 		   next-boundaries)))))))
 
-(defun create-root-node
+(defun layouts-graph
     (lineup width algorithm
-     &aux (child-type
-	   (intern (format nil "~A-CHILD" (algorithm-type algorithm)) :etap))
+     &aux (edge-type
+	   (intern (format nil "~A-EDGE" (algorithm-type algorithm)) :etap))
 	  (next-boundaries (apply #'next-boundaries lineup 0 width
 				  (algorithm-type algorithm)
 				  (algorithm-options algorithm)))
@@ -38,9 +38,9 @@
    nil
    (mapcar
        (lambda (next-boundary)
-	 (make-instance child-type
+	 (make-instance edge-type
 	   :lineup lineup :width width :start 0
-	   :node (create-node lineup width algorithm child-type
+	   :node (create-node lineup width algorithm edge-type
 			      next-boundary hash)))
      next-boundaries)))
 

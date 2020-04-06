@@ -14,21 +14,21 @@
 (in-package :etap)
 
 
-(defclass duncan-child (child)
+(defclass duncan-edge (edge)
   ((hyphen :initform 0 :accessor hyphen)
    (overfull :initform 0 :accessor overfull)
    (underfull :initform 0 :accessor underfull)))
 
 (defmethod initialize-instance :after
-    ((child duncan-child)
+    ((edge duncan-edge)
      &key lineup width start
-     &aux (stop (stop (node-boundary (node child)))))
+     &aux (stop (stop (node-boundary (node edge)))))
   (unless (word-stop-p lineup stop)
-    (setf (hyphen child) 1))
+    (setf (hyphen edge) 1))
   (cond ((< (lineup-max-width lineup start stop) width)
-	 (setf (underfull child) 1))
+	 (setf (underfull edge) 1))
 	((> (lineup-min-width lineup start stop) width)
-	 (setf (overfull child) 1))))
+	 (setf (overfull edge) 1))))
 
 (defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
   (loop :with underfull
@@ -71,15 +71,15 @@
   nodes (hyphens 0) (underfulls 0) (overfulls 0))
 
 (defun duncan-solutions (node)
-  (if (node-children node)
-    (mapcan (lambda (child)
+  (if (node-edges node)
+    (mapcan (lambda (edge)
 	      (mapc (lambda (solution)
 		      (push node (duncan-nodes solution))
-		      (incf (duncan-hyphens solution) (hyphen child))
-		      (incf (duncan-underfulls solution) (underfull child))
-		      (incf (duncan-overfulls solution) (overfull child)))
-		(duncan-solutions (node child))))
-      (node-children node))
+		      (incf (duncan-hyphens solution) (hyphen edge))
+		      (incf (duncan-underfulls solution) (underfull edge))
+		      (incf (duncan-overfulls solution) (overfull edge)))
+		(duncan-solutions (node edge))))
+      (node-edges node))
     (list (make-duncan-solution (list node)))))
 
 
@@ -93,8 +93,8 @@
     (lineup width disposition (algorithm (eql :duncan))
      &key
      &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (let* ((root-node (create-root-node lineup width :duncan))
-	 (solutions (duncan-solutions root-node))
+  (let* ((layouts-graph (layouts-graph lineup width :duncan))
+	 (solutions (duncan-solutions layouts-graph))
 	 (perfects
 	   (remove-if-not (lambda (solution)
 			    (and (zerop (duncan-hyphens solution))
