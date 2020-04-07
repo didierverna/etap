@@ -33,21 +33,35 @@ ignoring the font's inter-word spacing boundaries."))
 
 (defun badness (lineup start stop width
 		&aux (scale (lineup-scale lineup start stop width)))
-  (unless (or (null scale) (< scale -1))
+  (if (or (null scale) (< scale -1))
+    :+infinity
     (* 100 (expt (abs scale) 3))))
 
 (defun !< (x y)
-  (cond ((and (numberp x) (numberp y)) (< x y))
-	((and (null x) (null y)) nil)
-	((null x) nil)
-	((null y) t)))
+  (cond ((eql x y) nil)
+	((and (numberp x) (numberp y)) (< x y))
+	((or (eq x :-infinity) (eq y :+infinity)) t)
+	(t nil)))
 
 (defun !+ (x y)
   (cond ((and (numberp x) (numberp y)) (+ x y))
-	(t nil)))
+	((numberp x) y)
+	((numberp y) x)
+	((eq x y) x)
+	;; #### WARNING: we consider that -infinity + +infinity gives
+	;; +infinity. The rationale is that this situation would occur when
+	;; calculating badness + hyphen-penalty on an hyphen-overfull, with
+	;; hyphen penalties of -infinity. But we always consider overfulls as
+	;; infinitely bad.
+	(t :+infinity)))
 
 (defun !expt (base power)
-  (unless (null base) (expt base power)))
+  (cond ((eq base :+infinity) :+infinity)
+	((numberp base) (expt base power))
+	((eq base :-infinity)
+	 (cond ((zerop power) 1)
+	       ((evenp power) :+infinity)
+	       (t :-infinity)))))
 
 
 (defgeneric create-lines
