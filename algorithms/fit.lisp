@@ -76,7 +76,7 @@
       :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
 (define-constant +fit-default-hyphen-penalty+ 50)
-(define-constant +fit-min-hyphen-penalty+ 0)
+(define-constant +fit-min-hyphen-penalty+ -1000)
 (define-constant +fit-max-hyphen-penalty+ 1000)
 
 (define-constant +fit-tooltips+
@@ -96,13 +96,13 @@ for equally bad solutions."))
 
 
 (defun fit-weight (lineup start width boundary hyphen-penalty
-		   &aux (weight (badness lineup start (stop boundary) width)))
-  (unless (word-boundary-p lineup boundary)
-    (setq weight
-	  (!+ weight
-	      (unless (= hyphen-penalty +fit-max-hyphen-penalty+)
-		hyphen-penalty))))
-  weight)
+		   &aux (badness (badness lineup start (stop boundary) width)))
+  (if (word-boundary-p lineup boundary)
+    badness
+    ;; #### NOTE: infinitely negative hyphen-penalties have already been
+    ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
+    ;; risk of doing -infinity + +infinity here.
+    (!+ badness hyphen-penalty)))
 
 (defun fit-weights (lineup start width boundaries hyphen-penalty)
   (mapcar (lambda (boundary)
@@ -181,15 +181,16 @@ for equally bad solutions."))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key hyphen-penalty prefer-shrink prefer-overfulls)
-    ;; #### NOTE: here on the contrary, we can't collect only the last
-    ;; underfull, but all underfulls since the last word-underfull. Indeed, if
-    ;; the hyphen penalty turns out to be infinite (in other words, not only
-    ;; avoid, but prohibit hyphenation, we may need to go back to the last
-    ;; word boundary to finish up the line. On the other hand, because the
-    ;; badness is infinite for overfull lines, there's no point in collecting
-    ;; more than one. Note that the choice of
-    (loop :with boundaries := (list)
-	  :with overfull
+    (cond ((= hyphen-penalty +fit-min-hyphen-penalty+)
+	   (setq hyphen-penalty :-infinity))
+	  ((= hyphen-penalty +fit-max-hyphen-penalty+)
+	   (setq hyphen-penalty :+infinity)))
+    ;; #### NOTE: in order to handle all possible hyphen penalty values
+    ;; (negative or positive, as well as infinite), we collect all potential
+    ;; breaks until the first overfull, prematurely ending on mandatory hyphen
+    ;; breaks. That's because the badness of overfull is infinite anyway, so
+    ;; there's no point in collecting more than one.
+    (loop :with overfull
 	  ;; #### NOTE: this works even the first time because at worst,
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
@@ -197,21 +198,23 @@ for equally bad solutions."))
 	    :then (next-boundary lineup (next-start boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
-	  :if (< (max-width span) width)
-	    :do (if (word-boundary-p lineup boundary)
-		  (setq boundaries (list boundary))
-		  (push boundary boundaries))
-	  :else :if (and (<= (min-width span) width)
-			 (>= (max-width span) width))
-	    :do (push boundary boundaries)
-	  :else
+	  :if (> (min-width span) width)
 	    :do (setq overfull t)
-	    :and :do (push boundary boundaries)
+	    :and :collect boundary :into boundaries
+	  :else :if (and (not (word-boundary-p lineup boundary))
+			 (eq hyphen-penalty :-infinity))
+	    :do (return boundary)
+	  :else
+	    :collect boundary :into boundaries
 	  :finally
 	     (return
 	       (if (= (length boundaries) 1)
 		 (car boundaries)
-		 (let ((weights (stable-sort
+		 (cdar (stable-sort (fit-weights lineup start width boundaries
+						 hyphen-penalty)
+				    #'!< :key #'car)))))))
+
+#+()(let ((weights (stable-sort
 				 (fit-weights lineup start width boundaries
 					      hyphen-penalty)
 				 #'!< :key #'car)))
@@ -233,7 +236,7 @@ for equally bad solutions."))
 				     (cdar weights)
 				     (cdadr weights))))))
 			 (t
-			  (cdar weights)))))))))
+			  (cdar weights))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
@@ -266,8 +269,8 @@ for equally bad solutions."))
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
      &key (variant (car +fit-variants+))
-       (hyphen-penalty +fit-default-hyphen-penalty+)
-       relax avoid-hyphens prefer-shrink prefer-overfulls)
+	  (hyphen-penalty +fit-default-hyphen-penalty+)
+	  relax avoid-hyphens prefer-shrink prefer-overfulls)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary

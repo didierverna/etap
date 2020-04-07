@@ -52,7 +52,8 @@ ignoring the font's inter-word spacing boundaries."))
 	;; +infinity. The rationale is that this situation would occur when
 	;; calculating badness + hyphen-penalty on an hyphen-overfull, with
 	;; hyphen penalties of -infinity. But we always consider overfulls as
-	;; infinitely bad.
+	;; infinitely bad. Note that this means that mandatory but not
+	;; overfull hyphen breaks need to be handled first.
 	(t :+infinity)))
 
 (defun !expt (base power)
