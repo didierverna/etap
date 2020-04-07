@@ -57,7 +57,7 @@ choose the overfull rather than the underfull one."))
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-search boundary))
+	  :then (next-boundary lineup (next-start boundary))
 	:while (and boundary (not word-overfull))
 	:for w := (lineup-width lineup start (stop boundary))
 	:if (< w width)

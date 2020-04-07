@@ -121,7 +121,7 @@ for equally bad solutions."))
       ;; is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only afterwards.
       (loop :with previous :with word-previous
 	    :for boundary := (next-boundary lineup start)
-	      :then (next-boundary lineup (next-search boundary))
+	      :then (next-boundary lineup (next-start boundary))
 	    :while (and boundary
 			(<= (funcall lineup-width-function
 			      lineup start (stop boundary))
@@ -149,7 +149,7 @@ for equally bad solutions."))
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (next-search boundary))
+	    :then (next-boundary lineup (next-start boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
 	  :if (< (max-width span) width)
@@ -194,7 +194,7 @@ for equally bad solutions."))
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (next-search boundary))
+	    :then (next-boundary lineup (next-start boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
 	  :if (< (max-width span) width)
@@ -238,14 +238,14 @@ for equally bad solutions."))
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
   (:method (lineup start stop disposition (variant (eql :first))
-	    &key width search relax
+	    &key width next-start relax
 	    &aux (scale 1))
     (when relax
       (setq scale
 	    (if (< stop (length lineup))
 	      (let ((scale
 		      (lineup-scale
-		       lineup start (stop (next-boundary lineup search))
+		       lineup start (stop (next-boundary lineup next-start))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))
@@ -271,14 +271,14 @@ for equally bad solutions."))
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
-	  := (fit-line-boundary lineup start width
-		 (disposition-type disposition) variant
+	  := (fit-line-boundary
+		 lineup start width (disposition-type disposition) variant
 	       :avoid-hyphens avoid-hyphens
 	       :hyphen-penalty hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
 	:collect (apply #'fit-create-line lineup start (stop boundary)
 			(disposition-type disposition) variant
-			:width width :search (next-search boundary)
+			:width width :next-start (next-start boundary)
 			:relax relax
 			(disposition-options disposition))))

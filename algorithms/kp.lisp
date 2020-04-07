@@ -49,7 +49,7 @@
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-search boundary))
+	  :then (next-boundary lineup (next-start boundary))
 	:while (and boundary (not overfull))
 	:for span := (lineup-span lineup start (stop boundary))
 	:if (< (max-width span) width)

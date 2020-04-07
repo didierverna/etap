@@ -160,8 +160,8 @@
 
 (defstruct (boundary
 	    :conc-name
-	    (:constructor make-boundary (stop next-start next-search)))
-  stop next-start next-search)
+	    (:constructor make-boundary (stop next-start)))
+  stop next-start)
 
 (defun word-boundary-p (lineup boundary)
   (word-stop-p lineup (stop boundary)))
@@ -180,21 +180,19 @@
 	(cons boundary (lineup-scale lineup start (stop boundary) width)))
     boundaries))
 
-(defun next-boundary
-    (lineup &optional (start 0)
-	    &aux (length (length lineup))
-		 (point (position-if #'break-point-p lineup :start start)))
+(defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
   (unless (= start length)
-    (if point
-      (let ((next (1+ point)))
-	(typecase (aref lineup point)
-	  (glue (make-boundary point next next))
-	  (discretionary
-	   ;; #### NOTE: a discretionary ending the lineup shouldn't be
-	   ;; considered as a break point, because there's nothing afterwards.
-	   ;; Hence, the behavior is that of (LENGTH LENGTH LENGTH).
-	   (make-boundary next (if (= next length) next point) next))))
-      (make-boundary length length length))))
+    (let ((point (position-if #'break-point-p lineup :start (1+ start))))
+      (if point
+	(let ((next (1+ point)))
+	  (typecase (aref lineup point)
+	    (glue (make-boundary point next))
+	    (discretionary
+	     ;; #### NOTE: a discretionary ending the lineup shouldn't be
+	     ;; considered as a break point, because there's nothing
+	     ;; afterwards. Hence, the behavior is that of (LENGTH LENGTH).
+	     (make-boundary next (if (= next length) next point)))))
+	(make-boundary length length)))))
 
 
 (defun get-character (char font)
