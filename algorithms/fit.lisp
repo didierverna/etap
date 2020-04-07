@@ -198,45 +198,38 @@ for equally bad solutions."))
 	    :then (next-boundary lineup (next-start boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
-	  :if (> (min-width span) width)
-	    :do (setq overfull t)
-	    :and :collect boundary :into boundaries
-	  :else :if (and (not (word-boundary-p lineup boundary))
-			 (eq hyphen-penalty :-infinity))
-	    :do (return boundary)
-	  :else
-	    :collect boundary :into boundaries
+	  :unless (and (not (word-boundary-p lineup boundary))
+		       (eq hyphen-penalty :+infinity))
+	    :if (> (min-width span) width)
+	      :do (setq overfull t)
+	      :and :collect boundary :into boundaries
+	    :else :if (and (not (word-boundary-p lineup boundary))
+			   (eq hyphen-penalty :-infinity))
+	      :do (return boundary)
+	    :else
+	      :collect boundary :into boundaries
 	  :finally
 	     (return
 	       (if (= (length boundaries) 1)
 		 (car boundaries)
-		 (cdar (stable-sort (fit-weights lineup start width boundaries
-						 hyphen-penalty)
-				    #'!< :key #'car)))))))
-
-#+()(let ((weights (stable-sort
-				 (fit-weights lineup start width boundaries
-					      hyphen-penalty)
-				 #'!< :key #'car)))
-		   (cond ((and (numberp (caar weights))
-			       (numberp (caadr weights))
-			       (= (caar weights) (caadr weights)))
-			  (if prefer-shrink (cdar weights) (cdadr weights)))
-			 ((and (null (caar weights)) (null (caadr weights)))
-			  (let ((w1 (lineup-width lineup
-						  start (stop (cdar weights))))
-				(w2 (lineup-width lineup
-						  start (stop (cdadr weights)))))
-			    (cond ((< (abs (- width w1)) (abs (- width w2)))
-				   (cdar weights))
-				  ((> (abs (- width w1)) (abs (- width w2)))
-				   (cdadr weights))
-				  (t
-				   (if prefer-overfulls
-				     (cdar weights)
-				     (cdadr weights))))))
+		 (let ((sorted-weights
+			 (stable-sort
+			  (fit-weights
+			   lineup start width boundaries hyphen-penalty)
+			  #'!< :key #'car)))
+		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
+			  (setq sorted-weights
+				(remove-if-not
+				 (lambda (weight)
+				   (eql weight (caar sorted-weights)))
+				 sorted-weights
+				 :key #'car))
+			  (if overfull
+			    (cdar (last sorted-weights))
+			    (cdar (last sorted-weights))))
 			 (t
-			  (cdar weights))))
+			  ;; Here, we simply take the (only) best one.
+			  (cdar sorted-weights)))))))))
 
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
