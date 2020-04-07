@@ -110,6 +110,12 @@ for equally bad solutions."))
 		  boundary))
     boundaries))
 
+(defun fit-deltas (lineup start width boundaries)
+  (mapcar (lambda (boundary)
+	    (cons (abs (- width (lineup-width lineup start (stop boundary))))
+		  boundary))
+    boundaries))
+
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
   (:method (lineup start width disposition variant &key avoid-hyphens)
@@ -218,17 +224,19 @@ for equally bad solutions."))
 			   lineup start width boundaries hyphen-penalty)
 			  #'!< :key #'car)))
 		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
-			  (setq sorted-weights
-				(remove-if-not
-				 (lambda (weight)
-				   (eql weight (caar sorted-weights)))
-				 sorted-weights
-				 :key #'car))
-			  (if overfull
-			    (cdar (last sorted-weights))
-			    (cdar (last sorted-weights))))
+			  (let ((sorted-deltas
+				  (stable-sort
+				   (fit-deltas
+				    lineup start width
+				    (mapcar #'cdr
+				      (remove-if-not
+				       (lambda (weight)
+					 (eql weight (caar sorted-weights)))
+				       sorted-weights
+				       :key #'car)))
+				   #'< :key #'car)))
+			    (cdar sorted-deltas)))
 			 (t
-			  ;; Here, we simply take the (only) best one.
 			  (cdar sorted-weights)))))))))
 
 (defgeneric fit-create-line
