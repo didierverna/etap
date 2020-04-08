@@ -217,7 +217,10 @@ for equally bad solutions."))
     ;; breaks until the first overfull, prematurely ending on mandatory hyphen
     ;; breaks. That's because the badness of overfull is infinite anyway, so
     ;; there's no point in collecting more than one.
-    (loop :with overfull
+    ;; #### NOTE: below, we collect boundaries in reverse order because we
+    ;; will often need to access the most recent ones, and we use STABLE-SORT
+    ;; to preserve that order.
+    (loop :with boundaries :with overfull
 	  ;; #### NOTE: this works even the first time because at worst,
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
@@ -229,12 +232,12 @@ for equally bad solutions."))
 		       (eq hyphen-penalty :+infinity))
 	    :if (> (min-width span) width)
 	      :do (setq overfull t)
-	      :and :collect boundary :into boundaries
+	      :and :do (push boundary boundaries)
 	    :else :if (and (not (word-boundary-p lineup boundary))
 			   (eq hyphen-penalty :-infinity))
 	      :do (return boundary)
 	    :else
-	      :collect boundary :into boundaries
+	      :do (push boundary boundaries)
 	  :finally
 	     (return
 	       (if (= (length boundaries) 1)
@@ -245,18 +248,40 @@ for equally bad solutions."))
 			   lineup start width boundaries hyphen-penalty)
 			  #'!< :key #'car)))
 		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
-			  (let ((sorted-deltas
-				  (stable-sort
-				   (fit-deltas
-				    lineup start width
-				    (mapcar #'cdr
-				      (remove-if-not
-				       (lambda (weight)
-					 (eql weight (caar sorted-weights)))
-				       sorted-weights
-				       :key #'car)))
-				   #'< :key #'car)))
-			    (cdar sorted-deltas)))
+			  (setq sorted-weights
+				(remove-if-not
+				 (lambda (weight)
+				   (eql weight (caar sorted-weights)))
+				 sorted-weights
+				 :key #'car))
+			  (cond ((numberp (caar sorted-weights))
+				 (let ((sorted-deltas
+					 (stable-sort
+					  (fit-deltas
+					   lineup start width
+					   (mapcar #'cdr sorted-weights))
+					  #'< :key #'car)))
+				   (cond ((= (caar sorted-deltas)
+					     (caadr sorted-deltas))
+					  (setq sorted-deltas
+						(remove-if-not
+						 (lambda (delta)
+						   (= delta
+						      (caar sorted-deltas)))
+						 sorted-deltas
+						 :key #'car))
+					  (assert (= (length sorted-deltas) 2))
+					  (if prefer-shrink
+					    (cdar sorted-deltas)
+					    (cdadr sorted-deltas)))
+					 (t
+					  (cdar sorted-deltas)))))
+				(overfull
+				 (if prefer-overfulls
+				   (cdar sorted-weights)
+				   (cdadr sorted-weights)))
+				(t
+				 (cdar sorted-weights))))
 			 (t
 			  (cdar sorted-weights)))))))))
 
