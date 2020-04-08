@@ -30,17 +30,38 @@
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
-;; The "Prefer Shrink" option only affects the Best/Justified version. When
-;; two line solutions (one stretched and one shrunk) get the same weight, the
-;; stretched one is preferred unless this option is checked.
-
-;; The "Prefer Overfulls" option only affects the Best/Justified version. When
-;; two line solutions are equally bad (that is, one underfull and one
-;; overfull, with infinite weight and same absolute distance to the desired
-;; width), the underfull one is preferred, unless this option is checked.
-
 ;; The "Hyphen Penalty" slider affects the Best/Justified version's weight
 ;; function in the obvious TeX way.
+
+;; In the Best/Justified version, several line boundaries may turn out to have
+;; the same optimum weight (badness + hyphen penalty). A weight of -infinity
+;; cannot occur because that would be a mandatory discretionary break, so it
+;; would have been already treated. Two possibilities may thus occur:
+;;
+;; 1. Numerical weight. Because of the badness definition, this can only mean
+;;    that we have different boundaries with or without varying hyphen
+;;    penalties.
+;; 2. Infinite weight. Prohibited discretionary breaks have been skipped, so
+;;    we have cases of infinite badness. This means unstretchable underfulls,
+;;    with maybe one final overfull.
+;;
+;; In case n.1, we minimize the difference between the natural width of the
+;; line and the desired one (note that we could also minimize the scaling
+;; ratio instead). If this leads to equality again, then we necessarily have
+;; one short and one long line. We normally choose the short line (in other
+;; words, we prefer stretching) unless the "Prefer Shrink" option is checked.
+;;
+;; In case n.2, and if there isn't an overfull, we'll select the last boundary
+;; because it is the one that fills the line to the maximum possible. If
+;; there's an overfull, we need to choose between the last two boundaries,
+;; that is, between the last unstretchable underfull, and the overfull. We
+;; normally choose the underfull line, unless the "Prefer Overfull" option is
+;; checked. Note that the underfull may or may not have some shrinkability
+;; (remember that TeX's definition of badness for overfull is always
+;; +infinity), so maybe the overfull could be compressed, but not too much. We
+;; don't want to handle that as a special case, because a better way to do it
+;; would be to change the definition of badness to /not/ be infinite all of a
+;; sudden for overfulls, but be more subtle.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
