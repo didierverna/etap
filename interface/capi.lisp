@@ -24,6 +24,8 @@
   (setf (algorithm (context interface))
 	`(:fit
 	  :variant ,(choice-selected-item (fit-variant interface))
+	  :discriminating-function
+	  ,(choice-selected-item (fit-discriminating-function interface))
 	  :hyphen-penalty ,(range-slug-start (fit-hyphen-penalty interface))
 	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
@@ -257,8 +259,7 @@
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
    (fit-options check-button-panel
-     :layout-class 'grid-layout
-     :layout-args '(:orientation :column)
+     :layout-class 'column-layout
      :title "Options" :title-position :frame
      :items +fit-options+
      :help-keys +fit-options-help-keys+
@@ -266,6 +267,12 @@
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
+   (fit-discriminating-function option-pane
+     :title "Discriminating Function:"
+     :items +fit-discriminating-functions+
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-fit-algorithm
+     :reader fit-discriminating-function)
    (fit-hyphen-penalty slider
      :title (format nil "Hyphen Penalty: ~D" +fit-default-hyphen-penalty+)
      :orientation :horizontal
@@ -397,8 +404,12 @@
    (settings-2 column-layout '(algorithms text)
      :reader settings-2)
    (fixed-settings row-layout '(fixed-variant fixed-options))
-   (fit-settings row-layout '(fit-variant fit-parameters))
-   (fit-parameters column-layout '(fit-options fit-hyphen-penalty))
+   (fit-settings row-layout '(fit-variant fit-options fit-parameters))
+   (fit-parameters column-layout
+     '(fit-discriminating-function fit-hyphen-penalty)
+     :title "Other Parameters"
+     :title-position :frame
+     :visible-max-height nil)
    (barnett-settings row-layout '(#+()barnett-options))
    (duncan-settings row-layout '(#+()duncan-options))
    (kp-settings row-layout '(#+()knuth-plass-options kp-hyphen-penalty)))
@@ -422,6 +433,9 @@
        (setf (choice-selection (algorithms etap)) 1)
        (setf (choice-selected-item (fit-variant etap))
 	     (or (cadr (member :variant options)) (car +fit-variants+)))
+       (setf (choice-selected-item (fit-discriminating-function etap))
+	     (or (cadr (member :discriminating-function options))
+		 (car +fit-discriminating-functions+)))
        (setf (choice-selection (fit-options etap))
 	     (loop :for option :in +fit-options+
 		   :for i :from 0

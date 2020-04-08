@@ -46,10 +46,13 @@
 ;;    with maybe one final overfull.
 ;;
 ;; In case n.1, we minimize the difference between the natural width of the
-;; line and the desired one (note that we could also minimize the scaling
-;; ratio instead). If this leads to equality again, then we necessarily have
-;; one short and one long line. We normally choose the short line (in other
-;; words, we prefer stretching) unless the "Prefer Shrink" option is checked.
+;; line and the desired one if the discriminating function is "Minimize
+;; Distance", or the scaling ratio otherwise ("Minimize Scaling"). The
+;; difference is that in the second case, we take the frequent difference
+;; between maximum stretching and shrinking into account. If this leads to
+;; equality again, then we necessarily have one short and one long line. We
+;; normally choose the short line (in other words, we prefer stretching)
+;; unless the "Prefer Shrink" option is checked.
 ;;
 ;; In case n.2, and if there isn't an overfull, we'll select the last boundary
 ;; because it is the one that fills the line to the maximum possible. If
@@ -89,6 +92,9 @@
 (define-constant +fit-variants-help-keys+
     '(:fit-variant-first :fit-variant-best :fit-variant-last))
 
+(define-constant +fit-discriminating-functions+
+    '(:minimize-distance :minimize-scaling))
+
 (define-constant +fit-options+
     '((:avoid-hyphens t) (:relax t) (:prefer-shrink t) (:prefer-overfulls t)))
 
@@ -113,7 +119,12 @@ prefer shrinking over stretching
 for equally good solutions."
       :fit-option-prefer-overfulls "In the Best/Justified version,
 prefer overfull over underfull
-for equally bad solutions."))
+for equally bad solutions."
+      :fit-discriminating-function-minimize-distance
+      "For equally good solutions, minimize the distance between
+the line's natural width and the paragraph width."
+      :fit-discriminating-function-minimize-scaling
+      "For equally good solutions, minimize the amount of scaling."))
 
 
 (defun fit-weight (lineup start width boundary hyphen-penalty
@@ -134,6 +145,13 @@ for equally bad solutions."))
 (defun fit-deltas (lineup start width boundaries)
   (mapcar (lambda (boundary)
 	    (cons (abs (- width (lineup-width lineup start (stop boundary))))
+		  boundary))
+    boundaries))
+
+;; #### WARNING: this only works for elastic lines!
+(defun fit-scales (lineup start width boundaries)
+  (mapcar (lambda (boundary)
+	    (cons (abs (lineup-scale lineup start (stop boundary) width))
 		  boundary))
     boundaries))
 
@@ -207,7 +225,8 @@ for equally bad solutions."))
 			    (t underfull)))))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
-	    &key hyphen-penalty prefer-shrink prefer-overfulls)
+	    &key discriminating-function hyphen-penalty
+		 prefer-shrink prefer-overfulls)
     (cond ((= hyphen-penalty +fit-min-hyphen-penalty+)
 	   (setq hyphen-penalty :-infinity))
 	  ((= hyphen-penalty +fit-max-hyphen-penalty+)
@@ -255,27 +274,32 @@ for equally bad solutions."))
 				 sorted-weights
 				 :key #'car))
 			  (cond ((numberp (caar sorted-weights))
-				 (let ((sorted-deltas
+				 (let ((sorted-scores
 					 (stable-sort
-					  (fit-deltas
-					   lineup start width
-					   (mapcar #'cdr sorted-weights))
+					  (funcall
+					      (ecase discriminating-function
+						(:minimize-distance
+						 #'fit-deltas)
+						(:minimize-scaling
+						 #'fit-scales))
+					    lineup start width
+					    (mapcar #'cdr sorted-weights))
 					  #'< :key #'car)))
-				   (cond ((= (caar sorted-deltas)
-					     (caadr sorted-deltas))
-					  (setq sorted-deltas
+				   (cond ((= (caar sorted-scores)
+					     (caadr sorted-scores))
+					  (setq sorted-scores
 						(remove-if-not
 						 (lambda (delta)
 						   (= delta
-						      (caar sorted-deltas)))
-						 sorted-deltas
+						      (caar sorted-scores)))
+						 sorted-scores
 						 :key #'car))
-					  (assert (= (length sorted-deltas) 2))
+					  (assert (= (length sorted-scores) 2))
 					  (if prefer-shrink
-					    (cdar sorted-deltas)
-					    (cdadr sorted-deltas)))
+					    (cdar sorted-scores)
+					    (cdadr sorted-scores)))
 					 (t
-					  (cdar sorted-deltas)))))
+					  (cdar sorted-scores)))))
 				(overfull
 				 (if prefer-overfulls
 				   (cdar sorted-weights)
@@ -316,6 +340,7 @@ for equally bad solutions."))
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
      &key (variant (car +fit-variants+))
+	  (discriminating-function (car +fit-discriminating-functions+))
 	  (hyphen-penalty +fit-default-hyphen-penalty+)
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
   (loop :for start := 0 :then (next-start boundary)
@@ -324,6 +349,7 @@ for equally bad solutions."))
 	  := (fit-line-boundary
 		 lineup start width (disposition-type disposition) variant
 	       :avoid-hyphens avoid-hyphens
+	       :discriminating-function discriminating-function
 	       :hyphen-penalty hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
