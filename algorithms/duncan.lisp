@@ -17,21 +17,33 @@
 (in-package :etap)
 
 
+(define-constant +duncan-discriminating-functions+
+    '(:minimize-distance :minimize-scaling))
+
 (defclass duncan-edge (paragraph-edge)
   ((hyphen :initform 0 :accessor hyphen)
    (overfull :initform 0 :accessor overfull)
-   (underfull :initform 0 :accessor underfull)))
+   (underfull :initform 0 :accessor underfull)
+   (weight :accessor weight)))
 
 (defmethod initialize-instance :after
     ((edge duncan-edge)
      &key lineup width start
-     &aux (stop (stop (boundary (node edge)))))
+	  (discriminating-function (car +duncan-discriminating-functions+))
+     &aux (stop (stop (boundary (node edge))))
+	  (span (lineup-span lineup start stop)))
   (unless (word-stop-p lineup stop)
     (setf (hyphen edge) 1))
-  (cond ((< (lineup-max-width lineup start stop) width)
+  (cond ((< (max-width span) width)
 	 (setf (underfull edge) 1))
-	((> (lineup-min-width lineup start stop) width)
-	 (setf (overfull edge) 1))))
+	((> (min-width span) width)
+	 (setf (overfull edge) 1)))
+  (setf (weight edge)
+	(ecase discriminating-function
+	  (:minimize-distance (abs (- width (normal-width span))))
+	  (:minimize-scaling
+	   (when (and (zerop (underfull edge)) (zerop (overfull edge)))
+	     (abs (lineup-scale lineup start stop width)))))))
 
 (defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
   (loop :with underfull
@@ -70,12 +82,16 @@
 (defclass duncan-layout (paragraph-layout)
   ((hyphens :initform 0 :accessor hyphens)
    (underfulls :initform 0 :accessor underfulls)
-   (overfulls :initform 0 :accessor overfulls)))
+   (overfulls :initform 0 :accessor overfulls)
+   (weight :initform 0 :accessor weight)))
 
 (defmethod update-paragraph-layout ((layout duncan-layout) (edge duncan-edge))
   (incf (hyphens layout) (hyphen edge))
   (incf (underfulls layout) (underfull edge))
-  (incf (overfulls layout) (overfull edge)))
+  (incf (overfulls layout) (overfull edge))
+  (setf (weight layout)
+	(when (and (weight layout) (weight edge))
+	  (+ (weight layout) (weight edge)))))
 
 
 (defun duncan-create-lines
@@ -91,15 +107,18 @@
 	  :collect (create-line lineup start stop)))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :duncan)) &key)
-  (let* ((graph (paragraph-graph lineup width :duncan))
+    (lineup width disposition (algorithm (eql :duncan))
+     &rest options &key discriminating-function)
+  (declare (ignore discriminating-function))
+  (let* ((graph (apply #'paragraph-graph lineup width :duncan options))
 	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects
-	   (remove-if-not (lambda (layout)
-			    (and (zerop (hyphens layout))
-				 (zerop (underfulls layout))
-				 (zerop (overfulls layout))))
-			  layouts))
+	   (sort (remove-if-not (lambda (layout)
+				  (and (zerop (hyphens layout))
+				       (zerop (underfulls layout))
+				       (zerop (overfulls layout))))
+				layouts)
+		 #'< :key #'weight))
 	 (hyphened
 	   (remove-if-not (lambda (layout)
 			    (and (not (zerop (hyphens layout)))
@@ -111,7 +130,6 @@
 			(and (zerop (underfulls layout))
 			     (zerop (overfulls layout))))
 		      layouts)))
-    ;; #### FIXME: options to do better than just returning the first ones.
     (cond (perfects
 	   (duncan-create-lines lineup width disposition (car perfects)))
 	  (hyphened
@@ -119,7 +137,10 @@
 					:minimize (hyphens layout))))
 	     (duncan-create-lines
 	      lineup width disposition
-	      (find minimum-hyphens hyphened :key #'hyphens))))
+	      (car (sort (remove-if-not
+			  (lambda (hyphens) (= hyphens minimum-hyphens))
+			  hyphened :key #'hyphens)
+			 #'< :key #'weight)))))
 	  (t
 	   (let* ((minimum-fulls
 		    (loop :for misfit :in misfits

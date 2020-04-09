@@ -119,12 +119,7 @@ prefer shrinking over stretching
 for equally good solutions."
       :fit-option-prefer-overfulls "In the Best/Justified version,
 prefer overfull over underfull
-for equally bad solutions."
-      :fit-discriminating-function-minimize-distance
-      "For equally good solutions, minimize the distance between
-the line's natural width and the paragraph width."
-      :fit-discriminating-function-minimize-scaling
-      "For equally good solutions, minimize the amount of scaling."))
+for equally bad solutions."))
 
 
 (defun fit-weight (lineup start width boundary hyphen-penalty

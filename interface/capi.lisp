@@ -48,6 +48,8 @@
   (declare (ignore value))
   (setf (algorithm (context interface))
 	`(:duncan
+	  :discriminating-function
+	  ,(choice-selected-item (duncan-discriminating-function interface))
 	  #+(),@(apply #'append
 	      (choice-selected-items (duncan-options interface)))))
   (update interface))
@@ -300,6 +302,12 @@
      :selection-callback 'set-duncan-algorithm
      :retract-callback 'set-duncan-algorithm
      :reader duncan-options)
+   (duncan-discriminating-function option-pane
+     :title "Discriminating Function:"
+     :items +duncan-discriminating-functions+
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-duncan-algorithm
+     :reader duncan-discriminating-function)
    #+()(knuth-plass-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
@@ -411,7 +419,8 @@
      :title-position :frame
      :visible-max-height nil)
    (barnett-settings row-layout '(#+()barnett-options))
-   (duncan-settings row-layout '(#+()duncan-options))
+   (duncan-settings row-layout
+     '(#+()duncan-options duncan-discriminating-function))
    (kp-settings row-layout '(#+()knuth-plass-options kp-hyphen-penalty)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
@@ -456,7 +465,10 @@
        (setf (choice-selection (algorithms etap)) 3)
        #+()(setf (choice-selection (duncan-options etap))
 	     (let ((selection (list)))
-	       selection)))
+	       selection))
+       (setf (choice-selected-item (duncan-discriminating-function etap))
+	     (or (cadr (member :discriminating-function options))
+		 (car +duncan-discriminating-functions+))))
       (:knuth-plass
        (setf (choice-selection (algorithms etap)) 4)
        #+()(setf (choice-selection (knuth-plass-options etap))
