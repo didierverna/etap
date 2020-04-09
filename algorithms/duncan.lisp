@@ -5,7 +5,8 @@
 ;; it. It searches for an acceptable breaking solution (that is, with
 ;; adjustment ratios, that I call lineup-scales <= 1 in abs), while minimizing
 ;; hyphenation. What I don't really know however is how it chooses the final
-;; solution when there is several possibilities.
+;; solution when there is several possibilities (hence a Fit-like
+;; discriminating function to make a choice).
 
 ;; #### FIXME: I don't know if Duncan is restricted to the Justified
 ;; #### disposition, or if it does something for the ragged ones. Currently,
