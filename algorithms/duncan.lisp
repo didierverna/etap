@@ -8,7 +8,10 @@
 ;; solution when there is several possibilities.
 
 ;; #### FIXME: I don't know if Duncan is restricted to the Justified
-;; #### disposition, or if it does something for the ragged ones.
+;; #### disposition, or if it does something for the ragged ones. Currently,
+;; #### I'm just creating lines intended for justification, and putting them
+;; #### back to normal spacing otherwise. Given what this algorithm does, it
+;; #### results in many overfulls.
 
 
 (in-package :etap)
@@ -75,16 +78,20 @@
   (incf (overfulls layout) (overfull edge)))
 
 
-(defun duncan-create-lines (lineup layout width sloppy)
+(defun duncan-create-lines
+    (lineup width disposition layout
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for node :in (cdr (nodes layout))
 	:and start := 0 :then (next-start (boundary node))
 	:for stop := (stop (boundary node))
-	:collect (create-justified-line lineup start stop width sloppy)))
+	:if justified
+	  :collect (create-justified-line lineup start stop width sloppy)
+	:else
+	  :collect (create-line lineup start stop)))
 
 (defmethod create-lines
-    (lineup width disposition (algorithm (eql :duncan))
-     &key
-     &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
+    (lineup width disposition (algorithm (eql :duncan)) &key)
   (let* ((graph (paragraph-graph lineup width :duncan))
 	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects
@@ -106,13 +113,13 @@
 		      layouts)))
     ;; #### FIXME: options to do better than just returning the first ones.
     (cond (perfects
-	   (duncan-create-lines lineup (car perfects) width sloppy))
+	   (duncan-create-lines lineup width disposition (car perfects)))
 	  (hyphened
 	   (let ((minimum-hyphens (loop :for layout :in hyphened
 					:minimize (hyphens layout))))
-	     (duncan-create-lines lineup (find minimum-hyphens hyphened
-					       :key #'hyphens)
-				  width sloppy)))
+	     (duncan-create-lines
+	      lineup width disposition
+	      (find minimum-hyphens hyphened :key #'hyphens))))
 	  (t
 	   (let* ((minimum-fulls
 		    (loop :for misfit :in misfits
@@ -126,6 +133,6 @@
 				   misfits))
 		  (minimum-hyphens (loop :for misfit :in best-misfits
 					 :minimize (hyphens misfit))))
-	     (duncan-create-lines lineup (find minimum-hyphens best-misfits
-					       :key #'hyphens)
-				  width sloppy))))))
+	     (duncan-create-lines
+	      lineup width disposition
+	      (find minimum-hyphens best-misfits :key #'hyphens)))))))

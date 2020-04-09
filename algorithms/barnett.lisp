@@ -25,7 +25,10 @@
 ;;    ones when no perfect match is found.
 
 ;; #### FIXME: I don't know if Barnett is restricted to the Justified
-;; #### disposition, or if it does something for the ragged ones.
+;; #### disposition, or if it does something for the ragged ones. Currently,
+;; #### I'm just creating lines intended for justification, and putting them
+;; #### back to normal spacing otherwise. Given what this algorithm does, it
+;; #### results in many overfulls.
 
 
 (in-package :etap)
@@ -85,6 +88,9 @@
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary := (barnett-line-boundary lineup start width)
-	:collect (create-justified-line
-		  lineup start (stop boundary) width
-		  (cadr (member :sloppy (disposition-options disposition))))))
+	:if (eq (disposition-type disposition) :justified)
+	  :collect (create-justified-line
+		    lineup start (stop boundary) width
+		    (cadr (member :sloppy (disposition-options disposition))))
+	:else
+	  :collect (create-line lineup start (stop boundary))))
