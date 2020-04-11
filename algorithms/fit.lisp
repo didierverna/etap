@@ -102,9 +102,7 @@
     '(:fit-option-avoid-hyphens :fit-option-relax
       :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
-(define-constant +fit-default-hyphen-penalty+ 50)
-(define-constant +fit-min-hyphen-penalty+ -1000)
-(define-constant +fit-max-hyphen-penalty+ 1000)
+(define-constant +fit-hyphen-penalty+ '(-1000 50 1000))
 
 (define-constant +fit-tooltips+
     '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
@@ -126,7 +124,7 @@ for equally bad solutions."))
 		   &aux (badness (badness lineup start (stop boundary) width)))
   (if (word-boundary-p lineup boundary)
     badness
-    ;; #### NOTE: infinitely negative hyphen-penalties have already been
+    ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
     ;; risk of doing -infinity + +infinity here.
     (!+ badness hyphen-penalty)))
@@ -222,9 +220,9 @@ for equally bad solutions."))
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key discriminating-function hyphen-penalty
 		 prefer-shrink prefer-overfulls)
-    (cond ((= hyphen-penalty +fit-min-hyphen-penalty+)
+    (cond ((= hyphen-penalty (car +fit-hyphen-penalty+))
 	   (setq hyphen-penalty :-infinity))
-	  ((= hyphen-penalty +fit-max-hyphen-penalty+)
+	  ((= hyphen-penalty (caddr +fit-hyphen-penalty+))
 	   (setq hyphen-penalty :+infinity)))
     ;; #### NOTE: in order to handle all possible hyphen penalty values
     ;; (negative or positive, as well as infinite), we collect all potential
@@ -336,7 +334,7 @@ for equally bad solutions."))
     (lineup width disposition (algorithm (eql :fit))
      &key (variant (car +fit-variants+))
 	  (discriminating-function (car +fit-discriminating-functions+))
-	  (hyphen-penalty +fit-default-hyphen-penalty+)
+	  (hyphen-penalty (cadr +fit-hyphen-penalty+))
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))

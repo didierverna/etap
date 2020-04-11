@@ -1,8 +1,22 @@
 (in-package :etap)
 
+(defun title-capitalize (title)
+  (nsubstitute #\Space #\- (string-capitalize title)))
 
-(defun keyword-capitalize (keyword)
-  (nsubstitute #\Space #\- (string-capitalize keyword)))
+
+(defmacro define-slider-callback
+    (name &aux (name (string name))
+	       (dash-position (position #\- name))
+	       (prefix (subseq name 0 dash-position))
+	       (generic (subseq name (1+ dash-position))))
+    `(defun ,(intern (concatenate 'string "SET-" name)) (pane value status)
+       (declare (ignore status))
+       (setf (titled-object-title pane)
+	     (format nil
+		 ,(concatenate 'string (title-capitalize generic) ": ~D")
+	       value))
+       (,(intern (concatenate 'string "SET-" prefix "-ALGORITHM"))
+	nil (top-level-interface pane))))
 
 
 (defun update (interface &aux (context (context interface)))
@@ -19,6 +33,7 @@
 	      (choice-selected-items (fixed-options interface)))))
   (update interface))
 
+
 (defun set-fit-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
@@ -30,10 +45,7 @@
 	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
 
-(defun set-fit-hyphen-penalty (pane value status)
-  (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Hyphen Penalty: ~D" value))
-  (set-fit-algorithm nil (top-level-interface pane)))
+(define-slider-callback fit-hyphen-penalty)
 
 
 (defun set-barnett-algorithm (value interface)
@@ -464,7 +476,7 @@
 		     :collect i))
        (setf (range-slug-start (fit-hyphen-penalty etap))
 	     (or (cadr (member :hyphen-penalty options))
-		 +fit-default-hyphen-penalty+))
+		 (cadr +fit-hyphen-penalty+)))
        (setf (titled-object-title (fit-hyphen-penalty etap))
 	     (format nil "Hyphen Penalty: ~D"
 	       (range-slug-start (fit-hyphen-penalty etap)))))
