@@ -4,10 +4,19 @@
 
 (in-package :etap)
 
+(define-constant +kp-variants+
+    '(:graph :dynamic))
+
+(define-constant +kp-variants-help-keys+
+    '(:kp-variant-graph :kp-variant-dynamic))
 
 (define-constant +kp-default-hyphen-penalty+ 50)
 (define-constant +kp-min-hyphen-penalty+ 0)
 (define-constant +kp-max-hyphen-penalty+ 1000)
+
+(define-constant +kp-tooltips+
+    '(:kp-variant-graph "Graph-based implementation."
+      :kp-variant-dynamic "Dynamic programming implementation."))
 
 
 (defclass kp-edge (paragraph-edge)

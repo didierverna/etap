@@ -58,6 +58,7 @@
   (declare (ignore value))
   (setf (algorithm (context interface))
 	`(:knuth-plass
+	  :variant ,(choice-selected-item (kp-variant interface))
 	  :hyphen-penalty ,(range-slug-start (kp-hyphen-penalty interface))
 	  #+(),@(apply #'append
 		  (choice-selected-items (knuth-plass-options interface)))))
@@ -205,7 +206,8 @@
 
 
 (define-constant +tooltips+
-    `(,@+fixed-tooltips+ ,@+fit-tooltips+ ,@+disposition-options-tooltips+))
+    `(,@+fixed-tooltips+ ,@+fit-tooltips+ ,@+kp-tooltips+
+      ,@+disposition-options-tooltips+))
 
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
@@ -317,6 +319,15 @@
      :selection-callback 'set-knuth-plass-algorithm
      :retract-callback 'set-knuth-plass-algorithm
      :reader knuth-plass-options)
+   (kp-variant radio-button-panel
+     :layout-class 'column-layout
+     :visible-max-height nil
+     :title "Variant" :title-position :frame
+     :items +kp-variants+
+     :help-keys +kp-variants-help-keys+
+     :print-function 'keyword-capitalize
+     :selection-callback 'set-kp-algorithm
+     :reader kp-variant)
    (kp-hyphen-penalty slider
      :title (format nil "Hyphen Penalty: ~D" +kp-default-hyphen-penalty+)
      :orientation :horizontal
@@ -421,7 +432,8 @@
    (barnett-settings row-layout '(#+()barnett-options))
    (duncan-settings row-layout
      '(#+()duncan-options duncan-discriminating-function))
-   (kp-settings row-layout '(#+()knuth-plass-options kp-hyphen-penalty)))
+   (kp-settings row-layout '(kp-variant
+			     #+()knuth-plass-options kp-hyphen-penalty)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 (defmethod interface-display :before
@@ -471,6 +483,8 @@
 		 (car +duncan-discriminating-functions+))))
       (:knuth-plass
        (setf (choice-selection (algorithms etap)) 4)
+       (setf (choice-selected-item (kp-variant etap))
+	     (or (cadr (member :variant options)) (car +kp-variants+)))
        #+()(setf (choice-selection (knuth-plass-options etap))
 	     (let ((selection (list)))
 	       selection))))
