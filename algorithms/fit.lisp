@@ -30,8 +30,8 @@
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
-;; The "Hyphen Penalty" slider affects the Best/Justified version's weight
-;; function in the obvious TeX way.
+;; The "Hyphen Penalty" option affects the Best/Justified version's weight
+;; function in the TeX way.
 
 ;; In the Best/Justified version, several line boundaries may turn out to have
 ;; the same optimum weight (badness + hyphen penalty). A weight of -infinity
