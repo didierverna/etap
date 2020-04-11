@@ -107,7 +107,10 @@
 			(remove-if (lambda (position)
 				     (or (< position +lefthyphenmin+)
 					 (> position
-					    (- length +righthyphenmin+ 1))))
+					    ;; #### WARNING: LENGTH is too
+					    ;; large by 2 because it counts
+					    ;; the two additional dots!
+					    (- length +righthyphenmin+ 2))))
 				   (mapcar #'car
 				     (remove-if-not #'oddp points :key #'cdr)))
 			#'<))))))
