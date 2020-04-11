@@ -10,9 +10,47 @@
 (define-constant +kp-variants-help-keys+
     '(:kp-variant-graph :kp-variant-dynamic))
 
+
+(define-constant +kp-default-line-penalty+ 10)
+(define-constant +kp-min-line-penalty+ 0)
+(define-constant +kp-max-line-penalty+ 100)
+
 (define-constant +kp-default-hyphen-penalty+ 50)
-(define-constant +kp-min-hyphen-penalty+ 0)
+(define-constant +kp-min-hyphen-penalty+ -1000)
 (define-constant +kp-max-hyphen-penalty+ 1000)
+
+(define-constant +kp-default-explicit-hyphen-penalty+ 50)
+(define-constant +kp-min-explicit-hyphen-penalty+ -1000)
+(define-constant +kp-max-explicit-hyphen-penalty+ 1000)
+
+(define-constant +kp-default-adjacent-demerits+ 10000)
+(define-constant +kp-min-adjacent-demerits+ 0)
+(define-constant +kp-max-adjacent-demerits+ 10000)
+
+(define-constant +kp-default-double-hyphen-demerits+ 10000)
+(define-constant +kp-min-double-hyphen-demerits+ 0)
+(define-constant +kp-max-double-hyphen-demerits+ 10000)
+
+(define-constant +kp-default-final-hyphen-demerits+ 5000)
+(define-constant +kp-min-final-hyphen-demerits+ 0)
+(define-constant +kp-max-final-demerits+ 10000)
+
+(define-constant +kp-default-pre-tolerance+ 100)
+(define-constant +kp-min-pre-tolerance+ 0)
+(define-constant +kp-max-pre-tolerance+ 1000)
+
+(define-constant +kp-default-tolerance+ 200)
+(define-constant +kp-min-tolerance+ 0)
+(define-constant +kp-max-tolerance+ 1000)
+
+(define-constant +kp-default-emergency-stretch+ 5)
+(define-constant +kp-min-emergency-stretch+ 0)
+(define-constant +kp-max-emergency-stretch+ 10)
+
+(define-constant +kp-default-looseness+ 0)
+(define-constant +kp-min-looseness+ -10)
+(define-constant +kp-max-looseness+ 10)
+
 
 (define-constant +kp-tooltips+
     '(:kp-variant-graph "Graph-based implementation."
@@ -95,7 +133,7 @@
     (lineup width disposition (algorithm (eql :knuth-plass))
      &rest options &key
      &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (let* ((graph (apply #'paragraph-graph lineup width :kp options))
+  #+()(let* ((graph (apply #'paragraph-graph lineup width :kp options))
 	 (layouts (paragraph-layouts graph :kp))
 	 (acceptable (remove-if (lambda (layout) (null (demerits layout)))
 				layouts))
