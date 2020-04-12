@@ -220,9 +220,9 @@ for equally bad solutions."))
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key discriminating-function hyphen-penalty
 		 prefer-shrink prefer-overfulls)
-    (cond ((= hyphen-penalty (car +fit-hyphen-penalty+))
+    (cond ((<= hyphen-penalty (car +fit-hyphen-penalty+))
 	   (setq hyphen-penalty :-infinity))
-	  ((= hyphen-penalty (caddr +fit-hyphen-penalty+))
+	  ((>= hyphen-penalty (caddr +fit-hyphen-penalty+))
 	   (setq hyphen-penalty :+infinity)))
     ;; #### NOTE: in order to handle all possible hyphen penalty values
     ;; (negative or positive, as well as infinite), we collect all potential
