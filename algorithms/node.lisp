@@ -20,42 +20,47 @@
       (setf (gethash (stop boundary) hash)
 	    (if (= (stop boundary) (length lineup))
 	      (make-paragraph-node boundary nil)
-	      (let ((next-boundaries (apply #'next-boundaries
-				       lineup (next-start boundary) width
-				       algorithm-type options)))
-		(make-paragraph-node
-		 boundary
-		 (mapcar
-		     (lambda (next-boundary)
-		       (apply #'make-instance edge-type
-			      :lineup lineup :width width
-			      :start (next-start boundary)
-			      :node (apply #'create-paragraph-node
-				      lineup width algorithm-type edge-type
-				      next-boundary hash
-				      options)
-			      options))
-		   next-boundaries)))))))
+	      (let ((nodes (loop :for next-boundary
+				   :in (apply #'next-boundaries
+					 lineup (next-start boundary) width
+					 algorithm-type options)
+				 :when (apply #'create-paragraph-node
+					 lineup width algorithm-type edge-type
+					 next-boundary hash
+					 options)
+				   :collect :it)))
+		(when nodes
+		  (make-paragraph-node
+		   boundary
+		   (mapcar (lambda (node)
+			     (apply #'make-instance edge-type
+				    :lineup lineup :width width
+				    :start (next-start boundary)
+				    :node node
+				    options))
+		     nodes))))))))
 
 (defun paragraph-graph
     (lineup width algorithm-type
      &rest options
      &aux (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
-	  (next-boundaries (apply #'next-boundaries lineup 0 width
-				  algorithm-type options))
-	  (hash (make-hash-table)))
-  (make-paragraph-node
-   nil
-   (mapcar
-       (lambda (next-boundary)
-	 (apply #'make-instance edge-type
-		:lineup lineup :width width :start 0
-		:node (apply #'create-paragraph-node
-			lineup width algorithm-type edge-type
-			next-boundary hash
-			options)
-		options))
-     next-boundaries)))
+	  (hash (make-hash-table))
+	  (nodes (loop :for next-boundary
+			 :in (apply #'next-boundaries lineup 0 width
+				    algorithm-type options)
+		       :when (apply #'create-paragraph-node
+			       lineup width algorithm-type edge-type
+			       next-boundary hash
+			       options)
+			 :collect :it)))
+  (when nodes
+    (make-paragraph-node
+     nil
+     (mapcar (lambda (node)
+	       (apply #'make-instance edge-type
+		      :lineup lineup :width width :start 0 :node node
+		      options))
+       nodes))))
 
 
 (defclass paragraph-layout () ((nodes :initarg :nodes :accessor nodes)))
