@@ -93,9 +93,11 @@
 
 
 (defclass kp-layout (paragraph-layout)
-  ((demerits :initform 0 :accessor demerits)))
+  ((size :initform 0 :accessor size)
+   (demerits :initform 0 :accessor demerits)))
 
 (defmethod update-paragraph-layout ((layout kp-layout) (edge kp-edge))
+  (incf (size layout))
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
 
