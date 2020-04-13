@@ -40,7 +40,7 @@
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-start boundary))
+	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not word-overfull))
 	:for w := (lineup-width lineup start (stop boundary))
 	:if (and (word-boundary-p lineup boundary) (< w width))

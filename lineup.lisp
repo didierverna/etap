@@ -419,7 +419,9 @@
 	    (when (discretionaryp element)
 	      (push :hyphenation-clue (no-break element))))
       lineup))
-  (when lineup (make-array (length lineup) :initial-contents lineup)))
+  (when lineup
+    (endpush (make-glue 0 100000 0) lineup)
+    (make-array (length lineup) :initial-contents lineup)))
 
 (defun create-lineup (context)
   (apply #'make-lineup

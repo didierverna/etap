@@ -159,7 +159,7 @@ for equally bad solutions."))
       ;; is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only afterwards.
       (loop :with previous :with word-previous
 	    :for boundary := (next-boundary lineup start)
-	      :then (next-boundary lineup (next-start boundary))
+	      :then (next-boundary lineup (stop boundary))
 	    :while (and boundary
 			(<= (funcall lineup-width-function
 			      lineup start (stop boundary))
@@ -187,7 +187,7 @@ for equally bad solutions."))
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (next-start boundary))
+	    :then (next-boundary lineup (stop boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
 	  :if (< (max-width span) width)
@@ -237,7 +237,7 @@ for equally bad solutions."))
 	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	  ;; afterwards.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (next-start boundary))
+	    :then (next-boundary lineup (stop boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop boundary))
 	  :unless (and (not (word-boundary-p lineup boundary))
@@ -305,14 +305,14 @@ for equally bad solutions."))
 (defgeneric fit-create-line
     (lineup start stop disposition variant &key &allow-other-keys)
   (:method (lineup start stop disposition (variant (eql :first))
-	    &key width next-start relax
+	    &key width relax
 	    &aux (scale 1))
     (when relax
       (setq scale
 	    (if (< stop (length lineup))
 	      (let ((scale
 		      (lineup-scale
-		       lineup start (stop (next-boundary lineup next-start))
+		       lineup start (stop (next-boundary lineup stop))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))
@@ -348,6 +348,6 @@ for equally bad solutions."))
 	       :prefer-overfulls prefer-overfulls)
 	:collect (apply #'fit-create-line lineup start (stop boundary)
 			(disposition-type disposition) variant
-			:width width :next-start (next-start boundary)
+			:width width
 			:relax relax
 			(disposition-options disposition))))
