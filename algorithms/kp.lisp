@@ -17,9 +17,9 @@
 (define-constant +kp-adjacent-demerits+ '(0 10000 10000))
 (define-constant +kp-double-hyphen-demerits+ '(0 10000 10000))
 (define-constant +kp-final-hyphen-demerits+ '(0 5000 10000))
-(define-constant +kp-pre-tolerance+ '(0 100 1000))
-(define-constant +kp-tolerance+ '(0 200 1000))
-(define-constant +kp-emergency-stretch+ '(0 5 10))
+(define-constant +kp-pre-tolerance+ '(-1 100 10000))
+(define-constant +kp-tolerance+ '(0 200 10000))
+(define-constant +kp-emergency-stretch+ '(0 0 100))
 (define-constant +kp-looseness+ '(-10 0 10))
 
 (define-constant +kp-tooltips+
@@ -32,58 +32,59 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup width start (hyphen-penalty +kp-default-hyphen-penalty+)
+     &key lineup width start line-penalty hyphen-penalty
+     &allow-other-keys
      &aux (stop (stop (boundary (node edge))))
 	  (badness (badness lineup start stop width))
-	  (penalty (if (word-stop-p lineup stop)
-		     0
-		     (unless (= hyphen-penalty +kp-max-hyphen-penalty+)
-		       hyphen-penalty))))
-  ;; #### WARNING: this is not the complete demerits function because 1. we
-  ;; assume only positive hyphen penalties for now, and 2. it only takes the
-  ;; current line into account. Additional weights like double hyphen
-  ;; penalties will need to be handled later.
-  (setf (demerits edge) (!expt (!+ 1 (!+ badness penalty)) 2)))
+	  (penalty (if (word-stop-p lineup stop) 0 hyphen-penalty)))
+  (assert (not (eq penalty :+infinity)))
+  (setf (demerits edge)
+	(cond ((and (numberp penalty) (<= 0 penalty))
+	       (!+ (!expt (!+ line-penalty badness) 2) (expt penalty 2)))
+	      ((and (numberp penalty) (< penalty 0))
+	       (!+ (!expt (!+ line-penalty badness) 2) (- (expt penalty 2))))
+	      (t ;; :-infinity
+	       (!expt (!+ line-penalty badness) 2)))))
 
-
-;; #### NOTE: in this version, we collect only the fit solutions if any,
-;; otherwise the last underfull if any, and as a last resort the first
-;; overfull. In order to properly handle potentially infinite hyphen
-;; penalties, we would need to collect all boundaries from the last
-;; word-underfull one, up to the first overfull, as in the Best/Justified Fit
-;; version. However, it is unrealistic to work on a paragraph graph in such a
-;; case. For example, with all features enabled (hyphenation most
-;; importantly), the default paragraph leads to a graph which has more than
-;; 12032 solutions. And even then, we haven't even begun to handle negative
-;; hyphen penalties (in which case we would need to go back to the last
-;; hyphen-underfull), let alone -\infty ones, or variable penalties.
 (defmethod next-boundaries
-    (lineup start width (algorithm (eql :kp)) &key)
-  (loop :with underfull
-	:with fits := (list)
-	:with overfull
+    (lineup start width (algorithm (eql :kp))
+     &key pass threshold hyphen-penalty)
+  (loop :with boundaries :with last :with overfull
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (next-start boundary))
+	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not overfull))
-	:for span := (lineup-span lineup start (stop boundary))
-	:if (< (max-width span) width)
-	  :do (setq underfull boundary)
-	:else :if (and (<= (min-width span) width)
-		       (>= (max-width span) width))
-	  :do (push boundary fits)
-	:else
-	  :do (setq overfull boundary)
-	:finally
-	   (return (cond (fits fits)
-			 ;; #### NOTE: contrary to the Duncan version, we
-			 ;; don't even bother to return both an underfull and
-			 ;; an overfull here, since we already know that the
-			 ;; badness for overfull is +\infty.
-			 (underfull (list underfull))
-			 (t (list overfull))))))
+	:for min-width := (lineup-min-width lineup start (stop boundary))
+	:when (or (word-boundary-p lineup boundary)
+		  (and (> pass 1) (!< hyphen-penalty :+infinity)))
+	  :if (> min-width width)
+	    :do (setq overfull boundary)
+	  :else :if (and (not (word-boundary-p lineup boundary))
+			 (eq hyphen-penalty :-infinity))
+	    :do (return (list boundary))
+	  :else :if (!<= (badness lineup start (stop boundary) width)
+			 threshold)
+	    :do (push boundary boundaries)
+	  :else :do (setq last boundary)
+	:finally (return (if boundaries
+			   boundaries
+			   (when (> pass 1)
+			     ;; #### NOTE: according to my experiments, for
+			     ;; instance by starting a line with Superkali...,
+			     ;; it seems that numerical badness always leads
+			     ;; to overfulls, but infinite badness makes TeX
+			     ;; stop at an underfull.
+			     (cond ((eq threshold :+infinity)
+				    ;; There has to be an overfull here,
+				    ;; because otherwise, we would have
+				    ;; reached the end of the paragraph, which
+				    ;; ends with a large glue, so it would
+				    ;; have fitted.
+				    (assert overfull)
+				    (list overfull))
+				   (t (list (or overfull last)))))))))
 
 
 (defclass kp-layout (paragraph-layout)
@@ -93,28 +94,54 @@
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
 
-(defun kp-create-lines (lineup layout width sloppy)
+(defun kp-create-layout-lines
+    (lineup width disposition layout
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for node :in (cdr (nodes layout))
 	:and start := 0 :then (next-start (boundary node))
 	:for stop := (stop (boundary node))
-	:collect (create-justified-line lineup start stop width sloppy)))
+	:if justified
+	  :collect (create-justified-line lineup start stop width sloppy)
+	:else
+	  :collect (create-line lineup start stop)))
+
+(defgeneric kp-create-lines
+    (lineup width disposition variant &key &allow-other-keys)
+  (:method (lineup width disposition (variant (eql :graph))
+	    &key (line-penalty (cadr +kp-line-penalty+))
+		 (hyphen-penalty (cadr +kp-hyphen-penalty+))
+		 (pretolerance (cadr +kp-pre-tolerance+))
+		 (tolerance (cadr +kp-tolerance+)))
+    (cond ((< line-penalty (car +kp-line-penalty+))
+	   (setq line-penalty (car +kp-line-penalty+)))
+	  ((> line-penalty (caddr +kp-line-penalty+))
+	   (setq line-penalty (caddr +kp-line-penalty+))))
+    (cond ((<= hyphen-penalty (car +kp-hyphen-penalty+))
+	   (setq hyphen-penalty :-infinity))
+	  ((>= hyphen-penalty (caddr +kp-hyphen-penalty+))
+	   (setq hyphen-penalty :+infinity)))
+    (when (>= pretolerance (caddr +kp-pre-tolerance+))
+      (setq pretolerance :+infinity))
+    (cond ((>= tolerance (caddr +kp-tolerance+))
+	   (setq pretolerance :+infinity))
+	  ((< tolerance (car +kp-tolerance+))
+	   (setq tolerance (car +kp-tolerance+))))
+    (let ((graph (or (when (!<= 0 pretolerance)
+		       (paragraph-graph lineup width :kp
+			 :pass 1 :threshold pretolerance))
+		     (paragraph-graph lineup width :kp
+		       :pass 2 :threshold tolerance
+		       :hyphen-penalty hyphen-penalty)))
+	  layouts)
+      (when graph
+	(setq layouts (paragraph-layouts graph :kp))
+	(setq layouts (sort layouts #'!< :key #'demerits))
+	(kp-create-layout-lines lineup width disposition (car layouts)))))
+  (:method (lineup width disposition (variant (eql :dynamic)) &key)
+    ))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :knuth-plass))
-     &rest options &key
-     &aux (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  #+()(let* ((graph (apply #'paragraph-graph lineup width :kp options))
-	 (layouts (paragraph-layouts graph :kp))
-	 (acceptable (remove-if (lambda (layout) (null (demerits layout)))
-				layouts))
-	 (fallbacks (remove-if-not (lambda (layout) (null (demerits layout)))
-				   layouts)))
-    ;; #### FIXME: options to do better than just returning the first ones.
-    (cond (acceptable
-	   (let ((minimum-demerits (loop :for layout :in acceptable
-					 :minimize (demerits layout))))
-	     (kp-create-lines lineup (find minimum-demerits acceptable
-					   :key #'demerits)
-			      width sloppy)))
-	  (t
-	   (kp-create-lines lineup (car fallbacks) width sloppy)))))
+     &rest options &key (variant (car +kp-variants+)))
+  (apply #'kp-create-lines lineup width disposition variant options))

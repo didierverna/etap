@@ -45,6 +45,8 @@ ignoring the font's inter-word spacing boundaries."))
 	((or (eq x :-infinity) (eq y :+infinity)) t)
 	(t nil)))
 
+(defun !<= (x y) (or (eql x y) (!< x y)))
+
 (defun !+ (x y)
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)
