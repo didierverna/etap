@@ -134,9 +134,11 @@
 	   (setq tolerance (car +kp-tolerance+))))
     (let ((graph (or (when (!<= 0 pretolerance)
 		       (paragraph-graph lineup width :kp
-			 :pass 1 :threshold pretolerance))
+			 :pass 1 :threshold pretolerance
+			 :line-penalty line-penalty))
 		     (paragraph-graph lineup width :kp
 		       :pass 2 :threshold tolerance
+		       :line-penalty line-penalty
 		       :hyphen-penalty hyphen-penalty)))
 	  layouts)
       (when graph
