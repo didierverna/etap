@@ -1,7 +1,8 @@
 (in-package :etap)
 
-(defun title-capitalize (title)
-  (nsubstitute #\Space #\- (string-capitalize title)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun title-capitalize (title)
+    (nsubstitute #\Space #\- (string-capitalize title))))
 
 
 (defmacro define-slider-callback
