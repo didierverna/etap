@@ -100,6 +100,10 @@
   (incf (size layout))
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
+(defun kp-postprocess-layout (layout lineup final-hyphen-demerits)
+  (unless (word-boundary-p lineup (boundary (nth (1- (size layout))
+						 (nodes layout))))
+    (setf (demerits layout) (!+ final-hyphen-demerits (demerits layout)))))
 
 (defun kp-create-layout-lines
     (lineup width disposition layout
@@ -146,6 +150,9 @@
 	  layouts)
       (when graph
 	(setq layouts (paragraph-layouts graph :kp))
+	(mapc (lambda (layout)
+		(kp-postprocess-layout layout lineup final-hyphen-demerits))
+	  layouts)
 	(setq layouts (sort layouts #'!< :key #'demerits))
 	(kp-create-layout-lines lineup width disposition (car layouts)))))
   (:method (lineup width disposition (variant (eql :dynamic)) &key)
