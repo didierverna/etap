@@ -12,8 +12,8 @@
 
 
 (define-constant +kp-line-penalty+ '(0 10 100))
-(define-constant +kp-hyphen-penalty+ '(-1000 50 1000))
-(define-constant +kp-explicit-hyphen-penalty+ '(-1000 50 1000))
+(define-constant +kp-hyphen-penalty+ '(-10000 50 10000))
+(define-constant +kp-explicit-hyphen-penalty+ '(-10000 50 10000))
 (define-constant +kp-adjacent-demerits+ '(0 10000 10000))
 (define-constant +kp-double-hyphen-demerits+ '(0 10000 10000))
 (define-constant +kp-final-hyphen-demerits+ '(0 5000 10000))
