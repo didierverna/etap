@@ -22,7 +22,7 @@
 	      (make-paragraph-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply #'next-boundaries
-					 lineup (next-start boundary) width
+					 lineup (stop boundary) width
 					 algorithm-type options)
 				 :when (apply #'create-paragraph-node
 					 lineup width algorithm-type edge-type
