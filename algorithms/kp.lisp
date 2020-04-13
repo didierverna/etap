@@ -118,7 +118,8 @@
   (:method (lineup width disposition (variant (eql :graph))
 	    &key (line-penalty (cadr +kp-line-penalty+))
 		 (hyphen-penalty (cadr +kp-hyphen-penalty+))
-		 (pretolerance (cadr +kp-pre-tolerance+))
+		 (final-hyphen-demerits (cadr +kp-final-hyphen-demerits+))
+		 (pre-tolerance (cadr +kp-pre-tolerance+))
 		 (tolerance (cadr +kp-tolerance+)))
     (cond ((< line-penalty (car +kp-line-penalty+))
 	   (setq line-penalty (car +kp-line-penalty+)))
@@ -128,15 +129,15 @@
 	   (setq hyphen-penalty :-infinity))
 	  ((>= hyphen-penalty (caddr +kp-hyphen-penalty+))
 	   (setq hyphen-penalty :+infinity)))
-    (when (>= pretolerance (caddr +kp-pre-tolerance+))
-      (setq pretolerance :+infinity))
+    (when (>= pre-tolerance (caddr +kp-pre-tolerance+))
+      (setq pre-tolerance :+infinity))
     (cond ((>= tolerance (caddr +kp-tolerance+))
-	   (setq pretolerance :+infinity))
+	   (setq tolerance :+infinity))
 	  ((< tolerance (car +kp-tolerance+))
 	   (setq tolerance (car +kp-tolerance+))))
-    (let ((graph (or (when (!<= 0 pretolerance)
+    (let ((graph (or (when (!<= 0 pre-tolerance)
 		       (paragraph-graph lineup width :kp
-			 :pass 1 :threshold pretolerance
+			 :pass 1 :threshold pre-tolerance
 			 :line-penalty line-penalty))
 		     (paragraph-graph lineup width :kp
 		       :pass 2 :threshold tolerance
