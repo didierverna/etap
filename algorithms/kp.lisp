@@ -49,7 +49,7 @@
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp))
      &key pass threshold hyphen-penalty)
-  (loop :with boundaries :with last :with overfull
+  (loop :with boundaries :with overfull
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
@@ -67,24 +67,14 @@
 	  :else :if (!<= (badness lineup start (stop boundary) width)
 			 threshold)
 	    :do (push boundary boundaries)
-	  :else :do (setq last boundary)
 	:finally (return (if boundaries
 			   boundaries
 			   (when (> pass 1)
-			     ;; #### NOTE: according to my experiments, for
-			     ;; instance by starting a line with Superkali...,
-			     ;; it seems that numerical badness always leads
-			     ;; to overfulls, but infinite badness makes TeX
-			     ;; stop at an underfull.
-			     (cond ((eq threshold :+infinity)
-				    ;; There has to be an overfull here,
-				    ;; because otherwise, we would have
-				    ;; reached the end of the paragraph, which
-				    ;; ends with a large glue, so it would
-				    ;; have fitted.
-				    (assert overfull)
-				    (list overfull))
-				   (t (list (or overfull last)))))))))
+			     ;; Because of the final paragraph glue, we
+			     ;; necessarily have an overfull if we end up
+			     ;; here.
+			     (assert overfull)
+			     (list overfull))))))
 
 
 (defclass kp-layout (paragraph-layout)
