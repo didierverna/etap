@@ -28,16 +28,31 @@
 
 
 (defclass kp-edge (paragraph-edge)
-  ((demerits :initform 0 :accessor demerits)))
+  ((demerits :accessor demerits)
+   (fitness-class :accessor fitness-class)))
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
      &key lineup width start line-penalty hyphen-penalty
      &allow-other-keys
      &aux (stop (stop (boundary (node edge))))
+	  (scale (lineup-scale lineup start stop width))
 	  (badness (badness lineup start stop width))
 	  (penalty (if (word-stop-p lineup stop) 0 hyphen-penalty)))
   (assert (not (eq penalty :+infinity)))
+  ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
+  ;; only an overfull one. For example, we could have collected an hyphenated
+  ;; beginning of word thanks to an infinite tolerance, and this would result
+  ;; in a rigid underfull. This probably doesn't happen in TeX with its
+  ;; dynamic programming implementation. But the problem is that we can't
+  ;; define a sensible fitness class in such a case. So we consider those
+  ;; lines to be very tight (as overfulls) even if they are actually
+  ;; underfull.
+  (setf (fitness-class edge)
+	(cond ((or (null scale) (< scale -1/2)) 3)
+	      ((<= -1/2 scale 1/2) 2)
+	      ((<= 1/2 scale 1) 1)
+	      ((< 1 scale) 0)))
   (setf (demerits edge)
 	(cond ((and (numberp penalty) (<= 0 penalty))
 	       (!+ (!expt (!+ line-penalty badness) 2) (expt penalty 2)))
