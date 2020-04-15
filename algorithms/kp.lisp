@@ -28,17 +28,20 @@
 
 
 (defclass kp-edge (paragraph-edge)
-  ((demerits :accessor demerits)
-   (fitness-class :accessor fitness-class)))
+  ((hyphenp :accessor hyphenp)
+   (fitness-class :accessor fitness-class)
+   ;; #### NOTE: these are only line-local demerits.
+   (demerits :accessor demerits)))
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
      &key lineup width start line-penalty hyphen-penalty
      &allow-other-keys
      &aux (stop (stop (boundary (node edge))))
+	  (hyphenp (not (word-stop-p lineup stop)))
 	  (scale (lineup-scale lineup start stop width))
 	  (badness (badness lineup start stop width))
-	  (penalty (if (word-stop-p lineup stop) 0 hyphen-penalty)))
+	  (penalty (if hyphenp hyphen-penalty 0)))
   (assert (not (eq penalty :+infinity)))
   ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
   ;; only an overfull one. For example, we could have collected an hyphenated
@@ -48,6 +51,7 @@
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
+  (setf (hyphenp edge) hyphenp)
   (setf (fitness-class edge)
 	(cond ((or (null scale) (< scale -1/2)) 3)
 	      ((<= -1/2 scale 1/2) 2)
@@ -93,25 +97,29 @@
 
 
 (defclass kp-layout (paragraph-layout)
-  ((size :initform 0 :accessor size)
-   (demerits :initform 0 :accessor demerits)))
+  ((size :accessor size)
+   (demerits :accessor demerits)))
+
+(defmethod initialize-instance :after
+    ((layout kp-layout)  &key &aux (edge (car (edges layout))))
+  (setf (size layout) 1
+	(demerits layout) (demerits edge)))
 
 (defmethod update-paragraph-layout ((layout kp-layout) (edge kp-edge))
   (incf (size layout))
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
 (defun kp-postprocess-layout (layout lineup final-hyphen-demerits)
-  (unless (word-boundary-p lineup (boundary (nth (1- (size layout))
-						 (nodes layout))))
+  (when (hyphenp (nth (- (size layout) 2) (edges layout)))
     (setf (demerits layout) (!+ final-hyphen-demerits (demerits layout)))))
 
 (defun kp-create-layout-lines
     (lineup width disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (loop :for node :in (cdr (nodes layout))
-	:and start := 0 :then (next-start (boundary node))
-	:for stop := (stop (boundary node))
+  (loop :for edge :in (edges layout)
+	:and start := 0 :then (next-start (boundary (node edge)))
+	:for stop := (stop (boundary (node edge)))
 	:if justified
 	  :collect (create-justified-line lineup start stop width sloppy)
 	:else
