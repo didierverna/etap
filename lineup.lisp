@@ -150,7 +150,12 @@
     (cond ((= width target)
 	   0)
 	  ((< width target)
-	   (unless (zerop stretch) (/ (- target width) stretch)))
+	   ;; #### WARNING: this is a kludge for the last glue in the
+	   ;; paragraph. We consider that a total stretch of more than 100000
+	   ;; is infinite.
+	   (if (>= stretch 100000)
+	     0
+	     (unless (zerop stretch) (/ (- target width) stretch))))
 	  ((> width target)
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
