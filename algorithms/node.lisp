@@ -70,22 +70,22 @@
        nodes))))
 
 
-(defclass paragraph-layout () ((nodes :initarg :nodes :accessor nodes)))
+(defclass paragraph-layout () ((edges :initarg :edges :accessor edges)))
 
-(defmethod initialize-instance :around ((layout paragraph-layout) &key node)
-  (call-next-method layout :nodes (list node)))
+(defmethod initialize-instance :around ((layout paragraph-layout) &key edge)
+  (call-next-method layout :edges (list edge)))
 
 (defgeneric update-paragraph-layout (layout edge))
 
 (defun %paragraph-layouts (node layout-type)
-  (if (edges node)
-    (mapcan (lambda (edge)
+  (mapcan (lambda (edge)
+	    (if (edges (node edge))
 	      (mapc (lambda (layout)
-		      (push node (nodes layout))
+		      (push edge (edges layout))
 		      (update-paragraph-layout layout edge))
-		(%paragraph-layouts (node edge) layout-type)))
-      (edges node))
-    (list (make-instance layout-type :node node))))
+		(%paragraph-layouts (node edge) layout-type))
+	      (list (make-instance layout-type :edge edge))))
+    (edges node)))
 
 (defun paragraph-layouts
     (node algorithm

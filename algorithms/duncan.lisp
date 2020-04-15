@@ -86,6 +86,13 @@
    (overfulls :initform 0 :accessor overfulls)
    (weight :initform 0 :accessor weight)))
 
+(defmethod initialize-instance :after
+    ((layout duncan-layout) &key &aux (edge (car (edges layout))))
+  (setf (hyphens layout) (hyphen edge)
+	(underfulls layout) (underfull edge)
+	(overfulls layout) (overfull edge)
+	(weight layout) (weight edge)))
+
 (defmethod update-paragraph-layout ((layout duncan-layout) (edge duncan-edge))
   (incf (hyphens layout) (hyphen edge))
   (incf (underfulls layout) (underfull edge))
@@ -99,9 +106,9 @@
     (lineup width disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (loop :for node :in (cdr (nodes layout))
-	:and start := 0 :then (next-start (boundary node))
-	:for stop := (stop (boundary node))
+  (loop :for edge :in (edges layout)
+	:and start := 0 :then (next-start (boundary (node edge)))
+	:for stop := (stop (boundary (node edge)))
 	:if justified
 	  :collect (create-justified-line lineup start stop width sloppy)
 	:else
