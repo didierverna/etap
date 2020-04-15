@@ -109,7 +109,18 @@
   (incf (size layout))
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
-(defun kp-postprocess-layout (layout lineup final-hyphen-demerits)
+(defun kp-postprocess-layout
+    (layout lineup
+     adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+  (when (> (length (edges layout)) 1)
+    (loop :for edge1 :in (edges layout)
+	  :for edge2 :in (cdr (edges layout))
+	  :when (and (hyphenp edge1) (hyphenp edge2))
+	    :do (setf (demerits layout)
+		      (!+ (demerits layout) double-hyphen-demerits))
+	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
+	    :do (setf (demerits layout)
+		      (!+ (demerits layout) adjacent-demerits))))
   (when (hyphenp (nth (- (size layout) 2) (edges layout)))
     (setf (demerits layout) (!+ final-hyphen-demerits (demerits layout)))))
 
@@ -130,6 +141,8 @@
   (:method (lineup width disposition (variant (eql :graph))
 	    &key (line-penalty (cadr +kp-line-penalty+))
 		 (hyphen-penalty (cadr +kp-hyphen-penalty+))
+		 (adjacent-demerits (cadr +kp-adjacent-demerits+))
+		 (double-hyphen-demerits (cadr +kp-double-hyphen-demerits+))
 		 (final-hyphen-demerits (cadr +kp-final-hyphen-demerits+))
 		 (pre-tolerance (cadr +kp-pre-tolerance+))
 		 (tolerance (cadr +kp-tolerance+)))
@@ -141,6 +154,18 @@
 	   (setq hyphen-penalty :-infinity))
 	  ((>= hyphen-penalty (caddr +kp-hyphen-penalty+))
 	   (setq hyphen-penalty :+infinity)))
+    (cond ((< adjacent-demerits (car +kp-adjacent-demerits+))
+	   (setq adjacent-demerits (car +kp-adjacent-demerits+)))
+	  ((> adjacent-demerits (caddr +kp-adjacent-demerits+))
+	   (setq adjacent-demerits (caddr +kp-adjacent-demerits+))))
+    (cond ((< double-hyphen-demerits (car +kp-double-hyphen-demerits+))
+	   (setq double-hyphen-demerits (car +kp-double-hyphen-demerits+)))
+	  ((> double-hyphen-demerits (caddr +kp-double-hyphen-demerits+))
+	   (setq double-hyphen-demerits (caddr +kp-double-hyphen-demerits+))))
+    (cond ((< final-hyphen-demerits (car +kp-final-hyphen-demerits+))
+	   (setq final-hyphen-demerits (car +kp-final-hyphen-demerits+)))
+	  ((> final-hyphen-demerits (caddr +kp-final-hyphen-demerits+))
+	   (setq final-hyphen-demerits (caddr +kp-final-hyphen-demerits+))))
     (when (>= pre-tolerance (caddr +kp-pre-tolerance+))
       (setq pre-tolerance :+infinity))
     (cond ((>= tolerance (caddr +kp-tolerance+))
@@ -159,7 +184,9 @@
       (when graph
 	(setq layouts (paragraph-layouts graph :kp))
 	(mapc (lambda (layout)
-		(kp-postprocess-layout layout lineup final-hyphen-demerits))
+		(kp-postprocess-layout layout lineup
+		  adjacent-demerits double-hyphen-demerits
+		  final-hyphen-demerits))
 	  layouts)
 	(setq layouts (sort layouts #'!< :key #'demerits))
 	(kp-create-layout-lines lineup width disposition (car layouts)))))
