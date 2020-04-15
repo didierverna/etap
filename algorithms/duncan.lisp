@@ -81,10 +81,10 @@
 
 
 (defclass duncan-layout (paragraph-layout)
-  ((hyphens :initform 0 :accessor hyphens)
-   (underfulls :initform 0 :accessor underfulls)
-   (overfulls :initform 0 :accessor overfulls)
-   (weight :initform 0 :accessor weight)))
+  ((hyphens :accessor hyphens)
+   (underfulls :accessor underfulls)
+   (overfulls :accessor overfulls)
+   (weight :accessor weight)))
 
 (defmethod initialize-instance :after
     ((layout duncan-layout) &key &aux (edge (car (edges layout))))
