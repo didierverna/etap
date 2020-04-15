@@ -14,6 +14,13 @@
 (defgeneric next-boundaries
     (lineup start width child-type &key &allow-other-keys))
 
+;; #### WARNING: we use a hash table for storing and sharing nodes to express
+;; the fact that however we reach a break, all subsequent solutions for the
+;; rest of the paragraph will be the same. Note however that this is valid
+;; only because we currently only have rectangular paragraphs. With bells and
+;; whistles like \parshape, the subsequent solutions would differ, depending
+;; on the line number at which a break occurs. Therefore, the sharing would
+;; need to take the line number as well as the boundary into account.
 (defun create-paragraph-node
     (lineup width algorithm-type edge-type boundary hash &rest options)
   (or (gethash (stop boundary) hash)
@@ -93,10 +100,10 @@
 ;; #### lines (21096 without hyphenation). The raw tree of all such solutions
 ;; #### has 150860 nodes (48338 without hyphenation). However, once a line
 ;; #### stop has been decided, all possible solutions for the next lines
-;; #### remain the same, however we reached that possible stop. This means
-;; #### that there is a lot of room for re-using branches. And indeed, when
-;; #### sharing nodes, we fall from 150860 to 98 (from 48338 to 83 without
-;; #### hyphenation).
+;; #### remain the same (modulo the rectangular paragraph assumption), however
+;; #### we reached that possible stop. This means that there is a lot of room
+;; #### for re-using branches. And indeed, when sharing nodes, we fall from
+;; #### 150860 to 98 (from 48338 to 83 without hyphenation).
 
 ;; #### If we avoid preventive fulls, that is, if we include only under- and
 ;; #### overfull solutions when there is not fit, the number of paragraph
