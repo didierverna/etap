@@ -183,6 +183,12 @@
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
   (unless (= start length)
     (let ((point (position-if #'break-point-p lineup :start (1+ start))))
+      ;; #### WARNING: this is a kludge to never break at the end of the final
+      ;; word (that is, just before the final glue). Otherwise, we would end
+      ;; up with a line containing only the final glue. TeX does it by adding
+      ;; \penalty10000 before the final glue (and it also adds \penalty-10000
+      ;; afterwards), but we don't have that level of generality yet.
+      (when (eql point (1- length)) (setq point nil))
       (if point
 	(let ((next (1+ point)))
 	  (typecase (aref lineup point)
