@@ -145,8 +145,9 @@
     (make-span width (- width shrink) (+ width stretch))))
 
 
-(defun lineup-scale (lineup start stop target)
+(defun lineup-scale (lineup start stop target &optional emergency-stretch)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (when emergency-stretch (incf stretch emergency-stretch))
     (cond ((= width target)
 	   0)
 	  ((< width target)

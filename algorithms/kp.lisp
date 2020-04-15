@@ -19,7 +19,7 @@
 (define-constant +kp-final-hyphen-demerits+ '(0 5000 10000))
 (define-constant +kp-pre-tolerance+ '(-1 100 10000))
 (define-constant +kp-tolerance+ '(0 200 10000))
-(define-constant +kp-emergency-stretch+ '(0 0 100))
+(define-constant +kp-emergency-stretch+ '(0 0 20))
 (define-constant +kp-looseness+ '(-10 0 10))
 
 (define-constant +kp-tooltips+
@@ -67,7 +67,7 @@
 
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp))
-     &key pass threshold hyphen-penalty)
+     &key pass threshold hyphen-penalty emergency-stretch)
   (loop :with boundaries :with overfull
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
@@ -83,11 +83,15 @@
 	  :else :if (and (not (word-boundary-p lineup boundary))
 			 (eq hyphen-penalty :-infinity))
 	    :do (return (list boundary))
-	  :else :if (!<= (badness lineup start (stop boundary) width)
+	  :else :if (!<= (badness lineup start (stop boundary) width
+				  emergency-stretch)
 			 threshold)
 	    :do (push boundary boundaries)
 	:finally (return (if boundaries
 			   boundaries
+			   ;; #### NOTE: we absolutely need to return
+			   ;; something here even on pass 2, because the
+			   ;; emergency stretch could be 0.
 			   (when (> pass 1)
 			     ;; Because of the final paragraph glue, we
 			     ;; necessarily have an overfull if we end up
@@ -110,8 +114,7 @@
   (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
 
 (defun kp-postprocess-layout
-    (layout lineup
-     adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+    (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
@@ -145,7 +148,8 @@
 		 (double-hyphen-demerits (cadr +kp-double-hyphen-demerits+))
 		 (final-hyphen-demerits (cadr +kp-final-hyphen-demerits+))
 		 (pre-tolerance (cadr +kp-pre-tolerance+))
-		 (tolerance (cadr +kp-tolerance+)))
+		 (tolerance (cadr +kp-tolerance+))
+		 (emergency-stretch (cadr +kp-emergency-stretch+)))
     (cond ((< line-penalty (car +kp-line-penalty+))
 	   (setq line-penalty (car +kp-line-penalty+)))
 	  ((> line-penalty (caddr +kp-line-penalty+))
@@ -172,24 +176,40 @@
 	   (setq tolerance :+infinity))
 	  ((< tolerance (car +kp-tolerance+))
 	   (setq tolerance (car +kp-tolerance+))))
-    (let ((graph (or (when (!<= 0 pre-tolerance)
-		       (paragraph-graph lineup width :kp
-			 :pass 1 :threshold pre-tolerance
-			 :line-penalty line-penalty))
-		     (paragraph-graph lineup width :kp
-		       :pass 2 :threshold tolerance
+    (cond ((< emergency-stretch (car +kp-emergency-stretch+))
+	   (setq emergency-stretch (car +kp-emergency-stretch+)))
+	  ((> emergency-stretch (caddr +kp-emergency-stretch+))
+	   (setq emergency-stretch (caddr +kp-emergency-stretch+))))
+    (let* ((graph (or (when (!<= 0 pre-tolerance)
+			(paragraph-graph lineup width :kp
+			  :pass 1 :threshold pre-tolerance
+			  :line-penalty line-penalty))
+		      (paragraph-graph lineup width :kp
+			:pass 2 :threshold tolerance
+			:line-penalty line-penalty
+			:hyphen-penalty hyphen-penalty)))
+	   (layouts (paragraph-layouts graph :kp)))
+      (mapc (lambda (layout)
+	      (kp-postprocess-layout layout
+		adjacent-demerits double-hyphen-demerits
+		final-hyphen-demerits))
+	layouts)
+      (setq layouts (sort layouts #'!< :key #'demerits))
+      (when (and (not (zerop emergency-stretch))
+		 (eql (demerits (car layouts)) :+infinity))
+	(setq graph (paragraph-graph lineup width :kp
+		       :pass 3 :threshold tolerance
 		       :line-penalty line-penalty
-		       :hyphen-penalty hyphen-penalty)))
-	  layouts)
-      (when graph
+		       :hyphen-penalty hyphen-penalty
+		       :emergency-stretch emergency-stretch))
 	(setq layouts (paragraph-layouts graph :kp))
 	(mapc (lambda (layout)
-		(kp-postprocess-layout layout lineup
+		(kp-postprocess-layout layout
 		  adjacent-demerits double-hyphen-demerits
 		  final-hyphen-demerits))
 	  layouts)
-	(setq layouts (sort layouts #'!< :key #'demerits))
-	(kp-create-layout-lines lineup width disposition (car layouts)))))
+	(setq layouts (sort layouts #'!< :key #'demerits)))
+      (kp-create-layout-lines lineup width disposition (car layouts))))
   (:method (lineup width disposition (variant (eql :dynamic)) &key)
     ))
 

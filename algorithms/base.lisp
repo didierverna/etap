@@ -33,8 +33,10 @@ ignoring the font's inter-word spacing boundaries."))
 
 (define-constant +maximum-badness+ 10000)
 
-(defun badness (lineup start stop width
-		&aux (scale (lineup-scale lineup start stop width)))
+(defun badness
+    (lineup start stop width
+     &optional emergency-stretch
+     &aux (scale (lineup-scale lineup start stop width emergency-stretch)))
   (if (or (null scale) (< scale -1))
     :+infinity
     (min (* 100 (expt (abs scale) 3)) +maximum-badness+)))
