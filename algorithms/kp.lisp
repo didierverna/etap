@@ -68,7 +68,7 @@
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp))
      &key pass threshold hyphen-penalty emergency-stretch)
-  (loop :with boundaries :with overfull
+  (loop :with boundaries :with overfull :with emergency-boundary
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
@@ -87,17 +87,16 @@
 				  emergency-stretch)
 			 threshold)
 	    :do (push boundary boundaries)
+	  :else
+	    :do (setq emergency-boundary boundary)
 	:finally (return (if boundaries
 			   boundaries
 			   ;; #### NOTE: we absolutely need to return
 			   ;; something here even on pass 2, because the
 			   ;; emergency stretch could be 0.
 			   (when (> pass 1)
-			     ;; Because of the final paragraph glue, we
-			     ;; necessarily have an overfull if we end up
-			     ;; here.
-			     (assert overfull)
-			     (list overfull))))))
+			     (if overfull (list overfull)
+				 (list emergency-boundary)))))))
 
 
 (defclass kp-layout (paragraph-layout)
