@@ -46,11 +46,15 @@
 	  :variant ,(choice-selected-item (fit-variant interface))
 	  :discriminating-function
 	  ,(choice-selected-item (fit-discriminating-function interface))
-	  :hyphen-penalty ,(range-slug-start (fit-hyphen-penalty interface))
+	  :hyphen-penalty
+	  ,(range-slug-start (fit-hyphen-penalty interface))
+	  :explicit-hyphen-penalty
+	  ,(range-slug-start (fit-explicit-hyphen-penalty interface))
 	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
   (update interface))
 
 (define-slider-callback fit-hyphen-penalty)
+(define-slider-callback fit-explicit-hyphen-penalty)
 
 
 (defun set-barnett-algorithm (value interface)
@@ -317,6 +321,16 @@
      :tick-frequency 0
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
+   (fit-explicit-hyphen-penalty slider
+     :title (format nil "Explicit-Hyphen Penalty: ~D"
+	      (cadr +fit-explicit-hyphen-penalty+))
+     :orientation :horizontal
+     :start (car +fit-explicit-hyphen-penalty+)
+     :end (caddr +fit-explicit-hyphen-penalty+)
+     :slug-start (cadr +fit-explicit-hyphen-penalty+)
+     :tick-frequency 0
+     :callback 'set-fit-explicit-hyphen-penalty
+     :reader fit-explicit-hyphen-penalty)
    #+()(barnett-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
@@ -531,7 +545,8 @@
    (fixed-settings row-layout '(fixed-variant fixed-options))
    (fit-settings row-layout '(fit-variant fit-options fit-parameters))
    (fit-parameters column-layout
-     '(fit-discriminating-function fit-hyphen-penalty)
+     '(fit-discriminating-function
+       fit-hyphen-penalty fit-explicit-hyphen-penalty)
      :title "Other Parameters"
      :title-position :frame
      :visible-max-height nil)
@@ -578,7 +593,13 @@
 		 (cadr +fit-hyphen-penalty+)))
        (setf (titled-object-title (fit-hyphen-penalty etap))
 	     (format nil "Hyphen Penalty: ~D"
-	       (range-slug-start (fit-hyphen-penalty etap)))))
+	       (range-slug-start (fit-hyphen-penalty etap))))
+       (setf (range-slug-start (fit-explicit-hyphen-penalty etap))
+	     (or (cadr (member :explicit-hyphen-penalty options))
+		 (cadr +fit-explicit-hyphen-penalty+)))
+       (setf (titled-object-title (fit-explicit-hyphen-penalty etap))
+	     (format nil "Explicit Hyphen Penalty: ~D"
+	       (range-slug-start (fit-explicit-hyphen-penalty etap)))))
       (:barnett
        (setf (choice-selection (algorithms etap)) 2)
        #+()(setf (choice-selection (barnett-options etap))

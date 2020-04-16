@@ -30,8 +30,8 @@
 ;;   natural inter-word space, without producing overfull lines. The effect is
 ;;   thus to make the paragraph less compact.
 
-;; The "Hyphen Penalty" option affects the Best/Justified version's weight
-;; function in the TeX way.
+;; The "[Explicit ]Hyphen Penalty" option affects the Best/Justified version's
+;; weight function in the TeX way.
 
 ;; In the Best/Justified version, several line boundaries may turn out to have
 ;; the same optimum weight (badness + hyphen penalty). A weight of -infinity
@@ -103,6 +103,7 @@
       :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
 (define-constant +fit-hyphen-penalty+ '(-1000 50 1000))
+(define-constant +fit-explicit-hyphen-penalty+ '(-1000 50 1000))
 
 (define-constant +fit-tooltips+
     '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
@@ -120,19 +121,25 @@ prefer overfull over underfull
 for equally bad solutions."))
 
 
-(defun fit-weight (lineup start width boundary hyphen-penalty
-		   &aux (badness (badness lineup start (stop boundary) width)))
+(defun fit-weight
+    (lineup start width boundary hyphen-penalty explicit-hyphen-penalty
+     &aux (badness (badness lineup start (stop boundary) width)))
   (if (word-boundary-p lineup boundary)
     badness
     ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
     ;; risk of doing -infinity + +infinity here.
-    (!+ badness hyphen-penalty)))
+    (!+ badness (if (pre-break (aref lineup (1- (stop boundary))))
+		  hyphen-penalty
+		  explicit-hyphen-penalty))))
 
-(defun fit-weights (lineup start width boundaries hyphen-penalty)
-  (mapcar (lambda (boundary)
-	    (cons (fit-weight lineup start width boundary hyphen-penalty)
-		  boundary))
+(defun fit-weights
+    (lineup start width boundaries hyphen-penalty explicit-hyphen-penalty)
+  (mapcar
+      (lambda (boundary)
+	(cons (fit-weight lineup start width boundary
+			  hyphen-penalty explicit-hyphen-penalty)
+	      boundary))
     boundaries))
 
 (defun fit-deltas (lineup start width boundaries)
@@ -218,12 +225,8 @@ for equally bad solutions."))
 			    (t underfull)))))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
-	    &key discriminating-function hyphen-penalty
+	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
 		 prefer-shrink prefer-overfulls)
-    (cond ((<= hyphen-penalty (car +fit-hyphen-penalty+))
-	   (setq hyphen-penalty :-infinity))
-	  ((>= hyphen-penalty (caddr +fit-hyphen-penalty+))
-	   (setq hyphen-penalty :+infinity)))
     ;; #### NOTE: in order to handle all possible hyphen penalty values
     ;; (negative or positive, as well as infinite), we collect all potential
     ;; breaks until the first overfull, prematurely ending on mandatory hyphen
@@ -239,14 +242,26 @@ for equally bad solutions."))
 	  :for boundary := (next-boundary lineup start)
 	    :then (next-boundary lineup (stop boundary))
 	  :while (and boundary (not overfull))
+	  :for boundary-type
+	    := (cond ((word-boundary-p lineup boundary)
+		      :word)
+		     ((pre-break (aref lineup (1- (stop boundary))))
+		      :hyphen)
+		     (t
+		      :explicit-hyphen))
 	  :for span := (lineup-span lineup start (stop boundary))
-	  :unless (and (not (word-boundary-p lineup boundary))
-		       (eq hyphen-penalty :+infinity))
+	  :when (or (eq boundary-type :word)
+		    (and (eq boundary-type :hyphen)
+			 (!< hyphen-penalty :+infinity))
+		    (and (eq boundary-type :explicit-hyphen)
+			 (!< explicit-hyphen-penalty :+infinity)))
 	    :if (> (min-width span) width)
 	      :do (setq overfull t)
 	      :and :do (push boundary boundaries)
-	    :else :if (and (not (word-boundary-p lineup boundary))
-			   (eq hyphen-penalty :-infinity))
+	    :else :if (or (and (eq boundary-type :hyphen)
+			       (eq hyphen-penalty :-infinity))
+			  (and (eq boundary-type :explicit-hyphen)
+			       (eq explicit-hyphen-penalty :-infinity)))
 	      :do (return boundary)
 	    :else
 	      :do (push boundary boundaries)
@@ -257,7 +272,8 @@ for equally bad solutions."))
 		 (let ((sorted-weights
 			 (stable-sort
 			  (fit-weights
-			   lineup start width boundaries hyphen-penalty)
+			   lineup start width boundaries
+			   hyphen-penalty explicit-hyphen-penalty)
 			  #'!< :key #'car)))
 		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
 			  (setq sorted-weights
@@ -335,7 +351,16 @@ for equally bad solutions."))
      &key (variant (car +fit-variants+))
 	  (discriminating-function (car +fit-discriminating-functions+))
 	  (hyphen-penalty (cadr +fit-hyphen-penalty+))
+	  (explicit-hyphen-penalty (cadr +fit-explicit-hyphen-penalty+))
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
+  (cond ((<= hyphen-penalty (car +fit-hyphen-penalty+))
+	 (setq hyphen-penalty :-infinity))
+	((>= hyphen-penalty (caddr +fit-hyphen-penalty+))
+	 (setq hyphen-penalty :+infinity)))
+  (cond ((<= explicit-hyphen-penalty (car +fit-explicit-hyphen-penalty+))
+	 (setq explicit-hyphen-penalty :-infinity))
+	((>= explicit-hyphen-penalty (caddr +fit-explicit-hyphen-penalty+))
+	 (setq explicit-hyphen-penalty :+infinity)))
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary
@@ -344,6 +369,7 @@ for equally bad solutions."))
 	       :avoid-hyphens avoid-hyphens
 	       :discriminating-function discriminating-function
 	       :hyphen-penalty hyphen-penalty
+	       :explicit-hyphen-penalty explicit-hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
 	:collect (apply #'fit-create-line lineup start (stop boundary)

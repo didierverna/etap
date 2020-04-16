@@ -89,7 +89,7 @@
 		   (t
 		    :explicit-hyphen))
 	:for min-width := (lineup-min-width lineup start (stop boundary))
-	:when (or (word-boundary-p lineup boundary)
+	:when (or (eq boundary-type :word)
 		  (and (> pass 1)
 		       (or (and (eq boundary-type :hyphen)
 				(!< hyphen-penalty :+infinity))
