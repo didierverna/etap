@@ -35,13 +35,17 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup width start line-penalty hyphen-penalty
+     &key lineup width start line-penalty hyphen-penalty explicit-hyphen-penalty
      &allow-other-keys
      &aux (stop (stop (boundary (node edge))))
 	  (hyphenp (not (word-stop-p lineup stop)))
 	  (scale (lineup-scale lineup start stop width))
 	  (badness (badness lineup start stop width))
-	  (penalty (if hyphenp hyphen-penalty 0)))
+	  (penalty (if hyphenp
+		     (if (pre-break (aref lineup (1- stop)))
+		       hyphen-penalty
+		       explicit-hyphen-penalty)
+		       0)))
   (assert (not (eq penalty :+infinity)))
   ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
   ;; only an overfull one. For example, we could have collected an hyphenated
@@ -67,7 +71,9 @@
 
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp))
-     &key pass threshold hyphen-penalty emergency-stretch)
+     &key pass threshold
+	  hyphen-penalty explicit-hyphen-penalty
+	  emergency-stretch)
   (loop :with boundaries :with overfull :with emergency-boundary
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
@@ -75,13 +81,26 @@
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not overfull))
+	:for boundary-type
+	  := (cond ((word-boundary-p lineup boundary)
+		    :word)
+		   ((pre-break (aref lineup (1- (stop boundary))))
+		    :hyphen)
+		   (t
+		    :explicit-hyphen))
 	:for min-width := (lineup-min-width lineup start (stop boundary))
 	:when (or (word-boundary-p lineup boundary)
-		  (and (> pass 1) (!< hyphen-penalty :+infinity)))
+		  (and (> pass 1)
+		       (or (and (eq boundary-type :hyphen)
+				(!< hyphen-penalty :+infinity))
+			   (and (eq boundary-type :explicit-hyphen)
+				(!< explicit-hyphen-penalty :+infinity)))))
 	  :if (> min-width width)
 	    :do (setq overfull boundary)
-	  :else :if (and (not (word-boundary-p lineup boundary))
-			 (eq hyphen-penalty :-infinity))
+	  :else :if (or (and (eq boundary-type :hyphen)
+			     (eq hyphen-penalty :-infinity))
+			(and (eq boundary-type :explicit-hyphen)
+			     (eq explicit-hyphen-penalty :-infinity)))
 	    :do (return (list boundary))
 	  :else :if (!<= (badness lineup start (stop boundary) width
 				  emergency-stretch)
@@ -143,6 +162,7 @@
   (:method (lineup width disposition (variant (eql :graph))
 	    &key (line-penalty (cadr +kp-line-penalty+))
 		 (hyphen-penalty (cadr +kp-hyphen-penalty+))
+		 (explicit-hyphen-penalty (cadr +kp-explicit-hyphen-penalty+))
 		 (adjacent-demerits (cadr +kp-adjacent-demerits+))
 		 (double-hyphen-demerits (cadr +kp-double-hyphen-demerits+))
 		 (final-hyphen-demerits (cadr +kp-final-hyphen-demerits+))
@@ -158,6 +178,10 @@
 	   (setq hyphen-penalty :-infinity))
 	  ((>= hyphen-penalty (caddr +kp-hyphen-penalty+))
 	   (setq hyphen-penalty :+infinity)))
+    (cond ((<= explicit-hyphen-penalty (car +kp-explicit-hyphen-penalty+))
+	   (setq explicit-hyphen-penalty :-infinity))
+	  ((>= explicit-hyphen-penalty (caddr +kp-explicit-hyphen-penalty+))
+	   (setq explicit-hyphen-penalty :+infinity)))
     (cond ((< adjacent-demerits (car +kp-adjacent-demerits+))
 	   (setq adjacent-demerits (car +kp-adjacent-demerits+)))
 	  ((> adjacent-demerits (caddr +kp-adjacent-demerits+))
@@ -191,7 +215,8 @@
 		      (paragraph-graph lineup width :kp
 			:pass 2 :threshold tolerance
 			:line-penalty line-penalty
-			:hyphen-penalty hyphen-penalty)))
+			:hyphen-penalty hyphen-penalty
+			:explicit-hyphen-penalty explicit-hyphen-penalty)))
 	   (layouts (paragraph-layouts graph :kp)))
       (mapc (lambda (layout)
 	      (kp-postprocess-layout layout
@@ -205,6 +230,7 @@
 		       :pass 3 :threshold tolerance
 		       :line-penalty line-penalty
 		       :hyphen-penalty hyphen-penalty
+		       :explicit-hyphen-penalty explicit-hyphen-penalty
 		       :emergency-stretch emergency-stretch))
 	(setq layouts (paragraph-layouts graph :kp))
 	(mapc (lambda (layout)
