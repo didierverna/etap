@@ -1,3 +1,20 @@
+;; #### NOTE: with the defaults (default text, 284pt, all features), there are
+;; #### 66576 paragraph solutions including going through under and overfull
+;; #### lines (21096 without hyphenation). The raw tree of all such solutions
+;; #### has 150860 nodes (48338 without hyphenation). However, once a line
+;; #### stop has been decided, all possible solutions for the next lines
+;; #### remain the same (modulo the rectangular paragraph assumption), however
+;; #### we reached that possible stop. This means that there is a lot of room
+;; #### for re-using branches. And indeed, when sharing nodes, we fall from
+;; #### 150860 to 98 (from 48338 to 83 without hyphenation).
+
+;; #### If we avoid preventive fulls, that is, if we include only under- and
+;; #### overfull solutions when there is not fit, the number of paragraph
+;; #### solutions falls to 37 (it actually raises up to 61 without
+;; #### hyphenation, all mistfits). The raw tree of all such solutions has
+;; #### only 109 nodes (192 without hyphenations). Once shared, the actual
+;; #### number of nodes falls down to 30 (33 without hyphenation).
+
 (in-package :etap)
 
 
@@ -92,56 +109,3 @@
      &aux (layout-type
 	   (intern (format nil "~A-LAYOUT" (algorithm-type algorithm)) :etap)))
   (%paragraph-layouts node layout-type))
-
-
-
-;; #### NOTE: with the defaults (default text, 284pt, all features), there are
-;; #### 66576 paragraph solutions including going through under and overfull
-;; #### lines (21096 without hyphenation). The raw tree of all such solutions
-;; #### has 150860 nodes (48338 without hyphenation). However, once a line
-;; #### stop has been decided, all possible solutions for the next lines
-;; #### remain the same (modulo the rectangular paragraph assumption), however
-;; #### we reached that possible stop. This means that there is a lot of room
-;; #### for re-using branches. And indeed, when sharing nodes, we fall from
-;; #### 150860 to 98 (from 48338 to 83 without hyphenation).
-
-;; #### If we avoid preventive fulls, that is, if we include only under- and
-;; #### overfull solutions when there is not fit, the number of paragraph
-;; #### solutions falls to 37 (it actually raises up to 61 without
-;; #### hyphenation, all mistfits). The raw tree of all such solutions has
-;; #### only 109 nodes (192 without hyphenations). Once shared, the actual
-;; #### number of nodes falls down to 30 (33 without hyphenation).
-#+()(defun report-solutions
-    (context
-     &key (width (paragraph-width context)) preventive-fulls)
-  (let* ((lineup (create-lineup context))
-	 (solutions
-	   (mapcar (lambda (lines) (create-solution lineup width lines))
-	     (root-node-lines (root-node lineup width preventive-fulls))))
-	 (length 0)
-	 (fits 0)
-	 (fits-hyphened (make-hash-table))
-	 (misfits 0))
-    (loop :for solution :in solutions
-	  :do (incf length)
-	  :if (and (zerop (solution-hyphens solution))
-		   (zerop (solution-underfulls solution))
-		   (zerop (solution-overfulls solution)))
-	    :do (incf fits)
-	  :else :if (and (zerop (solution-underfulls solution))
-			 (zerop (solution-overfulls solution)))
-	    :do (if (gethash (solution-hyphens solution) fits-hyphened)
-		  (setf (gethash (solution-hyphens solution) fits-hyphened)
-			(1+ (gethash (solution-hyphens solution)
-				     fits-hyphened)))
-		  (setf (gethash (solution-hyphens solution) fits-hyphened) 1))
-	  :else
-	    :do (incf misfits))
-    (format t "~A solutions in total.~%
-~A fit solutions without hyphens.~%"
-      length fits)
-    (maphash (lambda (key value)
-	       (format t "~A fit solutions with ~A hyphen~:P.~%"
-		 value key))
-	     fits-hyphened)
-    (format t "~A mistfit solutions.~%" misfits)))
