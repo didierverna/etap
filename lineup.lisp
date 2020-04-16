@@ -111,9 +111,9 @@
 	:for i :from start :upto (1- stop)
 	;; #### FIXME: this works for now, but it is not quite right in the
 	;; #### general case. When ELEMENT is a list (typically the contents
-	;; #### ;; of a discretionary, there could be anything inside,
-	;; #### including, e.g., glues. See also the long comment above the
-	;; KERNING function.
+	;; #### of a discretionary, there could be anything inside, including,
+	;; #### e.g., glues. See also the long comment above the KERNING
+	;; #### function.
 	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
