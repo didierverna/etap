@@ -199,11 +199,7 @@
 	(let ((next (1+ point)))
 	  (typecase (aref lineup point)
 	    (glue (make-boundary point next))
-	    (discretionary
-	     ;; #### NOTE: a discretionary ending the lineup shouldn't be
-	     ;; considered as a break point, because there's nothing
-	     ;; afterwards. Hence, the behavior is that of (LENGTH LENGTH).
-	     (make-boundary next (if (= next length) next point)))))
+	    (discretionary (make-boundary next point))))
 	(make-boundary length length)))))
 
 
