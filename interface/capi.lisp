@@ -30,25 +30,28 @@
 (defun set-fixed-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
-	`(:fixed
-	  :variant ,(choice-selected-item (fixed-variant interface))
-	  ,@(apply #'append
-	      (choice-selected-items (fixed-options interface)))))
+	(cons :fixed
+	      (apply #'append
+		(list :variant (choice-selected-item (fixed-variant interface)))
+		(choice-selected-items (fixed-options interface)))))
   (update interface))
 
 
 (defun set-fit-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
-	`(:fit
-	  :variant ,(choice-selected-item (fit-variant interface))
-	  :discriminating-function
-	  ,(choice-selected-item (fit-discriminating-function interface))
-	  :hyphen-penalty
-	  ,(range-slug-start (fit-hyphen-penalty interface))
-	  :explicit-hyphen-penalty
-	  ,(range-slug-start (fit-explicit-hyphen-penalty interface))
-	  ,@(apply #'append (choice-selected-items (fit-options interface)))))
+	(cons :fit
+	      (apply #'append
+		(list :variant (choice-selected-item (fit-variant interface))
+		      :discriminating-function
+		      (choice-selected-item
+		       (fit-discriminating-function interface))
+		      :hyphen-penalty
+		      (range-slug-start (fit-hyphen-penalty interface))
+		      :explicit-hyphen-penalty
+		      (range-slug-start
+		       (fit-explicit-hyphen-penalty interface)))
+		(choice-selected-items (fit-options interface)))))
   (update interface))
 
 (define-slider-callback fit-hyphen-penalty)
@@ -63,31 +66,33 @@
 (defun set-duncan-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
-	`(:duncan
-	  :discriminating-function
-	  ,(choice-selected-item (duncan-discriminating-function interface))))
+	(list :duncan
+	      :discriminating-function
+	      (choice-selected-item
+	       (duncan-discriminating-function interface))))
   (update interface))
 
 (defun set-kp-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
-	`(:knuth-plass
-	  :variant ,(choice-selected-item (kp-variant interface))
-	  :line-penalty ,(range-slug-start (kp-line-penalty interface))
-	  :hyphen-penalty ,(range-slug-start (kp-hyphen-penalty interface))
-	  :explicit-hyphen-penalty
-	  ,(range-slug-start (kp-explicit-hyphen-penalty interface))
-	  :adjacent-demerits
-	  ,(range-slug-start (kp-adjacent-demerits interface))
-	  :double-hyphen-demerits
-	  ,(range-slug-start (kp-double-hyphen-demerits interface))
-	  :final-hyphen-demerits
-	  ,(range-slug-start (kp-final-hyphen-demerits interface))
-	  :pre-tolerance ,(range-slug-start (kp-pre-tolerance interface))
-	  :tolerance ,(range-slug-start (kp-tolerance interface))
-	  :emergency-stretch
-	  ,(range-slug-start (kp-emergency-stretch interface))
-	  :looseness ,(range-slug-start (kp-looseness interface))))
+	(cons :knuth-plass
+	      (list
+	       :variant (choice-selected-item (kp-variant interface))
+	       :line-penalty (range-slug-start (kp-line-penalty interface))
+	       :hyphen-penalty (range-slug-start (kp-hyphen-penalty interface))
+	       :explicit-hyphen-penalty
+	       (range-slug-start (kp-explicit-hyphen-penalty interface))
+	       :adjacent-demerits
+	       (range-slug-start (kp-adjacent-demerits interface))
+	       :double-hyphen-demerits
+	       (range-slug-start (kp-double-hyphen-demerits interface))
+	       :final-hyphen-demerits
+	       (range-slug-start (kp-final-hyphen-demerits interface))
+	       :pre-tolerance (range-slug-start (kp-pre-tolerance interface))
+	       :tolerance (range-slug-start (kp-tolerance interface))
+	       :emergency-stretch
+	       (range-slug-start (kp-emergency-stretch interface))
+	       :looseness (range-slug-start (kp-looseness interface)))))
   (update interface))
 
 (define-slider-callbacks kp-line-penalty
