@@ -19,8 +19,7 @@
 	nil (top-level-interface pane))))
 
 (defmacro define-slider-callbacks (&rest names)
-  `(progn ,@(mapcar (lambda (name) (list 'define-slider-callback name))
-	      names)))
+  `(progn ,@(mapcar (lambda (name) `(define-slider-callback ,name)) names)))
 
 
 (defun update (interface &aux (context (context interface)))
@@ -58,7 +57,7 @@
 
 (defun set-barnett-algorithm (value interface)
   (declare (ignore value))
-  (setf (algorithm (context interface))	'(:barnett))
+  (setf (algorithm (context interface)) '(:barnett))
   (update interface))
 
 (defun set-duncan-algorithm (value interface)
@@ -564,7 +563,22 @@
 				     (string prefix) "-OPTIONS")))
 		 (choices (intern (concatenate 'string
 				    "+" (string prefix) "-OPTIONS+"))))
-	     `(set-choice-selection (,accessor etap) options ,choices))))
+	     `(set-choice-selection (,accessor etap) options ,choices)))
+	 (set-slider (key prefix)
+	   (let ((accessor (intern (concatenate 'string
+				     (string prefix) "-" (string key))))
+		 (choices (intern (concatenate 'string
+				    "+" (string prefix) "-" (string key) "+"))))
+	     `(progn
+		(setf (range-slug-start (,accessor etap))
+		      (or (cadr (member ,key options)) (cadr ,choices)))
+		(setf (titled-object-title (,accessor etap))
+		      (format nil "~A: ~5D"
+			,(title-capitalize key)
+			(range-slug-start (,accessor etap)))))))
+	 (set-sliders (prefix &rest sliders)
+	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,slider ,prefix))
+		       sliders))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
@@ -577,18 +591,7 @@
 	 (setf (choice-selected-item (fit-discriminating-function etap))
 	       (or (cadr (member :discriminating-function options))
 		   (car +fit-discriminating-functions+)))
-	 (setf (range-slug-start (fit-hyphen-penalty etap))
-	       (or (cadr (member :hyphen-penalty options))
-		   (cadr +fit-hyphen-penalty+)))
-	 (setf (titled-object-title (fit-hyphen-penalty etap))
-	       (format nil "Hyphen Penalty: ~5D"
-		 (range-slug-start (fit-hyphen-penalty etap))))
-	 (setf (range-slug-start (fit-explicit-hyphen-penalty etap))
-	       (or (cadr (member :explicit-hyphen-penalty options))
-		   (cadr +fit-explicit-hyphen-penalty+)))
-	 (setf (titled-object-title (fit-explicit-hyphen-penalty etap))
-	       (format nil "Explicit Hyphen Penalty: ~5D"
-		 (range-slug-start (fit-explicit-hyphen-penalty etap)))))
+	 (set-sliders fit :hyphen-penalty :explicit-hyphen-penalty))
 	(:barnett
 	 (setf (choice-selection (algorithms etap)) 2))
 	(:duncan
@@ -599,66 +602,10 @@
 	(:knuth-plass
 	 (setf (choice-selection (algorithms etap)) 4)
 	 (set-variant kp)
-	 (setf (range-slug-start (kp-line-penalty etap))
-	       (or (cadr (member :line-penalty options))
-		   (cadr +kp-line-penalty+)))
-	 (setf (titled-object-title (kp-line-penalty etap))
-	       (format nil "Line Penalty: ~5D"
-		 (range-slug-start (kp-line-penalty etap))))
-	 (setf (range-slug-start (kp-hyphen-penalty etap))
-	       (or (cadr (member :hyphen-penalty options))
-		   (cadr +kp-hyphen-penalty+)))
-	 (setf (titled-object-title (kp-hyphen-penalty etap))
-	       (format nil "Hyphen Penalty: ~5D"
-		 (range-slug-start (kp-hyphen-penalty etap))))
-	 (setf (range-slug-start (kp-explicit-hyphen-penalty etap))
-	       (or (cadr (member :explicit-hyphen-penalty options))
-		   (cadr +kp-explicit-hyphen-penalty+)))
-	 (setf (titled-object-title (kp-explicit-hyphen-penalty etap))
-	       (format nil "Explicit Hyphen Penalty: ~5D"
-		 (range-slug-start (kp-explicit-hyphen-penalty etap))))
-	 (setf (range-slug-start (kp-adjacent-demerits etap))
-	       (or (cadr (member :adjacent-demerits options))
-		   (cadr +kp-adjacent-demerits+)))
-	 (setf (titled-object-title (kp-adjacent-demerits etap))
-	       (format nil "Adjacent Demerits: ~5D"
-		 (range-slug-start (kp-adjacent-demerits etap))))
-	 (setf (range-slug-start (kp-double-hyphen-demerits etap))
-	       (or (cadr (member :double-hyphen-demerits options))
-		   (cadr +kp-double-hyphen-demerits+)))
-	 (setf (titled-object-title (kp-double-hyphen-demerits etap))
-	       (format nil "Double Hyphen Demerits: ~5D"
-		 (range-slug-start (kp-double-hyphen-demerits etap))))
-	 (setf (range-slug-start (kp-final-hyphen-demerits etap))
-	       (or (cadr (member :final-hyphen-demerits options))
-		   (cadr +kp-final-hyphen-demerits+)))
-	 (setf (titled-object-title (kp-final-hyphen-demerits etap))
-	       (format nil "Final Hyphen Demerits: ~5D"
-		 (range-slug-start (kp-final-hyphen-demerits etap))))
-	 (setf (range-slug-start (kp-pre-tolerance etap))
-	       (or (cadr (member :pre-tolerance options))
-		   (cadr +kp-pre-tolerance+)))
-	 (setf (titled-object-title (kp-pre-tolerance etap))
-	       (format nil "Pre Tolerance: ~5D"
-		 (range-slug-start (kp-pre-tolerance etap))))
-	 (setf (range-slug-start (kp-tolerance etap))
-	       (or (cadr (member :tolerance options))
-		   (cadr +kp-tolerance+)))
-	 (setf (titled-object-title (kp-tolerance etap))
-	       (format nil "Tolerance: ~5D"
-		 (range-slug-start (kp-tolerance etap))))
-	 (setf (range-slug-start (kp-emergency-stretch etap))
-	       (or (cadr (member :emergency-stretch options))
-		   (cadr +kp-emergency-stretch+)))
-	 (setf (titled-object-title (kp-emergency-stretch etap))
-	       (format nil "Emergency Stretch: ~5D"
-		 (range-slug-start (kp-emergency-stretch etap))))
-	 (setf (range-slug-start (kp-looseness etap))
-	       (or (cadr (member :looseness options))
-		   (cadr +kp-looseness+)))
-	 (setf (titled-object-title (kp-looseness etap))
-	       (format nil "Looseness: ~5D"
-		 (range-slug-start (kp-looseness etap))))))))
+	 (set-sliders kp
+	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
+	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
+	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
   (setf (choice-selected-item (disposition etap))
 	(disposition-type (disposition context)))
   (set-choice-selection (disposition-options-panel etap)
