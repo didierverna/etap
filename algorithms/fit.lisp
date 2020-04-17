@@ -102,8 +102,12 @@
     '(:fit-option-avoid-hyphens :fit-option-relax
       :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
-(define-constant +fit-hyphen-penalty+ '(-1000 50 1000))
-(define-constant +fit-explicit-hyphen-penalty+ '(-1000 50 1000))
+(define-calibration +fit-hyphen-penalty+ -1000 50 1000)
+(define-calibration +fit-explicit-hyphen-penalty+ -1000 50 1000)
+
+(defmacro fit-calibrate (variable &optional infinity)
+  `(calibrate-variable ,variable fit ,infinity))
+
 
 (define-constant +fit-tooltips+
     '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
@@ -350,17 +354,10 @@ for equally bad solutions."))
     (lineup width disposition (algorithm (eql :fit))
      &key (variant (car +fit-variants+))
 	  (discriminating-function (car +fit-discriminating-functions+))
-	  (hyphen-penalty (cadr +fit-hyphen-penalty+))
-	  (explicit-hyphen-penalty (cadr +fit-explicit-hyphen-penalty+))
+	  hyphen-penalty explicit-hyphen-penalty
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
-  (cond ((<= hyphen-penalty (car +fit-hyphen-penalty+))
-	 (setq hyphen-penalty :-infinity))
-	((>= hyphen-penalty (caddr +fit-hyphen-penalty+))
-	 (setq hyphen-penalty :+infinity)))
-  (cond ((<= explicit-hyphen-penalty (car +fit-explicit-hyphen-penalty+))
-	 (setq explicit-hyphen-penalty :-infinity))
-	((>= explicit-hyphen-penalty (caddr +fit-explicit-hyphen-penalty+))
-	 (setq explicit-hyphen-penalty :+infinity)))
+  (fit-calibrate hyphen-penalty t)
+  (fit-calibrate explicit-hyphen-penalty t)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary

@@ -7,3 +7,22 @@
 
 (defmacro endpush (object place)
   `(setf ,place (nconc ,place (list ,object))))
+
+
+(defmacro define-calibration (calibration min default max)
+  `(define-constant ,calibration '(,min ,default ,max)))
+
+(defmacro calibrate (variable calibration &optional infinity)
+  `(cond ((null ,variable)
+	  (setq ,variable (cadr ,calibration)))
+	 ((<= ,variable (car ,calibration))
+	  (setq ,variable ,(if infinity :-infinity `(car ,calibration))))
+	 ((>= ,variable (caddr ,calibration))
+	  (setq ,variable ,(if infinity :+infinity `(caddr ,calibration))))))
+
+(defmacro calibrate-variable
+    (variable prefix
+     &optional infinity
+     &aux (calibration (intern (format nil "+~A-~A+" prefix variable))))
+  `(calibrate ,variable ,calibration ,infinity))
+
