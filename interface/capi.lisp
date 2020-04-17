@@ -4,7 +4,6 @@
   (defun title-capitalize (title)
     (nsubstitute #\Space #\- (string-capitalize title))))
 
-
 (defmacro define-slider-callback
     (name &aux (name (string name))
 	       (dash-position (position #\- name))
@@ -538,6 +537,16 @@
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
+
+(defun collect-options-indices (options choices)
+  (loop :for option :in choices
+	:for i :from 0
+	:when (cadr (member (car option) options))
+	  :collect i))
+
+(defun set-choice-selection (pane options choices)
+  (setf (choice-selection pane) (collect-options-indices options choices)))
+
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
   (let ((algorithm (algorithm-type (algorithm context)))
@@ -555,11 +564,7 @@
 				     (string prefix) "-OPTIONS")))
 		 (choices (intern (concatenate 'string
 				    "+" (string prefix) "-OPTIONS+"))))
-	     `(setf (choice-selection (,accessor etap))
-		    (loop :for option :in ,choices
-			  :for i :from 0
-			  :when (cadr (member (car option) options))
-			    :collect i)))))
+	     `(set-choice-selection (,accessor etap) options ,choices))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
@@ -656,18 +661,10 @@
 		 (range-slug-start (kp-looseness etap))))))))
   (setf (choice-selected-item (disposition etap))
 	(disposition-type (disposition context)))
-  (let ((options (disposition-options (disposition context))))
-    (setf (choice-selection (disposition-options-panel etap))
-	  (loop :for option :in +disposition-options+
-		:for i :from 0
-		:when (cadr (member (car option) options))
-		  :collect i)))
-  (let ((features (features context)))
-    (setf (choice-selection (features etap))
-	  (loop :for feature :in +features+
-		:for i :from 0
-		:when (cadr (member (car feature) features))
-		  :collect i)))
+  (set-choice-selection (disposition-options-panel etap)
+			(disposition-options (disposition context))
+			+disposition-options+)
+  (set-choice-selection (features etap) (features context) +features+)
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
