@@ -578,7 +578,16 @@
 			(range-slug-start (,accessor etap)))))))
 	 (set-sliders (prefix &rest sliders)
 	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,slider ,prefix))
-		       sliders))))
+		       sliders)))
+	 (set-choice (prefix key)
+	   (let ((accessor
+		   (intern (concatenate 'string
+			     (string prefix) "-" (string key))))
+		 (choices
+		   (intern (concatenate 'string
+			     "+" (string prefix) "-" (string key) "S+"))))
+	     `(setf (choice-selected-item (,accessor etap))
+		    (or (cadr (member ,key options)) (car ,choices))))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
@@ -588,17 +597,13 @@
 	 (setf (choice-selection (algorithms etap)) 1)
 	 (set-variant fit)
 	 (set-options fit)
-	 (setf (choice-selected-item (fit-discriminating-function etap))
-	       (or (cadr (member :discriminating-function options))
-		   (car +fit-discriminating-functions+)))
+	 (set-choice fit :discriminating-function)
 	 (set-sliders fit :hyphen-penalty :explicit-hyphen-penalty))
 	(:barnett
 	 (setf (choice-selection (algorithms etap)) 2))
 	(:duncan
 	 (setf (choice-selection (algorithms etap)) 3)
-	 (setf (choice-selected-item (duncan-discriminating-function etap))
-	       (or (cadr (member :discriminating-function options))
-		   (car +duncan-discriminating-functions+))))
+	 (set-choice duncan :discriminating-function))
 	(:knuth-plass
 	 (setf (choice-selection (algorithms etap)) 4)
 	 (set-variant kp)
