@@ -21,6 +21,17 @@
 (defmacro define-slider-callbacks (&rest names)
   `(progn ,@(mapcar (lambda (name) `(define-slider-callback ,name)) names)))
 
+(defmacro slider-value (prefix key interface)
+  (let ((accessor (intern (concatenate 'string
+			    (string prefix) "-" (string key)))))
+    `(list ,key (range-slug-start (,accessor ,interface)))))
+
+
+(defmacro radio-selection (prefix key interface)
+  (let ((accessor (intern (concatenate 'string
+			    (string prefix) "-" (string key)))))
+    `(list ,key (choice-selected-item (,accessor ,interface)))))
+
 
 (defun update (interface &aux (context (context interface)))
   (setf (paragraph interface) (create-paragraph context))
@@ -32,7 +43,7 @@
   (setf (algorithm (context interface))
 	(cons :fixed
 	      (apply #'append
-		(list :variant (choice-selected-item (fixed-variant interface)))
+		(radio-selection fixed :variant interface)
 		(choice-selected-items (fixed-options interface)))))
   (update interface))
 
@@ -42,15 +53,10 @@
   (setf (algorithm (context interface))
 	(cons :fit
 	      (apply #'append
-		(list :variant (choice-selected-item (fit-variant interface))
-		      :discriminating-function
-		      (choice-selected-item
-		       (fit-discriminating-function interface))
-		      :hyphen-penalty
-		      (range-slug-start (fit-hyphen-penalty interface))
-		      :explicit-hyphen-penalty
-		      (range-slug-start
-		       (fit-explicit-hyphen-penalty interface)))
+		(radio-selection fit :variant interface)
+		(radio-selection fit :discriminating-function interface)
+		(slider-value fit :hyphen-penalty interface)
+		(slider-value fit :explicit-hyphen-penalty interface)
 		(choice-selected-items (fit-options interface)))))
   (update interface))
 
@@ -66,33 +72,26 @@
 (defun set-duncan-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
-	(list :duncan
-	      :discriminating-function
-	      (choice-selected-item
-	       (duncan-discriminating-function interface))))
+	(cons :duncan
+	      (radio-selection duncan :discriminating-function interface)))
   (update interface))
 
 (defun set-kp-algorithm (value interface)
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :knuth-plass
-	      (list
-	       :variant (choice-selected-item (kp-variant interface))
-	       :line-penalty (range-slug-start (kp-line-penalty interface))
-	       :hyphen-penalty (range-slug-start (kp-hyphen-penalty interface))
-	       :explicit-hyphen-penalty
-	       (range-slug-start (kp-explicit-hyphen-penalty interface))
-	       :adjacent-demerits
-	       (range-slug-start (kp-adjacent-demerits interface))
-	       :double-hyphen-demerits
-	       (range-slug-start (kp-double-hyphen-demerits interface))
-	       :final-hyphen-demerits
-	       (range-slug-start (kp-final-hyphen-demerits interface))
-	       :pre-tolerance (range-slug-start (kp-pre-tolerance interface))
-	       :tolerance (range-slug-start (kp-tolerance interface))
-	       :emergency-stretch
-	       (range-slug-start (kp-emergency-stretch interface))
-	       :looseness (range-slug-start (kp-looseness interface)))))
+	      (append
+	       (radio-selection kp :variant interface)
+	       (slider-value kp	:line-penalty interface)
+	       (slider-value kp :hyphen-penalty interface)
+	       (slider-value kp :explicit-hyphen-penalty interface)
+	       (slider-value kp	:adjacent-demerits interface)
+	       (slider-value kp :double-hyphen-demerits interface)
+	       (slider-value kp :final-hyphen-demerits interface)
+	       (slider-value kp :pre-tolerance interface)
+	       (slider-value kp :tolerance interface)
+	       (slider-value kp :emergency-stretch interface)
+	       (slider-value kp :looseness interface))))
   (update interface))
 
 (define-slider-callbacks kp-line-penalty
