@@ -13,7 +13,7 @@
        (declare (ignore status))
        (setf (titled-object-title pane)
 	     (format nil
-		 ,(concatenate 'string (title-capitalize generic) ": ~D")
+		 ,(concatenate 'string (title-capitalize generic) ": ~5D")
 	       value))
        (,(intern (concatenate 'string "SET-" prefix "-ALGORITHM"))
 	nil (top-level-interface pane))))
@@ -143,7 +143,7 @@
 
 (defun set-zoom (pane value status)
   (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Paragraph zoom: ~D%" value))
+  (setf (titled-object-title pane) (format nil "Paragraph zoom: ~3D%" value))
   (gp:invalidate-rectangle (view (top-level-interface pane))))
 
 
@@ -307,7 +307,7 @@
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
    (fit-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr +fit-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~5D" (cadr +fit-hyphen-penalty+))
      :orientation :horizontal
      :start (car +fit-hyphen-penalty+)
      :end (caddr +fit-hyphen-penalty+)
@@ -316,7 +316,7 @@
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
    (fit-explicit-hyphen-penalty slider
-     :title (format nil "Explicit-Hyphen Penalty: ~D"
+     :title (format nil "Explicit-Hyphen Penalty: ~5D"
 	      (cadr +fit-explicit-hyphen-penalty+))
      :orientation :horizontal
      :start (car +fit-explicit-hyphen-penalty+)
@@ -341,7 +341,7 @@
      :selection-callback 'set-kp-algorithm
      :reader kp-variant)
    (kp-line-penalty slider
-     :title (format nil "Line Penalty: ~D" (cadr +kp-line-penalty+))
+     :title (format nil "Line Penalty: ~5D" (cadr +kp-line-penalty+))
      :orientation :horizontal
      :start (car +kp-line-penalty+)
      :end (caddr +kp-line-penalty+)
@@ -350,7 +350,7 @@
      :callback 'set-kp-line-penalty
      :reader kp-line-penalty)
    (kp-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr +kp-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~5D" (cadr +kp-hyphen-penalty+))
      :orientation :horizontal
      :start (car +kp-hyphen-penalty+)
      :end (caddr +kp-hyphen-penalty+)
@@ -359,7 +359,7 @@
      :callback 'set-kp-hyphen-penalty
      :reader kp-hyphen-penalty)
    (kp-explicit-hyphen-penalty slider
-     :title (format nil "Explicit Hyphen Penalty: ~D"
+     :title (format nil "Explicit Hyphen Penalty: ~5D"
 	      (cadr +kp-explicit-hyphen-penalty+))
      :orientation :horizontal
      :start (car +kp-explicit-hyphen-penalty+)
@@ -369,7 +369,7 @@
      :callback 'set-kp-explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
    (kp-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~D" (cadr +kp-adjacent-demerits+))
+     :title (format nil "Adjacent Demerits: ~5D" (cadr +kp-adjacent-demerits+))
      :orientation :horizontal
      :start (car +kp-adjacent-demerits+)
      :end (caddr +kp-adjacent-demerits+)
@@ -378,7 +378,7 @@
      :callback 'set-kp-adjacent-demerits
      :reader kp-adjacent-demerits)
    (kp-double-hyphen-demerits slider
-     :title (format nil "Double Hyphen Demerits: ~D"
+     :title (format nil "Double Hyphen Demerits: ~5D"
 	      (cadr +kp-double-hyphen-demerits+))
      :orientation :horizontal
      :start (car +kp-double-hyphen-demerits+)
@@ -388,7 +388,7 @@
      :callback 'set-kp-double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
    (kp-final-hyphen-demerits slider
-     :title (format nil "Final Hyphen Demerits: ~D"
+     :title (format nil "Final Hyphen Demerits: ~5D"
 	      (cadr +kp-final-hyphen-demerits+))
      :orientation :horizontal
      :start (car +kp-final-hyphen-demerits+)
@@ -398,7 +398,7 @@
      :callback 'set-kp-final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
    (kp-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~D" (cadr +kp-pre-tolerance+))
+     :title (format nil "Pre Tolerance: ~5D" (cadr +kp-pre-tolerance+))
      :orientation :horizontal
      :start (car +kp-pre-tolerance+)
      :end (caddr +kp-pre-tolerance+)
@@ -407,7 +407,7 @@
      :callback 'set-kp-pre-tolerance
      :reader kp-pre-tolerance)
    (kp-tolerance slider
-     :title (format nil "Tolerance: ~D" (cadr +kp-tolerance+))
+     :title (format nil "Tolerance: ~5D" (cadr +kp-tolerance+))
      :orientation :horizontal
      :start (car +kp-tolerance+)
      :end (caddr +kp-tolerance+)
@@ -416,7 +416,7 @@
      :callback 'set-kp-tolerance
      :reader kp-tolerance)
    (kp-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~D" (cadr +kp-emergency-stretch+))
+     :title (format nil "Emergency Stretch: ~5D" (cadr +kp-emergency-stretch+))
      :orientation :horizontal
      :start (car +kp-emergency-stretch+)
      :end (caddr +kp-emergency-stretch+)
@@ -425,7 +425,7 @@
      :callback 'set-kp-emergency-stretch
      :reader kp-emergency-stretch)
    (kp-looseness slider
-     :title (format nil "Looseness: ~D" (cadr +kp-looseness+))
+     :title (format nil "Looseness: ~5D" (cadr +kp-looseness+))
      :orientation :horizontal
      :start (car +kp-looseness+)
      :end (caddr +kp-looseness+)
@@ -581,13 +581,13 @@
 	       (or (cadr (member :hyphen-penalty options))
 		   (cadr +fit-hyphen-penalty+)))
 	 (setf (titled-object-title (fit-hyphen-penalty etap))
-	       (format nil "Hyphen Penalty: ~D"
+	       (format nil "Hyphen Penalty: ~5D"
 		 (range-slug-start (fit-hyphen-penalty etap))))
 	 (setf (range-slug-start (fit-explicit-hyphen-penalty etap))
 	       (or (cadr (member :explicit-hyphen-penalty options))
 		   (cadr +fit-explicit-hyphen-penalty+)))
 	 (setf (titled-object-title (fit-explicit-hyphen-penalty etap))
-	       (format nil "Explicit Hyphen Penalty: ~D"
+	       (format nil "Explicit Hyphen Penalty: ~5D"
 		 (range-slug-start (fit-explicit-hyphen-penalty etap)))))
 	(:barnett
 	 (setf (choice-selection (algorithms etap)) 2))
@@ -603,61 +603,61 @@
 	       (or (cadr (member :line-penalty options))
 		   (cadr +kp-line-penalty+)))
 	 (setf (titled-object-title (kp-line-penalty etap))
-	       (format nil "Line Penalty: ~D"
+	       (format nil "Line Penalty: ~5D"
 		 (range-slug-start (kp-line-penalty etap))))
 	 (setf (range-slug-start (kp-hyphen-penalty etap))
 	       (or (cadr (member :hyphen-penalty options))
 		   (cadr +kp-hyphen-penalty+)))
 	 (setf (titled-object-title (kp-hyphen-penalty etap))
-	       (format nil "Hyphen Penalty: ~D"
+	       (format nil "Hyphen Penalty: ~5D"
 		 (range-slug-start (kp-hyphen-penalty etap))))
 	 (setf (range-slug-start (kp-explicit-hyphen-penalty etap))
 	       (or (cadr (member :explicit-hyphen-penalty options))
 		   (cadr +kp-explicit-hyphen-penalty+)))
 	 (setf (titled-object-title (kp-explicit-hyphen-penalty etap))
-	       (format nil "Explicit Hyphen Penalty: ~D"
+	       (format nil "Explicit Hyphen Penalty: ~5D"
 		 (range-slug-start (kp-explicit-hyphen-penalty etap))))
 	 (setf (range-slug-start (kp-adjacent-demerits etap))
 	       (or (cadr (member :adjacent-demerits options))
 		   (cadr +kp-adjacent-demerits+)))
 	 (setf (titled-object-title (kp-adjacent-demerits etap))
-	       (format nil "Adjacent Demerits: ~D"
+	       (format nil "Adjacent Demerits: ~5D"
 		 (range-slug-start (kp-adjacent-demerits etap))))
 	 (setf (range-slug-start (kp-double-hyphen-demerits etap))
 	       (or (cadr (member :double-hyphen-demerits options))
 		   (cadr +kp-double-hyphen-demerits+)))
 	 (setf (titled-object-title (kp-double-hyphen-demerits etap))
-	       (format nil "Double Hyphen Demerits: ~D"
+	       (format nil "Double Hyphen Demerits: ~5D"
 		 (range-slug-start (kp-double-hyphen-demerits etap))))
 	 (setf (range-slug-start (kp-final-hyphen-demerits etap))
 	       (or (cadr (member :final-hyphen-demerits options))
 		   (cadr +kp-final-hyphen-demerits+)))
 	 (setf (titled-object-title (kp-final-hyphen-demerits etap))
-	       (format nil "Final Hyphen Demerits: ~D"
+	       (format nil "Final Hyphen Demerits: ~5D"
 		 (range-slug-start (kp-final-hyphen-demerits etap))))
 	 (setf (range-slug-start (kp-pre-tolerance etap))
 	       (or (cadr (member :pre-tolerance options))
 		   (cadr +kp-pre-tolerance+)))
 	 (setf (titled-object-title (kp-pre-tolerance etap))
-	       (format nil "Pre Tolerance: ~D"
+	       (format nil "Pre Tolerance: ~5D"
 		 (range-slug-start (kp-pre-tolerance etap))))
 	 (setf (range-slug-start (kp-tolerance etap))
 	       (or (cadr (member :tolerance options))
 		   (cadr +kp-tolerance+)))
 	 (setf (titled-object-title (kp-tolerance etap))
-	       (format nil "Tolerance: ~D"
+	       (format nil "Tolerance: ~5D"
 		 (range-slug-start (kp-tolerance etap))))
 	 (setf (range-slug-start (kp-emergency-stretch etap))
 	       (or (cadr (member :emergency-stretch options))
 		   (cadr +kp-emergency-stretch+)))
 	 (setf (titled-object-title (kp-emergency-stretch etap))
-	       (format nil "Emergency Stretch: ~D"
+	       (format nil "Emergency Stretch: ~5D"
 		 (range-slug-start (kp-emergency-stretch etap))))
 	 (setf (range-slug-start (kp-looseness etap))
 	       (or (cadr (member :looseness options))
 		   (cadr +kp-looseness+)))
 	 (setf (titled-object-title (kp-looseness etap))
-	       (format nil "Looseness: ~D"
+	       (format nil "Looseness: ~5D"
 		 (range-slug-start (kp-looseness etap))))))))
   (setf (choice-selected-item (disposition etap))
 	(disposition-type (disposition context)))
