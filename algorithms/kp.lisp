@@ -159,68 +159,75 @@
 	:else
 	  :collect (create-line lineup start stop)))
 
-(defgeneric kp-create-lines
-    (lineup width disposition variant &key &allow-other-keys)
-  (:method (lineup width disposition (variant (eql :graph))
-	    &key line-penalty hyphen-penalty explicit-hyphen-penalty
-		 adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-		 pre-tolerance tolerance emergency-stretch looseness)
-    (kp-calibrate line-penalty)
-    (kp-calibrate hyphen-penalty t)
-    (kp-calibrate explicit-hyphen-penalty t)
-    (kp-calibrate adjacent-demerits)
-    (kp-calibrate double-hyphen-demerits)
-    (kp-calibrate final-hyphen-demerits)
-    (when (>= pre-tolerance (caddr +kp-pre-tolerance+))
-      (setq pre-tolerance :+infinity))
-    (cond ((>= tolerance (caddr +kp-tolerance+))
-	   (setq tolerance :+infinity))
-	  ((< tolerance (car +kp-tolerance+))
-	   (setq tolerance (car +kp-tolerance+))))
-    (kp-calibrate emergency-stretch)
-    (kp-calibrate looseness)
-    (let* ((graph (or (when (!<= 0 pre-tolerance)
-			(paragraph-graph lineup width :kp
-			  :pass 1 :threshold pre-tolerance
-			  :line-penalty line-penalty))
+(defun kp-graph-create-lines
+    (lineup width disposition
+     line-penalty hyphen-penalty explicit-hyphen-penalty
+     adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+     pre-tolerance tolerance emergency-stretch looseness)
+  (let* ((graph (or (when (!<= 0 pre-tolerance)
 		      (paragraph-graph lineup width :kp
-			:pass 2 :threshold tolerance
-			:line-penalty line-penalty
-			:hyphen-penalty hyphen-penalty
-			:explicit-hyphen-penalty explicit-hyphen-penalty)))
-	   (layouts (paragraph-layouts graph :kp)))
+			:pass 1 :threshold pre-tolerance
+			:line-penalty line-penalty))
+		    (paragraph-graph lineup width :kp
+		      :pass 2 :threshold tolerance
+		      :line-penalty line-penalty
+		      :hyphen-penalty hyphen-penalty
+		      :explicit-hyphen-penalty explicit-hyphen-penalty)))
+	 (layouts (paragraph-layouts graph :kp)))
+    (mapc (lambda (layout)
+	    (kp-postprocess-layout layout
+	      adjacent-demerits double-hyphen-demerits
+	      final-hyphen-demerits))
+      layouts)
+    (setq layouts (sort layouts #'!< :key #'demerits))
+    (when (and (not (zerop emergency-stretch))
+	       (eql (demerits (car layouts)) :+infinity))
+      (setq graph (paragraph-graph lineup width :kp
+		    :pass 3 :threshold tolerance
+		    :line-penalty line-penalty
+		    :hyphen-penalty hyphen-penalty
+		    :explicit-hyphen-penalty explicit-hyphen-penalty
+		    :emergency-stretch emergency-stretch))
+      (setq layouts (paragraph-layouts graph :kp))
       (mapc (lambda (layout)
 	      (kp-postprocess-layout layout
 		adjacent-demerits double-hyphen-demerits
 		final-hyphen-demerits))
 	layouts)
-      (setq layouts (sort layouts #'!< :key #'demerits))
-      (when (and (not (zerop emergency-stretch))
-		 (eql (demerits (car layouts)) :+infinity))
-	(setq graph (paragraph-graph lineup width :kp
-		       :pass 3 :threshold tolerance
-		       :line-penalty line-penalty
-		       :hyphen-penalty hyphen-penalty
-		       :explicit-hyphen-penalty explicit-hyphen-penalty
-		       :emergency-stretch emergency-stretch))
-	(setq layouts (paragraph-layouts graph :kp))
-	(mapc (lambda (layout)
-		(kp-postprocess-layout layout
-		  adjacent-demerits double-hyphen-demerits
-		  final-hyphen-demerits))
-	  layouts)
-	(setq layouts (sort layouts #'!< :key #'demerits)))
-      (unless (zerop looseness)
-	(let ((ideal-size (+ (size (car layouts)) looseness)))
-	  (setq layouts (sort layouts (lambda (size1 size2)
-					(< (abs (- size1 ideal-size))
-					   (abs (- size2 ideal-size))))
-			      :key #'size))))
-      (kp-create-layout-lines lineup width disposition (car layouts))))
-  (:method (lineup width disposition (variant (eql :dynamic)) &key)
-    ))
+      (setq layouts (sort layouts #'!< :key #'demerits)))
+    (unless (zerop looseness)
+      (let ((ideal-size (+ (size (car layouts)) looseness)))
+	(setq layouts (sort layouts (lambda (size1 size2)
+				      (< (abs (- size1 ideal-size))
+					 (abs (- size2 ideal-size))))
+			    :key #'size))))
+    (kp-create-layout-lines lineup width disposition (car layouts))))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :knuth-plass))
-     &rest options &key (variant (car +kp-variants+)))
-  (apply #'kp-create-lines lineup width disposition variant options))
+     &key (variant (car +kp-variants+))
+	  line-penalty hyphen-penalty explicit-hyphen-penalty
+	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+	  pre-tolerance tolerance emergency-stretch looseness)
+  (kp-calibrate line-penalty)
+  (kp-calibrate hyphen-penalty t)
+  (kp-calibrate explicit-hyphen-penalty t)
+  (kp-calibrate adjacent-demerits)
+  (kp-calibrate double-hyphen-demerits)
+  (kp-calibrate final-hyphen-demerits)
+  (when (>= pre-tolerance (caddr +kp-pre-tolerance+))
+    (setq pre-tolerance :+infinity))
+  (cond ((>= tolerance (caddr +kp-tolerance+))
+	 (setq tolerance :+infinity))
+	((< tolerance (car +kp-tolerance+))
+	 (setq tolerance (car +kp-tolerance+))))
+  (kp-calibrate emergency-stretch)
+  (kp-calibrate looseness)
+  (ecase variant
+    (:graph
+     (kp-graph-create-lines lineup width disposition
+       line-penalty hyphen-penalty explicit-hyphen-penalty
+       adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+       pre-tolerance tolerance emergency-stretch looseness))
+    (:dynamic
+     )))
