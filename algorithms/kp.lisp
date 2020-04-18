@@ -29,6 +29,10 @@
 (defmacro kp-calibrate (variable &optional infinity)
   `(calibrate-variable ,variable kp ,infinity))
 
+(defmacro kp-default (variable)
+  `(default-variable ,variable kp))
+
+
 (defclass kp-edge (paragraph-edge)
   ((hyphenp :accessor hyphenp)
    (fitness-class :accessor fitness-class)
@@ -205,10 +209,11 @@
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :knuth-plass))
-     &key (variant (car +kp-variants+))
+     &key variant
 	  line-penalty hyphen-penalty explicit-hyphen-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
 	  pre-tolerance tolerance emergency-stretch looseness)
+  (kp-default variant)
   (kp-calibrate line-penalty)
   (kp-calibrate hyphen-penalty t)
   (kp-calibrate explicit-hyphen-penalty t)

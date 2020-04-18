@@ -26,3 +26,11 @@
      &aux (calibration (intern (format nil "+~A-~A+" prefix variable))))
   `(calibrate ,variable ,calibration ,infinity))
 
+
+(defmacro default (variable choices)
+  `(when (null ,variable) (setq ,variable (car ,choices))))
+
+(defmacro default-variable
+    (variable prefix
+     &aux (choices (intern (format nil "+~A-~AS+" prefix variable))))
+  `(default ,variable ,choices))

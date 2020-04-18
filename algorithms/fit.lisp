@@ -108,6 +108,9 @@
 (defmacro fit-calibrate (variable &optional infinity)
   `(calibrate-variable ,variable fit ,infinity))
 
+(defmacro fit-default (variable)
+  `(default-variable ,variable fit))
+
 
 (define-constant +fit-tooltips+
     '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
@@ -361,10 +364,11 @@ for equally bad solutions."))
 
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
-     &key (variant (car +fit-variants+))
-	  (discriminating-function (car +fit-discriminating-functions+))
+     &key variant discriminating-function
 	  hyphen-penalty explicit-hyphen-penalty
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
+  (fit-default variant)
+  (fit-default discriminating-function)
   (fit-calibrate hyphen-penalty t)
   (fit-calibrate explicit-hyphen-penalty t)
   (loop :for start := 0 :then (next-start boundary)
