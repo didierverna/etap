@@ -6,8 +6,7 @@
 ;; ####   between each words, and only one infinitely stretchable glue at the
 ;; ####   end of the paragraph (it's actually very large, not infinite).
 ;; #### - this last glue is treated in a special way because we neither have
-;; ####   fill units, nor infinite penalties for preventing a break before a
-;; ####   glue.
+;; ####   fill units, nor infinite penalties for preventing a break before it.
 ;; #### - there is no forced break at the end of the lineup. It's also treated
 ;; ####   in a special way.
 ;; #### - the only discretionaries that we have come from the hyphenation
