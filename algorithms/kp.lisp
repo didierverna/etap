@@ -33,6 +33,20 @@
   `(default-variable ,variable kp))
 
 
+(defun scale-fitness-class (scale)
+  (cond ((or (null scale) (< scale -1/2)) 3)
+	((<= -1/2 scale 1/2) 2)
+	((<= 1/2 scale 1) 1)
+	((< 1 scale) 0)))
+
+(defun local-demerits (badness penalty line-penalty)
+  (cond ((and (numberp penalty) (<= 0 penalty))
+	 (!+ (!expt (!+ line-penalty badness) 2) (expt penalty 2)))
+	((and (numberp penalty) (< penalty 0))
+	 (!+ (!expt (!+ line-penalty badness) 2) (- (expt penalty 2))))
+	(t ;; :-infinity
+	 (!expt (!+ line-penalty badness) 2))))
+
 (defclass kp-edge (paragraph-edge)
   ((hyphenp :accessor hyphenp)
    (fitness-class :accessor fitness-class)
@@ -62,18 +76,8 @@
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
   (setf (hyphenp edge) hyphenp)
-  (setf (fitness-class edge)
-	(cond ((or (null scale) (< scale -1/2)) 3)
-	      ((<= -1/2 scale 1/2) 2)
-	      ((<= 1/2 scale 1) 1)
-	      ((< 1 scale) 0)))
-  (setf (demerits edge)
-	(cond ((and (numberp penalty) (<= 0 penalty))
-	       (!+ (!expt (!+ line-penalty badness) 2) (expt penalty 2)))
-	      ((and (numberp penalty) (< penalty 0))
-	       (!+ (!expt (!+ line-penalty badness) 2) (- (expt penalty 2))))
-	      (t ;; :-infinity
-	       (!expt (!+ line-penalty badness) 2)))))
+  (setf (fitness-class edge) (scale-fitness-class scale))
+  (setf (demerits edge) (local-demerits badness penalty line-penalty)))
 
 (defmethod next-boundaries
     (lineup start width (algorithm (eql :kp))
