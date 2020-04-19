@@ -11,8 +11,9 @@
 ;; #### - there is no forced break at the end of the lineup. It's also treated
 ;; ####   in a special way.
 ;; #### - the only discretionaries that we have come from the hyphenation
-;; ####   step, which means that said discretionaries only appear in the middle
-;; ####   of words.
+;; ####   step, so they originally appear only in the middle of words.
+;; ####   However, they may turn out to be anywhere after processing ligatures
+;; ####   and kerning.
 
 (in-package :etap)
 
