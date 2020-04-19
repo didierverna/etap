@@ -211,6 +211,168 @@
 			    :key #'size))))
     (kp-create-layout-lines lineup width disposition (car layouts))))
 
+
+(defstruct (kp-node (:constructor kp-make-node))
+  boundary demerits previous)
+
+(defun kp-try-boundary (boundary nodes
+			lineup width pass threshold line-penalty break-penalty
+			adjacent-demerits double-hyphen-demerits
+			final-hyphen-demerits emergency-stretch)
+  (let (last-deactivated-node new-nodes)
+    (maphash
+     (lambda (key node
+	      &aux (previous-boundary (kp-node-boundary node))
+		   (previous-line (car key))
+		   (previous-fitness-class (cdr key)))
+       (let ((scale (lineup-scale lineup (next-start previous-boundary)
+				  (stop boundary) width emergency-stretch)))
+	 (when (or (!< scale -1)
+		   (eq break-penalty :-infinity)
+		   ;; #### WARNING: we must deactivate all nodes when we reach
+		   ;; the paragraph's end. TeX does this by adding a forced
+		   ;; break at the end.
+		   (= (stop boundary) (length lineup)))
+	   (setq last-deactivated-node (cons key node))
+	   (remhash key nodes))
+	 (when (!<= -1 scale)
+	   (let ((badness (scale-badness scale)))
+	     (when (!<= badness threshold)
+	       (let ((fitness-class (scale-fitness-class scale))
+		     (demerits
+		       (local-demerits badness break-penalty line-penalty)))
+		 (when (> (abs (- fitness-class previous-fitness-class)) 1)
+		   (setq demerits (!+ demerits adjacent-demerits)))
+		 (when (not (word-boundary-p lineup previous-boundary))
+		   (if (not (word-boundary-p lineup boundary))
+		     (setq demerits (!+ demerits double-hyphen-demerits))
+		     ;; #### WARNING: final hyphen demerits are added here
+		     ;; although they really concern the previous node. TeX
+		     ;; does it like this but I don't really understand how
+		     ;; that's conformant with the dynamic programming
+		     ;; principle. The code is at #859, but it is confusing
+		     ;; because TeX considers the end of a paragraph as
+		     ;; hyphenated, which is explained at #829 :-/.
+		     (when (= (stop boundary) (length lineup))
+		       (setq demerits (!+ demerits final-hyphen-demerits)))))
+		 (setq demerits (!+ demerits (kp-node-demerits node)))
+		 (let ((previous
+			 (find-if (lambda (key)
+				    (and (= (car key) (1+ previous-line))
+					 (= (cdr key) fitness-class)))
+				  new-nodes
+				  :key #'car)))
+		   (if previous
+		     (when (!<= demerits (kp-node-demerits (cdr previous)))
+		       (setf (kp-node-demerits (cdr previous)) demerits
+			     (kp-node-previous (cdr previous)) node))
+		     (push (cons (cons (1+ previous-line) fitness-class)
+				 (kp-make-node :boundary boundary
+					       :demerits demerits
+					       :previous node))
+			   new-nodes)))))))))
+     nodes)
+    (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
+      (setq new-nodes
+	    (list
+	     (cons (cons (1+ (caar last-deactivated-node))
+			 (cdar last-deactivated-node))
+		   (kp-make-node :boundary boundary
+				 :demerits (kp-node-demerits
+					    (cdr last-deactivated-node))
+				 :previous (cdr last-deactivated-node))))))
+    (mapc (lambda (new-node)
+	    (setf (gethash (car new-node) nodes) (cdr new-node)))
+      new-nodes)))
+
+(defun kp-create-nodes (lineup width pass threshold
+			line-penalty hyphen-penalty explicit-hyphen-penalty
+			adjacent-demerits double-hyphen-demerits
+			final-hyphen-demerits &optional emergency-stretch)
+  (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
+    (setf (gethash '(0 . 1) nodes)
+	  (kp-make-node :boundary (make-boundary 0 0) :demerits 0))
+    (loop :for boundary := (next-boundary lineup)
+	    :then (next-boundary lineup (stop boundary))
+	  :while boundary
+	  :for boundary-type
+	    := (cond ((word-boundary-p lineup boundary) :word)
+		     ((pre-break (aref lineup (1- (stop boundary)))) :hyphen)
+		     (t :explicit-hyphen))
+	  :for break-penalty := (ecase boundary-type
+				  (:word 0)
+				  (:hyphen hyphen-penalty)
+				  (:explicit-hyphen explicit-hyphen-penalty))
+	  :when (or (eq boundary-type :word)
+		    (and (> pass 1) (!< break-penalty :+infinity)))
+	    :do (kp-try-boundary boundary nodes
+		  lineup width pass threshold line-penalty break-penalty
+		  adjacent-demerits double-hyphen-demerits
+		  final-hyphen-demerits emergency-stretch))
+    (unless (zerop (hash-table-count nodes)) nodes)))
+
+(defun kp-dynamic-create-lines
+    (lineup width disposition
+     line-penalty hyphen-penalty explicit-hyphen-penalty
+     adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+     pre-tolerance tolerance emergency-stretch looseness
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
+  (let ((nodes (or (when (!<= 0 pre-tolerance)
+		     (kp-create-nodes lineup width 1 pre-tolerance
+		       line-penalty hyphen-penalty explicit-hyphen-penalty
+		       adjacent-demerits double-hyphen-demerits
+		       final-hyphen-demerits))
+		   (kp-create-nodes lineup width 2 tolerance
+		     line-penalty hyphen-penalty explicit-hyphen-penalty
+		     adjacent-demerits double-hyphen-demerits
+		     final-hyphen-demerits))))
+    (when (and (not (zerop emergency-stretch))
+	       (loop :for node :being :the :hash-values :in nodes
+		     :when (numberp (kp-node-demerits node))
+		       :do (return nil)
+		     :finally (return t)))
+      (setq nodes (kp-create-nodes lineup width 3 tolerance
+		     line-penalty hyphen-penalty explicit-hyphen-penalty
+		     adjacent-demerits double-hyphen-demerits
+		     final-hyphen-demerits emergency-stretch)))
+    (let ((best (loop :with demerits := :+infinity :with best :with last
+		      :for node :being :the :hash-values :in nodes
+			:using (hash-key key)
+		      :do (setq last (cons node (car key)))
+		      :when (!< (kp-node-demerits node) demerits)
+			:do (setq best (cons node (car key))
+				  demerits (kp-node-demerits node))
+		      :finally (return (or best last)))))
+      (if (zerop looseness)
+	(setq best (car best))
+	(setq best (loop :with ideal-size := (+ (cdr best) looseness)
+			 :with closer := (car best)
+			 :with delta := (abs (- ideal-size (cdr best)))
+			 :for node :being :the :hash-values :in nodes
+			   :using (hash-key key)
+			 :if (< (abs (- ideal-size (car key))) delta)
+			   :do (setq closer node
+				     delta (abs (- ideal-size (car key))))
+			 :else :if (and (= (abs (- ideal-size (car key)))
+					   delta)
+					(< (kp-node-demerits node)
+					   (kp-node-demerits closer)))
+			   :do (setq closer node)
+			 :finally (return closer))))
+      (loop :with lines
+	    :for end := best :then (kp-node-previous end)
+	    :for beg := (kp-node-previous end)
+	    :while beg
+	    :for start := (next-start (kp-node-boundary beg))
+	    :for stop := (stop (kp-node-boundary end))
+	    :do (push
+		 (if justified
+		   (create-justified-line lineup start stop width sloppy)
+		   (create-line lineup start stop))
+		 lines)
+	    :finally (return lines)))))
+
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :knuth-plass))
      &key variant
@@ -239,4 +401,7 @@
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))
     (:dynamic
-     )))
+     (kp-dynamic-create-lines lineup width disposition
+       line-penalty hyphen-penalty explicit-hyphen-penalty
+       adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+       pre-tolerance tolerance emergency-stretch looseness))))
