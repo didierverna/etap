@@ -162,6 +162,14 @@ for equally bad solutions."))
 		  boundary))
     boundaries))
 
+(defun word-boundaries (lineup boundaries)
+  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
+		 boundaries))
+
+(defun hyphen-boundaries (lineup boundaries)
+  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
+	     boundaries))
+
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
   (:method (lineup start width disposition variant &key avoid-hyphens)

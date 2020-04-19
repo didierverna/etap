@@ -177,20 +177,6 @@
 (defun word-boundary-p (lineup boundary)
   (word-stop-p lineup (stop boundary)))
 
-(defun word-boundaries (lineup boundaries)
-  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
-		 boundaries))
-
-(defun hyphen-boundaries (lineup boundaries)
-  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
-	     boundaries))
-
-(defun boundary-scales (lineup start width boundaries)
-  (mapcar
-      (lambda (boundary)
-	(cons boundary (lineup-scale lineup start (stop boundary) width)))
-    boundaries))
-
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
   (unless (= start length)
     (let ((point (position-if #'break-point-p lineup :start (1+ start))))
