@@ -150,6 +150,23 @@
     (make-span width (- width shrink) (+ width stretch))))
 
 
+
+;; #### NOTE: TeX uses 10000 as the badness upper bound (anything above being
+;; considered infinitely bad). This corresponds to a scaling ratio of
+;; 4.6415887, which indeed is really awful. I'm changing this a little bit in
+;; order to represent undefined scaling numerically.
+;; - A scaling >= 5 represents a required +infinite scaling, that is, an un
+;;   stretchable underfull.
+;; - A scaling <= -5 represents a required -infinite scaling, that is, an
+;;   unshrinkable overfull.
+;; With this, infinite badness becomes 12500 instead of 10000.
+
+(define-constant +underfull+ 5)
+(define-constant +overfull+ 5)
+
+(defun underfullp (scale) (= scale +underfull+))
+(defun overfullp (scale) (= scale +overfull+))
+
 (defun lineup-scale (lineup start stop target &optional emergency-stretch)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (when emergency-stretch (incf stretch emergency-stretch))
@@ -161,9 +178,10 @@
 	   ;; is infinite.
 	   (if (>= stretch 100000)
 	     0
-	     (unless (zerop stretch) (/ (- target width) stretch))))
+	     (if (zerop stretch) +underfull+ (/ (- target width) stretch))))
 	  ((> width target)
-	   (unless (zerop shrink) (/ (- target width) shrink))))))
+	   (if (zerop shrink) +overfull+ (/ (- target width) shrink))))))
+
 
 (defun word-stop-p (lineup stop)
   (or (= stop (length lineup)) (gluep (aref lineup stop))))
