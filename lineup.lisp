@@ -2,12 +2,17 @@
 ;; #### affect the way algorithms are implemented. These specificities should
 ;; #### be kept in mind because should they change, said algorithms may become
 ;; #### buggy. In particular:
-;; #### - the paragraph string is trimmed for spaces, so there is no glue at
-;; ####   the end (we don't have TeX's last line specific treatment notably).
+;; #### - the paragraph string is trimmed for spaces. There is a single glue
+;; ####   between each words, and only one infinitely stretchable glue at the
+;; ####   end of the paragraph (it's actually very large, not infinite).
+;; #### - this last glue is treated in a special way because we neither have
+;; ####   fill units, nor infinite penalties for preventing a break before a
+;; ####   glue.
+;; #### - there is no forced break at the end of the lineup. It's also treated
+;; ####   in a special way.
 ;; #### - the only discretionaries that we have come from the hyphenation
-;; ####   step, which mean that said discretionaries only appear in the middle
-;; ####   of words (we may, however, have discretionaries at the beginning or
-;; ####   end of the lineup).
+;; ####   step, which means that said discretionaries only appear in the middle
+;; ####   of words.
 
 (in-package :etap)
 
