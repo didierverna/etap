@@ -31,15 +31,17 @@ ignoring the font's inter-word spacing boundaries."))
 (defun disposition-type (disposition) (car-or-symbol disposition))
 (defun disposition-options (disposition) (cdr-or-nil disposition))
 
+
 (define-constant +maximum-badness+ 10000)
 
 (defun scale-badness (scale)
-  (if (or (null scale) (< scale -1))
-    :+infinity
-    (min (* 100 (expt (abs scale) 3)) +maximum-badness+)))
+  (if (and (scalablep scale) (>= scale -1))
+    (min (* 100 (expt (abs scale) 3)) +maximum-badness+)
+    :+infinity))
 
 (defun badness (lineup start stop width &optional emergency-stretch)
   (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
+
 
 (defun !< (x y)
   (cond ((eql x y) nil)
