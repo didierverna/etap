@@ -354,7 +354,7 @@ for equally bad solutions."))
 		      (lineup-scale
 		       lineup start (stop (next-boundary lineup stop))
 		       width)))
-		(if (and scale (> scale 0)) scale 0))
+		(if (and (scalablep scale) (> scale 0)) scale 0))
 	      0)))
     (create-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
@@ -364,7 +364,7 @@ for equally bad solutions."))
 	    &aux (scale -1))
     (when relax
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
-		    (if (and scale (< scale 0)) scale 0))))
+		    (if (and (scalablep scale) (< scale 0)) scale 0)))),
     (create-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy)
