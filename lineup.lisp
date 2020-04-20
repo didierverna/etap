@@ -150,11 +150,6 @@
     (make-span width (- width shrink) (+ width stretch))))
 
 
-
-(defun underfullp (scale) (eq scale :underfull))
-(defun overfullp (scale) (eq scale :overfull))
-(defun *fullp (scale) (or (underfullp scale) (overfullp scale)))
-
 (defun lineup-scale (lineup start stop target &optional emergency-stretch)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (when emergency-stretch (incf stretch emergency-stretch))
@@ -166,9 +161,11 @@
 	   ;; is infinite.
 	   (if (>= stretch 100000)
 	     0
-	     (if (zerop stretch) :underfull (/ (- target width) stretch))))
+	     (if (zerop stretch) :unstretchable (/ (- target width) stretch))))
 	  ((> width target)
-	   (if (zerop shrink) :overfull (/ (- target width) shrink))))))
+	   (if (zerop shrink) :unshrinkable (/ (- target width) shrink))))))
+
+(defun scalablep (scale) (numberp scale))
 
 
 (defun word-stop-p (lineup stop)
