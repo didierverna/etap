@@ -150,6 +150,11 @@
     (make-span width (- width shrink) (+ width stretch))))
 
 
+;; #### NOTE: TeX has a single notion of "undefined" scaling ratio when a
+;; necessary stretching or shrinking is unavailable, but we make a difference.
+;; If we need to stretch but we can't, we represent that by a +infinity amount
+;; of required scaling. Conversely, if we need to shrink but we can't, we
+;; represent that by a :-infinity amount of scaling.
 (defun lineup-scale (lineup start stop target &optional emergency-stretch)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (when emergency-stretch (incf stretch emergency-stretch))
@@ -161,9 +166,13 @@
 	   ;; is infinite.
 	   (if (>= stretch 100000)
 	     0
-	     (unless (zerop stretch) (/ (- target width) stretch))))
+	     (if (zerop stretch) :+infinity (/ (- target width) stretch))))
 	  ((> width target)
-	   (unless (zerop shrink) (/ (- target width) shrink))))))
+	   (if (zerop shrink) :-infinity (/ (- target width) shrink))))))
+
+(defun scalablep (scale) (numberp scale))
+(defun unscalablep (scale) (not (scalablep scale)))
+
 
 (defun word-stop-p (lineup stop)
   (or (= stop (length lineup)) (gluep (aref lineup stop))))
