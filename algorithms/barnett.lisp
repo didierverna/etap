@@ -52,28 +52,24 @@
 	:finally
 	   (return
 	     (cond ((and word-overfull
-			 (let ((scale (lineup-scale lineup start
-						    (stop word-overfull)
-						    width)))
-			   (and scale (>= scale -1))))
+			 (!<= -1 (lineup-scale lineup
+					       start (stop word-overfull)
+					       width)))
 		    word-overfull)
 		   ((and word-underfull
-			 (let ((scale (lineup-scale lineup start
-						    (stop word-underfull)
-						    width)))
-			   (and scale (<= scale 1))))
+			 (!<= (lineup-scale lineup start
+					    (stop word-underfull)
+					    width)
+			      1))
 		    word-underfull)
 		   (hyphens
 		    (loop :with last-overfull
 			  :for hyphen :in hyphens
-			  :for scale
-			    := (lineup-scale lineup start (stop hyphen) width)
-			  :while (if scale
-				   (<= scale 0)
-				   (>= (lineup-width lineup
-						     start (stop hyphen))
-				       width))
-			  :if (or (null scale) (< scale -1))
+			  :for scale := (lineup-scale lineup
+						      start (stop hyphen)
+						      width)
+			  :while (!<= scale 0)
+			  :if (!< scale -1)
 			    :do (setq last-overfull hyphen)
 			  :else
 			    :do (return hyphen)
