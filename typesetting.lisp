@@ -90,10 +90,10 @@
 (defun create-justified-line
     (lineup start stop width sloppy
      &aux (scale (lineup-scale lineup start stop width)))
-  (if scale
+  (if (*fullp scale)
+    (create-line lineup start stop)
     (create-line lineup start stop
 		 (cond (sloppy (max scale -1))
 		       ((zerop scale) 0)
 		       ((< scale 0) (max scale -1))
-		       ((> scale 0) (min scale 1))))
-    (create-line lineup start stop)))
+		       ((> scale 0) (min scale 1))))))
