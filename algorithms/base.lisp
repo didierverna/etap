@@ -34,9 +34,9 @@ ignoring the font's inter-word spacing boundaries."))
 (define-constant +maximum-badness+ 10000)
 
 (defun scale-badness (scale)
-  (if (or (null scale) (< scale -1))
-    :+infinity
-    (min (* 100 (expt (abs scale) 3)) +maximum-badness+)))
+  (if (and (scalablep scale) (>= scale -1))
+    (min (* 100 (expt (abs scale) 3)) +maximum-badness+)
+    :+infinity))
 
 (defun badness (lineup start stop width &optional emergency-stretch)
   (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
