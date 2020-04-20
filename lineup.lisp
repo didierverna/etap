@@ -161,11 +161,11 @@
 ;;   unshrinkable overfull.
 ;; With this, infinite badness becomes 12500 instead of 10000.
 
-(define-constant +underfull+ 5)
-(define-constant +overfull+ 5)
+(define-constant +underfull-scale+ 5)
+(define-constant +overfull-scale+ 5)
 
-(defun underfullp (scale) (= scale +underfull+))
-(defun overfullp (scale) (= scale +overfull+))
+(defun underfullp (scale) (>= scale +underfull-scale+))
+(defun overfullp (scale) (<= scale +overfull-scale+))
 
 (defun lineup-scale (lineup start stop target &optional emergency-stretch)
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
@@ -178,9 +178,13 @@
 	   ;; is infinite.
 	   (if (>= stretch 100000)
 	     0
-	     (if (zerop stretch) +underfull+ (/ (- target width) stretch))))
+	     (if (zerop stretch)
+	       +underfull-scale+
+	       (/ (- target width) stretch))))
 	  ((> width target)
-	   (if (zerop shrink) +overfull+ (/ (- target width) shrink))))))
+	   (if (zerop shrink)
+	     +overfull-scale+
+	     (/ (- target width) shrink))))))
 
 
 (defun word-stop-p (lineup stop)
