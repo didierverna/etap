@@ -166,6 +166,7 @@
 	   (if (zerop shrink) :unshrinkable (/ (- target width) shrink))))))
 
 (defun scalablep (scale) (numberp scale))
+(defun unscalablep (scale) (not (scalablep scale)))
 
 
 (defun word-stop-p (lineup stop)

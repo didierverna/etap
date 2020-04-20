@@ -55,25 +55,25 @@
 			 (let ((scale (lineup-scale lineup start
 						    (stop word-overfull)
 						    width)))
-			   (and scale (>= scale -1))))
+			   (and (scalablep scale) (>= scale -1))))
 		    word-overfull)
 		   ((and word-underfull
 			 (let ((scale (lineup-scale lineup start
 						    (stop word-underfull)
 						    width)))
-			   (and scale (<= scale 1))))
+			   (and (scalablep scale) (<= scale 1))))
 		    word-underfull)
 		   (hyphens
 		    (loop :with last-overfull
 			  :for hyphen :in hyphens
 			  :for scale
 			    := (lineup-scale lineup start (stop hyphen) width)
-			  :while (if scale
+			  :while (if (scalablep scale)
 				   (<= scale 0)
 				   (>= (lineup-width lineup
 						     start (stop hyphen))
 				       width))
-			  :if (or (null scale) (< scale -1))
+			  :if (or (unscalablep scale) (< scale -1))
 			    :do (setq last-overfull hyphen)
 			  :else
 			    :do (return hyphen)
