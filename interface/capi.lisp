@@ -504,7 +504,7 @@
      :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
      ;;:visible-max-width '(character 80)
-     :visible-min-height '(character 15)
+     :visible-min-height '(character 10)
      :visible-max-height '(character 30)
      :change-callback 'set-text
      :reader text)
@@ -512,7 +512,7 @@
      :title "Typeset paragraph" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
-     :visible-min-height 350
+     :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
