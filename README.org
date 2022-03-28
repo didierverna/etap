@@ -1,0 +1,15 @@
+* Dependencies
+- TFM (my TeX Font Metrics library), available in Quicklisp or on
+  [[https://github.com/didierverna/tfm][GitHub]].
+- You need to have the Latin Modern fonts installed on your machine.
+
+* Portability
+The core is portable but there's only a Lispworks/CAPI GUI for now.
+I'll gladly accept new GUIs, such as */McClim, ECL/EQL, /etc./
+
+* Quickstart
+#+BEGIN_SRC Lisp
+;; #### WARNING: this is alpha-grade software.
+(asdf:load-system :etap)
+(etap:run)
+#+END_SRC
