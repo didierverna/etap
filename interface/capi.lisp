@@ -13,7 +13,7 @@
        (declare (ignore status))
        (setf (titled-object-title pane)
 	     (format nil
-		 ,(concatenate 'string (title-capitalize generic) ": ~5D")
+		 ,(concatenate 'string (title-capitalize generic) ": ~D")
 	       value))
        (,(intern (concatenate 'string "SET-" prefix "-ALGORITHM"))
 	nil (top-level-interface pane))))
@@ -316,8 +316,9 @@
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
    (fit-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~5D" (cadr +fit-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~D" (cadr +fit-hyphen-penalty+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +fit-hyphen-penalty+)
      :end (caddr +fit-hyphen-penalty+)
      :slug-start (cadr +fit-hyphen-penalty+)
@@ -325,9 +326,10 @@
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
    (fit-explicit-hyphen-penalty slider
-     :title (format nil "Explicit-Hyphen Penalty: ~5D"
+     :title (format nil "Explicit-Hyphen Penalty: ~D"
 	      (cadr +fit-explicit-hyphen-penalty+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +fit-explicit-hyphen-penalty+)
      :end (caddr +fit-explicit-hyphen-penalty+)
      :slug-start (cadr +fit-explicit-hyphen-penalty+)
@@ -350,8 +352,9 @@
      :selection-callback 'set-kp-algorithm
      :reader kp-variant)
    (kp-line-penalty slider
-     :title (format nil "Line Penalty: ~5D" (cadr +kp-line-penalty+))
+     :title (format nil "Line Penalty: ~D" (cadr +kp-line-penalty+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-line-penalty+)
      :end (caddr +kp-line-penalty+)
      :slug-start (cadr +kp-line-penalty+)
@@ -359,8 +362,9 @@
      :callback 'set-kp-line-penalty
      :reader kp-line-penalty)
    (kp-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~5D" (cadr +kp-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~D" (cadr +kp-hyphen-penalty+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-hyphen-penalty+)
      :end (caddr +kp-hyphen-penalty+)
      :slug-start (cadr +kp-hyphen-penalty+)
@@ -368,9 +372,10 @@
      :callback 'set-kp-hyphen-penalty
      :reader kp-hyphen-penalty)
    (kp-explicit-hyphen-penalty slider
-     :title (format nil "Explicit Hyphen Penalty: ~5D"
+     :title (format nil "Explicit Hyphen Penalty: ~D"
 	      (cadr +kp-explicit-hyphen-penalty+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-explicit-hyphen-penalty+)
      :end (caddr +kp-explicit-hyphen-penalty+)
      :slug-start (cadr +kp-explicit-hyphen-penalty+)
@@ -378,8 +383,9 @@
      :callback 'set-kp-explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
    (kp-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~5D" (cadr +kp-adjacent-demerits+))
+     :title (format nil "Adjacent Demerits: ~D" (cadr +kp-adjacent-demerits+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-adjacent-demerits+)
      :end (caddr +kp-adjacent-demerits+)
      :slug-start (cadr +kp-adjacent-demerits+)
@@ -387,9 +393,10 @@
      :callback 'set-kp-adjacent-demerits
      :reader kp-adjacent-demerits)
    (kp-double-hyphen-demerits slider
-     :title (format nil "Double Hyphen Demerits: ~5D"
+     :title (format nil "Double Hyphen Demerits: ~D"
 	      (cadr +kp-double-hyphen-demerits+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-double-hyphen-demerits+)
      :end (caddr +kp-double-hyphen-demerits+)
      :slug-start (cadr +kp-double-hyphen-demerits+)
@@ -397,9 +404,10 @@
      :callback 'set-kp-double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
    (kp-final-hyphen-demerits slider
-     :title (format nil "Final Hyphen Demerits: ~5D"
+     :title (format nil "Final Hyphen Demerits: ~D"
 	      (cadr +kp-final-hyphen-demerits+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-final-hyphen-demerits+)
      :end (caddr +kp-final-hyphen-demerits+)
      :slug-start (cadr +kp-final-hyphen-demerits+)
@@ -407,8 +415,9 @@
      :callback 'set-kp-final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
    (kp-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~5D" (cadr +kp-pre-tolerance+))
+     :title (format nil "Pre Tolerance: ~D" (cadr +kp-pre-tolerance+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-pre-tolerance+)
      :end (caddr +kp-pre-tolerance+)
      :slug-start (cadr +kp-pre-tolerance+)
@@ -416,8 +425,9 @@
      :callback 'set-kp-pre-tolerance
      :reader kp-pre-tolerance)
    (kp-tolerance slider
-     :title (format nil "Tolerance: ~5D" (cadr +kp-tolerance+))
+     :title (format nil "Tolerance: ~D" (cadr +kp-tolerance+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-tolerance+)
      :end (caddr +kp-tolerance+)
      :slug-start (cadr +kp-tolerance+)
@@ -425,8 +435,9 @@
      :callback 'set-kp-tolerance
      :reader kp-tolerance)
    (kp-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~5D" (cadr +kp-emergency-stretch+))
+     :title (format nil "Emergency Stretch: ~D" (cadr +kp-emergency-stretch+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-emergency-stretch+)
      :end (caddr +kp-emergency-stretch+)
      :slug-start (cadr +kp-emergency-stretch+)
@@ -434,8 +445,9 @@
      :callback 'set-kp-emergency-stretch
      :reader kp-emergency-stretch)
    (kp-looseness slider
-     :title (format nil "Looseness: ~5D" (cadr +kp-looseness+))
+     :title (format nil "Looseness: ~D" (cadr +kp-looseness+))
      :orientation :horizontal
+     :visible-min-width 220
      :start (car +kp-looseness+)
      :end (caddr +kp-looseness+)
      :slug-start (cadr +kp-looseness+)
@@ -583,7 +595,7 @@
 		(setf (range-slug-start (,accessor etap))
 		      (or (cadr (member ,key options)) (cadr ,choices)))
 		(setf (titled-object-title (,accessor etap))
-		      (format nil "~A: ~5D"
+		      (format nil "~A: ~D"
 			,(title-capitalize key)
 			(range-slug-start (,accessor etap)))))))
 	 (set-sliders (prefix &rest sliders)
