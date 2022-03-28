@@ -82,10 +82,10 @@
 	(cons :knuth-plass
 	      (append
 	       (radio-selection kp :variant interface)
-	       (slider-value kp	:line-penalty interface)
+	       (slider-value kp :line-penalty interface)
 	       (slider-value kp :hyphen-penalty interface)
 	       (slider-value kp :explicit-hyphen-penalty interface)
-	       (slider-value kp	:adjacent-demerits interface)
+	       (slider-value kp :adjacent-demerits interface)
 	       (slider-value kp :double-hyphen-demerits interface)
 	       (slider-value kp :final-hyphen-demerits interface)
 	       (slider-value kp :pre-tolerance interface)
