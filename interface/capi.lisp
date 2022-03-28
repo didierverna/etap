@@ -173,7 +173,8 @@
 	(when (member :paragraph-box clues)
 	  (gp:draw-rectangle pane
 	      0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
-	    :foreground :red))
+	    :foreground :red
+	    :scale-thickness nil))
 	(loop :with par-y := (height (first (pinned-lines paragraph)))
 	      :for pinned-line :in (pinned-lines paragraph)
 	      :for x := (x pinned-line)
@@ -184,7 +185,8 @@
 			(- y (height pinned-line))
 			(width pinned-line)
 			(+ (height pinned-line) (depth pinned-line))
-		      :foreground :blue)
+		      :foreground :blue
+		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width pinned-line) (width paragraph))
 		  :do (gp:draw-rectangle pane
@@ -192,7 +194,8 @@
 			  (- y (height pinned-line))
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
-			:foreground :orange :filled t)
+			:foreground :orange
+			:scale-thickness nil :filled t)
 	      :else :if (and (eq (disposition-type (disposition context))
 				 :justified)
 			     (< (width pinned-line) (width paragraph)))
@@ -201,10 +204,12 @@
 			      (- y (height pinned-line))
 			      5
 			      (+ (height pinned-line) (depth pinned-line))
-			    :foreground :orange)
+			    :foreground :orange
+			    :scale-thickness nil)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
-		      :foreground :purple)
+		      :foreground :purple
+		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
 		:do (mapc (lambda (object)
@@ -215,7 +220,8 @@
 					 (- y (height object))
 					 (width object)
 					 (+ (height object)
-					    (depth object))))
+					    (depth object))
+				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
 					 (cadr
