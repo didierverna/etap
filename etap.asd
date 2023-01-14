@@ -1,5 +1,5 @@
 (asdf:defsystem :etap
-  :description "The Typesetting Experimental Algorithms Platform"
+  :description "The Experimental Typesetting Algorithms Platform"
   :author "Didier Verna"
   :mailto "didier@didierverna.net"
   :homepage
