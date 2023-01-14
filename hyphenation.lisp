@@ -1,39 +1,61 @@
 (in-package :etap)
 
-(defparameter *lefthyphenmin* 2)
-(defparameter *righthyphenmin* 3)
+(defparameter *lefthyphenmin* 2
+  "The minimum number of characters before a potential hyphenation point.")
+
+(defparameter *righthyphenmin* 3
+  "The minimum number of characters after a potential hyphenation point.")
 
 (defparameter *hyphenation-patterns-file*
-  (asdf:system-relative-pathname :etap #p"share/hyph-en-us.pat.txt"))
+  (asdf:system-relative-pathname :etap #p"share/hyph-en-us.pat.txt")
+  "The US English hyphenation patterns file.")
 
 (defparameter *hyphenation-exceptions-file*
-  (asdf:system-relative-pathname :etap #p"share/hyph-en-us.hyp.txt"))
+  (asdf:system-relative-pathname :etap #p"share/hyph-en-us.hyp.txt")
+  "The US English hyphenation exceptions file.")
 
 (defclass hyphenation-rules ()
   ((patterns
-    :initform (make-hash-table :test #'equal) :accessor patterns)
+    :initform (make-hash-table :test #'equal) :accessor patterns
+    :documentation "The hyphenation patterns.
+This is a hash table mapping radicals (strings) with a list of elements of the
+form (INDEX . WEIGTH).")
    (exceptions
-    :initform (make-hash-table :test #'equal) :accessor exceptions)))
+    :initform (make-hash-table :test #'equal) :accessor exceptions
+    :documentation "The hyphenation exceptions.
+This is a hash table mapping words (strings) with a list of hyphenation point
+indexes."))
+  (:documentation "The HYPHENATION-RULES class."))
 
 (defun hyphenation-rules-p (object)
+  "Return T if OBJECT is an HYPHENTATION-RULES."
   (typep object 'hyphenation-rules))
 
 (defun make-hyphenation-rules ()
+  "Create an empty instance of HYPHENATION-RULES."
   (make-instance 'hyphenation-rules))
 
 (defun hyphenation-pattern (string hyphenation-rules)
+  "Return HYPHENATION-RULES'pattern for STRING.
+Also return a second value indicating whether a pattern was found."
   (gethash string (patterns hyphenation-rules)))
 
 (defun (setf hyphenation-pattern) (value string hyphenation-rules)
+  "Set HYPHENATION-RULES'pattern for STRING to VALUE."
   (setf (gethash string (patterns hyphenation-rules)) value))
 
 (defun hyphenation-exception (string hyphenation-rules)
+  "Return HYPHENATION-RULES'exception for STRING.
+Also return a second value indicating whether an exception was found."
   (gethash string (exceptions hyphenation-rules)))
 
 (defun (setf hyphenation-exception) (value string hyphenation-rules)
+  "Set HYPHENATION-RULES'exception for STRING to VALUE."
   (setf (gethash string (exceptions hyphenation-rules)) value))
 
 (defun parse-hyphenation-pattern (string)
+  "Parse STRING as a hyphenation pattern.
+Return two values: the radical and the list of weighted hyphenation points."
   (loop :with word := (make-string (- (length string)
 				      (count-if #'digit-char-p string)))
 	:with digit-is-char := nil
@@ -46,7 +68,7 @@
 	    :and :do (incf i)
 	    :and :do (setq digit-is-char nil)
 	  :else
-	    :do (push (cons i (- (char-code char) 48)) hyphenation-points)
+	    :do (endpush (cons i (- (char-code char) 48)) hyphenation-points)
 	    :and :do (setq digit-is-char t)
 	  :end
 	:else
@@ -56,15 +78,20 @@
 	:finally (return (values word hyphenation-points))))
 
 (defun parse-hyphenation-exception (string)
+  "Parse STRING as a hyphenation exception.
+Return two values: the radical and the list of hyphenation points."
   (loop :with word := (make-string (- (length string) (count #\- string)))
 	:with hyphenation-points := (list)
 	:with i := 0
 	:for char :across string
-	:if (char= char #\-) :do (push i hyphenation-points)
+	:if (char= char #\-) :do (endpush i hyphenation-points)
 	  :else :do (setf (aref word i) char) :and :do (incf i)
 	:finally (return (values word hyphenation-points))))
 
 (defun create-hyphenation-rules (&aux (rules (make-hyphenation-rules)))
+  "Create a HYPHENATION-RULES instance.
+Fill it with patterns and exceptions from the files specified by
+*HYPHENATION-PATTERNS-FILE* and *HYPHENATION-EXCEPTIONS-FILE*."
   (with-open-file (stream *hyphenation-patterns-file*)
     (loop :for line := (read-line stream nil)
 	  :while line
@@ -80,6 +107,7 @@
   rules)
 
 (defun hyphenation-points (word rules)
+  "Return a list of potential hyphenation points for WORD based on RULES."
   (multiple-value-bind (points found) (hyphenation-exception word rules)
     (if found
       points
@@ -104,7 +132,7 @@
 			      pattern))
 	    :finally (return
 		       (sort
-			(remove-if (lambda (position)
+			   (remove-if (lambda (position)
 				     (or (< position *lefthyphenmin*)
 					 (> position
 					    ;; #### WARNING: LENGTH is too
