@@ -224,12 +224,11 @@
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
-					 (cadr
-					  (assoc
-					   (elt *lm-ec-encoding*
-						(tfm:code
-						 (character-metrics object)))
-					   *glyph-list*))
+					 (gethash
+					  (elt *lm-ec-encoding*
+					       (tfm:code
+						(character-metrics object)))
+					  *glyph-list*)
 					 (+ x (x object))
 					 y)))
 				  ((pinned-hyphenation-clue-p object)
