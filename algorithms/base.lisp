@@ -1,5 +1,39 @@
 (in-package :etap)
 
+;; =================
+;; General Utilities
+;; =================
+
+(defmacro default (variable choices)
+  "If NULL, default VARIABLE to the first of CHOICES."
+  `(when (null ,variable) (setq ,variable (car ,choices))))
+
+(defmacro default-variable
+    (variable prefix
+     &aux (choices (intern (format nil "+~A-~AS+" prefix variable))))
+  "If NULL, default VARIABLE to the first choice in +PREFIX-VARIABLES+.
+Note the S appended to VARIABLE in the choices constant name."
+  `(default ,variable ,choices))
+
+
+(defmacro define-calibration (calibration min default max)
+  `(define-constant ,calibration '(,min ,default ,max)))
+
+(defmacro calibrate (variable calibration &optional infinity)
+  `(cond ((null ,variable)
+	  (setq ,variable (cadr ,calibration)))
+	 ((<= ,variable (car ,calibration))
+	  (setq ,variable ,(if infinity :-infinity `(car ,calibration))))
+	 ((>= ,variable (caddr ,calibration))
+	  (setq ,variable ,(if infinity :+infinity `(caddr ,calibration))))))
+
+(defmacro calibrate-variable
+    (variable prefix
+     &optional infinity
+     &aux (calibration (intern (format nil "+~A-~A+" prefix variable))))
+  `(calibrate ,variable ,calibration ,infinity))
+
+
 
 (define-constant +dispositions+
     '(:flush-left :centered :flush-right :justified))
