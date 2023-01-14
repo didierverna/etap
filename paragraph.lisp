@@ -1,8 +1,8 @@
 (in-package :etap)
 
 
-(define-constant +paragraph-min-width+ 142) ;; 142.26378pt = 5cm
-(define-constant +paragraph-max-width+ 569) ;; 569.0551pt = 20cm
+(defparameter *paragraph-min-width* 142) ;; 142.26378pt = 5cm
+(defparameter *paragraph-max-width* 569) ;; 569.0551pt = 20cm
 
 
 (defclass pinned-line (pinned)

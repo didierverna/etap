@@ -18,8 +18,8 @@
 (in-package :etap)
 
 
-(define-constant +duncan-discriminating-functions+
-    '(:minimize-distance :minimize-scaling))
+(defparameter *duncan-discriminating-functions*
+  '(:minimize-distance :minimize-scaling))
 
 (defclass duncan-edge (paragraph-edge)
   ((hyphen :initform 0 :accessor hyphen)
@@ -30,7 +30,7 @@
 (defmethod initialize-instance :after
     ((edge duncan-edge)
      &key lineup width start
-	  (discriminating-function (car +duncan-discriminating-functions+))
+	  (discriminating-function (car *duncan-discriminating-functions*))
      &aux (stop (stop (boundary (node edge))))
 	  (span (lineup-span lineup start stop)))
   (unless (word-stop-p lineup stop)

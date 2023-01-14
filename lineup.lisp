@@ -17,7 +17,8 @@
 (in-package :etap)
 
 
-(define-constant +features+ '((:kerning t) (:ligatures t) (:hyphenation t)))
+(defparameter *lineup-features*
+  '((:kerning t) (:ligatures t) (:hyphenation t)))
 
 
 (defgeneric width (object)
@@ -370,10 +371,10 @@
 	:append done))
 
 
-(define-constant +blanks+ '(#\Space #\Tab #\Newline))
+(defparameter *blanks* '(#\Space #\Tab #\Newline))
 
 (defun blankp (character)
-  (member character +blanks+))
+  (member character *blanks*))
 
 (defun word-constituent-p (char)
   (or (alpha-char-p char) (char= char #\-)))
@@ -384,7 +385,7 @@
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now.
 (defun slice-string (string font)
-  (loop :with string := (string-trim +blanks+ string)
+  (loop :with string := (string-trim *blanks* string)
 	:with length := (length string)
 	:with i := 0
 	:while (< i length)

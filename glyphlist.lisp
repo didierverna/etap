@@ -24,7 +24,7 @@
 
 (in-package :etap)
 
-(define-constant +glyph-list+
+(defparameter *glyph-list*
   '(
     (|A| #\U+0041)
     (|AE| #\U+00C6)

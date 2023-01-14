@@ -1,12 +1,12 @@
 (in-package :etap)
 
-(define-constant +lefthyphenmin+ 2)
-(define-constant +righthyphenmin+ 3)
+(defparameter *lefthyphenmin* 2)
+(defparameter *righthyphenmin* 3)
 
-(define-constant +hyphenation-patterns-file+
+(defparameter *hyphenation-patterns-file*
   (asdf:system-relative-pathname :etap #p"share/hyph-en-us.pat.txt"))
 
-(define-constant +hyphenation-exceptions-file+
+(defparameter *hyphenation-exceptions-file*
   (asdf:system-relative-pathname :etap #p"share/hyph-en-us.hyp.txt"))
 
 (defclass hyphenation-rules ()
@@ -65,13 +65,13 @@
 	:finally (return (values word hyphenation-points))))
 
 (defun create-hyphenation-rules (&aux (rules (make-hyphenation-rules)))
-  (with-open-file (stream +hyphenation-patterns-file+)
+  (with-open-file (stream *hyphenation-patterns-file*)
     (loop :for line := (read-line stream nil)
 	  :while line
 	  :do (multiple-value-bind (word pattern)
 		  (parse-hyphenation-pattern line)
 		(setf (hyphenation-pattern word rules) pattern))))
-  (with-open-file (stream +hyphenation-exceptions-file+)
+  (with-open-file (stream *hyphenation-exceptions-file*)
     (loop :for line := (read-line stream nil)
 	  :while line
 	  :do (multiple-value-bind (word pattern)
@@ -105,12 +105,12 @@
 	    :finally (return
 		       (sort
 			(remove-if (lambda (position)
-				     (or (< position +lefthyphenmin+)
+				     (or (< position *lefthyphenmin*)
 					 (> position
 					    ;; #### WARNING: LENGTH is too
 					    ;; large by 2 because it counts
 					    ;; the two additional dots!
-					    (- length +righthyphenmin+ 2))))
+					    (- length *righthyphenmin* 2))))
 				   (mapcar #'car
 				     (remove-if-not #'oddp points :key #'cdr)))
 			#'<))))))

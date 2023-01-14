@@ -226,10 +226,10 @@
 				     (gp:draw-character pane
 					 (cadr
 					  (assoc
-					   (elt +lm-ec-encoding+
+					   (elt *lm-ec-encoding*
 						(tfm:code
 						 (character-metrics object)))
-					   +glyph-list+))
+					   *glyph-list*))
 					 (+ x (x object))
 					 y)))
 				  ((pinned-hyphenation-clue-p object)
@@ -243,16 +243,16 @@
 		      (pinned-characters  (line pinned-line))))))))
 
 
-(define-constant +tooltips+
-    `(,@+fixed-tooltips+ ,@+fit-tooltips+ ,@+kp-tooltips+
-      ,@+disposition-options-tooltips+))
+(defparameter *tooltips*
+    `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
+      ,@*disposition-options-tooltips*))
 
 (defun show-help (interface pane type key)
   (declare (ignore interface pane))
   (case type
     (:tooltip
      (typecase key
-       (symbol (cadr (member key +tooltips+)))))))
+       (symbol (cadr (member key *tooltips*)))))))
 
 
 (define-interface etap ()
@@ -276,8 +276,8 @@
      :layout-class 'column-layout
      :visible-max-height nil
      :title "Variant" :title-position :frame
-     :items +fixed-variants+
-     :help-keys +fixed-variants-help-keys+
+     :items *fixed-variants*
+     :help-keys *fixed-variants-help-keys*
      :print-function 'title-capitalize
      :selection-callback 'set-fixed-algorithm
      :reader fixed-variant)
@@ -285,8 +285,8 @@
      :layout-class 'column-layout
      :visible-max-height nil
      :title "Options" :title-position :frame
-     :items +fixed-options+
-     :help-keys +fixed-options-help-keys+
+     :items *fixed-options*
+     :help-keys *fixed-options-help-keys*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
@@ -295,50 +295,50 @@
      :layout-class 'column-layout
      :visible-max-height nil
      :title "Variant" :title-position :frame
-     :items +fit-variants+
-     :help-keys +fit-variants-help-keys+
+     :items *fit-variants*
+     :help-keys *fit-variants-help-keys*
      :print-function 'title-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
    (fit-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
-     :items +fit-options+
-     :help-keys +fit-options-help-keys+
+     :items *fit-options*
+     :help-keys *fit-options-help-keys*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
    (fit-discriminating-function option-pane
      :title "Discriminating Function:"
-     :items +fit-discriminating-functions+
+     :items *fit-discriminating-functions*
      :print-function 'title-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
    (fit-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr +fit-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~D" (cadr *fit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +fit-hyphen-penalty+)
-     :end (caddr +fit-hyphen-penalty+)
-     :slug-start (cadr +fit-hyphen-penalty+)
+     :start (car *fit-hyphen-penalty*)
+     :end (caddr *fit-hyphen-penalty*)
+     :slug-start (cadr *fit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
    (fit-explicit-hyphen-penalty slider
      :title (format nil "Explicit-Hyphen Penalty: ~D"
-	      (cadr +fit-explicit-hyphen-penalty+))
+	      (cadr *fit-explicit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +fit-explicit-hyphen-penalty+)
-     :end (caddr +fit-explicit-hyphen-penalty+)
-     :slug-start (cadr +fit-explicit-hyphen-penalty+)
+     :start (car *fit-explicit-hyphen-penalty*)
+     :end (caddr *fit-explicit-hyphen-penalty*)
+     :slug-start (cadr *fit-explicit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-fit-explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
    (duncan-discriminating-function option-pane
      :title "Discriminating Function:"
-     :items +duncan-discriminating-functions+
+     :items *duncan-discriminating-functions*
      :print-function 'title-capitalize
      :selection-callback 'set-duncan-algorithm
      :reader duncan-discriminating-function)
@@ -346,111 +346,111 @@
      :layout-class 'column-layout
      :visible-max-height nil
      :title "Variant" :title-position :frame
-     :items +kp-variants+
-     :help-keys +kp-variants-help-keys+
+     :items *kp-variants*
+     :help-keys *kp-variants-help-keys*
      :print-function 'title-capitalize
      :selection-callback 'set-kp-algorithm
      :reader kp-variant)
    (kp-line-penalty slider
-     :title (format nil "Line Penalty: ~D" (cadr +kp-line-penalty+))
+     :title (format nil "Line Penalty: ~D" (cadr *kp-line-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-line-penalty+)
-     :end (caddr +kp-line-penalty+)
-     :slug-start (cadr +kp-line-penalty+)
+     :start (car *kp-line-penalty*)
+     :end (caddr *kp-line-penalty*)
+     :slug-start (cadr *kp-line-penalty*)
      :tick-frequency 0
      :callback 'set-kp-line-penalty
      :reader kp-line-penalty)
    (kp-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr +kp-hyphen-penalty+))
+     :title (format nil "Hyphen Penalty: ~D" (cadr *kp-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-hyphen-penalty+)
-     :end (caddr +kp-hyphen-penalty+)
-     :slug-start (cadr +kp-hyphen-penalty+)
+     :start (car *kp-hyphen-penalty*)
+     :end (caddr *kp-hyphen-penalty*)
+     :slug-start (cadr *kp-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-kp-hyphen-penalty
      :reader kp-hyphen-penalty)
    (kp-explicit-hyphen-penalty slider
      :title (format nil "Explicit Hyphen Penalty: ~D"
-	      (cadr +kp-explicit-hyphen-penalty+))
+	      (cadr *kp-explicit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-explicit-hyphen-penalty+)
-     :end (caddr +kp-explicit-hyphen-penalty+)
-     :slug-start (cadr +kp-explicit-hyphen-penalty+)
+     :start (car *kp-explicit-hyphen-penalty*)
+     :end (caddr *kp-explicit-hyphen-penalty*)
+     :slug-start (cadr *kp-explicit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-kp-explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
    (kp-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~D" (cadr +kp-adjacent-demerits+))
+     :title (format nil "Adjacent Demerits: ~D" (cadr *kp-adjacent-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-adjacent-demerits+)
-     :end (caddr +kp-adjacent-demerits+)
-     :slug-start (cadr +kp-adjacent-demerits+)
+     :start (car *kp-adjacent-demerits*)
+     :end (caddr *kp-adjacent-demerits*)
+     :slug-start (cadr *kp-adjacent-demerits*)
      :tick-frequency 0
      :callback 'set-kp-adjacent-demerits
      :reader kp-adjacent-demerits)
    (kp-double-hyphen-demerits slider
      :title (format nil "Double Hyphen Demerits: ~D"
-	      (cadr +kp-double-hyphen-demerits+))
+	      (cadr *kp-double-hyphen-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-double-hyphen-demerits+)
-     :end (caddr +kp-double-hyphen-demerits+)
-     :slug-start (cadr +kp-double-hyphen-demerits+)
+     :start (car *kp-double-hyphen-demerits*)
+     :end (caddr *kp-double-hyphen-demerits*)
+     :slug-start (cadr *kp-double-hyphen-demerits*)
      :tick-frequency 0
      :callback 'set-kp-double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
    (kp-final-hyphen-demerits slider
      :title (format nil "Final Hyphen Demerits: ~D"
-	      (cadr +kp-final-hyphen-demerits+))
+	      (cadr *kp-final-hyphen-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-final-hyphen-demerits+)
-     :end (caddr +kp-final-hyphen-demerits+)
-     :slug-start (cadr +kp-final-hyphen-demerits+)
+     :start (car *kp-final-hyphen-demerits*)
+     :end (caddr *kp-final-hyphen-demerits*)
+     :slug-start (cadr *kp-final-hyphen-demerits*)
      :tick-frequency 0
      :callback 'set-kp-final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
    (kp-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~D" (cadr +kp-pre-tolerance+))
+     :title (format nil "Pre Tolerance: ~D" (cadr *kp-pre-tolerance*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-pre-tolerance+)
-     :end (caddr +kp-pre-tolerance+)
-     :slug-start (cadr +kp-pre-tolerance+)
+     :start (car *kp-pre-tolerance*)
+     :end (caddr *kp-pre-tolerance*)
+     :slug-start (cadr *kp-pre-tolerance*)
      :tick-frequency 0
      :callback 'set-kp-pre-tolerance
      :reader kp-pre-tolerance)
    (kp-tolerance slider
-     :title (format nil "Tolerance: ~D" (cadr +kp-tolerance+))
+     :title (format nil "Tolerance: ~D" (cadr *kp-tolerance*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-tolerance+)
-     :end (caddr +kp-tolerance+)
-     :slug-start (cadr +kp-tolerance+)
+     :start (car *kp-tolerance*)
+     :end (caddr *kp-tolerance*)
+     :slug-start (cadr *kp-tolerance*)
      :tick-frequency 0
      :callback 'set-kp-tolerance
      :reader kp-tolerance)
    (kp-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~D" (cadr +kp-emergency-stretch+))
+     :title (format nil "Emergency Stretch: ~D" (cadr *kp-emergency-stretch*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-emergency-stretch+)
-     :end (caddr +kp-emergency-stretch+)
-     :slug-start (cadr +kp-emergency-stretch+)
+     :start (car *kp-emergency-stretch*)
+     :end (caddr *kp-emergency-stretch*)
+     :slug-start (cadr *kp-emergency-stretch*)
      :tick-frequency 0
      :callback 'set-kp-emergency-stretch
      :reader kp-emergency-stretch)
    (kp-looseness slider
-     :title (format nil "Looseness: ~D" (cadr +kp-looseness+))
+     :title (format nil "Looseness: ~D" (cadr *kp-looseness*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car +kp-looseness+)
-     :end (caddr +kp-looseness+)
-     :slug-start (cadr +kp-looseness+)
+     :start (car *kp-looseness*)
+     :end (caddr *kp-looseness*)
+     :slug-start (cadr *kp-looseness*)
      :tick-frequency 0
      :callback 'set-kp-looseness
      :reader kp-looseness)
@@ -458,7 +458,7 @@
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
      :visible-max-width nil
-     :items +dispositions+
+     :items *dispositions*
      :print-function 'title-capitalize
      :selection-callback 'set-disposition
      :reader disposition)
@@ -466,8 +466,8 @@
      :layout-class 'column-layout
      :title "Disposition Options" :title-position :frame
      :visible-max-width nil
-     :items +disposition-options+
-     :help-keys +disposition-options-help-keys+
+     :items *disposition-options*
+     :help-keys *disposition-options-help-keys*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
@@ -477,7 +477,7 @@
      :title "Features" :title-position :frame
      :visible-max-width nil
      :visible-max-height nil
-     :items +features+
+     :items *lineup-features*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-features
      :retract-callback 'set-features
@@ -485,8 +485,8 @@
    (paragraph-width slider
      :title "Paragraph width: XXXpt (XXcm)"
      :orientation :horizontal
-     :start +paragraph-min-width+
-     :end +paragraph-max-width+
+     :start *paragraph-min-width*
+     :end *paragraph-max-width*
      :tick-frequency 0
      :callback 'set-paragraph-width
      :reader paragraph-width)
@@ -577,20 +577,20 @@
 	   (let ((accessor (intern (concatenate 'string
 				     (string prefix) "-VARIANT")))
 		 (choices (intern (concatenate 'string
-				    "+" (string prefix) "-VARIANTS+"))))
+				    "*" (string prefix) "-VARIANTS*"))))
 	     `(setf (choice-selected-item (,accessor etap))
 		    (or (cadr (member :variant options)) (car ,choices)))))
 	 (set-options (prefix)
 	   (let ((accessor (intern (concatenate 'string
 				     (string prefix) "-OPTIONS")))
 		 (choices (intern (concatenate 'string
-				    "+" (string prefix) "-OPTIONS+"))))
+				    "*" (string prefix) "-OPTIONS*"))))
 	     `(set-choice-selection (,accessor etap) options ,choices)))
 	 (set-slider (key prefix)
 	   (let ((accessor (intern (concatenate 'string
 				     (string prefix) "-" (string key))))
 		 (choices (intern (concatenate 'string
-				    "+" (string prefix) "-" (string key) "+"))))
+				    "*" (string prefix) "-" (string key) "*"))))
 	     `(progn
 		(setf (range-slug-start (,accessor etap))
 		      (or (cadr (member ,key options)) (cadr ,choices)))
@@ -607,7 +607,7 @@
 			     (string prefix) "-" (string key))))
 		 (choices
 		   (intern (concatenate 'string
-			     "+" (string prefix) "-" (string key) "S+"))))
+			     "*" (string prefix) "-" (string key) "S*"))))
 	     `(setf (choice-selected-item (,accessor etap))
 		    (or (cadr (member ,key options)) (car ,choices))))))
       (case algorithm
@@ -637,8 +637,8 @@
 	(disposition-type (disposition context)))
   (set-choice-selection (disposition-options-panel etap)
 			(disposition-options (disposition context))
-			+disposition-options+)
-  (set-choice-selection (features etap) (features context) +features+)
+			*disposition-options*)
+  (set-choice-selection (features etap) (features context) *lineup-features*)
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"

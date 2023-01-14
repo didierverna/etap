@@ -10,14 +10,14 @@
 
 (defmacro default-variable
     (variable prefix
-     &aux (choices (intern (format nil "+~A-~AS+" prefix variable))))
-  "If NULL, default VARIABLE to the first choice in +PREFIX-VARIABLES+.
+     &aux (choices (intern (format nil "*~A-~AS*" prefix variable))))
+  "If NULL, default VARIABLE to the first choice in *PREFIX-VARIABLES*.
 Note the S appended to VARIABLE in the choices constant name."
   `(default ,variable ,choices))
 
 
 (defmacro define-calibration (calibration min default max)
-  `(define-constant ,calibration '(,min ,default ,max)))
+  `(defparameter ,calibration '(,min ,default ,max)))
 
 (defmacro calibrate (variable calibration &optional infinity)
   `(cond ((null ,variable)
@@ -30,22 +30,22 @@ Note the S appended to VARIABLE in the choices constant name."
 (defmacro calibrate-variable
     (variable prefix
      &optional infinity
-     &aux (calibration (intern (format nil "+~A-~A+" prefix variable))))
+     &aux (calibration (intern (format nil "*~A-~A*" prefix variable))))
   `(calibrate ,variable ,calibration ,infinity))
 
 
 
-(define-constant +dispositions+
-    '(:flush-left :centered :flush-right :justified))
+(defparameter *dispositions*
+  '(:flush-left :centered :flush-right :justified))
 
-(define-constant +disposition-options+ '((:sloppy t)))
+(defparameter *disposition-options* '((:sloppy t)))
 
-(define-constant +disposition-options-help-keys+
-    '(:disposition-option-sloppy))
+(defparameter *disposition-options-help-keys*
+  '(:disposition-option-sloppy))
 
-(define-constant +disposition-options-tooltips+
-    '(:disposition-option-sloppy
-      "In Justified disposition, stretch or shrink as needed,
+(defparameter *disposition-options-tooltips*
+  '(:disposition-option-sloppy
+    "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries."))
 
 
@@ -65,12 +65,12 @@ ignoring the font's inter-word spacing boundaries."))
 (defun disposition-type (disposition) (car-or-symbol disposition))
 (defun disposition-options (disposition) (cdr-or-nil disposition))
 
-(define-constant +maximum-badness+ 10000)
+(defparameter *maximum-badness* 10000)
 
 (defun scale-badness (scale)
   (if (or (null scale) (< scale -1))
     :+infinity
-    (min (* 100 (expt (abs scale) 3)) +maximum-badness+)))
+    (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
 
 (defun badness (lineup start stop width &optional emergency-stretch)
   (scale-badness (lineup-scale lineup start stop width emergency-stretch)))

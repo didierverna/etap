@@ -21,33 +21,33 @@
 (in-package :etap)
 
 
-(define-constant +fixed-variants+
-    '(:underfull :best :overfull))
+(defparameter *fixed-variants*
+  '(:underfull :best :overfull))
 
-(define-constant +fixed-variants-help-keys+
-    '(:fixed-variant-underfull :fixed-variant-best :fixed-variant-overfull))
+(defparameter *fixed-variants-help-keys*
+  '(:fixed-variant-underfull :fixed-variant-best :fixed-variant-overfull))
 
-(define-constant +fixed-options+
-    '((:avoid-hyphens t) (:prefer-overfulls t)))
+(defparameter *fixed-options*
+  '((:avoid-hyphens t) (:prefer-overfulls t)))
 
-(define-constant +fixed-options-help-keys+
-    '(:fixed-option-avoid-hyphens :fixed-option-prefer-overfulls))
+(defparameter *fixed-options-help-keys*
+  '(:fixed-option-avoid-hyphens :fixed-option-prefer-overfulls))
 
-(define-constant +fixed-tooltips+
-    '(:fixed-variant-underfull "Always prefer underfull lines."
-      :fixed-variant-best "Prefer lines closer to the paragraph
+(defparameter *fixed-tooltips*
+  '(:fixed-variant-underfull "Always prefer underfull lines."
+    :fixed-variant-best "Prefer lines closer to the paragraph
 width, whether underfull or overfull."
-      :fixed-variant-overfull "Always prefer overfull lines."
-      :fixed-option-avoid-hyphens "Avoid hyphenating words when possible."
-      :fixed-option-prefer-overfulls
-      "For the Best variant, when the underfull and overfull
+    :fixed-variant-overfull "Always prefer overfull lines."
+    :fixed-option-avoid-hyphens "Avoid hyphenating words when possible."
+    :fixed-option-prefer-overfulls
+    "For the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
 choose the overfull rather than the underfull one."))
 
 
 (defun fixed-line-boundary
     (lineup start width
-     &key (variant (car +fixed-variants+)) avoid-hyphens prefer-overfulls)
+     &key (variant (car *fixed-variants*)) avoid-hyphens prefer-overfulls)
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underfull-w :with hyphen-underfull-w :with word-underfull-w
 	:with fit

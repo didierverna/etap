@@ -86,24 +86,24 @@
 (in-package :etap)
 
 
-(define-constant +fit-variants+
-    '(:first :best :last))
+(defparameter *fit-variants*
+  '(:first :best :last))
 
-(define-constant +fit-variants-help-keys+
-    '(:fit-variant-first :fit-variant-best :fit-variant-last))
+(defparameter *fit-variants-help-keys*
+  '(:fit-variant-first :fit-variant-best :fit-variant-last))
 
-(define-constant +fit-discriminating-functions+
-    '(:minimize-distance :minimize-scaling))
+(defparameter *fit-discriminating-functions*
+  '(:minimize-distance :minimize-scaling))
 
-(define-constant +fit-options+
-    '((:avoid-hyphens t) (:relax t) (:prefer-shrink t) (:prefer-overfulls t)))
+(defparameter *fit-options*
+  '((:avoid-hyphens t) (:relax t) (:prefer-shrink t) (:prefer-overfulls t)))
 
-(define-constant +fit-options-help-keys+
-    '(:fit-option-avoid-hyphens :fit-option-relax
-      :fit-option-prefer-shrink :fit-option-prefer-overfulls))
+(defparameter *fit-options-help-keys*
+  '(:fit-option-avoid-hyphens :fit-option-relax
+    :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
-(define-calibration +fit-hyphen-penalty+ -1000 50 1000)
-(define-calibration +fit-explicit-hyphen-penalty+ -1000 50 1000)
+(define-calibration *fit-hyphen-penalty* -1000 50 1000)
+(define-calibration *fit-explicit-hyphen-penalty* -1000 50 1000)
 
 (defmacro fit-calibrate (variable &optional infinity)
   `(calibrate-variable ,variable fit ,infinity))
@@ -112,18 +112,18 @@
   `(default-variable ,variable fit))
 
 
-(define-constant +fit-tooltips+
-    '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
-      :fit-variant-best "Minimize scaling."
-      :fit-variant-last "Prefer lines with more words (more shrink)."
-      :fit-option-avoid-hyphens "Except for the Best/Justified version,
+(defparameter *fit-tooltips*
+  '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
+    :fit-variant-best "Minimize scaling."
+    :fit-variant-last "Prefer lines with more words (more shrink)."
+    :fit-option-avoid-hyphens "Except for the Best/Justified version,
 avoid hyphenating words when possible."
-      :fit-option-relax "For the First and Last variants in ragged dispositions,
+    :fit-option-relax "For the First and Last variants in ragged dispositions,
 de-stretch or de-shrink lines afterwards."
-      :fit-option-prefer-shrink "In the Best/Justified version,
+    :fit-option-prefer-shrink "In the Best/Justified version,
 prefer shrinking over stretching
 for equally good solutions."
-      :fit-option-prefer-overfulls "In the Best/Justified version,
+    :fit-option-prefer-overfulls "In the Best/Justified version,
 prefer overfull over underfull
 for equally bad solutions."))
 

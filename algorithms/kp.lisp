@@ -4,27 +4,27 @@
 
 (in-package :etap)
 
-(define-constant +kp-variants+
-    '(:graph :dynamic))
+(defparameter *kp-variants*
+  '(:graph :dynamic))
 
-(define-constant +kp-variants-help-keys+
-    '(:kp-variant-graph :kp-variant-dynamic))
+(defparameter *kp-variants-help-keys*
+  '(:kp-variant-graph :kp-variant-dynamic))
 
 
-(define-calibration +kp-line-penalty+ 0 10 100)
-(define-calibration +kp-hyphen-penalty+ -10000 50 10000)
-(define-calibration +kp-explicit-hyphen-penalty+ -10000 50 10000)
-(define-calibration +kp-adjacent-demerits+ 0 10000 10000)
-(define-calibration +kp-double-hyphen-demerits+ 0 10000 10000)
-(define-calibration +kp-final-hyphen-demerits+ 0 5000 10000)
-(define-calibration +kp-pre-tolerance+ -1 100 10000)
-(define-calibration +kp-tolerance+ 0 200 10000)
-(define-calibration +kp-emergency-stretch+ 0 0 20)
-(define-calibration +kp-looseness+ -10 0 10)
+(define-calibration *kp-line-penalty* 0 10 100)
+(define-calibration *kp-hyphen-penalty* -10000 50 10000)
+(define-calibration *kp-explicit-hyphen-penalty* -10000 50 10000)
+(define-calibration *kp-adjacent-demerits* 0 10000 10000)
+(define-calibration *kp-double-hyphen-demerits* 0 10000 10000)
+(define-calibration *kp-final-hyphen-demerits* 0 5000 10000)
+(define-calibration *kp-pre-tolerance* -1 100 10000)
+(define-calibration *kp-tolerance* 0 200 10000)
+(define-calibration *kp-emergency-stretch* 0 0 20)
+(define-calibration *kp-looseness* -10 0 10)
 
-(define-constant +kp-tooltips+
-    '(:kp-variant-graph "Graph-based implementation."
-      :kp-variant-dynamic "Dynamic programming implementation."))
+(defparameter *kp-tooltips*
+  '(:kp-variant-graph "Graph-based implementation."
+    :kp-variant-dynamic "Dynamic programming implementation."))
 
 (defmacro kp-calibrate (variable &optional infinity)
   `(calibrate-variable ,variable kp ,infinity))
@@ -386,12 +386,12 @@
   (kp-calibrate adjacent-demerits)
   (kp-calibrate double-hyphen-demerits)
   (kp-calibrate final-hyphen-demerits)
-  (when (>= pre-tolerance (caddr +kp-pre-tolerance+))
+  (when (>= pre-tolerance (caddr *kp-pre-tolerance*))
     (setq pre-tolerance :+infinity))
-  (cond ((>= tolerance (caddr +kp-tolerance+))
+  (cond ((>= tolerance (caddr *kp-tolerance*))
 	 (setq tolerance :+infinity))
-	((< tolerance (car +kp-tolerance+))
-	 (setq tolerance (car +kp-tolerance+))))
+	((< tolerance (car *kp-tolerance*))
+	 (setq tolerance (car *kp-tolerance*))))
   (kp-calibrate emergency-stretch)
   (kp-calibrate looseness)
   (ecase variant
