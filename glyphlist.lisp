@@ -22,7 +22,7 @@
 ;; #   (2) Unicode scalar value--four uppercase hexadecimal digits
 ;; #
 
-;; #### NOTE: above is the original file header. This file has been modified
+;; #### NOTE: above is the original file's header. This file has been modified
 ;; to provide the glyph list as a Lisp hash table.
 
 ;; #### WARNING: some entries (daleth*, finalkaf*, hamzad*, lamedholam*,
