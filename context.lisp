@@ -12,28 +12,46 @@ Close by the king's castle lay a great dark forest, and under an old lime-tree
 in the forest was a well, and when the day was very warm, the king's child
 went out into the forest and sat down by the side of the cool fountain; and
 when she was bored she took a golden ball, and threw it up on high and caught
-it; and this ball was her favorite plaything.")
+it; and this ball was her favorite plaything."
+  "The initial paragraph text.")
 
 (defparameter *font-file*
-  (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm"))
+  (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm")
+  "The TFM font file.")
 
 
 (defclass context ()
-  ((font :initform (tfm:load-font *font-file* :freeze t) :reader font)
+  ((font :initform (tfm:load-font *font-file* :freeze t)
+	 :reader font
+	 :documentation "The TFM font description object.")
    (hyphenation-rules :initform (create-hyphenation-rules)
-		      :reader hyphenation-rules)
-   (algorithm :initform :fixed :initarg :algorithm :accessor algorithm)
+		      :reader hyphenation-rules
+		      :documentation "The hyphenation rules object.")
+   (algorithm :initform :fixed :initarg :algorithm
+	      :accessor algorithm
+	      :documentation "The algorithm to use.")
    (disposition :initform :flush-left :initarg :disposition
-		:accessor disposition)
-   (features :initform (list) :initarg :features :accessor features)
+		:accessor disposition
+		:documentation "The requested disposition.")
+   (features :initform (list) :initarg :features
+	     :accessor features
+	     :documentation "The list of requested features.")
    (paragraph-width :initform 284 ;; 284.52756pt = 10cm
-		    :initarg :paragraph-width :accessor paragraph-width)
-   (text :initform *initial-text* :initarg :text :accessor text)))
+		    :initarg :paragraph-width
+		    :accessor paragraph-width
+		    :documentation "The requested paragraph width in points.")
+   (text :initform *initial-text* :initarg :text
+	 :accessor text
+	 :documentation "The paragraph's text."))
+  (:documentation "The CONTEXT class.
+A context object stores the requested parameters for one experiment."))
 
 (defun make-context
     (&rest keys &key algorithm disposition features paragraph-width text)
   (declare (ignore algorithm disposition features paragraph-width text))
+  "Create a new context object."
   (apply #'make-instance 'context keys))
 
 
-(defvar *context* (make-context))
+(defvar *context* (make-context)
+  "The global context.")
