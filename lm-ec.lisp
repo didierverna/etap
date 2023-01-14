@@ -5,14 +5,16 @@
 ;; %  http://www.gust.org.pl/fonts/licenses/GUST-FONT-LICENSE.txt or
 ;; %  http://tug.org/fonts/licenses/GUST-FONT-LICENSE.txt
 
+;; #### NOTE: above is the original file's header. This file has been modified
+;; to provide the LM EC encoding as a Lisp array.
+
 (in-package :etap)
 
 ;; Missing from +glyph-list+:
 ;; cwm, perthousandzero, uni2423, hyphen.alt, and Germandbls.
 
 (defparameter *lm-ec-encoding*
-  '(
-    |grave|
+  #(|grave|
     |acute|
     |circumflex|
     |tilde|
@@ -267,5 +269,6 @@
     |udieresis|
     |yacute|
     |thorn|
-    |germandbls|
-    ))
+    |germandbls|)
+  "The Latin Modern Extended Cork encoding.
+This is an array of glyph names (symbols) in the LM EC encoding's order.")

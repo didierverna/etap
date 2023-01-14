@@ -225,9 +225,9 @@
 				   (when (member :characters clues)
 				     (gp:draw-character pane
 					 (gethash
-					  (elt *lm-ec-encoding*
-					       (tfm:code
-						(character-metrics object)))
+					  (aref *lm-ec-encoding*
+						(tfm:code
+						 (character-metrics object)))
 					  *glyph-list*)
 					 (+ x (x object))
 					 y)))
