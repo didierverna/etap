@@ -260,53 +260,6 @@ Glues represent breakable, elastic space."))
 ;; Lineup Creation
 ;; ===============
 
-;; Words processing
-;; ----------------
-
-(defun get-character (char font)
-  ;; #### FIXME: no input encoding support yet.
-  (or (tfm:get-character (char-code char) font)
-      ;; #### WARNING: this one had better be available! Fall back to a null
-      ;; character?
-      (tfm:get-character (char-code #\?) font)))
-
-(defun collect-word (word font)
-  (map 'list (lambda (char) (get-character char font)) word))
-
-(defun hyphen-positions+1 (word)
-  (loop :for i :from 1
-	:for char :across word
-	;; we don't want to collect a final hyphen's position, because if a
-	;; word ends with one, there's not point in inserting a discretionary
-	;; there. Either the word is followed by a glue, so we will be able to
-	;; break, or it's followed by, e.g. punctuation, and we don't want to
-	;; break there.
-	:when (and (char= char #\-) (< i (length word))) :collect i))
-
-(defun collect-hyphenated-word
-    (word rules font &aux (points (hyphen-positions+1 word)) pre-break)
-  (unless points
-    (setq points (hyphenation-points word rules)
-	  pre-break (list (get-character #\- font))))
-  (if points
-    (loop :for i :from 0
-	  :for char :across word
-	  :for character := (get-character char font)
-	  :when (member i points)
-	    :collect (make-discretionary :pre-break pre-break)
-	  :collect character)
-    (collect-word word font)))
-
-(defun process-words (lineup hyphenation-rules font)
-  (loop :for element :in lineup
-	:if (stringp element)
-	  :append (if hyphenation-rules
-		    (collect-hyphenated-word element hyphenation-rules font)
-		    (collect-word element font))
-	:else
-	  :collect element))
-
-
 ;; #### NOTE: the procedures handling ligatures and kerning below are aware of
 ;; #### discretionaries, but they are really meant for those inserted
 ;; #### automatically during the hyphenation process, that is,
@@ -445,8 +398,52 @@ Glues represent breakable, elastic space."))
 	:append done))
 
 
-;; Lineup computation
-;; ------------------
+;; ---------------
+;; Word processing
+;; ---------------
+
+(defun get-character (char font)
+  "Get CHAR in FONT. Replace CHAR by a question mark if not found."
+  ;; #### FIXME: no input encoding support yet.
+  (or (tfm:get-character (char-code char) font)
+      ;; #### WARNING: this one had better be available! Fall back to a null
+      ;; character?
+      (tfm:get-character (char-code #\?) font)))
+
+(defun hyphen-positions+1 (word)
+  "Return WORD (a string)'s explicit hyphen positions + 1."
+  (loop :for i :from 1
+	:for char :across word
+	;; We don't want to collect a final hyphen's position, because if a
+	;; word ends with one, there's not point in inserting a discretionary
+	;; there. Either the word is followed by a glue, so we will be able to
+	;; break, or it's followed by, e.g. punctuation, and we don't want to
+	;; break there.
+	:when (and (char= char #\-) (< i (length word))) :collect i))
+
+(defun process-word (word font hyphenation-rules &aux hyphenation-points)
+  "Process WORD (a string) in FONT, possibly with HYPHENATION-RULES.
+Return a list of characters from FONT, possibly alternating with
+discretionaries if HYPHENATION-RULES is non-NIL."
+  (when hyphenation-rules
+    ;; A word with explicit hyphens must not be hyphenated in any other way.
+    (setq hyphenation-points
+	  (or (hyphen-positions+1 word)
+	      (hyphenation-points word hyphenation-rules))))
+  (if hyphenation-points
+    (loop :with pre-break := (list (get-character #\- font))
+	  :for i :from 0
+	  :for char :across word
+	  :for character := (get-character char font)
+	  :when (member i hyphenation-points)
+	    :collect (make-discretionary :pre-break pre-break)
+	  :collect character)
+    (map 'list (lambda (char) (get-character char font)) word)))
+
+
+;; --------------
+;; Lineup slicing
+;; --------------
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
   "The list of blank characters.")
@@ -465,13 +462,11 @@ Currently, this means alphabetic or a dash."
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now.
-(defun slice-string (string font)
-  "Slice STRING with FONT.
-Return a list of words (strings), individual characters from FONT (e.g.
-punctuation marks), and interword glue.
-
-STRING is initially trimmed from blanks, and inner consecutive blanks are
-replaced with a single interword glue."
+(defun slice-string (string font hyphenation-rules)
+  "Slice text STRING in FONT, possibly with HYPHENATION-RULES.
+Return a list of characters from FONT, interword glues, and discretionaries if
+HYPHENATION-RULES is non-NIL. STRING is initially trimmed from blanks, and
+inner consecutive blanks are replaced with a single interword glue."
   (loop :with string := (string-trim *blanks* string)
 	:with length := (length string)
 	:with i := 0
@@ -483,8 +478,10 @@ replaced with a single interword glue."
 	  ;; i cannot be NIL here because we've trimmed any end blanks.
 	  :and :do (setq i (position-if-not #'blankp string :start i))
 	:else :if (alpha-char-p char)
-	  :collect (subseq string i
+	  :append (process-word
+		   (subseq string i
 		     (position-if-not #'word-constituent-p string :start i))
+		   font hyphenation-rules)
 	  ;; this could happen here on the other hand.
 	  :and :do (setq i (or (position-if-not #'word-constituent-p string
 				 :start i)
@@ -494,14 +491,17 @@ replaced with a single interword glue."
 	  :and :do (incf i)))
 
 
-(defun make-lineup (string font hyphenation-rules
-		    &key kerning ligatures hyphenation
-		    &aux lineup)
+;; ------------------
+;; Lineup computation
+;; ------------------
+
+(defun make-lineup
+    (string font hyphenation-rules
+     &key kerning ligatures hyphenation
+     &aux (lineup
+	   (slice-string string font (when hyphenation hyphenation-rules))))
   "Create a new lineup from STRING in FONT with HYPHENATION-RULES.
 Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
-  (setq lineup (slice-string string font))
-  (setq lineup
-	(process-words lineup (when hyphenation hyphenation-rules) font))
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
   (when (and lineup hyphenation)
