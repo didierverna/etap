@@ -239,7 +239,7 @@
 					     (+ x (x object) +3) (+ y 5))
 				       :filled t
 				       :foreground :orange)))))
-		      (pinned-characters  (line pinned-line))))))))
+		      (pinned-objects (line pinned-line))))))))
 
 
 (defparameter *tooltips*

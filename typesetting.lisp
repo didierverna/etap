@@ -1,101 +1,138 @@
 (in-package :etap)
 
+
+;; ==============
+;; Pinned Objects
+;; ==============
+
 (defclass pinned ()
-  ((x :initform 0 :initarg :x :accessor x)
-   (y :initform 0 :initarg :y :accessor y)))
+  ((x :initform 0 :initarg :x :accessor x
+      :documentation "The object's X coordinate.")
+   (y :initform 0 :initarg :y :accessor y
+      :documentation "The object's Y coordinate."))
+  (:documentation "The PINNED class.
+This is the base class for all pinned objects, that is, objects which have a
+fixed position in 2D space (relative to some origin)."))
 
 
 (defclass pinned-character (pinned)
-  ((character-metrics
-    :initarg :character-metrics :accessor character-metrics)))
+  ((character-metrics :initarg :character-metrics :accessor character-metrics
+		      :documentation "The pinned character."))
+  (:documentation "The PINNED-CHARACTER class."))
 
 (defun pinned-character-p (object)
+  "Return T if OBJECT is a pinned character."
   (typep object 'pinned-character))
 
-(defmethod width ((pinned-character pinned-character))
-  (width (character-metrics pinned-character)))
+(defmethod width ((character pinned-character))
+  "Return pinned CHARACTER's width."
+  (width (character-metrics character)))
 
-(defmethod height ((pinned-character pinned-character))
-  (height (character-metrics pinned-character)))
+(defmethod height ((character pinned-character))
+  "Return pinned CHARACTER's height."
+  (height (character-metrics character)))
 
-(defmethod depth ((pinned-character pinned-character))
-  (depth (character-metrics pinned-character)))
+(defmethod depth ((character pinned-character))
+  "Return pinned CHARACTER's depth."
+  (depth (character-metrics character)))
 
-(defun make-pinned-character (character-metrics &rest initargs &key x y)
+(defun make-pinned-character (character &rest initargs &key x y)
+  "Make a new pinned CHARACTER at position (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-character
-    :character-metrics character-metrics initargs))
+    :character-metrics character initargs))
 
 
 (defclass pinned-hyphenation-clue (pinned)
-  ())
+  ()
+  (:documentation "The PINNED-HYPHENATION-CLUE class."))
 
 (defun pinned-hyphenation-clue-p (object)
+  "Return T if OBJECT is a pinned hyphenation clue."
   (typep object 'pinned-hyphenation-clue))
 
-(defmethod width ((pinned-hyphenation-clue pinned-hyphenation-clue))
+(defmethod width ((clue pinned-hyphenation-clue))
+  "Return pinned hyphenation clue's width (0)."
   0)
 
-(defmethod height ((pinned-hyphenation-clue pinned-hyphenation-clue))
+(defmethod height ((clue pinned-hyphenation-clue))
+  "Return pinned hyphenation clue's height (0)."
   0)
 
-(defmethod depth ((pinned-hyphenation-clue pinned-hyphenation-clue))
+(defmethod depth ((clue pinned-hyphenation-clue))
+  "Return pinned hyphenation clue's depth (0)."
   0)
 
 (defun make-pinned-hyphenation-clue (&rest initargs &key x y)
+  "Make a new pinned hyphenation clue at (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-hyphenation-clue initargs))
 
 
-(defclass line ()
-  ((pinned-characters
-    :initarg :pinned-characters :accessor pinned-characters)))
 
-(defmethod width
-    ((line line)
-     &aux (last-pinned-character (car (last (pinned-characters line)))))
-  (+ (x last-pinned-character) (width last-pinned-character)))
+;; =====
+;; Lines
+;; =====
+
+(defclass line ()
+  ((pinned-objects :initarg :pinned-objects :accessor pinned-objects
+		   :documentation "The list of pinned objects."))
+  (:documentation "The LINE class.
+A line contains a list of pinned objects (currently, characters and
+hyphenation clues). The objects are positioned relatively to the line's
+origin."))
+
+
+(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
+  "Return LINE's width."
+  (+ (x object) (width object)))
 
 (defmethod height ((line line))
-  (loop :for pinned-character :in (pinned-characters line)
-	:maximize (height pinned-character)))
+  "Return LINE's height."
+  (loop :for object :in (pinned-objects line) :maximize (height object)))
 
 (defmethod depth ((line line))
-  (loop :for pinned-character :in (pinned-characters line)
-	:maximize (depth pinned-character)))
+  "Return LINE's depth."
+  (loop :for object :in (pinned-objects line) :maximize (depth object)))
 
-(defun make-line (pinned-characters &rest initargs &key x y)
-  (declare (ignore x y))
-  (apply #'make-instance 'line :pinned-characters pinned-characters initargs))
+(defun make-line (objects)
+  "Make a new line of pinned OBJECTS"
+  (make-instance 'line :pinned-objects objects))
 
 
 (defun flatten-lineup (lineup start stop)
   "Return a flattened list of LINEUP elements between START and STOP."
   (loop :for i :from start :upto (1- stop)
-	:for element := (lineup-aref lineup i start stop)
-	:if (consp element) :append element :else :collect element))
+	:for elt := (lineup-aref lineup i start stop)
+	:if (consp elt) :append elt :else :collect elt))
 
 (defun create-line (lineup start end &optional (scale 0))
+  "Create a possibly SCALEd line from LINEUP chunk between START and STOP."
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0
-		   :for element :in (flatten-lineup lineup start end)
-		   :if (eq element :hyphenation-clue)
+		   :for elt :in (flatten-lineup lineup start end)
+		   :if (eq elt :hyphenation-clue)
 		     :collect (make-pinned-hyphenation-clue :x x)
-		   :else :if (typep element 'tfm:character-metrics)
-		     :collect (make-pinned-character element :x x)
-		     :and :do (incf x (width element))
-		   :else :if (kernp element)
-		     :do (incf x (width element))
-		   :else :if (gluep element)
-		     :do (incf x (width element))
+		   :else :if (typep elt 'tfm:character-metrics)
+		     :collect (make-pinned-character elt :x x)
+		     :and :do (incf x (width elt))
+		   :else :if (kernp elt)
+		     :do (incf x (width elt))
+		   :else :if (gluep elt)
+		     :do (incf x (width elt))
 		     :and :unless (zerop scale)
 			    :do (incf x (if (> scale 0)
-					  (* scale (stretch element))
-					  (* scale (shrink element)))))))
+					  (* scale (stretch elt))
+					  (* scale (shrink elt)))))))
 
 (defun create-justified-line
     (lineup start stop width sloppy
      &aux (scale (lineup-scale lineup start stop width)))
+  "Create a line from LINEUP chunk between START and STOP, justified to WIDTH.
+If no elasticity is available, the created line will not be justified.
+If elasticity is available, get as close as possible to WIDTH within the
+limits of the available elasticity, unless SLOPPY, in which case disregard
+those limits."
   (if scale
     (create-line lineup start stop
 		 (cond (sloppy (max scale -1))
