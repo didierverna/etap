@@ -31,6 +31,7 @@
 ;; Lineup elements geometry.
 
 (defgeneric width (object)
+  (:documentation "Return OBJECT's width.")
   (:method ((clue (eql :hyphenation-clue)))
     "Return 0 (hyphenation clues don't eat horizontal space)."
     0)
@@ -44,20 +45,19 @@
     (reduce #'+ (mapcar #'width list)))
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metric's width."
-    (tfm:width character))
-  (:documentation "Return OBJECT's width."))
+    (tfm:width character)))
 
 (defgeneric height (object)
+  (:documentation "Return OBJECT's height.")
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's height."
-    (tfm:height character))
-  (:documentation "Return OBJECT's height."))
+    (tfm:height character)))
 
 (defgeneric depth (object)
+  (:documentation "Return OBJECT's depth.")
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's depth."
-    (tfm:depth character))
-  (:documentation "Return OBJECT's depth."))
+    (tfm:depth character)))
 
 
 
