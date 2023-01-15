@@ -504,6 +504,8 @@ inner consecutive blanks are replaced with a single interword glue."
 Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
+  ;; #### NOTE: processing ligatures and kerning may affect the contents of
+  ;; discretionaries, so we must wait until now to add hyphenation clues.
   (when (and lineup hyphenation)
     (mapc (lambda (element)
 	    (when (discretionaryp element)
