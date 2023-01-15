@@ -297,10 +297,10 @@ Glues represent breakable, elastic space."))
 	  :collect character)
     (collect-word word font)))
 
-(defun process-words (lineup hyphenate hyphenation-rules font)
+(defun process-words (lineup hyphenation-rules font)
   (loop :for element :in lineup
 	:if (stringp element)
-	  :append (if hyphenate
+	  :append (if hyphenation-rules
 		    (collect-hyphenated-word element hyphenation-rules font)
 		    (collect-word element font))
 	:else
@@ -500,7 +500,8 @@ replaced with a single interword glue."
   "Create a new lineup from STRING in FONT with HYPHENATION-RULES.
 Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
   (setq lineup (slice-string string font))
-  (setq lineup (process-words lineup hyphenation hyphenation-rules font))
+  (setq lineup
+	(process-words lineup (when hyphenation hyphenation-rules) font))
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
   (when (and lineup hyphenation)
