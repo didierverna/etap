@@ -279,17 +279,23 @@ Glues represent breakable, elastic space."))
 ;; -------
 
 (defun kerning (elt1 elt2)
+  "Return kerning information for lineup ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
        (tfm:kerning elt1 elt2)))
 
 (defgeneric collect-kern (elt1 elt2 remainder)
+  (:documentation
+   "Collect kerning information for lineup ELT1 and ELT2 with REMAINDER.")
   (:method (elt1 elt2 remainder)
+    "Return NIL. This is the default method."
     nil)
   (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder &aux (kerning (tfm:kerning elt1 elt2)))
+    "Return a kern for characters ELT1 and ELT2, or nil."
     (when kerning (make-kern kerning)))
   (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder)
+    "Add kerns to discretionary ELT2 if needed."
     (when (pre-break elt2)
       (let ((kerning (kerning elt1 (car (pre-break elt2)))))
 	(when kerning (push (make-kern kerning) (pre-break elt2)))))
@@ -300,6 +306,7 @@ Glues represent breakable, elastic space."))
 	(when kerning (setf (no-break elt2) (list (make-kern kerning))))))
     nil)
   (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder)
+    "Add kerns to discretionary ELT1 if needed."
     (when (no-break elt1)
       (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
 	(when kerning (endpush (make-kern kerning) (no-break elt1)))))
@@ -309,6 +316,7 @@ Glues represent breakable, elastic space."))
     nil))
 
 (defun process-kerning (lineup)
+  "Return an new LINEUP with kerns."
   (loop :for elements :on lineup
 	:for elt1 := (car elements)
 	:for elt2 := (cadr elements)
@@ -317,7 +325,7 @@ Glues represent breakable, elastic space."))
 	:collect elt1
 	:when kern :collect kern))
 
-
+;; --------------------
 ;; Ligatures processing
 ;; --------------------
 
@@ -502,10 +510,12 @@ inner consecutive blanks are replaced with a single interword glue."
      &aux (lineup (slice-text text font (when hyphenation hyphenation-rules))))
   "Make  a new lineup from TEXT (a string) in FONT with HYPHENATION-RULES.
 Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
+  ;; #### NOTE: the order is important below. Kerning must be computed after
+  ;; ligature characters have been inserted, and the processing of ligatures
+  ;; and kerning may affect the contents of discretionaries, so we must add
+  ;; hyphenation clues only after everything else has been done.
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
-  ;; #### NOTE: processing ligatures and kerning may affect the contents of
-  ;; discretionaries, so we must wait until now to add hyphenation clues.
   (when (and lineup hyphenation)
     (mapc (lambda (element)
 	    (when (discretionaryp element)
