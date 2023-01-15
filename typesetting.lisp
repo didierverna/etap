@@ -69,6 +69,12 @@
   (apply #'make-instance 'line :pinned-characters pinned-characters initargs))
 
 
+(defun flatten-lineup (lineup start stop)
+  "Return a flattened list of LINEUP elements between START and STOP."
+  (loop :for i :from start :upto (1- stop)
+	:for element := (lineup-aref lineup i start stop)
+	:if (consp element) :append element :else :collect element))
+
 (defun create-line (lineup start end &optional (scale 0))
   (unless end (setq end (length lineup)))
   (make-line (loop :with x := 0

@@ -149,116 +149,12 @@ Glues represent breakable, elastic space."))
 	     (tfm:interword-shrink font)))
 
 
-(defun lineup-aref (lineup i start stop &aux (element (aref lineup i)))
-  (if (discretionaryp element)
-    ;; #### WARNING: after all the pre-processing done on the lineup,
-    ;; including ligatures / kerning management in the presence of hyphenation
-    ;; points, we may end up with lineups beginning or ending with
-    ;; discretionaries (or even consecutive discretionaries for that matter).
-    ;; When discretionaries begin or end the lineup, we must not consider them
-    ;; as post- or pre-breaks though.
-    (cond ((and (= i start) (not (zerop start)))
-	   (post-break element))
-	  ((and (= i (1- stop)) (not (= stop (length lineup))))
-	   (pre-break element))
-	  (t (no-break element)))
-    element))
-
-(defun flatten-lineup (lineup start stop)
-  (loop :for i :from start :upto (1- stop)
-	:for element := (lineup-aref lineup i start stop)
-	:if (consp element) :append element :else :collect element))
-
-(defun lineup-width (lineup start stop)
-  (unless stop (setq stop (length lineup)))
-  (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
-	:for i :from start :upto (1- stop)
-	;; #### FIXME: this works for now, but it is not quite right in the
-	;; #### general case. When ELEMENT is a list (typically the contents
-	;; #### of a discretionary, there could be anything inside, including,
-	;; #### e.g., glues. See also the long comment above the KERNING
-	;; #### function.
-	:for element := (lineup-aref lineup i start stop)
-	:do (incf width (width element))
-	:when (gluep element)
-	  :do (incf stretch (stretch element))
-	  :and :do (incf shrink (shrink element))
-	:finally (return (values width stretch shrink))))
-
-(defun lineup-max-width (lineup start stop)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (declare (ignore shrink))
-    (+ width stretch)))
-
-(defun lineup-min-width (lineup start stop)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (declare (ignore stretch))
-    (- width shrink)))
-
-
-(defstruct (span
-	    :conc-name
-	    (:constructor make-span (normal-width min-width max-width)))
-  normal-width min-width max-width)
-
-(defmethod width ((span span))
-  (normal-width span))
-
-(defun lineup-span (lineup start stop)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (make-span width (- width shrink) (+ width stretch))))
-
-
-(defun lineup-scale (lineup start stop target &optional emergency-stretch)
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (when emergency-stretch (incf stretch emergency-stretch))
-    (cond ((= width target)
-	   0)
-	  ((< width target)
-	   ;; #### WARNING: this is a kludge for the last glue in the
-	   ;; paragraph. We consider that a total stretch of more than 100000
-	   ;; is infinite.
-	   (if (>= stretch 100000)
-	     0
-	     (unless (zerop stretch) (/ (- target width) stretch))))
-	  ((> width target)
-	   (unless (zerop shrink) (/ (- target width) shrink))))))
-
-(defun word-stop-p (lineup stop)
-  (or (= stop (length lineup)) (gluep (aref lineup stop))))
-
-
-(defstruct (boundary
-	    :conc-name
-	    (:constructor make-boundary (stop next-start)))
-  stop next-start)
-
-(defun word-boundary-p (lineup boundary)
-  (word-stop-p lineup (stop boundary)))
-
-(defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
-  (unless (= start length)
-    (let ((point (position-if #'break-point-p lineup :start (1+ start))))
-      ;; #### WARNING: this is a kludge to never break at the end of the final
-      ;; word (that is, just before the final glue). Otherwise, we would end
-      ;; up with a line containing only the final glue. TeX does it by adding
-      ;; \penalty10000 before the final glue (and it also adds \penalty-10000
-      ;; afterwards), but we don't have that level of generality yet.
-      (when (eql point (1- length)) (setq point nil))
-      (if point
-	(let ((next (1+ point)))
-	  (typecase (aref lineup point)
-	    (glue (make-boundary point next))
-	    (discretionary (make-boundary next point))))
-	(make-boundary length length)))))
-
-
 
 ;; ===============
 ;; Lineup Creation
 ;; ===============
+
+;; #### WARNING: in the code below, the lineup is still a list.
 
 ;; #### NOTE: the procedures handling ligatures and kerning below are aware of
 ;; #### discretionaries, but they are really meant for those inserted
@@ -554,3 +450,148 @@ Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
     (font context)
     (hyphenation-rules context)
     (features context)))
+
+
+
+;; ===================
+;; Lineup Manipulation
+;; ===================
+
+;; #### WARNING: in the code below, the lineup has become an array.
+
+;; ---------
+;; Utilities
+;; ---------
+
+(defun lineup-aref (lineup i start stop &aux (element (aref lineup i)))
+  "Return LINEUP element at position I, between START and STOP boundaries.
+If element is a discretionary, return the appropriate pre/no/post break part."
+  (if (discretionaryp element)
+    ;; #### WARNING: after all the pre-processing done on the lineup,
+    ;; including ligatures / kerning management in the presence of hyphenation
+    ;; points, we may end up with lineups beginning or ending with
+    ;; discretionaries (or even consecutive discretionaries for that matter).
+    ;; When discretionaries begin or end the lineup, we must not consider them
+    ;; as post- or pre-breaks though.
+    (cond ((and (= i start) (not (zerop start)))
+	   (post-break element))
+	  ((and (= i (1- stop)) (not (= stop (length lineup))))
+	   (pre-break element))
+	  (t (no-break element)))
+    element))
+
+(defun word-stop-p (lineup stop)
+  "Return T if LINEUP element at STOP is the end of a word."
+  (or (= stop (length lineup)) (gluep (aref lineup stop))))
+
+
+;; -------------
+;; Lineup widths
+;; -------------
+
+(defun lineup-width (lineup start stop)
+  "Compute LINEUP's width between START and STOP.
+Return three values: the total width, stretch, and shrink."
+  (unless stop (setq stop (length lineup)))
+  (loop :with width := 0
+	:with stretch := 0
+	:with shrink := 0
+	:for i :from start :upto (1- stop)
+	;; #### FIXME: this works for now, but it is not quite right in the
+	;; #### general case. When ELEMENT is a list (typically the contents
+	;; #### of a discretionary, there could be anything inside, including,
+	;; #### e.g., glues. See also the long comment above the KERNING
+	;; #### function.
+	:for element := (lineup-aref lineup i start stop)
+	:do (incf width (width element))
+	:when (gluep element)
+	  :do (incf stretch (stretch element))
+	  :and :do (incf shrink (shrink element))
+	:finally (return (values width stretch shrink))))
+
+(defun lineup-max-width (lineup start stop)
+  "Return LINEUP's width between START and STOP, with maximal stretching."
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (declare (ignore shrink))
+    (+ width stretch)))
+
+(defun lineup-min-width (lineup start stop)
+  "Return LINEUP's width between START and STOP, with maximal shrinking."
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (declare (ignore stretch))
+    (- width shrink)))
+
+(defun lineup-scale (lineup start stop target &optional emergency-stretch)
+  "Return the amount of scaling required for LINEUP chunk between START and
+STOP to reach TARGET width, possibly with EMERGENCY-STRETCH.
+The amount in question is 0 if the chunk's normal width is equal to TARGET.
+Otherwise, it's a stretching (positive) or shrinking (negative) ratio relative
+to the chunk's elasticity. In other words, the absolute ratio would be one if
+all elasticity is used, greater than one if more elasticity than available is
+needed, and lesser than one if more elasticity than needed is available.
+
+Return NIL if no elasticity is available and the chunk's normal width is
+different from TARGET."
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (when emergency-stretch (incf stretch emergency-stretch))
+    (cond ((= width target)
+	   0)
+	  ((< width target)
+	   ;; #### WARNING: this is a kludge for the last glue in the
+	   ;; paragraph. We consider that a total stretch of more than 100000
+	   ;; is infinite.
+	   (if (>= stretch 100000)
+	     0
+	     (unless (zerop stretch) (/ (- target width) stretch))))
+	  ((> width target)
+	   (unless (zerop shrink) (/ (- target width) shrink))))))
+
+
+;; ------------
+;; Lineup spans
+;; ------------
+
+(defstruct (span :conc-name
+		 (:constructor make-span (normal-width min-width max-width)))
+  "The SPAN structure.
+A span contains normal, min, and max width information, and represents
+length properties of a lineup (chunk)."
+  normal-width min-width max-width)
+
+(defmethod width ((span span))
+  "Return SPAN's normal width."
+  (normal-width span))
+
+(defun lineup-span (lineup start stop)
+  "Return the span of LINEUP between START and STOP."
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (make-span width (- width shrink) (+ width stretch))))
+
+
+;; -----------------
+;; Lineup boundaries
+;; -----------------
+
+(defstruct (boundary
+	    :conc-name
+	    (:constructor make-boundary (stop next-start)))
+  stop next-start)
+
+(defun word-boundary-p (lineup boundary)
+  (word-stop-p lineup (stop boundary)))
+
+(defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
+  (unless (= start length)
+    (let ((point (position-if #'break-point-p lineup :start (1+ start))))
+      ;; #### WARNING: this is a kludge to never break at the end of the final
+      ;; word (that is, just before the final glue). Otherwise, we would end
+      ;; up with a line containing only the final glue. TeX does it by adding
+      ;; \penalty10000 before the final glue (and it also adds \penalty-10000
+      ;; afterwards), but we don't have that level of generality yet.
+      (when (eql point (1- length)) (setq point nil))
+      (if point
+	(let ((next (1+ point)))
+	  (typecase (aref lineup point)
+	    (glue (make-boundary point next))
+	    (discretionary (make-boundary next point))))
+	(make-boundary length length)))))
