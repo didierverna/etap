@@ -42,28 +42,28 @@
   (:method ((list list))
     "Return the sum of the widths of all elements in LIST."
     (reduce #'+ (mapcar #'width list)))
-  (:method ((character-metrics tfm:character-metrics))
-    "Return TFM CHARACTER-METRICS'width."
-    (tfm:width character-metrics))
+  (:method ((character tfm:character-metrics))
+    "Return TFM CHARACTER metric's width."
+    (tfm:width character))
   (:documentation "Return OBJECT's width."))
 
 (defgeneric height (object)
-  (:method ((character-metrics tfm:character-metrics))
-    "Return TFM CHARACTER-METRICS's height."
-    (tfm:height character-metrics))
+  (:method ((character tfm:character-metrics))
+    "Return TFM CHARACTER metrics's height."
+    (tfm:height character))
   (:documentation "Return OBJECT's height."))
 
 (defgeneric depth (object)
-  (:method ((character-metrics tfm:character-metrics))
-    "Return TFM CHARACTER-METRICS's depth."
-    (tfm:depth character-metrics))
+  (:method ((character tfm:character-metrics))
+    "Return TFM CHARACTER metrics's depth."
+    (tfm:depth character))
   (:documentation "Return OBJECT's depth."))
 
 
 
-;; ===============
-;; Lineup Elements
-;; ===============
+;; ===================
+;; Lineup Constituents
+;; ===================
 
 ;; -----
 ;; Kerns
@@ -274,6 +274,7 @@ Glues represent breakable, elastic space."))
 ;; #### every time we want to poll the size of various lineup chunks. This
 ;; #### could be rather expensive (although I haven't tried it).
 
+;; -------
 ;; Kerning
 ;; -------
 
@@ -448,26 +449,26 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
   "The list of blank characters.")
 
-(defun blankp (character)
-  "Return T if CHARACTER is a blank character."
-  (member character *blanks*))
+(defun blankp (char)
+  "Return T if CHAR is a blank character."
+  (member char *blanks*))
 
-(defun word-constituent-p (character)
-  "Return T if CHARACTER is a word constituent.
+(defun word-constituent-p (char)
+  "Return T if CHAR is a word constituent.
 Currently, this means alphabetic or a dash."
-  (or (alpha-char-p character) (char= character #\-)))
+  (or (alpha-char-p char) (char= char #\-)))
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
 ;; #### only one word between two glues, so for instance in "... foo.bar ...",
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now.
-(defun slice-string (string font hyphenation-rules)
-  "Slice text STRING in FONT, possibly with HYPHENATION-RULES.
+(defun slice-text (text font hyphenation-rules)
+  "Slice TEXT (a string) in FONT, possibly with HYPHENATION-RULES.
 Return a list of characters from FONT, interword glues, and discretionaries if
 HYPHENATION-RULES is non-NIL. STRING is initially trimmed from blanks, and
 inner consecutive blanks are replaced with a single interword glue."
-  (loop :with string := (string-trim *blanks* string)
+  (loop :with string := (string-trim *blanks* text)
 	:with length := (length string)
 	:with i := 0
 	:while (< i length)
@@ -496,11 +497,10 @@ inner consecutive blanks are replaced with a single interword glue."
 ;; ------------------
 
 (defun make-lineup
-    (string font hyphenation-rules
+    (text font hyphenation-rules
      &key kerning ligatures hyphenation
-     &aux (lineup
-	   (slice-string string font (when hyphenation hyphenation-rules))))
-  "Create a new lineup from STRING in FONT with HYPHENATION-RULES.
+     &aux (lineup (slice-text text font (when hyphenation hyphenation-rules))))
+  "Make  a new lineup from TEXT (a string) in FONT with HYPHENATION-RULES.
 Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
@@ -514,8 +514,8 @@ Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
     (endpush (make-glue 0 100000 0) lineup)
     (make-array (length lineup) :initial-contents lineup)))
 
-(defun create-lineup (context)
-  "Create a new lineup out of CONTEXT."
+(defun make-context-lineup (context)
+  "Make a new lineup for CONTEXT."
   (apply #'make-lineup
     (text context)
     (font context)

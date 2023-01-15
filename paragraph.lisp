@@ -48,7 +48,8 @@
 
 (defun create-paragraph
     (context
-     &aux (width (paragraph-width context)) (lineup (create-lineup context)))
+     &aux (width (paragraph-width context))
+	  (lineup (make-context-lineup context)))
   (make-paragraph width
     :pinned-lines (create-pinned-lines
 		   (when lineup
