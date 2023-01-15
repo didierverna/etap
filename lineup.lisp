@@ -575,12 +575,17 @@ length properties of a lineup (chunk)."
 (defstruct (boundary
 	    :conc-name
 	    (:constructor make-boundary (stop next-start)))
+  "The BOUNDARY structure.
+A boundary contains a STOP index at which a lineup can be broken, and a
+NEXT-START at which the next line may begin."
   stop next-start)
 
 (defun word-boundary-p (lineup boundary)
+  "Return T if BOUNDARY is at an end of word in LINEUP."
   (word-stop-p lineup (stop boundary)))
 
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
+  "Return the next boundary in LINEUP from START, or NIL."
   (unless (= start length)
     (let ((point (position-if #'break-point-p lineup :start (1+ start))))
       ;; #### WARNING: this is a kludge to never break at the end of the final
