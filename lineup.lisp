@@ -279,14 +279,14 @@ Glues represent breakable, elastic space."))
 ;; -------
 
 (defun kerning (elt1 elt2)
-  "Return kerning information for lineup ELT1 and ELT2, or NIL."
+  "Return kerning information for lineup elements ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
        (tfm:kerning elt1 elt2)))
 
 (defgeneric collect-kern (elt1 elt2 remainder)
   (:documentation
-   "Collect kerning information for lineup ELT1 and ELT2 with REMAINDER.")
+   "Collect kerning information for lineup (ELT1 ELT2 . REMAINDER).")
   (:method (elt1 elt2 remainder)
     "Return NIL. This is the default method."
     nil)
@@ -325,38 +325,54 @@ Glues represent breakable, elastic space."))
 	:collect elt1
 	:when kern :collect kern))
 
+
 ;; --------------------
 ;; Ligatures processing
 ;; --------------------
 
 (defun ligature (elt1 elt2)
+  "Return a ligature for lineup ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
        (tfm:ligature elt1 elt2)))
 
-(defgeneric adjacent-characters-1 (element remainder)
-  (:method (element remainder)
+(defgeneric next-characters-1 (elt remainder)
+  (:documentation
+   "Return a list of next characters for lineup (ELT . REMAINDER).
+This function looks up in (ELT . REMAINDER) for all characters directly
+accessible. There can be several of them, notably if ELT is a discretionary.")
+  (:method (elt remainder)
+    "Return NIL. This is the default method."
     nil)
-  (:method ((element tfm:character-metrics) remainder)
-    (list element))
-  (:method ((element discretionary) remainder)
-    (append (adjacent-characters (pre-break element))
-	    (adjacent-characters (append (no-break element) remainder)))))
+  (:method ((elt tfm:character-metrics) remainder)
+    "Return (ELT) since ELT is a character."
+    (list elt))
+  (:method ((elt discretionary) remainder)
+    "Lookup next characters in discretionary ELT's pre-break and no-break."
+    (append (next-characters (pre-break elt))
+	    (next-characters (append (no-break elt) remainder)))))
 
-(defun adjacent-characters (lineup)
-  (when lineup (adjacent-characters-1 (car lineup) (cdr lineup))))
-
+(defun next-characters (lineup)
+  "Return a list of next characters in LINEUP.
+This function looks up in LINEUP for all characters directly accessible.
+There can be several of them, notably if LINEUP begins with a discretionary."
+  (when lineup (next-characters-1 (car lineup) (cdr lineup))))
 
 ;; #### NOTE: after processing ligatures, we may end up with adjacent
 ;; #### discretionaries, but this is normal. For example, in the word
 ;; #### ef-fi-cient, what we get eventually is
 ;; #### e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
+  (:documentation "Process ligatures for lineup (ELT1 ELT2 . REMAINDER).
+Return a list of two values: a list of done elements that should be appended
+to the new lineup, and the unprocessed new remainder.")
   (:method (elt1 elt2 remainder)
+    "Return (ELT1) and (ELT2 . REMAINDER). This is the default method."
     (list (list elt1) (cons elt2 remainder)))
   (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder
 	    &aux (ligature (tfm:ligature elt1 elt2)) composition)
+    "Process ligatures between ELT1 and ELT2 characters."
     (cond (ligature
 	   (unless (tfm:delete-after ligature) (push elt2 composition))
 	   (push (tfm:composite ligature) composition)
@@ -373,7 +389,8 @@ Glues represent breakable, elastic space."))
   (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder
 	    &aux (eat-elt1 (some
 			    (lambda (character) (tfm:ligature elt1 character))
-			    (adjacent-characters (cons elt2 remainder)))))
+			    (next-characters (cons elt2 remainder)))))
+    "Process ligatures between ELT1 character and ELT2 discretionary."
     (cond (eat-elt1
 	   (setf (pre-break elt2)
 		 (process-ligatures (cons elt1 (pre-break elt2)))
@@ -385,6 +402,7 @@ Glues represent breakable, elastic space."))
   (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder
 	    &aux (eat-elt2 (or (ligature (car (last (no-break elt1))) elt2)
 			       (ligature (car (last (post-break elt1))) elt2))))
+    "Process ligatures between ELT1 character and ELT2 discretionary."
     (cond (eat-elt2
 	   (setf (no-break elt1)
 		 (process-ligatures (append (no-break elt1) (list elt2)))
@@ -394,16 +412,19 @@ Glues represent breakable, elastic space."))
 	  (t
 	   (list (list elt1) (cons elt2 remainder))))))
 
-(defun process-ligatures-1 (element remainder)
+(defun process-ligatures-1 (elt remainder)
+  "Process ligatures for lineup ELT followed by REMAINDER.
+Return a list of two values: a list of done elements that should be appended
+to the new lineup, and the unprocessed new remainder."
   (if remainder
-    (process-ligatures-2 element (car remainder) (cdr remainder))
-    (list (list element))))
+    (process-ligatures-2 elt (car remainder) (cdr remainder))
+    (list (list elt))))
 
 (defun process-ligatures (lineup)
-  (loop :for elements := lineup :then remainder
-	:for (done remainder)
-	  := (process-ligatures-1 (car elements) (cdr elements))
-	:while elements
+  "Return a new LINEUP with ligatures."
+  (loop :for elts := lineup :then remainder
+	:for (done remainder) := (process-ligatures-1 (car elts) (cdr elts))
+	:while elts
 	:append done))
 
 
