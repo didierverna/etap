@@ -458,7 +458,7 @@ Glues represent breakable, elastic space."))
 (defun word-constituent-p (character)
   "Return T if CHARACTER is a word constituent.
 Currently, this means alphabetic or a dash."
-  (or (alpha-char-p char) (char= char #\-)))
+  (or (alpha-char-p character) (char= character #\-)))
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
 ;; #### does and should certainly be improved. For instance, TeX will consider
