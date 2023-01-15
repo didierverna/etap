@@ -255,6 +255,14 @@ Glues represent breakable, elastic space."))
 	(make-boundary length length)))))
 
 
+
+;; ===============
+;; Lineup Creation
+;; ===============
+
+;; Words processing
+;; ----------------
+
 (defun get-character (char font)
   ;; #### FIXME: no input encoding support yet.
   (or (tfm:get-character (char-code char) font)
@@ -313,6 +321,9 @@ Glues represent breakable, elastic space."))
 ;; #### every time we want to poll the size of various lineup chunks. This
 ;; #### could be rather expensive (although I haven't tried it).
 
+;; Kerning
+;; -------
+
 (defun kerning (elt1 elt2)
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
@@ -352,6 +363,9 @@ Glues represent breakable, elastic space."))
 	:collect elt1
 	:when kern :collect kern))
 
+
+;; Ligatures processing
+;; --------------------
 
 (defun ligature (elt1 elt2)
   (and (typep elt1 'tfm:character-metrics)
@@ -431,12 +445,19 @@ Glues represent breakable, elastic space."))
 	:append done))
 
 
-(defparameter *blanks* '(#\Space #\Tab #\Newline))
+;; Lineup computation
+;; ------------------
+
+(defparameter *blanks* '(#\Space #\Tab #\Newline)
+  "The list of blank characters.")
 
 (defun blankp (character)
+  "Return T if CHARACTER is a blank character."
   (member character *blanks*))
 
-(defun word-constituent-p (char)
+(defun word-constituent-p (character)
+  "Return T if CHARACTER is a word constituent.
+Currently, this means alphabetic or a dash."
   (or (alpha-char-p char) (char= char #\-)))
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
@@ -445,6 +466,12 @@ Glues represent breakable, elastic space."))
 ;; #### bar will never be hyphenated. There are also other rules that prevent
 ;; #### hyphenation in some situations, which we do not have right now.
 (defun slice-string (string font)
+  "Slice STRING with FONT.
+Return a list of words (strings), individual characters from FONT (e.g.
+punctuation marks), and interword glue.
+
+STRING is initially trimmed from blanks, and inner consecutive blanks are
+replaced with a single interword glue."
   (loop :with string := (string-trim *blanks* string)
 	:with length := (length string)
 	:with i := 0
@@ -470,6 +497,8 @@ Glues represent breakable, elastic space."))
 (defun make-lineup (string font hyphenation-rules
 		    &key kerning ligatures hyphenation
 		    &aux lineup)
+  "Create a new lineup from STRING in FONT with HYPHENATION-RULES.
+Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
   (setq lineup (slice-string string font))
   (setq lineup (process-words lineup hyphenation hyphenation-rules font))
   (when ligatures (setq lineup (process-ligatures lineup)))
@@ -480,10 +509,12 @@ Glues represent breakable, elastic space."))
 	      (push :hyphenation-clue (no-break element))))
       lineup))
   (when lineup
+    ;; #### FIXME: this should only be done by TeX's algorithms.
     (endpush (make-glue 0 100000 0) lineup)
     (make-array (length lineup) :initial-contents lineup)))
 
 (defun create-lineup (context)
+  "Create a new lineup out of CONTEXT."
   (apply #'make-lineup
     (text context)
     (font context)
