@@ -17,73 +17,133 @@
 (in-package :etap)
 
 
-(defparameter *lineup-features*
-  '((:kerning t) (:ligatures t) (:hyphenation t)))
+;; =================
+;; General Utilities
+;; =================
 
+;; For the interface.
+
+(defparameter *lineup-features*
+  '((:kerning t) (:ligatures t) (:hyphenation t))
+  "The lineup features, as advertised by the interface.")
+
+
+;; Lineup elements geometry.
 
 (defgeneric width (object)
   (:method ((clue (eql :hyphenation-clue)))
+    "Return 0 (hyphenation clues don't eat horizontal space)."
     0)
+  ;; #### NOTE: NIL in the lineup can occur in several situations, for
+  ;; instance as the (empty) no-break or post-break of a hyphenation point.
   (:method ((null (eql nil)))
+    "Return 0 (nothingness doesn't eat horizontal space)."
     0)
   (:method ((list list))
+    "Return the sum of the widths of all elements in LIST."
     (reduce #'+ (mapcar #'width list)))
   (:method ((character-metrics tfm:character-metrics))
-    (tfm:width character-metrics)))
+    "Return TFM CHARACTER-METRICS'width."
+    (tfm:width character-metrics))
+  (:documentation "Return OBJECT's width."))
 
 (defgeneric height (object)
   (:method ((character-metrics tfm:character-metrics))
-    (tfm:height character-metrics)))
+    "Return TFM CHARACTER-METRICS's height."
+    (tfm:height character-metrics))
+  (:documentation "Return OBJECT's height."))
 
 (defgeneric depth (object)
   (:method ((character-metrics tfm:character-metrics))
-    (tfm:depth character-metrics)))
+    "Return TFM CHARACTER-METRICS's depth."
+    (tfm:depth character-metrics))
+  (:documentation "Return OBJECT's depth."))
 
+
+
+;; ===============
+;; Lineup Elements
+;; ===============
+
+;; -----
+;; Kerns
+;; -----
 
 (defclass kern ()
-  ((width :initarg :width :reader width)))
+  ((width :initarg :width :reader width :documentation "The kern's width."))
+  (:documentation "The KERN class.
+Kerns represent inter-letter horizontal spacing."))
 
 (defun kernp (object)
+  "Return T if OBJECT is a kern."
   (typep object 'kern))
 
 (defun make-kern (width)
+  "Make a new kern of WIDTH."
   (make-instance 'kern :width width))
 
 
+;; ------------
+;; Break points
+;; ------------
+
 (defclass break-point ()
-  ())
+  ()
+  (:documentation "The BREAK-POINT class.
+This is the base class for all objects at which lines can be broken."))
 
 (defun break-point-p (object)
+  "Return T if OBJECT is a break point."
   (typep object 'break-point))
 
 
+;; Discretionaries
+
 (defclass discretionary (break-point)
-  ((pre-break :initform nil :initarg :pre-break :accessor pre-break)
-   (post-break :initform nil :initarg :post-break :accessor post-break)
-   (no-break :initform nil :initarg :no-break :accessor no-break)))
+  ((pre-break :initform nil :initarg :pre-break :accessor pre-break
+	      :documentation "Contents to insert before the break.")
+   (post-break :initform nil :initarg :post-break :accessor post-break
+	       :documentation "Contents to insert after the break.")
+   (no-break :initform nil :initarg :no-break :accessor no-break
+	     :documentation "Contents to insert when we don't break."))
+  (:documentation "The DISCRETIONARY class.
+Discretionaries represent breakable positions with alternative contents,
+depending on whether the break occurs or not."))
 
 (defun discretionaryp (object)
+  "Return T if OBJECT is a discretionary."
   (typep object 'discretionary))
 
 ;; #### NOTE: maybe one day we would need to process kerns and ligatures
 ;; within user-defined discretionaries' pre/post/no-break values!
 (defun make-discretionary (&rest initargs &key pre-break post-break no-break)
+  "Make a new discretionary out of PRE-BREAK, POST-BREAK, and NO-BREAK."
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
 
 
+;; Glues
+
 (defclass glue (break-point)
-  ((width :initarg :width :reader width)
-   (stretch :initarg :stretch :reader stretch)
-   (shrink :initarg :shrink :reader shrink)))
+  ((width :initarg :width :reader width
+	  :documentation "The glues's natural width.")
+   (stretch :initarg :stretch :reader stretch
+	    :documentation "The glue's stretchability.")
+   (shrink :initarg :shrink :reader shrink
+	   :documentation "The glue's shrinkability."))
+  (:documentation "The GLUE class.
+Glues represent breakable, elastic space."))
 
 (defun gluep (object)
+  "Return T if OBJECT is a glue."
   (typep object 'glue))
 
 (defun make-glue (width stretch shrink)
+  "Make a new glue out of WIDTH, STRETCH, and SHRINK."
   (make-instance 'glue :width width :stretch stretch :shrink shrink))
 
 (defun make-interword-glue (blank &aux (font (tfm:font blank)))
+  "Make an interword glue, based on BLANK character's font specifications."
   (make-glue (tfm:interword-space font)
 	     (tfm:interword-stretch font)
 	     (tfm:interword-shrink font)))
