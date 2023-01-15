@@ -107,7 +107,7 @@ Fill it with patterns and exceptions from the files specified by
   rules)
 
 (defun hyphenation-points (word rules)
-  "Return a list of potential hyphenation points for WORD based on RULES."
+  "Return a list of hyphenation points for WORD (a string) based on RULES."
   (multiple-value-bind (points found) (hyphenation-exception word rules)
     (if found
       points
