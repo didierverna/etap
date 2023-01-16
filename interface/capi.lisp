@@ -34,7 +34,7 @@
 
 
 (defun update (interface &aux (context (context interface)))
-  (setf (paragraph interface) (create-paragraph context))
+  (setf (paragraph interface) (make-context-paragraph context))
   (gp:invalidate-rectangle (view interface)))
 
 

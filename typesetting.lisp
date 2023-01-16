@@ -18,7 +18,8 @@ fixed position in 2D space (relative to some origin)."))
 (defclass pinned-character (pinned)
   ((character-metrics :initarg :character-metrics :accessor character-metrics
 		      :documentation "The pinned character."))
-  (:documentation "The PINNED-CHARACTER class."))
+  (:documentation "The PINNED-CHARACTER class.
+The character's 2D position is relative to the line it belongs to."))
 
 (defun pinned-character-p (object)
   "Return T if OBJECT is a pinned character."
@@ -45,7 +46,8 @@ fixed position in 2D space (relative to some origin)."))
 
 (defclass pinned-hyphenation-clue (pinned)
   ()
-  (:documentation "The PINNED-HYPHENATION-CLUE class."))
+  (:documentation "The PINNED-HYPHENATION-CLUE class.
+The hyphenation clue's 2D position is relative to the line it belongs to."))
 
 (defun pinned-hyphenation-clue-p (object)
   "Return T if OBJECT is a pinned hyphenation clue."
