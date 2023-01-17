@@ -1,14 +1,32 @@
 (in-package :etap)
 
+;; =========
+;; Utilities
+;; =========
+
+(defun update (interface &aux (context (context interface)))
+  "Update INTERFACE.
+This recreates the typeset paragraph and invalidates the GUI's view."
+  (setf (paragraph interface) (make-context-paragraph context))
+  (gp:invalidate-rectangle (view interface)))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun title-capitalize (title)
+    "Capitalize TITLE and substitute dashes with spaces."
     (nsubstitute #\Space #\- (string-capitalize title))))
+
+
+;; -------
+;; Sliders
+;; -------
 
 (defmacro define-slider-callback
     (name &aux (name (string name))
 	       (dash-position (position #\- name))
 	       (prefix (subseq name 0 dash-position))
 	       (generic (subseq name (1+ dash-position))))
+  "Define a SET-NAME slider callback function.
+NAME (a symbol) must be of the form PREFIX-PROPERTY."
     `(defun ,(intern (concatenate 'string "SET-" name)) (pane value status)
        (declare (ignore status))
        (setf (titled-object-title pane)
@@ -19,26 +37,41 @@
 	nil (top-level-interface pane))))
 
 (defmacro define-slider-callbacks (&rest names)
+  "Define slider callback functions for NAMES."
   `(progn ,@(mapcar (lambda (name) `(define-slider-callback ,name)) names)))
 
 (defmacro slider-value (prefix key interface)
+  "Return a list of the form (KEY VALUE) where VALUE is the current PREFIX-KEY
+slider value in INTERFACE."
   (let ((accessor (intern (concatenate 'string
 			    (string prefix) "-" (string key)))))
     `(list ,key (range-slug-start (,accessor ,interface)))))
 
 
+;; ------
+;; Radios
+;; ------
+
 (defmacro radio-selection (prefix key interface)
+  "Return a list of the form (KEY VALUE) where VALUE is the current PREFIX-KEY
+selected item in INTERFACE."
   (let ((accessor (intern (concatenate 'string
 			    (string prefix) "-" (string key)))))
     `(list ,key (choice-selected-item (,accessor ,interface)))))
 
 
-(defun update (interface &aux (context (context interface)))
-  (setf (paragraph interface) (make-context-paragraph context))
-  (gp:invalidate-rectangle (view interface)))
 
+;; =================
+;; Interface Actions
+;; =================
 
+;; ----------
+;; Algorithms
+;; ----------
+
+;; Fixed
 (defun set-fixed-algorithm (value interface)
+  "Set the current algorithm to Fixed in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :fixed
@@ -48,7 +81,9 @@
   (update interface))
 
 
+;; Fit
 (defun set-fit-algorithm (value interface)
+  "Set the current algorithm to Fit in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :fit
@@ -64,19 +99,27 @@
 (define-slider-callback fit-explicit-hyphen-penalty)
 
 
+;; Barnett
 (defun set-barnett-algorithm (value interface)
+  "Set the current algorithm to Barnett in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface)) '(:barnett))
   (update interface))
 
+
+;; Duncan
 (defun set-duncan-algorithm (value interface)
+  "Set the current algorithm to Duncan in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :duncan
 	      (radio-selection duncan :discriminating-function interface)))
   (update interface))
 
+
+;; Knuth-Plass
 (defun set-kp-algorithm (value interface)
+  "Set the current algorithm to Knuth-Plass in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :knuth-plass
@@ -102,7 +145,9 @@
   kp-looseness)
 
 
+;; #### FIXME: compute the function name !
 (defun set-algorithm (value interface)
+  "Select algorithm specified by VALUE in INTERFACE."
   (case (car value)
     (:fixed (set-fixed-algorithm value interface))
     (:fit (set-fit-algorithm value interface))
@@ -111,7 +156,10 @@
     (:knuth-plass (set-kp-algorithm value interface))))
 
 
+;; Other actions
+
 (defun set-disposition (value interface)
+  "Set the current disposition in INTERFACE's context."
   (declare (ignore value))
   (setf (disposition (context interface))
 	`(,(choice-selected-item (disposition interface))
@@ -119,23 +167,23 @@
 	      (choice-selected-items (disposition-options-panel interface)))))
   (update interface))
 
-
 (defun set-features (value interface)
+  "Set the current features in INTERFACE's context."
   (declare (ignore value))
   (setf (features (context interface))
 	(apply #'append (choice-selected-items (features interface))))
   (update interface))
 
-
 (defun set-text (pane point old-length new-length
 		 &aux (interface (top-level-interface pane)))
+  "Set editor PANE's current text in PANE's context."
   (declare (ignore point old-length new-length))
   (setf (text (context interface)) (editor-pane-text pane))
   (update interface))
 
-
 (defun set-paragraph-width
     (pane value status &aux (interface (top-level-interface pane)))
+  "Set the current paragraph width to VALUE in PANE's context."
   (declare (ignore status))
   (setf (titled-object-title pane)
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
@@ -143,17 +191,16 @@
   (setf (paragraph-width (context interface)) value)
   (update interface))
 
-
 (defun set-zoom (pane value status)
+  "Set PANE's zooming to to VALUE."
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Paragraph zoom: ~3D%" value))
   (gp:invalidate-rectangle (view (top-level-interface pane))))
 
-
 (defun set-clues (value interface)
+  "Invalidate INTERFACE's view after a change to the clues."
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
-
 
 (defun render-paragraph
     (pane x y width height
@@ -162,6 +209,7 @@
 	  (paragraph (paragraph interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
+  "Render PANE's paragraph."
   (declare (ignore x y width height))
   (when (pinned-lines paragraph)
     (set-horizontal-scroll-parameters pane
@@ -242,11 +290,14 @@
 		      (pinned-objects (line pinned-line))))))))
 
 
+;; Tooltips
 (defparameter *tooltips*
-    `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
-      ,@*disposition-options-tooltips*))
+  `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
+    ,@*disposition-options-tooltips*)
+  "The GUI's tooltips.")
 
 (defun show-help (interface pane type key)
+  "The GUI's help callback."
   (declare (ignore interface pane))
   (case type
     (:tooltip
@@ -254,6 +305,7 @@
        (symbol (cadr (member key *tooltips*)))))))
 
 
+;; Interface
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph))
@@ -558,6 +610,8 @@
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 
+;; Interface display
+
 (defun collect-options-indices (options choices)
   (loop :for option :in choices
 	:for i :from 0
@@ -569,6 +623,7 @@
 
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
+  "Prepare ETAP GUI for display."
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
@@ -659,4 +714,5 @@
 ;; ===========
 
 (defun run (&optional (context *context*))
+  "Run ETAP's GUI for CONTEXT (the global context by default)."
   (display (make-instance 'etap :context context :help-callback 'show-help)))
