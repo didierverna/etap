@@ -41,8 +41,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   `(progn ,@(mapcar (lambda (name) `(define-slider-callback ,name)) names)))
 
 (defmacro slider-value (prefix key interface)
-  "Return a list of the form (KEY VALUE) where VALUE is the current PREFIX-KEY
-slider value in INTERFACE."
+  "Return (:KEY (RANGE-SLUG-START (PREFIX-KEY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
 			    (string prefix) "-" (string key)))))
     `(list ,key (range-slug-start (,accessor ,interface)))))
@@ -53,8 +52,7 @@ slider value in INTERFACE."
 ;; ------
 
 (defmacro radio-selection (prefix key interface)
-  "Return a list of the form (KEY VALUE) where VALUE is the current PREFIX-KEY
-selected item in INTERFACE."
+  "Return (:KEY (CHOICE-SELECTED-ITEM (PREFIX-KEY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
 			    (string prefix) "-" (string key)))))
     `(list ,key (choice-selected-item (,accessor ,interface)))))
@@ -613,12 +611,14 @@ selected item in INTERFACE."
 ;; Interface display
 
 (defun collect-options-indices (options choices)
+  "Collect each CHOICES option's index in OPTIONS."
   (loop :for option :in choices
 	:for i :from 0
 	:when (cadr (member (car option) options))
 	  :collect i))
 
 (defun set-choice-selection (pane options choices)
+  "Set PANE's choice selection from CHOICES in OPTIONS."
   (setf (choice-selection pane) (collect-options-indices options choices)))
 
 (defmethod interface-display :before
