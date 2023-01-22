@@ -1,5 +1,23 @@
 (in-package :etap)
 
+
+;; For the interface.
+
+(defparameter *dispositions*
+  '(:flush-left :centered :flush-right :justified))
+
+(defparameter *disposition-options* '((:sloppy t)))
+
+(defparameter *disposition-options-help-keys*
+  '(:disposition-option-sloppy))
+
+(defparameter *disposition-options-tooltips*
+  '(:disposition-option-sloppy
+    "In Justified disposition, stretch or shrink as needed,
+ignoring the font's inter-word spacing boundaries."))
+
+
+
 ;; ==============
 ;; Pinned Objects
 ;; ==============

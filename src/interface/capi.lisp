@@ -365,23 +365,24 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
    (fit-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr *fit-hyphen-penalty*))
+     :title (format nil "Hyphen Penalty: ~D"
+	      (caliber-default *fit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *fit-hyphen-penalty*)
-     :end (caddr *fit-hyphen-penalty*)
-     :slug-start (cadr *fit-hyphen-penalty*)
+     :start (caliber-min *fit-hyphen-penalty*)
+     :end (caliber-max *fit-hyphen-penalty*)
+     :slug-start (caliber-default *fit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-fit-hyphen-penalty
      :reader fit-hyphen-penalty)
    (fit-explicit-hyphen-penalty slider
      :title (format nil "Explicit-Hyphen Penalty: ~D"
-	      (cadr *fit-explicit-hyphen-penalty*))
+	      (caliber-default *fit-explicit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *fit-explicit-hyphen-penalty*)
-     :end (caddr *fit-explicit-hyphen-penalty*)
-     :slug-start (cadr *fit-explicit-hyphen-penalty*)
+     :start (caliber-min *fit-explicit-hyphen-penalty*)
+     :end (caliber-max *fit-explicit-hyphen-penalty*)
+     :slug-start (caliber-default *fit-explicit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-fit-explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
@@ -401,105 +402,111 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-kp-algorithm
      :reader kp-variant)
    (kp-line-penalty slider
-     :title (format nil "Line Penalty: ~D" (cadr *kp-line-penalty*))
+     :title (format nil "Line Penalty: ~D"
+	      (caliber-default *kp-line-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-line-penalty*)
-     :end (caddr *kp-line-penalty*)
-     :slug-start (cadr *kp-line-penalty*)
+     :start (caliber-min *kp-line-penalty*)
+     :end (caliber-max *kp-line-penalty*)
+     :slug-start (caliber-default *kp-line-penalty*)
      :tick-frequency 0
      :callback 'set-kp-line-penalty
      :reader kp-line-penalty)
    (kp-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D" (cadr *kp-hyphen-penalty*))
+     :title (format nil "Hyphen Penalty: ~D"
+	      (caliber-default *kp-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-hyphen-penalty*)
-     :end (caddr *kp-hyphen-penalty*)
-     :slug-start (cadr *kp-hyphen-penalty*)
+     :start (caliber-min *kp-hyphen-penalty*)
+     :end (caliber-max *kp-hyphen-penalty*)
+     :slug-start (caliber-default *kp-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-kp-hyphen-penalty
      :reader kp-hyphen-penalty)
    (kp-explicit-hyphen-penalty slider
      :title (format nil "Explicit Hyphen Penalty: ~D"
-	      (cadr *kp-explicit-hyphen-penalty*))
+	      (caliber-default *kp-explicit-hyphen-penalty*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-explicit-hyphen-penalty*)
-     :end (caddr *kp-explicit-hyphen-penalty*)
-     :slug-start (cadr *kp-explicit-hyphen-penalty*)
+     :start (caliber-min *kp-explicit-hyphen-penalty*)
+     :end (caliber-max *kp-explicit-hyphen-penalty*)
+     :slug-start (caliber-default *kp-explicit-hyphen-penalty*)
      :tick-frequency 0
      :callback 'set-kp-explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
    (kp-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~D" (cadr *kp-adjacent-demerits*))
+     :title (format nil "Adjacent Demerits: ~D"
+	      (caliber-default *kp-adjacent-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-adjacent-demerits*)
-     :end (caddr *kp-adjacent-demerits*)
-     :slug-start (cadr *kp-adjacent-demerits*)
+     :start (caliber-min *kp-adjacent-demerits*)
+     :end (caliber-max *kp-adjacent-demerits*)
+     :slug-start (caliber-default *kp-adjacent-demerits*)
      :tick-frequency 0
      :callback 'set-kp-adjacent-demerits
      :reader kp-adjacent-demerits)
    (kp-double-hyphen-demerits slider
      :title (format nil "Double Hyphen Demerits: ~D"
-	      (cadr *kp-double-hyphen-demerits*))
+	      (caliber-default *kp-double-hyphen-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-double-hyphen-demerits*)
-     :end (caddr *kp-double-hyphen-demerits*)
-     :slug-start (cadr *kp-double-hyphen-demerits*)
+     :start (caliber-min *kp-double-hyphen-demerits*)
+     :end (caliber-max *kp-double-hyphen-demerits*)
+     :slug-start (caliber-default *kp-double-hyphen-demerits*)
      :tick-frequency 0
      :callback 'set-kp-double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
    (kp-final-hyphen-demerits slider
      :title (format nil "Final Hyphen Demerits: ~D"
-	      (cadr *kp-final-hyphen-demerits*))
+	      (caliber-default *kp-final-hyphen-demerits*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-final-hyphen-demerits*)
-     :end (caddr *kp-final-hyphen-demerits*)
-     :slug-start (cadr *kp-final-hyphen-demerits*)
+     :start (caliber-min *kp-final-hyphen-demerits*)
+     :end (caliber-max *kp-final-hyphen-demerits*)
+     :slug-start (caliber-default *kp-final-hyphen-demerits*)
      :tick-frequency 0
      :callback 'set-kp-final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
    (kp-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~D" (cadr *kp-pre-tolerance*))
+     :title (format nil "Pre Tolerance: ~D"
+	      (caliber-default *kp-pre-tolerance*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-pre-tolerance*)
-     :end (caddr *kp-pre-tolerance*)
-     :slug-start (cadr *kp-pre-tolerance*)
+     :start (caliber-min *kp-pre-tolerance*)
+     :end (caliber-max *kp-pre-tolerance*)
+     :slug-start (caliber-default *kp-pre-tolerance*)
      :tick-frequency 0
      :callback 'set-kp-pre-tolerance
      :reader kp-pre-tolerance)
    (kp-tolerance slider
-     :title (format nil "Tolerance: ~D" (cadr *kp-tolerance*))
+     :title (format nil "Tolerance: ~D" (caliber-default *kp-tolerance*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-tolerance*)
-     :end (caddr *kp-tolerance*)
-     :slug-start (cadr *kp-tolerance*)
+     :start (caliber-min *kp-tolerance*)
+     :end (caliber-max *kp-tolerance*)
+     :slug-start (caliber-default *kp-tolerance*)
      :tick-frequency 0
      :callback 'set-kp-tolerance
      :reader kp-tolerance)
    (kp-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~D" (cadr *kp-emergency-stretch*))
+     :title (format nil "Emergency Stretch: ~D"
+	      (caliber-default *kp-emergency-stretch*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-emergency-stretch*)
-     :end (caddr *kp-emergency-stretch*)
-     :slug-start (cadr *kp-emergency-stretch*)
+     :start (caliber-min *kp-emergency-stretch*)
+     :end (caliber-max *kp-emergency-stretch*)
+     :slug-start (caliber-default *kp-emergency-stretch*)
      :tick-frequency 0
      :callback 'set-kp-emergency-stretch
      :reader kp-emergency-stretch)
    (kp-looseness slider
-     :title (format nil "Looseness: ~D" (cadr *kp-looseness*))
+     :title (format nil "Looseness: ~D"
+	      (caliber-default *kp-looseness*))
      :orientation :horizontal
      :visible-min-width 220
-     :start (car *kp-looseness*)
-     :end (caddr *kp-looseness*)
-     :slug-start (cadr *kp-looseness*)
+     :start (caliber-min *kp-looseness*)
+     :end (caliber-max *kp-looseness*)
+     :slug-start (caliber-default *kp-looseness*)
      :tick-frequency 0
      :callback 'set-kp-looseness
      :reader kp-looseness)

@@ -102,11 +102,18 @@
   '(:fit-option-avoid-hyphens :fit-option-relax
     :fit-option-prefer-shrink :fit-option-prefer-overfulls))
 
-(define-calibration *fit-hyphen-penalty* -1000 50 1000)
-(define-calibration *fit-explicit-hyphen-penalty* -1000 50 1000)
 
-(defmacro fit-calibrate (variable &optional infinity)
-  `(calibrate-variable ,variable fit ,infinity))
+(defmacro define-fit-caliber (name min default max)
+  "Define a NAMEd Fit caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber fit ,name ,min ,default ,max))
+
+(defmacro calibrate-fit (name &optional infinity)
+  "Calibrate NAMEd Fit variable."
+  `(calibrate fit ,name ,infinity))
+
+(define-fit-caliber hyphen-penalty -1000 50 1000)
+(define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
+
 
 (defmacro fit-default (variable)
   `(default-variable ,variable fit))
@@ -377,8 +384,8 @@ for equally bad solutions."))
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
   (fit-default variant)
   (fit-default discriminating-function)
-  (fit-calibrate hyphen-penalty t)
-  (fit-calibrate explicit-hyphen-penalty t)
+  (calibrate-fit hyphen-penalty t)
+  (calibrate-fit explicit-hyphen-penalty t)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary

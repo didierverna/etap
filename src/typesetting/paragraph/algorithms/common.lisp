@@ -61,9 +61,35 @@ NEXT-START at which the next line may begin."
 
 
 
-;; =================
-;; General Utilities
-;; =================
+;; =========================
+;; Parametrization Utilities
+;; =========================
+
+(defstruct (caliber (:constructor make-caliber (min default max)))
+  "The CALIBER structure.
+A caliber represents values that have a mininum, a maximum, and a default."
+  min default max)
+
+(defmacro define-caliber (prefix name min default max)
+  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values."
+  `(defparameter ,(intern (format nil "*~A-~A*" prefix name))
+     (make-caliber ,min ,default, max)))
+
+(defmacro calibrate
+    (prefix name
+     &optional infinity
+     &aux (variable (intern (format nil "~A" name)))
+	  (caliber (intern (format nil "*~A-~A*" prefix name))))
+  "Calibrate PREFIX-NAME variable according to the *PREFIX-NAME* caliber.
+If the variable's value is out of bounds, either clamp it (the default),
+or use INFINITY values."
+  `(cond ((null ,variable)
+	  (setq ,variable (caliber-default ,caliber)))
+	 ((<= ,variable (caliber-min ,caliber))
+	  (setq ,variable ,(if infinity :-infinity `(caliber-min ,caliber))))
+	 ((>= ,variable (caliber-max ,caliber))
+	  (setq ,variable ,(if infinity :+infinity `(caliber-max ,caliber))))))
+
 
 (defmacro default (variable choices)
   "If NULL, default VARIABLE to the first of CHOICES."
@@ -77,37 +103,6 @@ Note the S appended to VARIABLE in the choices constant name."
   `(default ,variable ,choices))
 
 
-(defmacro define-calibration (calibration min default max)
-  `(defparameter ,calibration '(,min ,default ,max)))
-
-(defmacro calibrate (variable calibration &optional infinity)
-  `(cond ((null ,variable)
-	  (setq ,variable (cadr ,calibration)))
-	 ((<= ,variable (car ,calibration))
-	  (setq ,variable ,(if infinity :-infinity `(car ,calibration))))
-	 ((>= ,variable (caddr ,calibration))
-	  (setq ,variable ,(if infinity :+infinity `(caddr ,calibration))))))
-
-(defmacro calibrate-variable
-    (variable prefix
-     &optional infinity
-     &aux (calibration (intern (format nil "*~A-~A*" prefix variable))))
-  `(calibrate ,variable ,calibration ,infinity))
-
-
-
-(defparameter *dispositions*
-  '(:flush-left :centered :flush-right :justified))
-
-(defparameter *disposition-options* '((:sloppy t)))
-
-(defparameter *disposition-options-help-keys*
-  '(:disposition-option-sloppy))
-
-(defparameter *disposition-options-tooltips*
-  '(:disposition-option-sloppy
-    "In Justified disposition, stretch or shrink as needed,
-ignoring the font's inter-word spacing boundaries."))
 
 
 (defun car-or-symbol (object)
