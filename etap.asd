@@ -14,25 +14,28 @@
     :components
     ((:file "meta")
      (:file "util")
-     (:file "glyphlist")
-     (:file "lm-ec")
-     (:file "hyphenation")
-     (:file "lineup")
-     (:file "common")
-     (:module "paragraph"
+     (:module "typesetting"
       :serial t
       :components
-      ((:file "common")
-       (:module "algorithms"
+      ((:file "glyphlist")
+       (:file "lm-ec")
+       (:file "hyphenation")
+       (:file "lineup")
+       (:file "common")
+       (:module "paragraph"
+	:serial t
 	:components
-		((:file "base")
-		 (:file "fixed" :depends-on ("base"))
-		 (:file "fit" :depends-on  ("base"))
-		 (:file "barnett" :depends-on  ("base"))
-		 (:file "node" :depends-on ("base"))
-		 (:file "duncan" :depends-on  ("node"))
-		 (:file "kp" :depends-on  ("node"))))
-       (:file "paragraph")))
+		((:file "common")
+		 (:module "algorithms"
+		  :components
+			  ((:file "base")
+			   (:file "fixed" :depends-on ("base"))
+			   (:file "fit" :depends-on  ("base"))
+			   (:file "barnett" :depends-on  ("base"))
+			   (:file "node" :depends-on ("base"))
+			   (:file "duncan" :depends-on  ("node"))
+			   (:file "kp" :depends-on  ("node"))))
+		 (:file "paragraph")))))
      (:file "context")
      (:module "interface"
       :components
