@@ -65,6 +65,15 @@ NEXT-START at which the next line may begin."
 ;; Parametrization Utilities
 ;; =========================
 
+(defun algorithm-type (algorithm)
+  "Return ALGORITHM type."
+  (car-or-symbol algorithm))
+
+(defun algorithm-options (algorithm)
+  "Return ALGORITHM options."
+  (cdr-or-nil algorithm))
+
+
 (defstruct (caliber (:constructor make-caliber (min default max)))
   "The CALIBER structure.
 A caliber represents values that have a mininum, a maximum, and a default."
@@ -100,21 +109,6 @@ Note the S appended to NAME in the choices variable name."
   `(when (null ,variable) (setq ,variable (car ,choices))))
 
 
-(defun car-or-symbol (object)
-  (etypecase object
-    (cons (car object))
-    (symbol object)))
-
-(defun cdr-or-nil (object)
-  (etypecase object
-    (cons (cdr object))
-    (symbol nil)))
-
-
-(defun algorithm-type (algorithm) (car-or-symbol algorithm))
-(defun algorithm-options (algorithm) (cdr-or-nil algorithm))
-(defun disposition-type (disposition) (car-or-symbol disposition))
-(defun disposition-options (disposition) (cdr-or-nil disposition))
 
 (defparameter *maximum-badness* 10000)
 

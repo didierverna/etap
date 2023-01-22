@@ -16,6 +16,14 @@
     "In Justified disposition, stretch or shrink as needed,
 ignoring the font's inter-word spacing boundaries."))
 
+(defun disposition-type (disposition)
+  "Return DISPOSITION type."
+  (car-or-symbol disposition))
+
+(defun disposition-options (disposition)
+  "Return DISPOSITION options."
+  (cdr-or-nil disposition))
+
 
 
 ;; ==============
