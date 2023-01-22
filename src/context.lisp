@@ -1,11 +1,5 @@
 (in-package :etap)
 
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (net.didierverna.tfm:nickname-package))
-
-
-
 ;; ==================
 ;; Initial Parameters
 ;; ==================
