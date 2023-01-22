@@ -77,20 +77,3 @@ We consider that the paragraph's baseline is the first line's baseline."
 (defun make-paragraph (width pinned-lines)
   "Make a new paragraph of WIDTH with PINNED-LINES."
   (make-instance 'paragraph :width width :pinned-lines pinned-lines))
-
-(defun make-context-paragraph
-    (context
-     &aux (width (paragraph-width context))
-	  (lineup (make-context-lineup context)))
-  "Make a new paragraph for CONTEXT."
-  (make-paragraph width
-		  (create-pinned-lines
-		   (when lineup
-		     (apply #'create-lines
-		       lineup
-		       width
-		       (disposition context)
-		       (algorithm-type (algorithm context))
-		       (algorithm-options (algorithm context))))
-		   width
-		   (disposition-type (disposition context)))))

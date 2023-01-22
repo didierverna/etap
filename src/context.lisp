@@ -1,8 +1,14 @@
 (in-package :etap)
 
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (net.didierverna.tfm:nickname-package))
 
+
+
+;; ==================
+;; Initial Parameters
+;; ==================
 
 (defparameter *initial-text*
   "In olden times when wishing still helped one, there lived a king whose
@@ -19,6 +25,11 @@ it; and this ball was her favorite plaything."
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm")
   "The TFM font file.")
 
+
+
+;; =================
+;; The Context Class
+;; =================
 
 (defclass context ()
   ((font :initform (tfm:load-font *font-file* :freeze t)
@@ -52,6 +63,36 @@ A context object stores the requested parameters for one experiment."))
   "Create a new context object."
   (apply #'make-instance 'context keys))
 
-
 (defvar *context* (make-context)
   "The global context.")
+
+
+
+;; =================
+;; Context Utilities
+;; =================
+
+(defun make-context-lineup (&optional (context *context*))
+  "Make a new lineup for CONTEXT (the global context by default)."
+  (apply #'make-lineup
+    (text context)
+    (font context)
+    (hyphenation-rules context)
+    (features context)))
+
+(defun make-context-paragraph
+    (&optional (context *context*)
+     &aux (width (paragraph-width context))
+	  (lineup (make-context-lineup context)))
+  "Make a new paragraph for CONTEXT (the global context by default)."
+  (make-paragraph width
+		  (create-pinned-lines
+		   (when lineup
+		     (apply #'create-lines
+		       lineup
+		       width
+		       (disposition context)
+		       (algorithm-type (algorithm context))
+		       (algorithm-options (algorithm context))))
+		   width
+		   (disposition-type (disposition context)))))

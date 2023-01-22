@@ -443,14 +443,6 @@ Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
     (endpush (make-glue 0 100000 0) lineup)
     (make-array (length lineup) :initial-contents lineup)))
 
-(defun make-context-lineup (context)
-  "Make a new lineup for CONTEXT."
-  (apply #'make-lineup
-    (text context)
-    (font context)
-    (hyphenation-rules context)
-    (features context)))
-
 
 
 ;; ===================

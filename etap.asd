@@ -17,7 +17,6 @@
      (:file "glyphlist")
      (:file "lm-ec")
      (:file "hyphenation")
-     (:file "context")
      (:file "lineup")
      (:file "common")
      (:module "paragraph"
@@ -34,6 +33,7 @@
 		 (:file "duncan" :depends-on  ("node"))
 		 (:file "kp" :depends-on  ("node"))))
        (:file "paragraph")))
+     (:file "context")
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))
