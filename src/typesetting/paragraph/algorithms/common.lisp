@@ -80,7 +80,7 @@ A caliber represents values that have a mininum, a maximum, and a default."
      &optional infinity
      &aux (variable (intern (format nil "~A" name)))
 	  (caliber (intern (format nil "*~A-~A*" prefix name))))
-  "Calibrate PREFIX-NAME variable according to the *PREFIX-NAME* caliber.
+  "Calibrate NAMEd variable according to the *PREFIX-NAME* caliber.
 If the variable's value is out of bounds, either clamp it (the default),
 or use INFINITY values."
   `(cond ((null ,variable)
