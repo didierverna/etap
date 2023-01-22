@@ -91,18 +91,13 @@ or use INFINITY values."
 	  (setq ,variable ,(if infinity :+infinity `(caliber-max ,caliber))))))
 
 
-(defmacro default (variable choices)
-  "If NULL, default VARIABLE to the first of CHOICES."
+(defmacro default
+    (prefix name
+     &aux (variable (intern (format nil "~A" name)))
+	  (choices (intern (format nil "*~A-~AS*" prefix name))))
+  "If NAMEd variable is null, set it to the first *PREFIX-NAMES* choice.
+Note the S appended to NAME in the choices variable name."
   `(when (null ,variable) (setq ,variable (car ,choices))))
-
-(defmacro default-variable
-    (variable prefix
-     &aux (choices (intern (format nil "*~A-~AS*" prefix variable))))
-  "If NULL, default VARIABLE to the first choice in *PREFIX-VARIABLES*.
-Note the S appended to VARIABLE in the choices constant name."
-  `(default ,variable ,choices))
-
-
 
 
 (defun car-or-symbol (object)

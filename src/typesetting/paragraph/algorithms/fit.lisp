@@ -107,16 +107,8 @@
   "Define a NAMEd Fit caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber fit ,name ,min ,default ,max))
 
-(defmacro calibrate-fit (name &optional infinity)
-  "Calibrate NAMEd Fit variable."
-  `(calibrate fit ,name ,infinity))
-
 (define-fit-caliber hyphen-penalty -1000 50 1000)
 (define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
-
-
-(defmacro fit-default (variable)
-  `(default-variable ,variable fit))
 
 
 (defparameter *fit-tooltips*
@@ -377,13 +369,22 @@ for equally bad solutions."))
 	    &key width sloppy)
     (create-justified-line lineup start stop width sloppy)))
 
+
+(defmacro calibrate-fit (name &optional infinity)
+  "Calibrate NAMEd Fit variable."
+  `(calibrate fit ,name ,infinity))
+
+(defmacro default-fit (name)
+  "Default Fit NAMEd variable."
+  `(default fit ,name))
+
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :fit))
      &key variant discriminating-function
 	  hyphen-penalty explicit-hyphen-penalty
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
-  (fit-default variant)
-  (fit-default discriminating-function)
+  (default-fit variant)
+  (default-fit discriminating-function)
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
   (loop :for start := 0 :then (next-start boundary)

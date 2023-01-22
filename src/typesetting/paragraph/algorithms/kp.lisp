@@ -15,10 +15,6 @@
   "Define a NAMEd Knuth-Plass caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber kp ,name ,min ,default ,max))
 
-(defmacro calibrate-kp (name &optional infinity)
-  "Calibrate NAMEd Knuth-Plass variable."
-  `(calibrate kp ,name ,infinity))
-
 (define-kp-caliber line-penalty 0 10 100)
 (define-kp-caliber hyphen-penalty -10000 50 10000)
 (define-kp-caliber explicit-hyphen-penalty -10000 50 10000)
@@ -30,12 +26,10 @@
 (define-kp-caliber emergency-stretch 0 0 20)
 (define-kp-caliber looseness -10 0 10)
 
+
 (defparameter *kp-tooltips*
   '(:kp-variant-graph "Graph-based implementation."
     :kp-variant-dynamic "Dynamic programming implementation."))
-
-(defmacro kp-default (variable)
-  `(default-variable ,variable kp))
 
 
 (defun scale-fitness-class (scale)
@@ -378,13 +372,22 @@
 		 lines)
 	    :finally (return lines)))))
 
+
+(defmacro calibrate-kp (name &optional infinity)
+  "Calibrate NAMEd Knuth-Plass variable."
+  `(calibrate kp ,name ,infinity))
+
+(defmacro default-kp (name)
+  "Default Knuth-Plass NAMEd variable."
+  `(default kp ,name))
+
 (defmethod create-lines
     (lineup width disposition (algorithm (eql :knuth-plass))
      &key variant
 	  line-penalty hyphen-penalty explicit-hyphen-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
 	  pre-tolerance tolerance emergency-stretch looseness)
-  (kp-default variant)
+  (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
