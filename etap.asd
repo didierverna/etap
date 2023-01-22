@@ -28,11 +28,11 @@
 		((:file "common")
 		 (:module "algorithms"
 		  :components
-			  ((:file "base")
-			   (:file "fixed" :depends-on ("base"))
-			   (:file "fit" :depends-on  ("base"))
-			   (:file "barnett" :depends-on  ("base"))
-			   (:file "node" :depends-on ("base"))
+			  ((:file "common")
+			   (:file "fixed" :depends-on ("common"))
+			   (:file "fit" :depends-on  ("common"))
+			   (:file "barnett" :depends-on  ("common"))
+			   (:file "node" :depends-on ("common"))
 			   (:file "duncan" :depends-on  ("node"))
 			   (:file "kp" :depends-on  ("node"))))
 		 (:file "paragraph")))))
