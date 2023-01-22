@@ -21,8 +21,10 @@
      (:file "lineup")
      (:file "common")
      (:module "paragraph"
+      :serial t
       :components
-      ((:module "algorithms"
+      ((:file "common")
+       (:module "algorithms"
 	:components
 		((:file "base")
 		 (:file "fixed" :depends-on ("base"))
