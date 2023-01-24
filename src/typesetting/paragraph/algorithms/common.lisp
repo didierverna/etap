@@ -5,60 +5,6 @@
 ;; Lineup Utilities
 ;; ================
 
-;; ------------
-;; Lineup spans
-;; ------------
-
-(defstruct (span :conc-name
-		 (:constructor make-span (normal-width min-width max-width)))
-  "The SPAN structure.
-A span contains normal, min, and max width information, and represents
-length properties of a lineup (chunk)."
-  normal-width min-width max-width)
-
-(defmethod width ((span span))
-  "Return SPAN's normal width."
-  (normal-width span))
-
-(defun lineup-span (lineup start stop)
-  "Return the span of LINEUP between START and STOP."
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (make-span width (- width shrink) (+ width stretch))))
-
-
-;; -----------------
-;; Lineup boundaries
-;; -----------------
-
-(defstruct (boundary
-	    :conc-name
-	    (:constructor make-boundary (stop next-start)))
-  "The BOUNDARY structure.
-A boundary contains a STOP index at which a lineup can be broken, and a
-NEXT-START at which the next line may begin."
-  stop next-start)
-
-(defun word-boundary-p (lineup boundary)
-  "Return T if BOUNDARY is at an end of word in LINEUP."
-  (word-stop-p lineup (stop boundary)))
-
-(defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
-  "Return the next boundary in LINEUP from START, or NIL."
-  (unless (= start length)
-    (let ((point (position-if #'break-point-p lineup :start (1+ start))))
-      ;; #### WARNING: this is a kludge to never break at the end of the final
-      ;; word (that is, just before the final glue). Otherwise, we would end
-      ;; up with a line containing only the final glue. TeX does it by adding
-      ;; \penalty10000 before the final glue (and it also adds \penalty-10000
-      ;; afterwards), but we don't have that level of generality yet.
-      (when (eql point (1- length)) (setq point nil))
-      (if point
-	(let ((next (1+ point)))
-	  (typecase (aref lineup point)
-	    (glue (make-boundary point next))
-	    (discretionary (make-boundary next point))))
-	(make-boundary length length)))))
-
 
 
 ;; =========================
