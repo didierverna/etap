@@ -1,22 +1,21 @@
 (in-package :etap)
 
 
-;; ================
-;; Lineup Utilities
-;; ================
-
-
-
 ;; =========================
 ;; Parametrization Utilities
 ;; =========================
 
+;; For easy exchange with the interface and manipulation as function keyword
+;; parameters.
+
 (defun algorithm-type (algorithm)
-  "Return ALGORITHM type."
+  "Return ALGORITHM type.
+ALGORITHM is either a symbol, or a list of the form (NAME OPTIONS...)."
   (car-or-symbol algorithm))
 
 (defun algorithm-options (algorithm)
-  "Return ALGORITHM options."
+  "Return ALGORITHM options.
+ALGORITHM is either a symbol, or a list of the form (NAME OPTIONS...)."
   (cdr-or-nil algorithm))
 
 
@@ -56,25 +55,25 @@ Note the S appended to NAME in the choices variable name."
 
 
 
-(defparameter *maximum-badness* 10000)
+;; ====================
+;; Extended Arithmetics
+;; ====================
 
-(defun scale-badness (scale)
-  (if (or (null scale) (< scale -1))
-    :+infinity
-    (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
-
-(defun badness (lineup start stop width &optional emergency-stretch)
-  (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
+;; Arithmetics with a notion of infinity.
 
 (defun !< (x y)
+  "Infinity handling <."
   (cond ((eql x y) nil)
 	((and (numberp x) (numberp y)) (< x y))
 	((or (eq x :-infinity) (eq y :+infinity)) t)
 	(t nil)))
 
-(defun !<= (x y) (or (eql x y) (!< x y)))
+(defun !<= (x y)
+  "Infinity handling <=."
+  (or (eql x y) (!< x y)))
 
 (defun !+ (x y)
+  "Infinity handling +."
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)
 	((numberp y) x)
@@ -88,6 +87,7 @@ Note the S appended to NAME in the choices variable name."
 	(t :+infinity)))
 
 (defun !expt (base power)
+  "Infinity handling (BASE only) expt."
   (cond ((eq base :+infinity) :+infinity)
 	((numberp base) (expt base power))
 	((eq base :-infinity)
@@ -96,5 +96,28 @@ Note the S appended to NAME in the choices variable name."
 	       (t :-infinity)))))
 
 
+
+;; ====================
+;; Quality measurements
+;; ====================
+
+(defparameter *maximum-badness* 10000)
+
+(defun scale-badness (scale)
+  (if (or (null scale) (< scale -1))
+    :+infinity
+    (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
+
+(defun badness (lineup start stop width &optional emergency-stretch)
+  (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
+
+
+
+;; ===========
+;; Entry Point
+;; ===========
+
 (defgeneric create-lines
-    (lineup width disposition algorithm &key &allow-other-keys))
+    (lineup width disposition algorithm &key &allow-other-keys)
+  (:documentation
+   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))
