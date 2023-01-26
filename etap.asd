@@ -14,12 +14,16 @@
     :components
     ((:file "meta")
      (:file "util")
-     (:module "typesetting"
+     (:module "font"
       :serial t
       :components
       ((:file "glyphlist")
        (:file "lm-ec")
-       (:file "hyphenation")
+       (:file "map")))
+     (:module "typesetting"
+      :serial t
+      :components
+	      ((:file "hyphenation")
        (:file "lineup")
        (:file "common")
        (:module "paragraph"

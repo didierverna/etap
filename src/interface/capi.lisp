@@ -270,11 +270,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
-					 (gethash
-					  (aref *lm-ec-encoding*
-						(tfm:code
-						 (character-metrics object)))
-					  *glyph-list*)
+					 (aref *lm-ec-map*
+					       (tfm:code
+						(character-metrics object)))
 					 (+ x (x object))
 					 y)))
 				  ((pinned-hyphenation-clue-p object)
