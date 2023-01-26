@@ -23,9 +23,10 @@ it; and this ball was her favorite plaything."
 ;; =================
 
 (defclass context ()
-  ((font :initform *font* :reader font
+  ((font :initform *font*
+	 :reader font
 	 :documentation "The TFM font description object.")
-   (hyphenation-rules :initform (create-hyphenation-rules)
+   (hyphenation-rules :initform *hyphenation-rules*
 		      :reader hyphenation-rules
 		      :documentation "The hyphenation rules object.")
    (algorithm :initform :fixed :initarg :algorithm

@@ -355,7 +355,7 @@ discretionaries if HYPHENATION-RULES is non-NIL."
     ;; A word with explicit hyphens must not be hyphenated in any other way.
     (setq hyphenation-points
 	  (or (hyphen-positions+1 word)
-	      (hyphenation-points word hyphenation-rules))))
+	      (hyphenate word hyphenation-rules))))
   (if hyphenation-points
     (loop :with pre-break := (list (get-character #\- font))
 	  :for i :from 0

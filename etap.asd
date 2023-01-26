@@ -21,7 +21,11 @@
        (:file "lm-ec.enc")
        (:file "lm-ec")
        (:file "font")))
-     (:file "hyphenation")
+     (:module "hyphenation"
+      :serial t
+      :components ((:file "rules")
+		   (:file "load")
+		   (:file "hyphenate")))
      (:module "typesetting"
       :serial t
       :components
