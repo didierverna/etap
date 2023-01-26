@@ -16,11 +16,10 @@
      (:file "util")
      (:module "font"
       :serial t
-      :components
-      ((:file "glyphlist.txt")
-       (:file "lm-ec.enc")
-       (:file "lm-ec")
-       (:file "font")))
+      :components ((:file "glyphlist.txt")
+		   (:file "lm-ec.enc")
+		   (:file "lm-ec")
+		   (:file "font")))
      (:module "hyphenation"
       :serial t
       :components ((:file "rules")
