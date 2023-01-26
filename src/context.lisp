@@ -5,34 +5,37 @@
 ;; =================
 
 (defclass context ()
-  ((font :initform *font*
-	 :reader font
-	 :documentation "The TFM font description object.")
+  ((font :initform *font* :initarg :font :accessor font
+	 :documentation "The TFM font.")
    (hyphenation-rules :initform *hyphenation-rules*
-		      :reader hyphenation-rules
-		      :documentation "The hyphenation rules object.")
-   (algorithm :initform :fixed :initarg :algorithm
-	      :accessor algorithm
-	      :documentation "The algorithm to use.")
+		      :initarg :hyphenation-rules
+		      :accessor hyphenation-rules
+		      :documentation "The hyphenation rules.")
+   (algorithm :initform :fixed :initarg :algorithm :accessor algorithm
+	      :documentation "The typesetting algorithm.")
    (disposition :initform :flush-left :initarg :disposition
 		:accessor disposition
-		:documentation "The requested disposition.")
+		:documentation "The paragraph's disposition.")
    (features :initform (list) :initarg :features
 	     :accessor features
-	     :documentation "The list of requested features.")
+	     :documentation "The features.")
    (paragraph-width :initform 284 ;; 284.52756pt = 10cm
 		    :initarg :paragraph-width
 		    :accessor paragraph-width
 		    :documentation "The requested paragraph width in points.")
-   (text :initform *initial-text* :initarg :text
-	 :accessor text
-	 :documentation "The paragraph's text."))
+   (text :initform *text* :initarg :text :accessor text
+	 :documentation "The paragraph text."))
   (:documentation "The CONTEXT class.
 A context object stores the requested parameters for one experiment."))
 
 (defun make-context
-    (&rest keys &key algorithm disposition features paragraph-width text)
-  (declare (ignore algorithm disposition features paragraph-width text))
+    (&rest keys
+     &key font hyphenation-rules algorithm disposition features
+	  paragraph-width
+	  text)
+  (declare (ignore font hyphenation-rules algorithm disposition features
+		   paragraph-width
+		   text))
   "Create a new context object."
   (apply #'make-instance 'context keys))
 
