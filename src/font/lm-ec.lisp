@@ -1,6 +1,6 @@
 (in-package :etap)
 
-(defvar *lm-ec-map*
+(defvar *lm-ec*
   (let ((map (make-array (length *lm-ec-encoding*))))
     (loop :for i :from 0 :upto (1- (length map))
 	  :do (setf (aref map i)

@@ -270,7 +270,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
-					 (aref *lm-ec-map*
+					 (aref *lm-ec*
 					       (tfm:code
 						(character-metrics object)))
 					 (+ x (x object))
