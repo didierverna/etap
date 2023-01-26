@@ -20,11 +20,11 @@
       ((:file "glyphlist")
        (:file "lm-ec")
        (:file "map")))
+     (:file "hyphenation")
      (:module "typesetting"
       :serial t
       :components
-	      ((:file "hyphenation")
-       (:file "lineup")
+      ((:file "lineup")
        (:file "common")
        (:module "paragraph"
 	:serial t
