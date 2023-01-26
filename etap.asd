@@ -19,7 +19,8 @@
       :components
       ((:file "glyphlist.txt")
        (:file "lm-ec.enc")
-       (:file "lm-ec")))
+       (:file "lm-ec")
+       (:file "font")))
      (:file "hyphenation")
      (:module "typesetting"
       :serial t

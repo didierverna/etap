@@ -15,9 +15,6 @@ when she was bored she took a golden ball, and threw it up on high and caught
 it; and this ball was her favorite plaything."
   "The initial paragraph text.")
 
-(defparameter *font-file*
-  (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm")
-  "The TFM font file.")
 
 
 
@@ -26,8 +23,7 @@ it; and this ball was her favorite plaything."
 ;; =================
 
 (defclass context ()
-  ((font :initform (tfm:load-font *font-file* :freeze t)
-	 :reader font
+  ((font :initform *font* :reader font
 	 :documentation "The TFM font description object.")
    (hyphenation-rules :initform (create-hyphenation-rules)
 		      :reader hyphenation-rules
