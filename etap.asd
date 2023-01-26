@@ -17,8 +17,8 @@
      (:module "font"
       :serial t
       :components
-      ((:file "glyphlist")
-       (:file "lm-ec")
+      ((:file "glyphlist.txt")
+       (:file "lm-ec.enc")
        (:file "map")))
      (:file "hyphenation")
      (:module "typesetting"
