@@ -25,6 +25,7 @@
       :components ((:file "rules")
 		   (:file "load")
 		   (:file "hyphenate")))
+     (:file "context")
      (:module "typesetting"
       :serial t
       :components
@@ -44,7 +45,6 @@
 			   (:file "duncan" :depends-on  ("node"))
 			   (:file "kp" :depends-on  ("node"))))
 		 (:file "paragraph")))))
-     (:file "context")
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))

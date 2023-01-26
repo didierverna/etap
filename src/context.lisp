@@ -1,9 +1,5 @@
 (in-package :etap)
 
-;; =================
-;; The Context Class
-;; =================
-
 (defclass context ()
   ((font :initform *font* :initarg :font :accessor font
 	 :documentation "The TFM font.")
@@ -41,34 +37,3 @@ A context object stores the requested parameters for one experiment."))
 
 (defvar *context* (make-context)
   "The global context.")
-
-
-
-;; =================
-;; Context Utilities
-;; =================
-
-(defun make-context-lineup (&optional (context *context*))
-  "Make a new lineup for CONTEXT (the global context by default)."
-  (apply #'make-lineup
-    (text context)
-    (font context)
-    (hyphenation-rules context)
-    (features context)))
-
-(defun make-context-paragraph
-    (&optional (context *context*)
-     &aux (width (paragraph-width context))
-	  (lineup (make-context-lineup context)))
-  "Make a new paragraph for CONTEXT (the global context by default)."
-  (make-paragraph width
-		  (create-pinned-lines
-		   (when lineup
-		     (apply #'create-lines
-		       lineup
-		       width
-		       (disposition context)
-		       (algorithm-type (algorithm context))
-		       (algorithm-options (algorithm context))))
-		   width
-		   (disposition-type (disposition context)))))

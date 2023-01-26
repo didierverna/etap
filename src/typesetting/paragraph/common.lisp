@@ -52,8 +52,8 @@ The character's 2D position is relative to the line it belongs to."))
   "Return pinned CHARACTER's depth."
   (depth (character-metrics character)))
 
-(defun make-pinned-character (character &rest initargs &key x y)
-  "Make a new pinned CHARACTER at position (X, Y)."
+(defun pin-character (character &rest initargs &key x y)
+  "Pin CHARACTER at position (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-character
     :character-metrics character initargs))
@@ -80,8 +80,8 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
   "Return pinned hyphenation clue's depth (0)."
   0)
 
-(defun make-pinned-hyphenation-clue (&rest initargs &key x y)
-  "Make a new pinned hyphenation clue at (X, Y)."
+(defun pin-hyphenation-clue (&rest initargs &key x y)
+  "Pin hyphenation clue at (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-hyphenation-clue initargs))
 
@@ -129,9 +129,9 @@ origin."))
   (make-line (loop :with x := 0
 		   :for elt :in (flatten-lineup lineup start end)
 		   :if (eq elt :hyphenation-clue)
-		     :collect (make-pinned-hyphenation-clue :x x)
+		     :collect (pin-hyphenation-clue :x x)
 		   :else :if (typep elt 'tfm:character-metrics)
-		     :collect (make-pinned-character elt :x x)
+		     :collect (pin-character elt :x x)
 		     :and :do (incf x (width elt))
 		   :else :if (kernp elt)
 		     :do (incf x (width elt))

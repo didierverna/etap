@@ -384,10 +384,10 @@ Currently, this means alphabetic or a dash."
   (or (alpha-char-p char) (char= char #\-)))
 
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
-;; #### does and should certainly be improved. For instance, TeX will consider
-;; #### only one word between two glues, so for instance in "... foo.bar ...",
-;; #### bar will never be hyphenated. There are also other rules that prevent
-;; #### hyphenation in some situations, which we do not have right now.
+;; does and should certainly be improved. For instance, TeX will consider only
+;; one word between two glues, so for instance in "... foo.bar ...", bar will
+;; never be hyphenated. There are also other rules that prevent hyphenation in
+;; some situations, which we do not have right now.
 (defun slice-text (text font hyphenation-rules)
   "Slice TEXT (a string) in FONT, possibly with HYPHENATION-RULES.
 Return a list of characters from FONT, interword glues, and discretionaries if
@@ -422,11 +422,21 @@ inner consecutive blanks are replaced with a single interword glue."
 ;; ------------------
 
 (defun make-lineup
-    (text font hyphenation-rules
-     &key kerning ligatures hyphenation
+    (&key (context *context*)
+	  (text (if context (text context) *text*))
+	  (font (if context (font context) *font*))
+	  (hyphenation-rules (if context (hyphenation-rules context)
+				 *hyphenation-rules*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation))
      &aux (lineup (slice-text text font (when hyphenation hyphenation-rules))))
-  "Make  a new lineup from TEXT (a string) in FONT with HYPHENATION-RULES.
-Optionally perform KERNING, add LIGATURES, and process HYPHENATION."
+  "Make a new lineup.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
+corresponding global variable, and KERNING, LIGATURES, and HYPHENATION are
+defaulted from FEATURES."
   ;; #### NOTE: the order is important below. Kerning must be computed after
   ;; ligature characters have been inserted, and the processing of ligatures
   ;; and kerning may affect the contents of discretionaries, so we must add

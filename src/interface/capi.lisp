@@ -7,7 +7,7 @@
 (defun update (interface &aux (context (context interface)))
   "Update INTERFACE.
 This recreates the typeset paragraph and invalidates the GUI's view."
-  (setf (paragraph interface) (make-context-paragraph context))
+  (setf (paragraph interface) (make-paragraph :context context))
   (gp:invalidate-rectangle (view interface)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)

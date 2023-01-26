@@ -12,6 +12,21 @@ it; and this ball was her favorite plaything."
   "The text.")
 
 
+(defun select-keys (keys &rest selected)
+  "Return a new property list from KEYS with only SELECTED ones."
+  (loop :for key :in keys :by #'cddr
+	:for val :in (cdr keys) :by #'cddr
+	:when (member key selected)
+	  :nconc (list key val)))
+
+(defun remove-keys (keys &rest removed)
+  "Return a new property list from KEYS without REMOVED ones."
+  (loop :for key :in keys :by #'cddr
+	:for val :in (cdr keys) :by #'cddr
+	:unless (member key removed)
+	  :nconc (list key val)))
+
+
 (defmacro endpush (object place)
   "Push OBJECT at the end of PLACE."
   `(setf ,place (nconc ,place (list ,object))))

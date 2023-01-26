@@ -32,20 +32,20 @@ The line's 2D position is relative to the paragraph it belongs to."))
   "Return pinned LINE's depth."
   (depth (line line)))
 
-(defun make-pinned-line (line &rest initargs &key x y)
-  "Make a pinned LINE at position (X, Y)."
+(defun pin-line (line &rest initargs &key x y)
+  "Pin LINE at position (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-line :line line initargs))
 
-(defun create-pinned-lines (lines width disposition)
-  "Create pinned LINES for paragraph WIDTH and DISPOSITION."
+(defun pin-lines (lines disposition width)
+  "Pin LINES in DISPOSITION for paragraph WIDTH."
   (loop :for line :in lines
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
-	:for y := 0 :then (+ y 12)
-	:collect (make-pinned-line line :x x :y y)))
+	:for y := 0 :then (+ y 12) ;; #### FIXME: previous line's height!
+	:collect (pin-line line :x x :y y)))
 
 
 
@@ -75,6 +75,39 @@ We consider that the paragraph's baseline is the first line's baseline."
   (with-accessors ((pinned-lines pinned-lines)) paragraph
     (+ (* (1- (length pinned-lines)) 12) (depth (car (last pinned-lines))))))
 
-(defun make-paragraph (width pinned-lines)
-  "Make a new paragraph of WIDTH with PINNED-LINES."
-  (make-instance 'paragraph :width width :pinned-lines pinned-lines))
+(defun make-paragraph
+    (&rest keys
+     &key (context *context*)
+	  (text (if context (text context) *text*))
+	  (font (if context (font context) *font*))
+	  (hyphenation-rules (if context (hyphenation-rules context)
+				 *hyphenation-rules*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation))
+	  (lineup nil lineupp)
+	  (disposition (if context (disposition context) :flush-left))
+	  (algorithm (if context (algorithm context) :fixed))
+	  (width (if context (paragraph-width context) 284)))
+  "Make a new paragraph.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
+corresponding global variable, KERNING, LIGATURES, and HYPHENATION are
+defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
+:fixed, and WIDTH to 284pt."
+  (declare (ignore text font hyphenation-rules kerning ligatures hyphenation))
+  (unless lineupp
+    (setq lineup
+	  (apply #'make-lineup
+	    (select-keys keys :context :text :font :hyphenation-rules
+			      :features :kerning :ligatures :hyphenation))))
+  (make-instance 'paragraph
+    :width width
+    :pinned-lines (pin-lines
+		   (when lineup
+		     (apply #'create-lines
+		       lineup width disposition (algorithm-type algorithm)
+		       (algorithm-options algorithm)))
+		   (disposition-type disposition)
+		   width)))
