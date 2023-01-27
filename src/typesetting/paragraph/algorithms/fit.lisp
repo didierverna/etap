@@ -341,7 +341,7 @@ for equally bad solutions."))
 			 (t
 			  (cdar sorted-weights)))))))))
 
-(defgeneric fit-create-line
+(defgeneric fit-make-line
     (lineup start stop disposition variant &key &allow-other-keys)
   (:method (lineup start stop disposition (variant (eql :first))
 	    &key width relax
@@ -355,16 +355,16 @@ for equally bad solutions."))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))
-    (create-line lineup start stop scale))
+    (make-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
-    (create-line lineup start stop))
+    (make-line lineup start stop))
   (:method (lineup start stop disposition (variant (eql :last))
 	    &key width relax
 	    &aux (scale -1))
     (when relax
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
 		    (if (and scale (< scale 0)) scale 0))))
-    (create-line lineup start stop scale))
+    (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy)
     (create-justified-line lineup start stop width sloppy)))
@@ -398,7 +398,7 @@ for equally bad solutions."))
 	       :explicit-hyphen-penalty explicit-hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
-	:collect (apply #'fit-create-line lineup start (stop boundary)
+	:collect (apply #'fit-make-line lineup start (stop boundary)
 			(disposition-type disposition) variant
 			:width width
 			:relax relax

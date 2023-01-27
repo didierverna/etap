@@ -112,35 +112,32 @@ origin."))
   "Return LINE's depth."
   (loop :for object :in (pinned-objects line) :maximize (depth object)))
 
-(defun make-line (objects)
-  "Make a new line of pinned OBJECTS"
-  (make-instance 'line :pinned-objects objects))
-
-
 (defun flatten-lineup (lineup start stop)
   "Return a flattened list of LINEUP elements between START and STOP."
   (loop :for i :from start :upto (1- stop)
 	:for elt := (lineup-aref lineup i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
-(defun create-line (lineup start end &optional (scale 0))
-  "Create a possibly SCALEd line from LINEUP chunk between START and STOP."
-  (unless end (setq end (length lineup)))
-  (make-line (loop :with x := 0
-		   :for elt :in (flatten-lineup lineup start end)
-		   :if (eq elt :hyphenation-clue)
-		     :collect (pin-hyphenation-clue :x x)
-		   :else :if (typep elt 'tfm:character-metrics)
-		     :collect (pin-character elt :x x)
-		     :and :do (incf x (width elt))
-		   :else :if (kernp elt)
-		     :do (incf x (width elt))
-		   :else :if (gluep elt)
-		     :do (incf x (width elt))
-		     :and :unless (zerop scale)
-			    :do (incf x (if (> scale 0)
-					  (* scale (stretch elt))
-					  (* scale (shrink elt)))))))
+(defun make-line (lineup start stop &optional (scale 0))
+  "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
+  (unless stop (setq stop (length lineup)))
+  (make-instance 'line
+    :pinned-objects
+    (loop :with x := 0
+	  :for elt :in (flatten-lineup lineup start stop)
+	  :if (eq elt :hyphenation-clue)
+	    :collect (pin-hyphenation-clue :x x)
+	  :else :if (typep elt 'tfm:character-metrics)
+		  :collect (pin-character elt :x x)
+		  :and :do (incf x (width elt))
+	  :else :if (kernp elt)
+		  :do (incf x (width elt))
+	  :else :if (gluep elt)
+		  :do (incf x (width elt))
+		  :and :unless (zerop scale)
+			 :do (incf x (if (> scale 0)
+				       (* scale (stretch elt))
+				       (* scale (shrink elt)))))))
 
 (defun create-justified-line
     (lineup start stop width sloppy
@@ -151,9 +148,9 @@ If elasticity is available, get as close as possible to WIDTH within the
 limits of the available elasticity, unless SLOPPY, in which case disregard
 those limits."
   (if scale
-    (create-line lineup start stop
+    (make-line lineup start stop
 		 (cond (sloppy (max scale -1))
 		       ((zerop scale) 0)
 		       ((< scale 0) (max scale -1))
 		       ((> scale 0) (min scale 1))))
-    (create-line lineup start stop)))
+    (make-line lineup start stop)))

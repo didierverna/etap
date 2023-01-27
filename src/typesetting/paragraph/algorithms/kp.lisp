@@ -164,9 +164,9 @@
 	:if justified
 	  :collect (create-justified-line lineup start stop width sloppy)
 	:else
-	  :collect (create-line lineup start stop)))
+	  :collect (make-line lineup start stop)))
 
-(defun kp-graph-create-lines
+(defun kp-graph-make-lines
     (lineup width disposition
      line-penalty hyphen-penalty explicit-hyphen-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -310,7 +310,7 @@
 		  final-hyphen-demerits emergency-stretch))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
-(defun kp-dynamic-create-lines
+(defun kp-dynamic-make-lines
     (lineup width disposition
      line-penalty hyphen-penalty explicit-hyphen-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -368,7 +368,7 @@
 	    :do (push
 		 (if justified
 		   (create-justified-line lineup start stop width sloppy)
-		   (create-line lineup start stop))
+		   (make-line lineup start stop))
 		 lines)
 	    :finally (return lines)))))
 
@@ -405,12 +405,12 @@
   (calibrate-kp looseness)
   (ecase variant
     (:graph
-     (kp-graph-create-lines lineup width disposition
+     (kp-graph-make-lines lineup width disposition
        line-penalty hyphen-penalty explicit-hyphen-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))
     (:dynamic
-     (kp-dynamic-create-lines lineup width disposition
+     (kp-dynamic-make-lines lineup width disposition
        line-penalty hyphen-penalty explicit-hyphen-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))))

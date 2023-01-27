@@ -93,4 +93,4 @@
 		    lineup start (stop boundary) width
 		    (cadr (member :sloppy (disposition-options disposition))))
 	:else
-	  :collect (create-line lineup start (stop boundary))))
+	  :collect (make-line lineup start (stop boundary))))
