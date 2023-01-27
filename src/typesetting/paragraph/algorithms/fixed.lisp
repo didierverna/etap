@@ -145,6 +145,7 @@ choose the overfull rather than the underfull one."))
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
      &rest keys &key variant avoid-hyphens prefer-overfulls)
+  "Typeset LINEUP with the Fixed algorithm."
   (declare (ignore variant avoid-hyphens prefer-overfulls))
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
