@@ -549,9 +549,9 @@ length properties of a lineup (chunk)."
 ;; Lineup scales
 ;; -------------
 
-(defun lineup-scale (lineup start stop target &optional emergency-stretch)
+(defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
-STOP to reach TARGET width, possibly with EMERGENCY-STRETCH.
+STOP to reach TARGET width, possibly with EXTRA stretch.
 The amount in question is 0 if the chunk's normal width is equal to TARGET.
 Otherwise, it's a stretching (positive) or shrinking (negative) ratio relative
 to the chunk's elasticity. In other words, the absolute ratio would be one if
@@ -561,7 +561,7 @@ needed, and lesser than one if more elasticity than needed is available.
 Return NIL if no elasticity is available and the chunk's normal width is
 different from TARGET."
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (when emergency-stretch (incf stretch emergency-stretch))
+    (when extra (incf stretch extra))
     (cond ((= width target)
 	   0)
 	  ((< width target)
