@@ -48,6 +48,7 @@ choose the overfull rather than the underfull one."))
 (defun fixed-line-boundary
     (lineup start width
      &key (variant (car *fixed-variants*)) avoid-hyphens prefer-overfulls)
+  "Return the Fixed algorithm's view of the end of line boundary."
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underfull-w :with hyphen-underfull-w :with word-underfull-w
 	:with fit
