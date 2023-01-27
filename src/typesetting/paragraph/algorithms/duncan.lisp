@@ -110,7 +110,7 @@
 	:and start := 0 :then (next-start (boundary (node edge)))
 	:for stop := (stop (boundary (node edge)))
 	:if justified
-	  :collect (create-justified-line lineup start stop width sloppy)
+	  :collect (make-justified-line lineup start stop width sloppy)
 	:else
 	  :collect (make-line lineup start stop)))
 

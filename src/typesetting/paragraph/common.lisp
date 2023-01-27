@@ -139,7 +139,7 @@ origin."))
 				       (* scale (stretch elt))
 				       (* scale (shrink elt)))))))
 
-(defun create-justified-line
+(defun make-justified-line
     (lineup start stop width sloppy
      &aux (scale (lineup-scale lineup start stop width)))
   "Create a line from LINEUP chunk between START and STOP, justified to WIDTH.

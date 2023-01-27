@@ -89,7 +89,7 @@
 	:until (= start (length lineup))
 	:for boundary := (barnett-line-boundary lineup start width)
 	:if (eq (disposition-type disposition) :justified)
-	  :collect (create-justified-line
+	  :collect (make-justified-line
 		    lineup start (stop boundary) width
 		    (cadr (member :sloppy (disposition-options disposition))))
 	:else
