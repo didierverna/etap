@@ -443,7 +443,7 @@ defaulted from FEATURES."
   ;; hyphenation clues only after everything else has been done.
   (when ligatures (setq lineup (process-ligatures lineup)))
   (when kerning (setq lineup (process-kerning lineup)))
-  (when (and lineup hyphenation)
+  (when hyphenation
     (mapc (lambda (element)
 	    (when (discretionaryp element)
 	      (push :hyphenation-clue (no-break element))))
