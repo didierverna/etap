@@ -117,7 +117,7 @@ Note the S appended to NAME in the choices variable name."
 ;; Entry Point
 ;; ===========
 
-(defgeneric create-lines
-    (lineup width disposition algorithm &key &allow-other-keys)
+(defgeneric make-lines
+    (lineup disposition width algorithm &key &allow-other-keys)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))

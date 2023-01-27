@@ -106,8 +106,8 @@ defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
     :width width
     :pinned-lines (pin-lines
 		   (when lineup
-		     (apply #'create-lines
-		       lineup width disposition (algorithm-type algorithm)
+		     (apply #'make-lines
+		       lineup disposition width (algorithm-type algorithm)
 		       (algorithm-options algorithm)))
 		   (disposition-type disposition)
 		   width)))

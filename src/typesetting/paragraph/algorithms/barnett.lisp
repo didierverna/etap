@@ -83,8 +83,8 @@
 		   (t
 		    (or word-overfull word-underfull))))))
 
-(defmethod create-lines
-    (lineup width disposition (algorithm (eql :barnett)) &key)
+(defmethod make-lines
+    (lineup disposition width (algorithm (eql :barnett)) &key)
   (loop :for start := 0 :then (next-start boundary)
 	:until (= start (length lineup))
 	:for boundary := (barnett-line-boundary lineup start width)

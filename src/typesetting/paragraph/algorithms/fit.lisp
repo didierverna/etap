@@ -378,8 +378,8 @@ for equally bad solutions."))
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
-(defmethod create-lines
-    (lineup width disposition (algorithm (eql :fit))
+(defmethod make-lines
+    (lineup disposition width (algorithm (eql :fit))
      &key variant discriminating-function
 	  hyphen-penalty explicit-hyphen-penalty
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)

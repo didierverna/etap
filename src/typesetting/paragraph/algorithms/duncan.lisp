@@ -103,7 +103,7 @@
 
 
 (defun duncan-make-lines
-    (lineup width disposition layout
+    (lineup disposition width layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
@@ -114,8 +114,8 @@
 	:else
 	  :collect (make-line lineup start stop)))
 
-(defmethod create-lines
-    (lineup width disposition (algorithm (eql :duncan))
+(defmethod make-lines
+    (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   (declare (ignore discriminating-function))
   (let* ((graph (apply #'paragraph-graph lineup width :duncan options))
@@ -139,12 +139,12 @@
 			     (zerop (overfulls layout))))
 		      layouts)))
     (cond (perfects
-	   (duncan-make-lines lineup width disposition (car perfects)))
+	   (duncan-make-lines lineup disposition width (car perfects)))
 	  (hyphened
 	   (let ((minimum-hyphens (loop :for layout :in hyphened
 					:minimize (hyphens layout))))
 	     (duncan-make-lines
-	      lineup width disposition
+	      lineup disposition width
 	      (car (sort (remove-if-not
 			  (lambda (hyphens) (= hyphens minimum-hyphens))
 			  hyphened :key #'hyphens)
@@ -163,5 +163,5 @@
 		  (minimum-hyphens (loop :for misfit :in best-misfits
 					 :minimize (hyphens misfit))))
 	     (duncan-make-lines
-	      lineup width disposition
+	      lineup disposition width
 	      (find minimum-hyphens best-misfits :key #'hyphens)))))))

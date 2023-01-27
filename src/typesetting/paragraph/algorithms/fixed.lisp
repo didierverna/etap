@@ -142,8 +142,8 @@ choose the overfull rather than the underfull one."))
 				underfull underfull-w
 				first-overfull first-overfull-w))))))))))))
 
-(defmethod create-lines
-    (lineup width disposition (algorithm (eql :fixed))
+(defmethod make-lines
+    (lineup disposition width (algorithm (eql :fixed))
      &rest keys &key variant avoid-hyphens prefer-overfulls)
   (declare (ignore variant avoid-hyphens prefer-overfulls))
   (loop :for start := 0 :then (next-start boundary)

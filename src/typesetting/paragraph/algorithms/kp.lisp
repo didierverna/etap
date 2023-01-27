@@ -154,8 +154,8 @@
   (when (hyphenp (nth (- (size layout) 2) (edges layout)))
     (setf (demerits layout) (!+ final-hyphen-demerits (demerits layout)))))
 
-(defun kp-create-layout-lines
-    (lineup width disposition layout
+(defun kp-make-layout-lines
+    (lineup disposition width layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
@@ -167,7 +167,7 @@
 	  :collect (make-line lineup start stop)))
 
 (defun kp-graph-make-lines
-    (lineup width disposition
+    (lineup disposition width
      line-penalty hyphen-penalty explicit-hyphen-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
@@ -208,7 +208,7 @@
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			    :key #'size))))
-    (kp-create-layout-lines lineup width disposition (car layouts))))
+    (kp-make-layout-lines lineup disposition width (car layouts))))
 
 
 (defstruct (kp-node (:constructor kp-make-node))
@@ -311,7 +311,7 @@
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 (defun kp-dynamic-make-lines
-    (lineup width disposition
+    (lineup disposition width
      line-penalty hyphen-penalty explicit-hyphen-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
@@ -381,8 +381,8 @@
   "Default Knuth-Plass NAMEd variable."
   `(default kp ,name))
 
-(defmethod create-lines
-    (lineup width disposition (algorithm (eql :knuth-plass))
+(defmethod make-lines
+    (lineup disposition width (algorithm (eql :knuth-plass))
      &key variant
 	  line-penalty hyphen-penalty explicit-hyphen-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -405,12 +405,12 @@
   (calibrate-kp looseness)
   (ecase variant
     (:graph
-     (kp-graph-make-lines lineup width disposition
+     (kp-graph-make-lines lineup disposition width
        line-penalty hyphen-penalty explicit-hyphen-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))
     (:dynamic
-     (kp-dynamic-make-lines lineup width disposition
+     (kp-dynamic-make-lines lineup disposition width
        line-penalty hyphen-penalty explicit-hyphen-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))))
