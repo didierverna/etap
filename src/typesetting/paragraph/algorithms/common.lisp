@@ -120,4 +120,7 @@ Note the S appended to NAME in the choices variable name."
 (defgeneric make-lines
     (lineup disposition width algorithm &key &allow-other-keys)
   (:documentation
-   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))
+   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
+  (:method ((lineup null) disposition width algorithm &key)
+    "Bypass typesetting for an empty lineup."
+    nil))
