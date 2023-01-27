@@ -1,7 +1,6 @@
-;; This algorithm uses only the normal, fixed, inter-word spacing (hence, it
-;; can practically never justify properly). Lines are created sequentially,
-;; without look-ahead or backtracking: there are no paragraph-wide
-;; considerations.
+;; This algorithm uses only the normal, fixed, inter-word spacing. Lines are
+;; created sequentially, without look-ahead or backtracking: there are no
+;; paragraph-wide considerations.
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
 ;; choice). The "Overfull" one does the opposite. The "Best" one chooses which
@@ -15,7 +14,8 @@
 ;; unless the "Prefer Overfulls" option is checked.
 
 ;; Note that because the inter-word spacing is fixed, there is no difference
-;; between the Flush Left and Justified dispositions.
+;; between the Flush Left and Justified dispositions (justification is
+;; practically never possible), and the sloppy option has no effect.
 
 
 (in-package :etap)
