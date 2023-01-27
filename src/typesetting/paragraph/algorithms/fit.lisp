@@ -367,7 +367,7 @@ for equally bad solutions."))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy)
-    (make-justified-line lineup start stop width sloppy)))
+    (make-wide-line lineup start stop width sloppy)))
 
 
 (defmacro calibrate-fit (name &optional infinity)

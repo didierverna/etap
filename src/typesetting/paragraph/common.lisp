@@ -139,14 +139,15 @@ origin."))
 				       (* scale (stretch elt))
 				       (* scale (shrink elt)))))))
 
-(defun make-justified-line
+(defun make-wide-line
     (lineup start stop width sloppy
      &aux (scale (lineup-scale lineup start stop width)))
-  "Create a line from LINEUP chunk between START and STOP, justified to WIDTH.
-If no elasticity is available, the created line will not be justified.
-If elasticity is available, get as close as possible to WIDTH within the
-limits of the available elasticity, unless SLOPPY, in which case disregard
-those limits."
+  "Make a line of WIDTH from LINEUP chunk between START and STOP.
+If no elasticity is available, the line will remain at its normal width.
+If some elasticity is available, get as close as possible to WIDTH within the
+limits of the available elasticity.
+If SLOPPY, disregard the limits and stretch as needed. Note that even when
+SLOPPY, the line will never be shrunk more than possible. "
   (if scale
     (make-line lineup start stop
 		 (cond (sloppy (max scale -1))

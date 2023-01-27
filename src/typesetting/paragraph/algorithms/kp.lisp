@@ -162,7 +162,7 @@
 	:and start := 0 :then (next-start (boundary (node edge)))
 	:for stop := (stop (boundary (node edge)))
 	:if justified
-	  :collect (make-justified-line lineup start stop width sloppy)
+	  :collect (make-wide-line lineup start stop width sloppy)
 	:else
 	  :collect (make-line lineup start stop)))
 
@@ -367,7 +367,7 @@
 	    :for stop := (stop (kp-node-boundary end))
 	    :do (push
 		 (if justified
-		   (make-justified-line lineup start stop width sloppy)
+		   (make-wide-line lineup start stop width sloppy)
 		   (make-line lineup start stop))
 		 lines)
 	    :finally (return lines)))))
