@@ -121,6 +121,8 @@ Note the S appended to NAME in the choices variable name."
     (lineup disposition width algorithm &key &allow-other-keys)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
-  (:method ((lineup null) disposition width algorithm &key)
-    "Bypass typesetting for an empty lineup."
-    nil))
+  (:method :around (lineup disposition width algorithm &rest args)
+    "Proceed only if LINEUP is not null, and transform it into an array."
+    (when lineup
+      (setq lineup (make-array (length lineup) :initial-contents lineup))
+      (apply #'call-next-method lineup disposition width algorithm args))))

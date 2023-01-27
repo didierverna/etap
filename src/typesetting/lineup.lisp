@@ -448,10 +448,9 @@ defaulted from FEATURES."
 	    (when (discretionaryp element)
 	      (push :hyphenation-clue (no-break element))))
       lineup))
-  (when lineup
-    ;; #### FIXME: this should only be done by TeX's algorithms.
-    (endpush (make-glue 0 100000 0) lineup)
-    (make-array (length lineup) :initial-contents lineup)))
+  ;; #### FIXME: this should only be done by TeX's algorithms.
+  (when lineup (endpush (make-glue 0 100000 0) lineup))
+  lineup)
 
 
 
