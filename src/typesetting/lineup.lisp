@@ -448,8 +448,8 @@ defaulted from FEATURES."
 	    (when (discretionaryp element)
 	      (push :hyphenation-clue (no-break element))))
       lineup))
-  ;; #### FIXME: this should only be done by TeX's algorithms.
-  (when lineup (endpush (make-glue 0 100000 0) lineup))
+  ;; #### FIXME: At least TeX's algorithms need to redo this on their own.
+  ;; (when lineup (endpush (make-glue 0 100000 0) lineup))
   lineup)
 
 
@@ -493,6 +493,7 @@ If element is a discretionary, return the appropriate pre/no/post break part."
 (defun lineup-width (lineup start stop)
   "Compute LINEUP's width between START and STOP.
 Return three values: the total width, stretch, and shrink."
+  ;; #### FIXME: this is ugly. Do we still need this hack ?
   (unless stop (setq stop (length lineup)))
   (loop :with width := 0
 	:with stretch := 0
@@ -564,12 +565,16 @@ different from TARGET."
     (cond ((= width target)
 	   0)
 	  ((< width target)
+	   ;; #### FIXME: this hack has been removed but this currently breaks
+	   ;; the KP algorithm (at least). We need to understand computation
+	   ;; with infinity.
 	   ;; #### WARNING: this is a kludge for the last glue in the
 	   ;; paragraph. We consider that a total stretch of more than 100000
 	   ;; is infinite.
-	   (if (>= stretch 100000)
-	     0
-	     (unless (zerop stretch) (/ (- target width) stretch))))
+	   ;; (if (>= stretch 100000)
+	   ;; 0
+	   (unless (zerop stretch) (/ (- target width) stretch)))
+	  ;; )
 	  ((> width target)
 	   (unless (zerop shrink) (/ (- target width) shrink))))))
 
@@ -583,7 +588,8 @@ different from TARGET."
 	    (:constructor make-boundary (stop next-start)))
   "The BOUNDARY structure.
 A boundary contains a STOP index at which a lineup can be broken, and a
-NEXT-START at which the next line may begin."
+NEXT-START at which the next line may begin. At the end of the lineup,
+the STOP index is at the lineup's length and NEXT-START is NIL."
   stop next-start)
 
 (defun word-boundary-p (lineup boundary)
@@ -591,18 +597,25 @@ NEXT-START at which the next line may begin."
   (word-stop-p lineup (stop boundary)))
 
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
-  "Return the next boundary in LINEUP from START, or NIL."
+  "Return the next boundary in LINEUP after START position, or NIL.
+The last boundary in LINEUP, which is the end of it, is denoted by STOP =
+LINEUP's length, and NEXT-START = NIL. Also, this function understands the
+terminal case where START = LINEUP's length (possibly coming from a previous
+boundary's STOP index, in which case it signals that there is no more boundary
+to find by returning NIL."
   (unless (= start length)
     (let ((point (position-if #'break-point-p lineup :start (1+ start))))
+      ;; #### FIXME: this hack has been removed, but this currently breaks the
+      ;; KP algorithm (at least). We need to support penalties.
       ;; #### WARNING: this is a kludge to never break at the end of the final
       ;; word (that is, just before the final glue). Otherwise, we would end
       ;; up with a line containing only the final glue. TeX does it by adding
       ;; \penalty10000 before the final glue (and it also adds \penalty-10000
       ;; afterwards), but we don't have that level of generality yet.
-      (when (eql point (1- length)) (setq point nil))
+      ;; (when (eql point (1- length)) (setq point nil))
       (if point
 	(let ((next (1+ point)))
 	  (typecase (aref lineup point)
 	    (glue (make-boundary point next))
 	    (discretionary (make-boundary next point))))
-	(make-boundary length length)))))
+	(make-boundary length nil)))))

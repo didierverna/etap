@@ -35,10 +35,10 @@
 
 
 (defun barnett-line-boundary (lineup start width)
+  "Return the Barnett algorithm's view of the end of line boundary."
   (loop :with word-underfull :with hyphens :with word-overfull
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
+	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
+	;; first, and then NIL.
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not word-overfull))
@@ -85,8 +85,9 @@
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett)) &key)
+  "Typeset LINEUP with the Barnett algorithm."
   (loop :for start := 0 :then (next-start boundary)
-	:until (= start (length lineup))
+	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
 	:if (eq (disposition-type disposition) :justified)
 	  :collect (make-wide-line

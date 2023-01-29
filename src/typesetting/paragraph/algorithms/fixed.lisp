@@ -54,9 +54,8 @@ choose the overfull rather than the underfull one."))
 	:with fit
 	:with overfull :with hyphen-overfull :with word-overfull
 	:with overfull-w :with hyphen-overfull-w :with word-overfull-w
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
+	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
+	;; first, and then NIL.
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not word-overfull))
@@ -149,6 +148,6 @@ choose the overfull rather than the underfull one."))
   "Typeset LINEUP with the Fixed algorithm."
   (declare (ignore variant avoid-hyphens prefer-overfulls))
   (loop :for start := 0 :then (next-start boundary)
-	:until (= start (length lineup))
+	:while start
 	:for boundary := (apply #'fixed-line-boundary lineup start width keys)
 	:collect (make-line lineup start (stop boundary))))

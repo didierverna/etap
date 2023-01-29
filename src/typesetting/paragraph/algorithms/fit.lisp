@@ -171,14 +171,16 @@ for equally bad solutions."))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
+  (:documentation
+   "Return the Fit algorithm's view of the end of line boundary.")
   (:method (lineup start width disposition variant &key avoid-hyphens)
     (let ((lineup-width-function (ecase variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
 				   (:last #'lineup-min-width))))
-      ;; #### NOTE: this works even the first time because at worst, BOUNDARY
-      ;; is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only afterwards.
       (loop :with previous :with word-previous
+	    ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
+	    ;; NIL) first, and then NIL.
 	    :for boundary := (next-boundary lineup start)
 	      :then (next-boundary lineup (stop boundary))
 	    :while (and boundary
@@ -213,9 +215,8 @@ for equally bad solutions."))
     (loop :with underfull
 	  :with fits := (list)
 	  :with overfull
-	  ;; #### NOTE: this works even the first time because at worst,
-	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	  ;; afterwards.
+	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
+	  ;; NIL) first, and then NIL.
 	  :for boundary := (next-boundary lineup start)
 	    :then (next-boundary lineup (stop boundary))
 	  :while (and boundary (not overfull))
@@ -259,9 +260,8 @@ for equally bad solutions."))
     ;; will often need to access the most recent ones, and we use STABLE-SORT
     ;; to preserve that order.
     (loop :with boundaries :with overfull
-	  ;; #### NOTE: this works even the first time because at worst,
-	  ;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	  ;; afterwards.
+	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
+	  ;; NIL) first, and then NIL.
 	  :for boundary := (next-boundary lineup start)
 	    :then (next-boundary lineup (stop boundary))
 	  :while (and boundary (not overfull))
@@ -383,12 +383,13 @@ for equally bad solutions."))
      &key variant discriminating-function
 	  hyphen-penalty explicit-hyphen-penalty
 	  relax avoid-hyphens prefer-shrink prefer-overfulls)
+  "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
   (default-fit discriminating-function)
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
   (loop :for start := 0 :then (next-start boundary)
-	:until (= start (length lineup))
+	:while start
 	:for boundary
 	  := (fit-line-boundary
 		 lineup start width (disposition-type disposition) variant
