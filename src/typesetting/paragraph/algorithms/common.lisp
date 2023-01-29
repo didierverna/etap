@@ -40,9 +40,9 @@ or use INFINITY values."
   `(cond ((null ,variable)
 	  (setq ,variable (caliber-default ,caliber)))
 	 ((<= ,variable (caliber-min ,caliber))
-	  (setq ,variable ,(if infinity :-infinity `(caliber-min ,caliber))))
+	  (setq ,variable ,(if infinity -∞ `(caliber-min ,caliber))))
 	 ((>= ,variable (caliber-max ,caliber))
-	  (setq ,variable ,(if infinity :+infinity `(caliber-max ,caliber))))))
+	  (setq ,variable ,(if infinity +∞ `(caliber-max ,caliber))))))
 
 
 (defmacro default
@@ -61,39 +61,43 @@ Note the S appended to NAME in the choices variable name."
 
 ;; Arithmetics with a notion of infinity.
 
-(defun !< (x y)
+(defconstant +∞ '+∞ "The + infinity value.")
+(defconstant -∞ '-∞ "The - infinity value.")
+
+(defun << (x y)
   "Infinity handling <."
   (cond ((eql x y) nil)
 	((and (numberp x) (numberp y)) (< x y))
-	((or (eq x :-infinity) (eq y :+infinity)) t)
+	((or (eq x -∞) (eq y +∞)) t)
 	(t nil)))
 
-(defun !<= (x y)
+(defun <<= (x y)
   "Infinity handling <=."
-  (or (eql x y) (!< x y)))
+  (or (eql x y) (<< x y)))
 
-(defun !+ (x y)
+;; I know what you're gonna say...
+(defun ++ (x y)
   "Infinity handling +."
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)
 	((numberp y) x)
 	((eq x y) x)
-	;; #### WARNING: we consider that -infinity + +infinity gives
-	;; +infinity. The rationale is that this situation would occur when
-	;; calculating badness + hyphen-penalty on an hyphen-overfull, with
-	;; hyphen penalties of -infinity. But we always consider overfulls as
-	;; infinitely bad. Note that this means that mandatory but not
-	;; overfull hyphen breaks need to be handled first.
-	(t :+infinity)))
+	;; #### WARNING: we consider that -∞ + +∞ = +∞. The rationale is that
+	;; this situation would occur when calculating badness +
+	;; hyphen-penalty on an hyphen-overfull, with hyphen penalties of -∞.
+	;; But we always consider overfulls as infinitely bad. Note that this
+	;; means that mandatory but not overfull hyphen breaks need to be
+	;; handled first.
+	(t +∞)))
 
-(defun !expt (base power)
+(defun ^ (base power)
   "Infinity handling (BASE only) expt."
-  (cond ((eq base :+infinity) :+infinity)
+  (cond ((eq base +∞) +∞)
 	((numberp base) (expt base power))
-	((eq base :-infinity)
+	((eq base -∞)
 	 (cond ((zerop power) 1)
-	       ((evenp power) :+infinity)
-	       (t :-infinity)))))
+	       ((evenp power) +∞)
+	       (t -∞)))))
 
 
 
@@ -105,7 +109,7 @@ Note the S appended to NAME in the choices variable name."
 
 (defun scale-badness (scale)
   (if (or (null scale) (< scale -1))
-    :+infinity
+    +∞
     (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
 
 (defun badness (lineup start stop width &optional emergency-stretch)
