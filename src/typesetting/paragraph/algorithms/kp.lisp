@@ -40,11 +40,11 @@
 
 (defun local-demerits (badness penalty line-penalty)
   (cond ((and (numberp penalty) (<= 0 penalty))
-	 (!+ (!expt (!+ line-penalty badness) 2) (expt penalty 2)))
+	 (++ (^ (++ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
-	 (!+ (!expt (!+ line-penalty badness) 2) (- (expt penalty 2))))
-	(t ;; :-infinity
-	 (!expt (!+ line-penalty badness) 2))))
+	 (++ (^ (++ line-penalty badness) 2) (- (expt penalty 2))))
+	(t ;; -∞
+	 (^ (++ line-penalty badness) 2))))
 
 (defclass kp-edge (paragraph-edge)
   ((hyphenp :accessor hyphenp)
@@ -65,7 +65,7 @@
 		       hyphen-penalty
 		       explicit-hyphen-penalty)
 		       0)))
-  (assert (not (eq penalty :+infinity)))
+  (assert (not (eq penalty +∞)))
   ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -101,17 +101,17 @@
 	:when (or (eq boundary-type :word)
 		  (and (> pass 1)
 		       (or (and (eq boundary-type :hyphen)
-				(!< hyphen-penalty :+infinity))
+				(<< hyphen-penalty +∞))
 			   (and (eq boundary-type :explicit-hyphen)
-				(!< explicit-hyphen-penalty :+infinity)))))
+				(<< explicit-hyphen-penalty +∞)))))
 	  :if (> min-width width)
 	    :do (setq overfull boundary)
 	  :else :if (or (and (eq boundary-type :hyphen)
-			     (eq hyphen-penalty :-infinity))
+			     (eq hyphen-penalty -∞))
 			(and (eq boundary-type :explicit-hyphen)
-			     (eq explicit-hyphen-penalty :-infinity)))
+			     (eq explicit-hyphen-penalty -∞)))
 	    :do (return (list boundary))
-	  :else :if (!<= (badness lineup start (stop boundary) width
+	  :else :if (<<= (badness lineup start (stop boundary) width
 				  emergency-stretch)
 			 threshold)
 	    :do (push boundary boundaries)
@@ -138,7 +138,7 @@
 
 (defmethod update-paragraph-layout ((layout kp-layout) (edge kp-edge))
   (incf (size layout))
-  (setf (demerits layout) (!+ (demerits layout) (demerits edge))))
+  (setf (demerits layout) (++ (demerits layout) (demerits edge))))
 
 (defun kp-postprocess-layout
     (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
@@ -147,12 +147,12 @@
 	  :for edge2 :in (cdr (edges layout))
 	  :when (and (hyphenp edge1) (hyphenp edge2))
 	    :do (setf (demerits layout)
-		      (!+ (demerits layout) double-hyphen-demerits))
+		      (++ (demerits layout) double-hyphen-demerits))
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
-		      (!+ (demerits layout) adjacent-demerits))))
+		      (++ (demerits layout) adjacent-demerits))))
   (when (hyphenp (nth (- (size layout) 2) (edges layout)))
-    (setf (demerits layout) (!+ final-hyphen-demerits (demerits layout)))))
+    (setf (demerits layout) (++ final-hyphen-demerits (demerits layout)))))
 
 (defun kp-make-layout-lines
     (lineup disposition width layout
@@ -171,7 +171,7 @@
      line-penalty hyphen-penalty explicit-hyphen-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
-  (let* ((graph (or (when (!<= 0 pre-tolerance)
+  (let* ((graph (or (when (<<= 0 pre-tolerance)
 		      (paragraph-graph lineup width :kp
 			:pass 1 :threshold pre-tolerance
 			:line-penalty line-penalty))
@@ -186,9 +186,9 @@
 	      adjacent-demerits double-hyphen-demerits
 	      final-hyphen-demerits))
       layouts)
-    (setq layouts (sort layouts #'!< :key #'demerits))
+    (setq layouts (sort layouts #'<< :key #'demerits))
     (when (and (not (zerop emergency-stretch))
-	       (eql (demerits (car layouts)) :+infinity))
+	       (eql (demerits (car layouts)) +∞))
       (setq graph (paragraph-graph lineup width :kp
 		    :pass 3 :threshold tolerance
 		    :line-penalty line-penalty
@@ -201,7 +201,7 @@
 		adjacent-demerits double-hyphen-demerits
 		final-hyphen-demerits))
 	layouts)
-      (setq layouts (sort layouts #'!< :key #'demerits)))
+      (setq layouts (sort layouts #'<< :key #'demerits)))
     (unless (zerop looseness)
       (let ((ideal-size (+ (size (car layouts)) looseness)))
 	(setq layouts (sort layouts (lambda (size1 size2)
@@ -226,25 +226,25 @@
 		   (previous-fitness-class (cdr key)))
        (let ((scale (lineup-scale lineup (next-start previous-boundary)
 				  (stop boundary) width emergency-stretch)))
-	 (when (or (!< scale -1)
-		   (eq break-penalty :-infinity)
+	 (when (or (<< scale -1)
+		   (eq break-penalty -∞)
 		   ;; #### WARNING: we must deactivate all nodes when we reach
 		   ;; the paragraph's end. TeX does this by adding a forced
 		   ;; break at the end.
 		   (= (stop boundary) (length lineup)))
 	   (setq last-deactivated-node (cons key node))
 	   (remhash key nodes))
-	 (when (!<= -1 scale)
+	 (when (<<= -1 scale)
 	   (let ((badness (scale-badness scale)))
-	     (when (!<= badness threshold)
+	     (when (<<= badness threshold)
 	       (let ((fitness-class (scale-fitness-class scale))
 		     (demerits
 		       (local-demerits badness break-penalty line-penalty)))
 		 (when (> (abs (- fitness-class previous-fitness-class)) 1)
-		   (setq demerits (!+ demerits adjacent-demerits)))
+		   (setq demerits (++ demerits adjacent-demerits)))
 		 (when (not (word-boundary-p lineup previous-boundary))
 		   (if (not (word-boundary-p lineup boundary))
-		     (setq demerits (!+ demerits double-hyphen-demerits))
+		     (setq demerits (++ demerits double-hyphen-demerits))
 		     ;; #### WARNING: final hyphen demerits are added here
 		     ;; although they really concern the previous node. TeX
 		     ;; does it like this but I don't really understand how
@@ -253,8 +253,8 @@
 		     ;; because TeX considers the end of a paragraph as
 		     ;; hyphenated, which is explained at #829 :-/.
 		     (when (= (stop boundary) (length lineup))
-		       (setq demerits (!+ demerits final-hyphen-demerits)))))
-		 (setq demerits (!+ demerits (kp-node-demerits node)))
+		       (setq demerits (++ demerits final-hyphen-demerits)))))
+		 (setq demerits (++ demerits (kp-node-demerits node)))
 		 (let ((previous
 			 (find-if (lambda (key)
 				    (and (= (car key) (1+ previous-line))
@@ -262,7 +262,7 @@
 				  new-nodes
 				  :key #'car)))
 		   (if previous
-		     (when (!<= demerits (kp-node-demerits (cdr previous)))
+		     (when (<<= demerits (kp-node-demerits (cdr previous)))
 		       (setf (kp-node-demerits (cdr previous)) demerits
 			     (kp-node-previous (cdr previous)) node))
 		     (push (cons (cons (1+ previous-line) fitness-class)
@@ -303,7 +303,7 @@
 				  (:hyphen hyphen-penalty)
 				  (:explicit-hyphen explicit-hyphen-penalty))
 	  :when (or (eq boundary-type :word)
-		    (and (> pass 1) (!< break-penalty :+infinity)))
+		    (and (> pass 1) (<< break-penalty +∞)))
 	    :do (kp-try-boundary boundary nodes
 		  lineup width pass threshold line-penalty break-penalty
 		  adjacent-demerits double-hyphen-demerits
@@ -317,7 +317,7 @@
      pre-tolerance tolerance emergency-stretch looseness
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
-  (let ((nodes (or (when (!<= 0 pre-tolerance)
+  (let ((nodes (or (when (<<= 0 pre-tolerance)
 		     (kp-create-nodes lineup width 1 pre-tolerance
 		       line-penalty hyphen-penalty explicit-hyphen-penalty
 		       adjacent-demerits double-hyphen-demerits
@@ -335,11 +335,11 @@
 		     line-penalty hyphen-penalty explicit-hyphen-penalty
 		     adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits emergency-stretch)))
-    (let ((best (loop :with demerits := :+infinity :with best :with last
+    (let ((best (loop :with demerits := +∞ :with best :with last
 		      :for node :being :the :hash-values :in nodes
 			:using (hash-key key)
 		      :do (setq last (cons node (car key)))
-		      :when (!< (kp-node-demerits node) demerits)
+		      :when (<< (kp-node-demerits node) demerits)
 			:do (setq best (cons node (car key))
 				  demerits (kp-node-demerits node))
 		      :finally (return (or best last)))))
@@ -396,9 +396,9 @@
   (calibrate-kp final-hyphen-demerits)
   ;; #### FIXME: why are these treated in a special way ??
   (when (>= pre-tolerance (caliber-max *kp-pre-tolerance*))
-    (setq pre-tolerance :+infinity))
+    (setq pre-tolerance +∞))
   (cond ((>= tolerance (caliber-max *kp-tolerance*))
-	 (setq tolerance :+infinity))
+	 (setq tolerance +∞))
 	((< tolerance (caliber-min *kp-tolerance*))
 	 (setq tolerance (caliber-min *kp-tolerance*))))
   (calibrate-kp emergency-stretch)

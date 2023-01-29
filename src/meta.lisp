@@ -6,6 +6,7 @@
 (defpackage :etap
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
+  (:shadow :++)
   (:export
     :make-context :*context*
     :make-lineup

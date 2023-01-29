@@ -34,9 +34,9 @@
 ;; weight function in the TeX way.
 
 ;; In the Best/Justified version, several line boundaries may turn out to have
-;; the same optimum weight (badness + hyphen penalty). A weight of -infinity
-;; cannot occur because that would be a mandatory discretionary break, so it
-;; would have been already treated. Two possibilities may thus occur:
+;; the same optimum weight (badness + hyphen penalty). A weight of -∞ cannot
+;; occur because that would be a mandatory discretionary break, so it would
+;; have been already treated. Two possibilities may thus occur:
 ;;
 ;; 1. Numerical weight. Because of the badness definition, this can only mean
 ;;    that we have different boundaries with or without varying hyphen
@@ -61,10 +61,10 @@
 ;; normally choose the underfull line, unless the "Prefer Overfull" option is
 ;; checked. Note that the underfull may or may not have some shrinkability
 ;; (remember that TeX's definition of badness for overfull is always
-;; +infinity), so maybe the overfull could be compressed, but not too much. We
-;; don't want to handle that as a special case, because a better way to do it
-;; would be to change the definition of badness to /not/ be infinite all of a
-;; sudden for overfulls, but be more subtle.
+;; +∞), so maybe the overfull could be compressed, but not too much. We don't
+;; want to handle that as a special case, because a better way to do it would
+;; be to change the definition of badness to /not/ be infinite all of a sudden
+;; for overfulls, but be more subtle.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
@@ -134,8 +134,8 @@ for equally bad solutions."))
     badness
     ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
-    ;; risk of doing -infinity + +infinity here.
-    (!+ badness (if (pre-break (aref lineup (1- (stop boundary))))
+    ;; risk of doing -∞ + +∞ here.
+    (++ badness (if (pre-break (aref lineup (1- (stop boundary))))
 		  hyphen-penalty
 		  explicit-hyphen-penalty))))
 
@@ -275,16 +275,16 @@ for equally bad solutions."))
 	  :for span := (lineup-span lineup start (stop boundary))
 	  :when (or (eq boundary-type :word)
 		    (and (eq boundary-type :hyphen)
-			 (!< hyphen-penalty :+infinity))
+			 (<< hyphen-penalty +∞))
 		    (and (eq boundary-type :explicit-hyphen)
-			 (!< explicit-hyphen-penalty :+infinity)))
+			 (<< explicit-hyphen-penalty +∞)))
 	    :if (> (min-width span) width)
 	      :do (setq overfull t)
 	      :and :do (push boundary boundaries)
 	    :else :if (or (and (eq boundary-type :hyphen)
-			       (eq hyphen-penalty :-infinity))
+			       (eq hyphen-penalty -∞))
 			  (and (eq boundary-type :explicit-hyphen)
-			       (eq explicit-hyphen-penalty :-infinity)))
+			       (eq explicit-hyphen-penalty -∞)))
 	      :do (return boundary)
 	    :else
 	      :do (push boundary boundaries)
@@ -297,7 +297,7 @@ for equally bad solutions."))
 			  (fit-weights
 			   lineup start width boundaries
 			   hyphen-penalty explicit-hyphen-penalty)
-			  #'!< :key #'car)))
+			  #'<< :key #'car)))
 		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
 			  (setq sorted-weights
 				(remove-if-not
