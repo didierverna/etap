@@ -40,9 +40,9 @@
 ;; need to take the line number as well as the boundary into account.
 (defun create-paragraph-node
     (lineup width algorithm-type edge-type boundary hash &rest options)
-  (or (gethash (stop boundary) hash)
-      (setf (gethash (stop boundary) hash)
-	    (if (= (stop boundary) (length lineup))
+  (or (gethash (stop-idx boundary) hash)
+      (setf (gethash (stop-idx boundary) hash)
+	    (if (= (stop-idx boundary) (length lineup))
 	      (make-paragraph-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply #'next-boundaries

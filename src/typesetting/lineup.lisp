@@ -522,6 +522,9 @@ If element is a discretionary, return the appropriate pre/no/post break part."
 	  (t (no-break element)))
     element))
 
+;; #### FIXME: review the use of this by KP and Duncan. In particular, KP is
+;; supposed to have an end of lineup glue, so the end of the lineup is NOT a
+;; word stop.
 (defun word-stop-p (lineup stop)
   "Return T if LINEUP element at STOP is the end of a word."
   (or (= stop (length lineup)) (gluep (aref lineup stop))))
@@ -624,28 +627,22 @@ different from TARGET."
 ;; Lineup boundaries
 ;; -----------------
 
-(defstruct (boundary
-	    :conc-name
-	    (:constructor make-boundary (stop next-start)))
+(defstruct
+    (boundary :conc-name (:constructor make-boundary (stop-idx stop-elt)))
   "The BOUNDARY structure.
-A boundary contains a STOP index at which a lineup can be broken, and a
-NEXT-START at which the next line may begin. At the end of the lineup,
-the STOP index is at the lineup's length and NEXT-START is NIL."
-  stop next-start)
-
-(defun word-boundary-p (lineup boundary)
-  "Return T if BOUNDARY is at an end of word in LINEUP."
-  (word-stop-p lineup (stop boundary)))
+A boundary contains a STOP-IDX at which a lineup can be broken, and the
+corresponding lineup STOP-ELT. The last boundary is represented by a STOP-IDX
+of (length lineup) and a STOP-ELT."
+  stop-idx stop-elt)
 
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
   "Return the next boundary in LINEUP after START position, or NIL.
-The last boundary in LINEUP, which is the end of it, is denoted by STOP =
-LINEUP's length, and NEXT-START = NIL. Also, this function understands the
-terminal case where START = LINEUP's length (possibly coming from a previous
-boundary's STOP index, in which case it signals that there is no more boundary
-to find by returning NIL."
+This function understands the terminal case where START = LINEUP's
+length (possibly coming from a previous boundary's INDEX, in which case
+it signals that there is no more boundary to find by returning NIL."
   (unless (= start length)
-    (let ((point (position-if #'break-point-p lineup :start (1+ start))))
+    (let* ((point (position-if #'break-point-p lineup :start (1+ start)))
+	   (element (when point (aref lineup point))))
       ;; #### FIXME: this hack has been removed, but this currently breaks the
       ;; KP algorithm (at least). We need to support penalties.
       ;; #### WARNING: this is a kludge to never break at the end of the final
@@ -654,9 +651,16 @@ to find by returning NIL."
       ;; \penalty10000 before the final glue (and it also adds \penalty-10000
       ;; afterwards), but we don't have that level of generality yet.
       ;; (when (eql point (1- length)) (setq point nil))
-      (if point
-	(let ((next (1+ point)))
-	  (typecase (aref lineup point)
-	    (glue (make-boundary point next))
-	    (discretionary (make-boundary next point))))
-	(make-boundary length nil)))))
+      (make-boundary
+       (etypecase element
+	 (glue point)
+	 (discretionary (1+ point))
+	 (null length))
+       element))))
+
+(defun next-start (boundary)
+  "Return BOUNDARY's beginning of next line index."
+  (etypecase (stop-elt boundary)
+    (glue (1+ (stop-idx boundary)))
+    (discretionary (stop-idx boundary))
+    (null nil)))

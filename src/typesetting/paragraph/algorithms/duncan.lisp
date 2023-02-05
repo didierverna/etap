@@ -31,7 +31,7 @@
     ((edge duncan-edge)
      &key lineup width start
 	  (discriminating-function (car *duncan-discriminating-functions*))
-     &aux (stop (stop (boundary (node edge))))
+     &aux (stop (stop-idx (boundary (node edge))))
 	  (span (lineup-span lineup start stop)))
   (unless (word-stop-p lineup stop)
     (setf (hyphen edge) 1))
@@ -54,9 +54,9 @@
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
 	;; afterwards.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop boundary))
+	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
-	:for span := (lineup-span lineup start (stop boundary))
+	:for span := (lineup-span lineup start (stop-idx boundary))
 	:if (< (max-width span) width)
 	  :do (setq underfull boundary)
 	:else :if (and (<= (min-width span) width)
@@ -108,7 +108,7 @@
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (next-start (boundary (node edge)))
-	:for stop := (stop (boundary (node edge)))
+	:for stop := (stop-idx (boundary (node edge)))
 	:if justified
 	  :collect (make-wide-line lineup start stop width sloppy)
 	:else

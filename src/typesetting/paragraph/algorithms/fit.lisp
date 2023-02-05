@@ -129,15 +129,16 @@ for equally bad solutions."))
 
 (defun fit-weight
     (lineup start width boundary hyphen-penalty explicit-hyphen-penalty
-     &aux (badness (badness lineup start (stop boundary) width)))
-  (if (word-boundary-p lineup boundary)
-    badness
+     &aux (badness (badness lineup start (stop-idx boundary) width)))
+  (if (discretionaryp (stop-elt boundary))
     ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
     ;; risk of doing -∞ + +∞ here.
-    (++ badness (if (pre-break (aref lineup (1- (stop boundary))))
-		  hyphen-penalty
-		  explicit-hyphen-penalty))))
+    (++ badness
+	(if (explicitp (stop-elt boundary))
+	  explicit-hyphen-penalty
+	  hyphen-penalty))
+    badness))
 
 (defun fit-weights
     (lineup start width boundaries hyphen-penalty explicit-hyphen-penalty)
@@ -150,24 +151,25 @@ for equally bad solutions."))
 
 (defun fit-deltas (lineup start width boundaries)
   (mapcar (lambda (boundary)
-	    (cons (abs (- width (lineup-width lineup start (stop boundary))))
+	    (cons (abs (- width
+			  (lineup-width lineup start (stop-idx boundary))))
 		  boundary))
     boundaries))
 
 ;; #### WARNING: this only works for elastic lines!
 (defun fit-scales (lineup start width boundaries)
   (mapcar (lambda (boundary)
-	    (cons (abs (lineup-scale lineup start (stop boundary) width))
+	    (cons (abs (lineup-scale lineup start (stop-idx boundary) width))
 		  boundary))
     boundaries))
 
-(defun word-boundaries (lineup boundaries)
-  (remove-if-not (lambda (boundary) (word-boundary-p lineup boundary))
-		 boundaries))
+(defun word-boundaries (boundaries)
+  (remove-if (lambda (boundary) (discretionaryp (stop-elt boundary)))
+      boundaries))
 
-(defun hyphen-boundaries (lineup boundaries)
-  (remove-if (lambda (boundary) (word-boundary-p lineup boundary))
-	     boundaries))
+(defun hyphen-boundaries (boundaries)
+  (remove-if-not (lambda (boundary) (discretionaryp (stop-elt boundary)))
+      boundaries))
 
 (defgeneric fit-line-boundary
     (lineup start width disposition variant &key &allow-other-keys)
@@ -182,7 +184,7 @@ for equally bad solutions."))
 	    ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
 	    ;; NIL) first, and then NIL.
 	    :for boundary := (next-boundary lineup start)
-	      :then (next-boundary lineup (stop boundary))
+	      :then (next-boundary lineup (stop-idx boundary))
 	    :while (and boundary
 			(<= (funcall lineup-width-function
 			      lineup start
@@ -192,12 +194,12 @@ for equally bad solutions."))
 			      ;; This variant only makes sense for finite
 			      ;; stretching.
 			      (if (and (eq variant :first)
-				       (= (stop boundary) (length lineup)))
-				(1- (stop boundary))
-				(stop boundary)))
+				       (= (stop-idx boundary) (length lineup)))
+				(1- (stop-idx boundary))
+				(stop-idx boundary)))
 			    width))
 	    :do (setq previous boundary)
-	    :do (when (word-boundary-p lineup boundary)
+	    :do (unless (discretionaryp (stop-elt boundary))
 		  (setq word-previous boundary))
 	    :finally (return (if previous
 			       (if avoid-hyphens
@@ -218,9 +220,9 @@ for equally bad solutions."))
 	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
 	  ;; NIL) first, and then NIL.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (stop boundary))
+	    :then (next-boundary lineup (stop-idx boundary))
 	  :while (and boundary (not overfull))
-	  :for span := (lineup-span lineup start (stop boundary))
+	  :for span := (lineup-span lineup start (stop-idx boundary))
 	  :if (< (max-width span) width)
 	    :do (setq underfull boundary)
 	  :else :if (and (<= (min-width span) width)
@@ -235,8 +237,8 @@ for equally bad solutions."))
 		 (let ((boundaries
 			 ;; #### NOTE: NIL if FITS is anyway.
 			 (if avoid-hyphens
-			   (or (word-boundaries lineup fits)
-			       (hyphen-boundaries lineup fits))
+			   (or (word-boundaries fits)
+			       (hyphen-boundaries fits))
 			   fits)))
 		   (ecase variant
 		     (:first
@@ -263,28 +265,22 @@ for equally bad solutions."))
 	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
 	  ;; NIL) first, and then NIL.
 	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (stop boundary))
+	    :then (next-boundary lineup (stop-idx boundary))
 	  :while (and boundary (not overfull))
-	  :for boundary-type
-	    := (cond ((word-boundary-p lineup boundary)
-		      :word)
-		     ((pre-break (aref lineup (1- (stop boundary))))
-		      :hyphen)
-		     (t
-		      :explicit-hyphen))
-	  :for span := (lineup-span lineup start (stop boundary))
-	  :when (or (eq boundary-type :word)
-		    (and (eq boundary-type :hyphen)
-			 (<< hyphen-penalty +∞))
-		    (and (eq boundary-type :explicit-hyphen)
-			 (<< explicit-hyphen-penalty +∞)))
+	  :for span := (lineup-span lineup start (stop-idx boundary))
+	  :when (or (not (discretionaryp (stop-elt boundary)))
+		    (and (explicitp (stop-elt boundary))
+			 (<< explicit-hyphen-penalty +∞))
+		    (and (not (explicitp (stop-elt boundary)))
+			 (<< hyphen-penalty +∞)))
 	    :if (> (min-width span) width)
 	      :do (setq overfull t)
 	      :and :do (push boundary boundaries)
-	    :else :if (or (and (eq boundary-type :hyphen)
-			       (eq hyphen-penalty -∞))
-			  (and (eq boundary-type :explicit-hyphen)
-			       (eq explicit-hyphen-penalty -∞)))
+	    :else :if (and (discretionaryp (stop-elt boundary))
+			   (or (and (explicitp (stop-elt boundary))
+				    (eq explicit-hyphen-penalty -∞))
+			       (and (not (explicitp (stop-elt boundary)))
+				    (eq hyphen-penalty -∞))))
 	      :do (return boundary)
 	    :else
 	      :do (push boundary boundaries)
@@ -351,7 +347,7 @@ for equally bad solutions."))
 	    (if (< stop (length lineup))
 	      (let ((scale
 		      (lineup-scale
-		       lineup start (stop (next-boundary lineup stop))
+		       lineup start (stop-idx (next-boundary lineup stop))
 		       width)))
 		(if (and scale (> scale 0)) scale 0))
 	      0)))
@@ -399,7 +395,7 @@ for equally bad solutions."))
 	       :explicit-hyphen-penalty explicit-hyphen-penalty
 	       :prefer-shrink prefer-shrink
 	       :prefer-overfulls prefer-overfulls)
-	:collect (apply #'fit-make-line lineup start (stop boundary)
+	:collect (apply #'fit-make-line lineup start (stop-idx boundary)
 			(disposition-type disposition) variant
 			:width width
 			:relax relax

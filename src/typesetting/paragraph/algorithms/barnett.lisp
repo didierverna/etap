@@ -40,26 +40,26 @@
 	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
 	;; first, and then NIL.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop boundary))
+	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not word-overfull))
-	:for w := (lineup-width lineup start (stop boundary))
-	:if (and (word-boundary-p lineup boundary) (< w width))
-	  :do (setq word-underfull boundary hyphens nil)
-	:else :if (and (word-boundary-p lineup boundary) (>= w width))
-	  :do (setq word-overfull boundary)
-	:else
+	:for w := (lineup-width lineup start (stop-idx boundary))
+	:if  (discretionaryp (stop-elt boundary))
 	  :do (push boundary hyphens)
+	:else :if (< w width)
+	  :do (setq word-underfull boundary hyphens nil)
+	:else :if (>= w width)
+	  :do (setq word-overfull boundary)
 	:finally
 	   (return
 	     (cond ((and word-overfull
 			 (let ((scale (lineup-scale lineup start
-						    (stop word-overfull)
+						    (stop-idx word-overfull)
 						    width)))
 			   (and scale (>= scale -1))))
 		    word-overfull)
 		   ((and word-underfull
 			 (let ((scale (lineup-scale lineup start
-						    (stop word-underfull)
+						    (stop-idx word-underfull)
 						    width)))
 			   (and scale (<= scale 1))))
 		    word-underfull)
@@ -67,11 +67,12 @@
 		    (loop :with last-overfull
 			  :for hyphen :in hyphens
 			  :for scale
-			    := (lineup-scale lineup start (stop hyphen) width)
+			    := (lineup-scale lineup start (stop-idx hyphen)
+					     width)
 			  :while (if scale
 				   (<= scale 0)
 				   (>= (lineup-width lineup
-						     start (stop hyphen))
+						     start (stop-idx hyphen))
 				       width))
 			  :if (or (null scale) (< scale -1))
 			    :do (setq last-overfull hyphen)
@@ -91,7 +92,7 @@
 	:for boundary := (barnett-line-boundary lineup start width)
 	:if (eq (disposition-type disposition) :justified)
 	  :collect (make-wide-line
-		    lineup start (stop boundary) width
+		    lineup start (stop-idx boundary) width
 		    (cadr (member :sloppy (disposition-options disposition))))
 	:else
-	  :collect (make-line lineup start (stop boundary))))
+	  :collect (make-line lineup start (stop-idx boundary))))

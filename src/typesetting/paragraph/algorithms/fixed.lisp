@@ -57,21 +57,21 @@ choose the overfull rather than the underfull one."))
 	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
 	;; first, and then NIL.
 	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop boundary))
+	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not word-overfull))
-	:for w := (lineup-width lineup start (stop boundary))
+	:for w := (lineup-width lineup start (stop-idx boundary))
 	:if (< w width)
 	  :do (setq underfull boundary underfull-w w)
-	  :and :do (if (word-boundary-p lineup boundary)
-		     (setq word-underfull boundary word-underfull-w w)
-		     (setq hyphen-underfull boundary hyphen-underfull-w w))
+	  :and :do (if (discretionaryp (stop-elt boundary))
+		     (setq hyphen-underfull boundary hyphen-underfull-w w)
+		     (setq word-underfull boundary word-underfull-w w))
 	:else :if (= w width)
 	  :do (setq fit boundary)
 	:else
 	  :do (setq overfull boundary overfull-w w)
-	  :and :do (if (word-boundary-p lineup boundary)
-		     (setq word-overfull boundary word-overfull-w w)
-		     (setq hyphen-overfull boundary hyphen-overfull-w w))
+	  :and :do (if (discretionaryp (stop-elt boundary))
+		     (setq hyphen-overfull boundary hyphen-overfull-w w)
+		     (setq word-overfull boundary word-overfull-w w))
 	:finally
 	   (return
 	     ;; #### NOTE: UNDERFULL is the last of the two possible ones, so
@@ -86,7 +86,7 @@ choose the overfull rather than the underfull one."))
 	       (ecase variant
 		 (:underfull
 		  (cond ((and fit
-			      (not (word-boundary-p lineup fit))
+			      (discretionaryp (stop-elt fit))
 			      avoid-hyphens)
 			 (or word-underfull fit))
 			(fit fit)
@@ -97,7 +97,7 @@ choose the overfull rather than the underfull one."))
 			(t first-overfull)))
 		 (:overfull
 		  (cond ((and fit
-			      (not (word-boundary-p lineup fit))
+			      (discretionaryp (stop-elt fit))
 			      avoid-hyphens)
 			 (or word-overfull fit))
 			(fit fit)
@@ -150,4 +150,4 @@ choose the overfull rather than the underfull one."))
   (loop :for start := 0 :then (next-start boundary)
 	:while start
 	:for boundary := (apply #'fixed-line-boundary lineup start width keys)
-	:collect (make-line lineup start (stop boundary))))
+	:collect (make-line lineup start (stop-idx boundary))))
