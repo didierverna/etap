@@ -347,24 +347,35 @@ to the new lineup, and the unprocessed new remainder."
 	;; break there.
 	:when (and (char= char #\-) (< i (length word))) :collect i))
 
-(defun process-word (word font hyphenation-rules &aux hyphenation-points)
+(defun process-word-with-hyphenation (word font hyphenation-points hyphenator)
+  "Process WORD (a string) in FONT with HYPHENATION-POINTS.
+Return a list of characters from FONT, alternating with discretionaries at
+HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
+  (loop :for i :from 0
+	:for char :across word
+	:for character := (get-character char font)
+	:when (member i hyphenation-points) :collect (funcall hyphenator)
+	  :collect character))
+
+(defun process-word
+    (word font hyphenation-rules &aux hyphenation-points)
   "Process WORD (a string) in FONT, possibly with HYPHENATION-RULES.
 Return a list of characters from FONT, possibly alternating with
 discretionaries if HYPHENATION-RULES is non-NIL."
-  (when hyphenation-rules
-    ;; A word with explicit hyphens must not be hyphenated in any other way.
-    (setq hyphenation-points
-	  (or (hyphen-positions+1 word)
-	      (hyphenate word hyphenation-rules))))
-  (if hyphenation-points
-    (loop :with pre-break := (list (get-character #\- font))
-	  :for i :from 0
-	  :for char :across word
-	  :for character := (get-character char font)
-	  :when (member i hyphenation-points)
-	    :collect (make-discretionary :pre-break pre-break)
-	  :collect character)
-    (map 'list (lambda (char) (get-character char font)) word)))
+  ;; Note that a word with explicit hyphens must not be hyphenated in any
+  ;; other way.
+  (cond ((and hyphenation-rules
+	      (setq hyphenation-points (hyphen-positions+1 word)))
+	 (process-word-with-hyphenation
+	  word font hyphenation-points #'make-discretionary))
+	((and hyphenation-rules
+	      (setq hyphenation-points (hyphenate word hyphenation-rules)))
+	 (process-word-with-hyphenation
+	  word font hyphenation-points
+	  (let ((pre-break (list (get-character #\- font))))
+	    (lambda () (make-discretionary :pre-break pre-break)))))
+	(t
+	 (map 'list (lambda (char) (get-character char font)) word))))
 
 
 ;; --------------
