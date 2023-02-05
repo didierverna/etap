@@ -122,6 +122,35 @@ depending on whether the break occurs or not."))
   (apply #'make-instance 'discretionary initargs))
 
 
+;; Hyphenation points
+
+;; #### NOTE: we use T as the default here because it allows simple calls to
+;; MAKE-HYPHENATION-POINT without arguments (the pre, post, and no-breaks are
+;; empty in that case).
+(defclass hyphenation-mixin ()
+  ((explicitp
+    :initform t :initarg :explicit :reader explicitp
+    :documentation
+    "Whether this hyphenation point comes from an explicit hyphen."))
+  (:documentation "The HYPHENATION-MIXIN class.
+This is a mixin for hyphenation points."))
+
+(defclass hyphenation-point (discretionary hyphenation-mixin)
+  ()
+  (:documentation "The HYPHENATION-POINT class.
+This class represents hyphenation point discretionaries."))
+
+(defun hyphenation-point-p (object)
+  "Return T if OBJECT is a hyphenation point."
+  (typep object 'hyphenation-point))
+
+(defun make-hyphenation-point
+    (&rest initargs &key pre-break post-break no-break explicit)
+  "Make a new EXPLICITP hyphenation point."
+  (declare (ignore pre-break post-break no-break explicit))
+  (apply #'make-instance 'hyphenation-point initargs))
+
+
 ;; Glues
 
 (defclass glue (break-point)
@@ -367,13 +396,14 @@ discretionaries if HYPHENATION-RULES is non-NIL."
   (cond ((and hyphenation-rules
 	      (setq hyphenation-points (hyphen-positions+1 word)))
 	 (process-word-with-hyphenation
-	  word font hyphenation-points #'make-discretionary))
+	  word font hyphenation-points #'make-hyphenation-point))
 	((and hyphenation-rules
 	      (setq hyphenation-points (hyphenate word hyphenation-rules)))
 	 (process-word-with-hyphenation
 	  word font hyphenation-points
 	  (let ((pre-break (list (get-character #\- font))))
-	    (lambda () (make-discretionary :pre-break pre-break)))))
+	    (lambda ()
+	      (make-hyphenation-point :pre-break pre-break :explicit nil)))))
 	(t
 	 (map 'list (lambda (char) (get-character char font)) word))))
 
@@ -456,7 +486,7 @@ defaulted from FEATURES."
   (when kerning (setq lineup (process-kerning lineup)))
   (when hyphenation
     (mapc (lambda (element)
-	    (when (discretionaryp element)
+	    (when (hyphenation-point-p element)
 	      (push :hyphenation-clue (no-break element))))
       lineup))
   ;; #### FIXME: this should only be done by TeX's algorithms.
