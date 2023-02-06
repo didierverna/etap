@@ -7,18 +7,24 @@
 ;; is closest to the paragraph width.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
-;; hyphenation are always preferred when there is a choice. Note that this
-;; option has precedence over the "Prefer Overfulls" one below.
+;; hyphenation are preferred when there is a choice. Note that this option
+;; takes precedence over the "Prefer Overfulls" one (see below).
 
 ;; In the Best variant, when the underfull and overfull line solutions are
 ;; equally distant from the paragraph width, and after the "Avoid Hyphens"
 ;; option has been taken into account if applicable, the underfull one is
 ;; chosen, unless the "Prefer Overfulls" option is checked.
 
-;; Note that because the inter-word spacing is fixed, the sloppy option has no
-;; effect. Also, for the same reason, it's practically impossible to justify.
-;; The only difference between the justified disposition and the flush left
-;; one is that the options have no effect when a fit solution is found.
+;; Even though the inter-word spacing is fixed, there is a difference between
+;; the justified disposition and the flush left one. For justification,
+;; getting as close to the paragraph's width as possible takes precedence over
+;; the "Avoid Hyphens" and "Prefer Overfulls" option, so they apply only when
+;; there is no fit, and two solutions (one underfull and one overfull) are
+;; equally distant from the paragraph's width. In the other dispositions, the
+;; options take precedence.
+
+;; Finally, note that because the inter-word spacing is fixed, the sloppy
+;; option has no effect.
 
 (in-package :etap)
 
@@ -42,9 +48,11 @@ width, whether underfull or overfull."
     :fixed-variant-overfull "Always prefer overfull lines."
     :fixed-option-avoid-hyphens "Avoid hyphenating words when possible."
     :fixed-option-prefer-overfulls
-    "For the Best variant, when the underfull and overfull
+    "In the Best variant, when the underfull and overfull
 lines are equally distant from the paragraph width,
-choose the overfull rather than the underfull one."))
+and after the \"Avoid Hyphens\" option has been taken
+into account if applicable, choose the overfull rather
+than the underfull one."))
 
 
 ;; In order to handle all variants and options, this function starts by
