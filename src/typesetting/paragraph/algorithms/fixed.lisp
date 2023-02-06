@@ -74,7 +74,7 @@ choose the overfull rather than the underfull one."))
 	:for w := (lineup-width lineup start (stop-idx boundary))
 	:for hyphenp := (hyphenation-point-p (stop-elt boundary))
 	:if (< w width)
-	  ;; Track the last underfull because it's the closest to WIDTH.
+	  ;; Track the last underfulls because they're the closest to WIDTH.
 	  :do (setq underfull boundary underfull-w w)
 	  :and :do (if hyphenp
 		     (setq hyphen-underfull boundary hyphen-underfull-w w)
@@ -82,10 +82,13 @@ choose the overfull rather than the underfull one."))
 	:else :if (= w width)
 	  :do (setq fit boundary)
 	:else
-	  ;; Track the first overfull because it's the closest to WIDTH.
+	  ;; Track the first overfulls because they're the closest to WIDTH.
 	  :do (unless overfull (setq overfull boundary overfull-w w))
 	  :and :do (if hyphenp
-		     (setq hyphen-overfull boundary hyphen-overfull-w w)
+		     (unless hyphen-overfull
+		       (setq hyphen-overfull boundary hyphen-overfull-w w))
+		     ;; No check here because we stop at the first word
+		     ;; overfull.
 		     (setq word-overfull boundary word-overfull-w w))
 	:finally
 	   (return
