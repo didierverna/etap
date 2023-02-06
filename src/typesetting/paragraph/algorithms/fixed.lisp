@@ -7,17 +7,18 @@
 ;; is closest to the paragraph width.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
-;; hyphenation are always preferred when there is a choice.
+;; hyphenation are always preferred when there is a choice. Note that this
+;; option has precedence over the "Prefer Overfulls" one below.
 
 ;; In the Best variant, when the underfull and overfull line solutions are
-;; equally distant from the paragraph width, the underfull one is chosen,
-;; unless the "Prefer Overfulls" option is checked.
+;; equally distant from the paragraph width, and after the "Avoid Hyphens"
+;; option has been taken into account if applicable, the underfull one is
+;; chosen, unless the "Prefer Overfulls" option is checked.
 
 ;; Note that because the inter-word spacing is fixed, the sloppy option has no
 ;; effect. Also, for the same reason, it's practically impossible to justify.
-;; The only difference between the justified disposition and the other ones is
-;; when a fit is found (by miracle): in justified disposition, the "Avoid
-;; Hyphens" option has no effect on fit lines.
+;; The only difference between the justified disposition and the flush left
+;; one is that the options have no effect when a fit solution is found.
 
 (in-package :etap)
 
