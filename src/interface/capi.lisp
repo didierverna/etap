@@ -222,7 +222,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	    :foreground :red
 	    :scale-thickness nil))
 	(loop :with par-y := (height (first (pinned-lines paragraph)))
-	      :for pinned-line :in (pinned-lines paragraph)
+	      :for pinned-lines :on (pinned-lines paragraph)
+	      :for pinned-line := (car pinned-lines)
 	      :for x := (x pinned-line)
 	      :for y := (+ par-y (y pinned-line))
 	      :when (member :line-boxes clues)
@@ -242,16 +243,17 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
-	      :else :if (and (eq (disposition-type (disposition context))
-				 :justified)
-			     (< (width pinned-line) (width paragraph)))
-		      :do (gp:draw-rectangle pane
-			      (+ x (width pinned-line) 5)
-			      (- y (height pinned-line))
-			      5
-			      (+ (height pinned-line) (depth pinned-line))
-			    :foreground :orange
-			    :scale-thickness nil)
+		:else :if (and (cdr pinned-lines) ;; not the last one
+			       (eq (disposition-type (disposition context))
+				   :justified)
+			       (< (width pinned-line) (width paragraph)))
+			:do (gp:draw-rectangle pane
+				(+ x (width pinned-line) 5)
+				(- y (height pinned-line))
+				5
+				(+ (height pinned-line) (depth pinned-line))
+			      :foreground :orange
+			      :scale-thickness nil)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple
