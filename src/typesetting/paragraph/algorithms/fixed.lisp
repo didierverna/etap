@@ -101,42 +101,39 @@ than the underfull one."))
 	:finally
 	   (return
 	     (if justification
-	       (if fit
-		 fit
-		 (ecase variant
-		   (:underfull (or underfull overfull))
-		   (:overfull (or overfull underfull))
-		   (:best
-		    (cond
-		      ;; Only one possibility, so no choice.
-		      ((and underfull (not overfull))
-		       underfull)
-		      ((and overfull (not underfull))
-		       overfull)
-		      ;; Two possibilities, but one is closer to the
-		      ;; paragraph's width, so still no choice.
-		      ((< (- width underfull-w) (- overfull-w width))
-		       underfull)
-		      ((> (- width underfull-w) (- overfull-w width))
-		       overfull)
-		      ;; Now we have equidistance.
-		      ;; If we have two, or no hyphen, the "Avoid Hyphens"
-		      ;; option has no effect, but we might still prefer
-		      ;; overfulls.
-		      ((or (and (eq underfull hyphen-underfull)
-				(eq overfull hyphen-overfull))
-			   (and (eq underfull word-underfull)
-				(eq overfull word-overfull)))
-		       (if prefer-overfulls overfull underfull))
-		      ;; Now we know we have exactly one hyphen.
-		      ;; If we care, choose the other solution.
-		      (avoid-hyphens
-		       (if (eq underfull hyphen-underfull)
-			 overfull
-			 underfull))
-		      ;; Finally, we might still prefer overfulls.
-		      (t
-		       (if prefer-overfulls overfull underfull))))))
+	       (or fit
+		   (ecase variant
+		     (:underfull (or underfull overfull))
+		     (:overfull (or overfull underfull))
+		     (:best
+		      (cond
+			;; Only one possibility, so no choice.
+			((and underfull (not overfull)) underfull)
+			((and overfull (not underfull)) overfull)
+			;; Two possibilities, but one is closer to the
+			;; paragraph's width, so still no choice.
+			((< (- width underfull-w) (- overfull-w width))
+			 underfull)
+			((> (- width underfull-w) (- overfull-w width))
+			 overfull)
+			;; Now we have equidistance.
+			;; If we have two, or no hyphen, the "Avoid Hyphens"
+			;; option has no effect, but we might still prefer
+			;; overfulls.
+			((or (and (eq underfull hyphen-underfull)
+				  (eq overfull hyphen-overfull))
+			     (and (eq underfull word-underfull)
+				  (eq overfull word-overfull)))
+			 (if prefer-overfulls overfull underfull))
+			;; Now we know we have exactly one hyphen.
+			;; If we care, choose the other solution.
+			(avoid-hyphens
+			 (if (eq underfull hyphen-underfull)
+			   overfull
+			   underfull))
+			;; Finally, we might still prefer overfulls.
+			(t (if prefer-overfulls overfull underfull))))))
+	       ;; No justification.
 	       (ecase variant
 		 (:underfull
 		  (cond ((and fit
@@ -161,36 +158,49 @@ than the underfull one."))
 			   overfull))
 			(t underfull)))
 		 (:best
-		  (cond (fit fit)
-			((and underfull (not overfull))
-			 underfull)
-			((and overfull (not underfull))
-			 overfull)
-			(t
-			 (flet ((best-*full (underfull underfull-w
-					     overfull overfull-w)
-				  (cond ((< (- width underfull-w)
-					    (- overfull-w width))
-					 underfull)
-					((< (- overfull-w width)
-					    (- width underfull-w))
-					 overfull)
-					(prefer-overfulls overfull)
-					(t underfull))))
-			   (if avoid-hyphens
-			     (cond ((and word-underfull (not word-overfull))
-				    word-underfull)
-				   ((and (not word-underfull) word-overfull)
-				    word-overfull)
-				   ((and word-underfull word-overfull)
-				    (best-*full word-underfull word-underfull-w
-						word-overfull word-overfull-w))
-				   (t
-				    (best-*full underfull underfull-w
-						overfull overfull-w)))
-			     (best-*full
-			      underfull underfull-w
-			      overfull overfull-w)))))))))))
+		  (flet
+		      ((best-*full (underfull underfull-w overfull overfull-w)
+			 (cond ((< (- width underfull-w) (- overfull-w width))
+				underfull)
+			       ((< (- overfull-w width) (- width underfull-w))
+				overfull)
+			       (prefer-overfulls overfull)
+			       (t underfull))))
+		    (cond
+		      ;; We have a hyphen fit but we prefer to avoid hyphens.
+		      ;; Choose a word solution if possible.
+		      ((and fit
+			    (hyphenation-point-p (stop-elt fit))
+			    avoid-hyphens)
+		       (cond ((and word-underfull word-overfull)
+			      (best-*full word-underfull word-underfull-w
+					  word-overfull word-overfull-w))
+			     (word-underfull word-underfull)
+			     (word-overfull word-overfull)
+			     (t fit)))
+		      ;; We have a fit and we don't care about hyphens or it's
+		      ;; a word fit. Choose it.
+		      (fit fit)
+		      ;; No fit, and only one other possibility, so no choice.
+		      ((and underfull (not overfull)) underfull)
+		      ((and overfull (not underfull)) overfull)
+		      ;; Now we know there are two possibilities.
+		      (t
+		       (if avoid-hyphens
+			 ;; We want to avoid hyphens. Choose a word solution,
+			 ;; or the best of the two possibilities.
+			 (cond ((and word-underfull word-overfull)
+				(best-*full word-underfull word-underfull-w
+					    word-overfull word-overfull-w))
+			       (word-underfull word-underfull)
+			       (word-overfull word-overfull)
+			       (t
+				(best-*full underfull underfull-w
+					    overfull overfull-w)))
+			 ;; We don't care about hyphens. Choose the best
+			 ;; solution.
+			 (best-*full underfull underfull-w
+				     overfull overfull-w)))))))))))
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
