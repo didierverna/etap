@@ -95,8 +95,8 @@ than the underfull one."))
 	  :and :do (if hyphenp
 		     (unless hyphen-overfull
 		       (setq hyphen-overfull boundary hyphen-overfull-w w))
-		     ;; No check here because we stop at the first word
-		     ;; overfull.
+		     ;; No check required here because we stop at the first
+		     ;; word overfull.
 		     (setq word-overfull boundary word-overfull-w w))
 	:finally
 	   (return
