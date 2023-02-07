@@ -4,7 +4,14 @@
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
 ;; choice). The "Overfull" one does the opposite. The "Best" one chooses which
-;; is closest to the paragraph width.
+;; is closest to the paragraph width (modulo the offset; see below).
+
+;; The "Width Offset" option affects how the Best variant computes the
+;; proximity of a solution to the paragraph's width. When non-zero, it
+;; virtually decreases the paragraph's width when doing comparisons, so that
+;; underfulls appear less underfull, and overfulls appear more overfull. The
+;; concrete effect is to let the algorithm choose the closest solution, but if
+;; it's the overfull one, not /too/ overfull.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
 ;; hyphenation are preferred when there is a choice. Note that this option
@@ -55,14 +62,22 @@ into account if applicable, choose the overfull rather
 than the underfull one."))
 
 
+(defmacro define-fixed-caliber (name min default max)
+  "Define a NAMEd Fixed caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber fixed ,name ,min ,default ,max))
+
+;; #### FIXME: the -50pt value below is somewhat arbitrary.
+(define-fixed-caliber width-offset -50 0 0)
+
+
 ;; In order to handle all variants and options, this function starts by
 ;; collecting the possible breakpoints, that is, the last word and hyphen
 ;; underfulls, a possible miraculous fit, and the first word and hyphen
 ;; overfulls. After that, we look at the variants and options, and decide on
 ;; what to return from the collected possibilities.
 (defun fixed-line-boundary
-    (lineup start width justification
-     &key (variant (car *fixed-variants*)) avoid-hyphens prefer-overfulls)
+    (lineup start width justification variant
+     avoid-hyphens prefer-overfulls width-offset)
   "Return the Fixed algorithm's view of the end of line boundary."
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underfull-w :with hyphen-underfull-w :with word-underfull-w
@@ -114,9 +129,10 @@ than the underfull one."))
 			;; paragraph's width, so still no choice.
 			((< (- width underfull-w) (- overfull-w width))
 			 underfull)
-			((> (- width underfull-w) (- overfull-w width))
+			((> (- (+ width width-offset) underfull-w)
+			    (- overfull-w (+ width width-offset)))
 			 overfull)
-			;; Now we have equidistance.
+			;; Now we have equidistance modulo the offset.
 			;; If we have two, or no hyphen, the "Avoid Hyphens"
 			;; option has no effect, but we might still prefer
 			;; overfulls.
@@ -162,7 +178,8 @@ than the underfull one."))
 		      ((best-*full (underfull underfull-w overfull overfull-w)
 			 (cond ((< (- width underfull-w) (- overfull-w width))
 				underfull)
-			       ((< (- overfull-w width) (- width underfull-w))
+			       ((> (- (+ width width-offset) underfull-w)
+				   (- overfull-w (+ width width-offset)))
 				overfull)
 			       (prefer-overfulls overfull)
 			       (t underfull))))
@@ -202,14 +219,24 @@ than the underfull one."))
 			 (best-*full underfull underfull-w
 				     overfull overfull-w)))))))))))
 
+(defmacro default-fixed (name)
+  "Default Fixed NAMEd variable."
+  `(default fixed ,name))
+
+(defmacro calibrate-fixed (name &optional infinity)
+  "Calibrate NAMEd Fixed variable."
+  `(calibrate fixed ,name ,infinity))
+
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
-     &rest keys &key variant avoid-hyphens prefer-overfulls
+     &key variant avoid-hyphens prefer-overfulls width-offset
      &aux (justification (eq (disposition-type disposition) :justified)))
   "Typeset LINEUP with the Fixed algorithm."
-  (declare (ignore variant avoid-hyphens prefer-overfulls))
+  (default-fixed variant)
+  (calibrate-fixed width-offset)
   (loop :for start := 0 :then (next-start boundary)
 	:while start
-	:for boundary := (apply #'fixed-line-boundary
-			   lineup start width justification keys)
+	:for boundary := (fixed-line-boundary
+			  lineup start width justification variant
+			  avoid-hyphens prefer-overfulls width-offset)
 	:collect (make-line lineup start (stop-idx boundary))))

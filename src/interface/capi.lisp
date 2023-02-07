@@ -75,8 +75,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(cons :fixed
 	      (apply #'append
 		(radio-selection fixed :variant interface)
+		(slider-value fixed :width-offset interface)
 		(choice-selected-items (fixed-options interface)))))
   (update interface))
+
+;; DEFINE-SLIDER-CALLBACK doesn't handle more informative titles than just
+;; displaying the values.
+(defun set-fixed-width-offset (pane value status)
+  (declare (ignore status))
+  (setf (titled-object-title pane)
+	(format nil "Width Offset: ~Dpt (~Fcm)"
+	  value (/ value 28.452755)))
+  (set-fixed-algorithm nil (top-level-interface pane)))
 
 
 ;; Fit
@@ -338,6 +348,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
      :reader fixed-options)
+   (fixed-width-offset slider
+     :title (format nil "Width Offset: ~Dpt (~Fcm))"
+	      (caliber-default *fixed-width-offset*)
+	      (/ (caliber-default *fixed-width-offset*) 28.452755))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *fixed-width-offset*)
+     :end (caliber-max *fixed-width-offset*)
+     :slug-start (caliber-default *fixed-width-offset*)
+     :tick-frequency 0
+     :callback 'set-fixed-width-offset
+     :reader fixed-width-offset)
    (fit-variant radio-button-panel
      :layout-class 'column-layout
      :visible-max-height nil
@@ -593,7 +615,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text)
      :reader settings-2)
-   (fixed-settings row-layout '(fixed-variant fixed-options))
+   (fixed-settings row-layout '(fixed-variant fixed-options fixed-parameters))
+   (fixed-parameters column-layout
+     '(fixed-width-offset)
+     :title "Other Parameters"
+     :title-position :frame
+     :visible-max-height nil)
    (fit-settings row-layout '(fit-variant fit-options fit-parameters))
    (fit-parameters column-layout
      '(fit-discriminating-function
@@ -674,7 +701,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
 	 (set-variant fixed)
-	 (set-options fixed))
+	 (set-options fixed)
+	 ;; SET-SLIDER doesn't handle more informative titles than just
+	 ;; displaying the values.
+	 (setf (range-slug-start (fixed-width-offset etap))
+	       (or (cadr (member :width-offset options))
+		   (caliber-default *fixed-width-offset*)))
+	 (setf (titled-object-title (fixed-width-offset etap))
+	       (format nil "Width Offset: ~Dpt (~Fcm)"
+		 (range-slug-start (fixed-width-offset etap))
+		 (/ (range-slug-start (fixed-width-offset etap)) 28.452755))))
 	(:fit
 	 (setf (choice-selection (algorithms etap)) 1)
 	 (set-variant fit)
