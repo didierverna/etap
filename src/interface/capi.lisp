@@ -645,20 +645,21 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		 (choices (intern (concatenate 'string
 				    "*" (string prefix) "-OPTIONS*"))))
 	     `(set-choice-selection (,accessor etap) options ,choices)))
-	 (set-slider (key prefix)
+	 (set-slider (prefix key)
 	   (let ((accessor (intern (concatenate 'string
 				     (string prefix) "-" (string key))))
-		 (choices (intern (concatenate 'string
+		 (caliber (intern (concatenate 'string
 				    "*" (string prefix) "-" (string key) "*"))))
 	     `(progn
 		(setf (range-slug-start (,accessor etap))
-		      (or (cadr (member ,key options)) (cadr ,choices)))
+		      (or (cadr (member ,key options))
+			  (caliber-default ,caliber)))
 		(setf (titled-object-title (,accessor etap))
 		      (format nil "~A: ~D"
 			,(title-capitalize key)
 			(range-slug-start (,accessor etap)))))))
 	 (set-sliders (prefix &rest sliders)
-	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,slider ,prefix))
+	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,prefix ,slider))
 		       sliders)))
 	 (set-choice (prefix key)
 	   (let ((accessor
