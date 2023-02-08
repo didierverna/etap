@@ -70,22 +70,15 @@
 			   (and scale (<= scale 1))))
 		    word-underfull)
 		   (hyphens
-		    (loop :with last-overfull
-			  :for hyphen :in hyphens
+		    (loop :for hyphen :in hyphens
 			  :for scale
 			    := (lineup-scale lineup start (stop hyphen) width)
-			  :while (if scale
-				   (<= scale 0)
-				   (>= (lineup-width lineup
-						     start (stop hyphen))
-				       width))
-			  :if (or (null scale) (< scale -1))
-			    :do (setq last-overfull hyphen)
-			  :else
+			  :when (if scale
+				  (>= scale -1)
+				  (<= (lineup-width lineup start (stop hyphen))
+				      width))
 			    :do (return hyphen)
-			  :finally
-			     (return
-			       (or last-overfull word-overfull))))
+			  :finally (return (or word-underfull word-overfull))))
 		   (t
 		    (or word-underfull word-overfull))))))
 
