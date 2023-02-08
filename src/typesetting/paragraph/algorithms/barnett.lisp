@@ -106,8 +106,7 @@
 	  :collect (let ((scale (lineup-scale lineup start (stop-idx boundary)
 					      width)))
 		     (if (and scale (< scale 0))
-		       (make-wide-line lineup start (stop-idx boundary) width
-				       nil)
+		       (make-wide-line lineup start (stop-idx boundary) width)
 		       (make-line lineup start (stop-idx boundary))))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
