@@ -254,6 +254,23 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				(+ (height pinned-line) (depth pinned-line))
 			      :foreground :orange
 			      :scale-thickness nil)
+	      :when (member :overshrunk/stretched-boxes clues)
+		:if (< (scale pinned-line) -1)
+		  :do (gp:draw-rectangle pane
+			  (+ x (width pinned-line) 5)
+			  (- y (height pinned-line))
+			  5
+			  (+ (height pinned-line) (depth pinned-line))
+			:foreground :blue
+			:scale-thickness nil :filled t)
+		:else :if (> (scale pinned-line) 1)
+			:do (gp:draw-rectangle pane
+				(+ x (width pinned-line) 5)
+				(- y (height pinned-line))
+				5
+				(+ (height pinned-line) (depth pinned-line))
+			      :foreground :blue
+			      :scale-thickness nil)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple
@@ -562,7 +579,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :visible-max-height nil
      :items '(:characters :hyphenation-points
 	      :paragraph-box :line-boxes :character-boxes :baselines
-	      :over/underfull-boxes)
+	      :over/underfull-boxes :overshrunk/stretched-boxes)
      :selected-items '(:characters)
      :print-function 'title-capitalize
      :selection-callback 'set-clues
