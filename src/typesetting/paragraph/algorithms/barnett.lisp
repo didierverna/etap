@@ -99,10 +99,10 @@
 	:for boundary := (barnett-line-boundary lineup start width)
 	:if (and (eq (disposition-type disposition) :justified)
 		 (stop-elt boundary))
+	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start (stop-idx boundary) width t)
 	:else :if (eq (disposition-type disposition) :justified)
-	  ;; Last line in justified disposition: maybe shrink it but don't
-	  ;; stretch it.
+	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (let ((scale (lineup-scale lineup start (stop-idx boundary)
 					      width)))
 		     (if (and scale (< scale 0))
