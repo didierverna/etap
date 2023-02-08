@@ -93,11 +93,13 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 
 (defclass line ()
   ((pinned-objects :initarg :pinned-objects :accessor pinned-objects
-		   :documentation "The list of pinned objects."))
+		   :documentation "The list of pinned objects.")
+   (scale :initarg :scale :reader scale
+	  :documentation "The line's scale factor."))
   (:documentation "The LINE class.
 A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
-origin."))
+origin. A line also remembers its scale factor."))
 
 
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
@@ -137,7 +139,8 @@ origin."))
 		  :and :unless (zerop scale)
 			 :do (incf x (if (> scale 0)
 				       (* scale (stretch elt))
-				       (* scale (shrink elt)))))))
+				       (* scale (shrink elt)))))
+    :scale scale))
 
 (defun make-wide-line
     (lineup start stop width sloppy
