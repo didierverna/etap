@@ -143,7 +143,7 @@ origin. A line also remembers its scale factor."))
     :scale scale))
 
 (defun make-wide-line
-    (lineup start stop width sloppy
+    (lineup start stop width &optional sloppy
      &aux (scale (lineup-scale lineup start stop width)))
   "Make a line of WIDTH from LINEUP chunk between START and STOP.
 If no elasticity is available, the line will remain at its normal width.
