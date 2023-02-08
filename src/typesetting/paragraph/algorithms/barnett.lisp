@@ -47,9 +47,9 @@
 	  :then (next-boundary lineup (stop boundary))
 	:while (and boundary (not word-overfull))
 	:for w := (lineup-width lineup start (stop boundary))
-	:if (and (word-boundary-p lineup boundary) (< w width))
+	:if (and (word-boundary-p lineup boundary) (<= w width))
 	  :do (setq word-underfull boundary hyphens nil)
-	:else :if (and (word-boundary-p lineup boundary) (>= w width))
+	:else :if (and (word-boundary-p lineup boundary) (> w width))
 	  :do (setq word-overfull boundary)
 	:else
 	  ;; #### NOTE: the reverse order below is exactly what we need to try
@@ -57,30 +57,37 @@
 	  :do (push boundary hyphens)
 	:finally
 	   (return
-	     (cond ((and word-overfull
-			 (let ((scale (lineup-scale lineup start
-						    (stop word-overfull)
-						    width)))
-			   (and scale (>= scale -1))))
-		    word-overfull)
-		   ((and word-underfull
-			 (let ((scale (lineup-scale lineup start
-						    (stop word-underfull)
-						    width)))
-			   (and scale (<= scale 1))))
-		    word-underfull)
-		   (hyphens
-		    (loop :for hyphen :in hyphens
-			  :for scale
-			    := (lineup-scale lineup start (stop hyphen) width)
-			  :when (if scale
-				  (>= scale -1)
-				  (<= (lineup-width lineup start (stop hyphen))
-				      width))
-			    :do (return hyphen)
-			  :finally (return (or word-underfull word-overfull))))
-		   (t
-		    (or word-underfull word-overfull))))))
+	     (cond
+	       ;; A word overfull that fits.
+	       ((and word-overfull
+		     (let ((scale (lineup-scale
+				   lineup start (stop word-overfull) width)))
+		       (and scale (>= scale -1))))
+		word-overfull)
+	       ;; A word underfull that fits.
+	       ((and word-underfull
+		     (let ((scale (lineup-scale
+				   lineup start (stop word-underfull) width)))
+		       (and scale (<= scale 1))))
+		word-underfull)
+	       ;; For hyphens, we stop at the first solution that needs not
+	       ;; too much shrinking. We don't care if it needs too much
+	       ;; stretching, because that would be less than what's needed
+	       ;; for the word underfull, and this algorithm is sloppy by
+	       ;; definition. Also, when we don't have any elasticity, we stop
+	       ;; as soon as we have an underfull line.
+	       (hyphens
+		(loop :for hyphen :in hyphens
+		      :for scale
+			:= (lineup-scale lineup start (stop hyphen) width)
+		      :when (if scale
+			      (>= scale -1)
+			      (<= (lineup-width lineup start (stop hyphen))
+				  width))
+			:do (return hyphen)
+		      :finally (return (or word-underfull word-overfull))))
+	       (t
+		(or word-underfull word-overfull))))))
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett)) &key)
