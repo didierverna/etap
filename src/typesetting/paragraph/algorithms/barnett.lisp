@@ -95,7 +95,8 @@
   (loop :for start := 0 :then (next-start boundary)
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
-	:if (eq (disposition-type disposition) :justified)
+	:if (and (eq (disposition-type disposition) :justified)
+		 (stop-elt boundary))
 	  :collect (make-wide-line lineup start (stop-idx boundary) width t)
 	:else
 	  :collect (make-line lineup start (stop-idx boundary))))
