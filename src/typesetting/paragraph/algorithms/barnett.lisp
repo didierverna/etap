@@ -100,5 +100,15 @@
 	:if (and (eq (disposition-type disposition) :justified)
 		 (stop-elt boundary))
 	  :collect (make-wide-line lineup start (stop-idx boundary) width t)
+	:else :if (eq (disposition-type disposition) :justified)
+	  ;; Last line in justified disposition: maybe shrink it but don't
+	  ;; stretch it.
+	  :collect (let ((scale (lineup-scale lineup start (stop-idx boundary)
+					      width)))
+		     (if (and scale (< scale 0))
+		       (make-wide-line lineup start (stop-idx boundary) width
+				       nil)
+		       (make-line lineup start (stop-idx boundary))))
 	:else
+	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start (stop-idx boundary))))
