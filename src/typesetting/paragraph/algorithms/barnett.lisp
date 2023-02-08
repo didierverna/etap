@@ -60,14 +60,16 @@
 	     (cond
 	       ;; A word overfull that fits.
 	       ((and word-overfull
-		     (let ((scale (lineup-scale
-				   lineup start (stop word-overfull) width)))
+		     (let ((scale (lineup-scale lineup start
+						(stop-idx word-overfull)
+						width)))
 		       (and scale (>= scale -1))))
 		word-overfull)
 	       ;; A word underfull that fits.
 	       ((and word-underfull
-		     (let ((scale (lineup-scale
-				   lineup start (stop word-underfull) width)))
+		     (let ((scale (lineup-scale lineup start
+						(stop-idx word-underfull)
+						width)))
 		       (and scale (<= scale 1))))
 		word-underfull)
 	       ;; For hyphens, we stop at the first solution that needs not
@@ -79,10 +81,10 @@
 	       (hyphens
 		(loop :for hyphen :in hyphens
 		      :for scale
-			:= (lineup-scale lineup start (stop hyphen) width)
+			:= (lineup-scale lineup start (stop-idx hyphen) width)
 		      :when (if scale
 			      (>= scale -1)
-			      (<= (lineup-width lineup start (stop hyphen))
+			      (<= (lineup-width lineup start (stop-idx hyphen))
 				  width))
 			:do (return hyphen)
 		      :finally (return (or word-underfull word-overfull))))
