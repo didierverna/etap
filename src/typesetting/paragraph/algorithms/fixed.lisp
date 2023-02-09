@@ -4,7 +4,7 @@
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
 ;; choice). The "Overfull" one does the opposite. The "Best" one chooses which
-;; is closest to the paragraph width (modulo the offset; see below).
+;; is closest to the paragraph's width (modulo the offset; see below).
 
 ;; The "Width Offset" option affects how the Best variant computes the
 ;; proximity of a solution to the paragraph's width. When non-zero, it
@@ -18,7 +18,7 @@
 ;; takes precedence over the "Prefer Overfulls" one (see below).
 
 ;; In the Best variant, when the underfull and overfull line solutions are
-;; equally distant from the paragraph width, and after the "Avoid Hyphens"
+;; equally distant from the paragraph's width, and after the "Avoid Hyphens"
 ;; option has been taken into account if applicable, the underfull one is
 ;; chosen, unless the "Prefer Overfulls" option is checked.
 
@@ -71,7 +71,7 @@ than the underfull one."))
 
 
 ;; In order to handle all variants and options, this function starts by
-;; collecting the possible breakpoints, that is, the last word and hyphen
+;; collecting the interesting breakpoints, that is, the last word and hyphen
 ;; underfulls, a possible miraculous fit, and the first word and hyphen
 ;; overfulls. After that, we look at the variants and options, and decide on
 ;; what to return from the collected possibilities.
