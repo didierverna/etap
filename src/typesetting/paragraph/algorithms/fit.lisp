@@ -340,17 +340,17 @@ for equally bad solutions."))
 (defgeneric fit-make-line
     (lineup start stop disposition variant &key &allow-other-keys)
   (:method (lineup start stop disposition (variant (eql :first))
-	    &key width relax
+	    &key width relax last
 	    &aux (scale 1))
     (when relax
       (setq scale
-	    (if (< stop (length lineup))
+	    (if last
+	      0
 	      (let ((scale
 		      (lineup-scale
 		       lineup start (stop-idx (next-boundary lineup stop))
 		       width)))
-		(if (and scale (> scale 0)) scale 0))
-	      0)))
+		(if (and scale (> scale 0)) scale 0)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
     (make-line lineup start stop))
@@ -362,8 +362,14 @@ for equally bad solutions."))
 		    (if (and scale (< scale 0)) scale 0))))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
-	    &key width sloppy)
-    (make-wide-line lineup start stop width sloppy)))
+	    &key width sloppy last)
+    (if last
+      ;; Justified last line: maybe shrink it but don't stretch it.
+      (let ((scale (lineup-scale lineup start stop width)))
+	(if (and scale (< scale 0))
+	  (make-wide-line lineup start stop width)
+	  (make-line lineup start stop)))
+      (make-wide-line lineup start stop width sloppy))))
 
 
 (defmacro calibrate-fit (name &optional infinity)
@@ -399,4 +405,5 @@ for equally bad solutions."))
 			(disposition-type disposition) variant
 			:width width
 			:relax relax
+			:last (null (stop-elt boundary))
 			(disposition-options disposition))))
