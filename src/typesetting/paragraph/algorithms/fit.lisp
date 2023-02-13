@@ -187,16 +187,7 @@ for equally bad solutions."))
 	      :then (next-boundary lineup (stop-idx boundary))
 	    :while (and boundary
 			(<= (funcall lineup-width-function
-			      lineup start
-			      ;; #### WARNING: this is a gross hack to make
-			      ;; the :first variant work with the infinitely
-			      ;; stretchable glue at the end of the lineup.
-			      ;; This variant only makes sense for finite
-			      ;; stretching.
-			      (if (and (eq variant :first)
-				       (= (stop-idx boundary) (length lineup)))
-				(1- (stop-idx boundary))
-				(stop-idx boundary)))
+			      lineup start (stop-idx boundary))
 			    width))
 	    :do (setq previous boundary)
 	    :do (unless (discretionaryp (stop-elt boundary))
