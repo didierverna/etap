@@ -116,39 +116,41 @@ than the underfull one."))
 	:finally
 	   (return
 	     (if justification
-	       (or fit
-		   (ecase variant
-		     (:underfull (or underfull overfull))
-		     (:overfull (or overfull underfull))
-		     (:best
-		      (cond
-			;; Only one possibility, so no choice.
-			((and underfull (not overfull)) underfull)
-			((and overfull (not underfull)) overfull)
-			;; Two possibilities, but one is closer to the
-			;; paragraph's width, so still no choice.
-			((< (- width underfull-w) (- overfull-w width))
-			 underfull)
-			((> (- (+ width width-offset) underfull-w)
-			    (- overfull-w (+ width width-offset)))
-			 overfull)
-			;; Now we have equidistance modulo the offset.
-			;; If we have two, or no hyphen, the "Avoid Hyphens"
-			;; option has no effect, but we might still prefer
-			;; overfulls.
-			((or (and (eq underfull hyphen-underfull)
-				  (eq overfull hyphen-overfull))
-			     (and (eq underfull word-underfull)
-				  (eq overfull word-overfull)))
-			 (if prefer-overfulls overfull underfull))
-			;; Now we know we have exactly one hyphen.
-			;; If we care, choose the other solution.
-			(avoid-hyphens
-			 (if (eq underfull hyphen-underfull)
-			   overfull
-			   underfull))
-			;; Finally, we might still prefer overfulls.
-			(t (if prefer-overfulls overfull underfull))))))
+	       (cond
+		 ;; Only one possibility, so no choice.
+		 (fit fit)
+		 ((and underfull (not overfull)) underfull)
+		 ((and overfull (not underfull)) overfull)
+		 (t
+		  ;; We have at least one underfull and one overfull solution.
+		  (ecase variant
+		    ;; Still no choice in these two variants.
+		    (:underfull underfull)
+		    (:overfull overfull)
+		    (:best
+		     (cond
+		       ;; One solution is closer to the paragraph's width, so
+		       ;; still no choice.
+		       ((< (- width underfull-w) (- overfull-w width))
+			underfull)
+		       ((> (- width underfull-w) (- overfull-w width))
+			overfull)
+		       ;; Equidistance. If we have two, or no hyphen, the
+		       ;; "Avoid Hyphens" option has no effect, but we might
+		       ;; still prefer overfulls.
+		       ((or (and (eq underfull hyphen-underfull)
+				 (eq overfull hyphen-overfull))
+			    (and (eq underfull word-underfull)
+				 (eq overfull word-overfull)))
+			(if prefer-overfulls overfull underfull))
+		       ;; Exactly one hyphen. If we care, choose the other
+		       ;; solution.
+		       (avoid-hyphens
+			(if (eq underfull hyphen-underfull)
+			  overfull
+			  underfull))
+		       ;; Finally, we might still prefer overfulls.
+		       (t (if prefer-overfulls overfull underfull)))))))
 	       ;; No justification.
 	       (ecase variant
 		 (:underfull
