@@ -34,6 +34,24 @@
 ;; Finally, note that because the inter-word spacing is fixed, the sloppy
 ;; option has no effect.
 
+
+;; #### TODO: the Width Offset option is but one possibility for modulating
+;; the decision in ragged dispositions. Although perhaps not very interesting
+;; in this particular algorithm, there are many other ideas that we could
+;; implement to further tune the result. Here are two of them.
+;;
+;; 1. We could consider that hyphens (and why not punctuation !) use less ink
+;;    than letters, so at the same distance from the paragraph's width,
+;;    overfulls appear less overfull than with letters, and conversely
+;;    underfulls appear more underfull than with letters. So this could also
+;;    be used as some kind of offset.
+;; 2. We could want raggedness thresholds. Well, not exactly since there's no
+;;    paragraph-wide considerations, but at least, we could want to minimize
+;;    the distance to the paragraph's width, so that for example, even when
+;;    the Avoid Hyphens option is checked, a hyphen solution would still be
+;;    preferred to a word one if the later really is too far away.
+
+
 (in-package :etap)
 
 
