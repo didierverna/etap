@@ -4,31 +4,32 @@
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
 ;; choice). The "Overfull" one does the opposite. The "Best" one chooses which
-;; is closest to the paragraph's width (modulo the offset; see below).
+;; is closest to the paragraph's width.
 
 ;; The "Width Offset" option affects how the Best variant computes the
-;; proximity of a solution to the paragraph's width. When non-zero, it
-;; virtually decreases the paragraph's width when doing comparisons, so that
-;; underfulls appear less underfull, and overfulls appear more overfull. The
-;; concrete effect is to let the algorithm choose the closest solution, but if
-;; it's the overfull one, not /too/ overfull.
+;; proximity of a solution to the paragraph's width in ragged dispositions.
+;; When non-zero, it virtually decreases the paragraph's width when doing
+;; comparisons, so that underfulls appear less underfull, and overfulls appear
+;; more overfull. The concrete effect is to let the algorithm choose the
+;; closest solution, but if it's the overfull one, not /too/ overfull.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
 ;; hyphenation are preferred when there is a choice. Note that this option
 ;; takes precedence over the "Prefer Overfulls" one (see below).
 
 ;; In the Best variant, when the underfull and overfull line solutions are
-;; equally distant from the paragraph's width, and after the "Avoid Hyphens"
-;; option has been taken into account if applicable, the underfull one is
-;; chosen, unless the "Prefer Overfulls" option is checked.
+;; equally distant from the paragraph's width (modulo the width offset if
+;; applicable), and after the "Avoid Hyphens" option has been taken into
+;; account if applicable, the underfull one is chosen, unless the "Prefer
+;; Overfulls" option is checked.
 
 ;; Even though the inter-word spacing is fixed, there is a difference between
 ;; the justified disposition and the flush left one. For justification,
 ;; getting as close to the paragraph's width as possible takes precedence over
 ;; the "Avoid Hyphens" and "Prefer Overfulls" option, so they apply only when
 ;; there is no fit, and two solutions (one underfull and one overfull) are
-;; equally distant from the paragraph's width. In the other dispositions, the
-;; options take precedence.
+;; equally distant from the paragraph's width (which should be extremely
+;; rare). In the other dispositions, the options take precedence.
 
 ;; Finally, note that because the inter-word spacing is fixed, the sloppy
 ;; option has no effect.
