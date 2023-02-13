@@ -342,16 +342,23 @@ for equally bad solutions."))
   (:documentation "Make a Fit line from LINEUP chunk between START and STOP.")
   (:method (lineup start stop disposition (variant (eql :first))
 	    &key width relax last
+	    ;; By default, lines are stretched as much as possible.
 	    &aux (scale 1))
     "Make a ragged first-fit line from LINEUP chunk between START and STOP."
     (when relax
       (setq scale
 	    (if last
+	      ;; There is no constraint on destretching the last line.
 	      0
+	      ;; On the other hand, do not destretch any other line so much
+	      ;; that another chunk would fit in.
 	      (let ((scale
 		      (lineup-scale
 		       lineup start (stop-idx (next-boundary lineup stop))
 		       width)))
+		;; A positive scale means that another chunk would fit in, and
+		;; still be underfull, so we can destretch only up to that.
+		;; Otherwise, we can destretch completely.
 		(if (and scale (> scale 0)) scale 0)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
@@ -359,21 +366,39 @@ for equally bad solutions."))
     (make-line lineup start stop))
   (:method (lineup start stop disposition (variant (eql :last))
 	    &key width relax
+	    ;; By default, lines are shrunk as much as possible.
 	    &aux (scale -1))
     "Make a ragged last-fit line from LINEUP chunk between START and STOP."
     (when relax
+      ;; There is no specific case for the last line here, because we only
+      ;; deshrink up to the line's natural width.
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
+		    ;; A negative scale means that the line would naturally be
+		    ;; overfull, so we can only deshrink up to that scale.
+		    ;; Otherwise, we can deshrink completely.
 		    (if (and scale (< scale 0)) scale 0))))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy last)
     "Make a justified Fit line from LINEUP chunk between START and STOP."
     (if last
-      ;; Justified last line: maybe shrink it but don't stretch it.
+      ;; The last line, which almost never fits exactly, needs a special
+      ;; treatment. Without paragraph-wide considerations, we want its scaling
+      ;; to be close to the general effect of the selected variant.
       (let ((scale (lineup-scale lineup start stop width)))
-	(if (and scale (< scale 0))
-	  (make-wide-line lineup start stop width)
-	  (make-line lineup start stop)))
+	(ecase variant
+	  (:first
+	   ;; Stretch as much as possible.
+	   (make-line lineup start stop 1))
+	  (:best
+	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
+	   ;; normal spacing.
+	   (if (and scale (< scale 0))
+	     (make-line lineup start stop scale)
+	     (make-line lineup start stop)))
+	  (:last
+	   ;; Shrink as much as possible.
+	   (make-line lineup start stop -1))))
       (make-wide-line lineup start stop width sloppy))))
 
 
