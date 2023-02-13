@@ -339,9 +339,11 @@ for equally bad solutions."))
 
 (defgeneric fit-make-line
     (lineup start stop disposition variant &key &allow-other-keys)
+  (:documentation "Make a Fit line from LINEUP chunk between START and STOP.")
   (:method (lineup start stop disposition (variant (eql :first))
 	    &key width relax last
 	    &aux (scale 1))
+    "Make a ragged first-fit line from LINEUP chunk between START and STOP."
     (when relax
       (setq scale
 	    (if last
@@ -353,16 +355,19 @@ for equally bad solutions."))
 		(if (and scale (> scale 0)) scale 0)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
+    "Make a ragged best-fit line from LINEUP chunk between START and STOP."
     (make-line lineup start stop))
   (:method (lineup start stop disposition (variant (eql :last))
 	    &key width relax
 	    &aux (scale -1))
+    "Make a ragged last-fit line from LINEUP chunk between START and STOP."
     (when relax
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
 		    (if (and scale (< scale 0)) scale 0))))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy last)
+    "Make a justified Fit line from LINEUP chunk between START and STOP."
     (if last
       ;; Justified last line: maybe shrink it but don't stretch it.
       (let ((scale (lineup-scale lineup start stop width)))
