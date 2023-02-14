@@ -34,14 +34,14 @@
 ;; weight function in the TeX way.
 
 ;; In the Best/Justified version, several line boundaries may turn out to have
-;; the same optimum weight (badness + hyphen penalty). A weight of -∞ cannot
+;; the same "best" weight (badness + hyphen penalty). A weight of -∞ cannot
 ;; occur because that would be a mandatory discretionary break, so it would
 ;; have been already treated. Two possibilities may thus occur:
 ;;
 ;; 1. Numerical weight. Because of the badness definition, this can only mean
 ;;    that we have different boundaries with or without varying hyphen
 ;;    penalties.
-;; 2. Infinite weight. Prohibited discretionary breaks have been skipped, so
+;; 2. +∞ weight. Prohibited discretionary breaks have been skipped, so
 ;;    we have cases of infinite badness. This means unstretchable underfulls,
 ;;    with maybe one final overfull.
 ;;
@@ -59,12 +59,12 @@
 ;; there's an overfull, we need to choose between the last two boundaries,
 ;; that is, between the last unstretchable underfull, and the overfull. We
 ;; normally choose the underfull line, unless the "Prefer Overfull" option is
-;; checked. Note that the underfull may or may not have some shrinkability
-;; (remember that TeX's definition of badness for overfull is always
-;; +∞), so maybe the overfull could be compressed, but not too much. We don't
-;; want to handle that as a special case, because a better way to do it would
-;; be to change the definition of badness to /not/ be infinite all of a sudden
-;; for overfulls, but be more subtle.
+;; checked. Note that the overfull may or may not have some shrinkability
+;; (remember that TeX's definition of badness for overfull is always +∞), so
+;; maybe the overfull could be compressed, but not too much. We don't want to
+;; handle that as a special case, because a better way to do it would be to
+;; change the definition of badness to /not/ be infinite all of a sudden for
+;; overfulls, but be more subtle.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
@@ -77,10 +77,11 @@
 
 
 ;; #### TODO: maybe we could think of other potential weight functions for the
-;; #### Best/Justified version, and provide a choice? Note however that the
-;; #### way we collect possible line endings in the Best/Justified version is
-;; #### tightly coupled to our knowledge of the besting function, so this may
-;; #### need to evolve as well.
+;; Best/Justified version, and provide a choice? See for instance some ideas
+;; in the Fixed algorithm's comment section. Note however that the way we
+;; collect possible line endings in the Best/Justified version is tightly
+;; coupled to our knowledge of the besting function, so this may need to
+;; evolve as well.
 
 
 (in-package :etap)
@@ -380,8 +381,7 @@ for equally bad solutions."))
 	(ecase variant
 	  (:first
 	   ;; Stretch as much as possible.
-	   (make-line lineup start stop
-		      (if (and scale (< scale 1)) scale 1)))
+	   (make-line lineup start stop (if (and scale (< scale 1)) scale 1)))
 	  (:best
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	   ;; normal spacing.
