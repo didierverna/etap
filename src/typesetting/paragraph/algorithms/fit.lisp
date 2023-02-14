@@ -217,6 +217,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens)
+    "Find a First or Last Fit boundary for the justified disposition."
     ;; #### NOTE: here, we collect all the possible fits, but only the last
     ;; underfull and the first overfull, regardless of whether they are
     ;; hyphenated or not. The rationale is that if we can't find a fit, we'd
@@ -236,7 +237,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	    :do (setq underfull boundary)
 	  :else :if (and (<= (min-width span) width)
 			 (>= (max-width span) width))
-	    :do (push boundary fits)
+	    :do (push boundary fits) ;; note the reverse order!
 	  :else
 	    :do (setq overfull boundary)
 	  :finally
@@ -249,15 +250,11 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			   (or (word-boundaries fits)
 			       (hyphen-boundaries fits))
 			   fits)))
-		   (ecase variant
-		     (:first
-		      (cond (boundaries (car (last boundaries)))
-			    (underfull underfull)
-			    (t overfull)))
-		     (:last
-		      (cond (boundaries (car boundaries))
-			    (overfull overfull)
-			    (t underfull)))))))))
+		   (if boundaries
+		     (ecase variant
+		       (:first (car (last boundaries)))
+		       (:last (car boundaries)))
+		     (or underfull overfull)))))))
   (:method (lineup start width
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
