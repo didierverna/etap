@@ -266,6 +266,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	    (disposition (eql :justified)) (variant (eql :best))
 	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
 		 prefer-shrink prefer-overfulls)
+    "Find a Best Fit boundary for the justified disposition."
     ;; #### NOTE: in order to handle all possible hyphen penalty values
     ;; (negative or positive, as well as infinite), we collect all potential
     ;; breaks until the first overfull, prematurely ending on mandatory hyphen
