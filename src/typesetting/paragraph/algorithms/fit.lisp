@@ -75,6 +75,13 @@
 ;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
 ;; effect on it).
 
+;; #### TODO: we had a lot of fun implementing all sorts of crazy options in
+;; the Fixed algorithm (and then some, and there's still room for more fun;
+;; see the comments there). In fact, all of this work could be used here. More
+;; specifically, every time the Fit algorithm cannot find a solution, it could
+;; fall back to a decision based on the Fixed parameters. What we do currently
+;; is much simpler: we prefer underfulls and use overfulls as a last resort,
+;; which in fact corresponds to the Underfull variant of the Fixed algorithm.
 
 ;; #### TODO: maybe we could think of other potential weight functions for the
 ;; Best/Justified version, and provide a choice? See for instance some ideas
