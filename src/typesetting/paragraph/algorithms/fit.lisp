@@ -190,6 +190,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   (:documentation
    "Return the Fit algorithm's view of the end of line boundary.")
   (:method (lineup start width disposition variant &key avoid-hyphens)
+    "Find a Fit boundary for ragged dispositions."
     (let ((lineup-width-function (ecase variant
 				   (:first #'lineup-max-width)
 				   (:best #'lineup-width)
@@ -210,6 +211,9 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			       (if avoid-hyphens
 				 (or word-previous previous)
 				 previous)
+			       ;; #### NOTE: if we need to return this, we
+			       ;; have an unbreakable overfull with no
+			       ;; elasticity (a very long word).
 			       boundary)))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens)
