@@ -131,6 +131,9 @@ for equally bad solutions."))
 (defun fit-weight
     (lineup start width boundary hyphen-penalty explicit-hyphen-penalty
      &aux (badness (badness lineup start (stop-idx boundary) width)))
+  "Return the weight of LINEUP chunk between START and BOUNDARY.
+The weight is calculated in the TeX way, that is, badness plus possible hyphen
+penalty."
   (if (discretionaryp (stop-elt boundary))
     ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
@@ -143,6 +146,8 @@ for equally bad solutions."))
 
 (defun fit-weights
     (lineup start width boundaries hyphen-penalty explicit-hyphen-penalty)
+  "Compute the weights of LINEUP chunks between START and BOUNDARIES.
+Return a list of the form ((WEIGHT . BOUNDARY) ...)."
   (mapcar
       (lambda (boundary)
 	(cons (fit-weight lineup start width boundary
@@ -151,6 +156,9 @@ for equally bad solutions."))
     boundaries))
 
 (defun fit-deltas (lineup start width boundaries)
+  "Compute the deltas of LINEUP chunks between START and BOUNDARIES.
+This means the difference (in absolute value) between WIDTH and each chunk's
+natural width. Return a list of the form ((DELTA . BOUNDARY) ...)."
   (mapcar (lambda (boundary)
 	    (cons (abs (- width
 			  (lineup-width lineup start (stop-idx boundary))))
@@ -159,16 +167,21 @@ for equally bad solutions."))
 
 ;; #### WARNING: this only works for elastic lines!
 (defun fit-scales (lineup start width boundaries)
+  "Compute the scales of LINEUP chunks between START and BOUNDARIES.
+This means the scaling required for a chunk to reach WIDTH, in absolute value.
+Return a list of the form ((SCALE . BOUNDARY) ...)."
   (mapcar (lambda (boundary)
 	    (cons (abs (lineup-scale lineup start (stop-idx boundary) width))
 		  boundary))
     boundaries))
 
 (defun word-boundaries (boundaries)
+  "Select only word boundaries from BOUNDARIES."
   (remove-if (lambda (boundary) (discretionaryp (stop-elt boundary)))
       boundaries))
 
 (defun hyphen-boundaries (boundaries)
+  "Select only hyphen boundaries from BOUNDARIES."
   (remove-if-not (lambda (boundary) (discretionaryp (stop-elt boundary)))
       boundaries))
 
