@@ -95,10 +95,11 @@ the underfull one."))
 (defun fallback-boundary
     (underfull underwidth overfull overwidth width prefer-overfulls
      &optional (policy :anyfull) avoid-hyphens)
-  "Select either UNDERFULL or OVERFULL fallback boundary.
-This function is used in the justified disposition when there is no fit."
+  "Select UNDERFULL or OVERFULL boundary as a fallback solution, or NIL."
   (cond
-    ;; Only one possibility, so no choice.
+    ;; No possibility, no choice.
+    ((and (null underfull) (null overfull)) nil)
+    ;; Only one possibility, no choice either.
     ((and underfull (not overfull)) underfull)
     ((and overfull (not underfull)) overfull)
     ;; Two possibilities from now on.
@@ -207,12 +208,11 @@ This function is used in the justified disposition when there is no fit."
 		    ((and fit
 			  (hyphenation-point-p (stop-elt fit))
 			  avoid-hyphens)
-		     (if (or word-underfull word-overfull)
-		       (fallback-boundary
-			word-underfull word-underwidth
-			word-overfull word-overwidth
-			(+ width width-offset) prefer-overfulls)
-		       fit))
+		     (or (fallback-boundary
+			  word-underfull word-underwidth
+			  word-overfull word-overwidth
+			  (+ width width-offset) prefer-overfulls)
+			 fit))
 		    ;; We have a fit and we don't care about hyphens or it's a
 		    ;; word fit. Choose it.
 		    (fit fit)
@@ -220,14 +220,13 @@ This function is used in the justified disposition when there is no fit."
 		    ;; We want to avoid hyphens. Choose a word solution if
 		    ;; any, or the best of the two possibilities regardless.
 		    (avoid-hyphens
-		     (if (or word-underfull word-overfull)
-		       (fallback-boundary
-			word-underfull word-underwidth
-			word-overfull word-overwidth
-			(+ width width-offset) prefer-overfulls)
-		       (fallback-boundary
-			underfull underwidth overfull overwidth
-			(+ width width-offset) prefer-overfulls)))
+		     (or (fallback-boundary
+			  word-underfull word-underwidth
+			  word-overfull word-overwidth
+			  (+ width width-offset) prefer-overfulls)
+			 (fallback-boundary
+			  underfull underwidth overfull overwidth
+			  (+ width width-offset) prefer-overfulls)))
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (t
 		     (fallback-boundary
