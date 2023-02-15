@@ -3,12 +3,12 @@
 ;; paragraph-wide considerations.
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
-;; choice). The "Overfull" one does the opposite. The "Best" one normally
+;; choice). The "Overfull" one does the opposite. The "Anyfull" one normally
 ;; selects the solution that is the closest to the paragraph's width, whether
 ;; underfull or overfull. The behavior of these variants is further modulated
 ;; by the options described below.
 
-;; The "Width Offset" option affects how the Best variant computes the
+;; The "Width Offset" option affects how the Anyfull variant computes the
 ;; proximity of a solution to the paragraph's width. When non-zero, it
 ;; virtually decreases the paragraph's width when doing comparisons, so that
 ;; underfulls appear less underfull, and overfulls appear more overfull. In
@@ -16,12 +16,12 @@
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
 ;; hyphenation are preferred when there is a choice. This option takes
-;; precedence over the "Prefer Overfulls" one (see below).
+;; precedence over the Prefer Overfulls one (see below).
 
-;; In the Best variant, when the underfull and overfull line solutions are
+;; In the Anyfull variant, when the underfull and overfull line solutions are
 ;; equally distant from the paragraph's width (modulo the offset), and after
-;; the "Avoid Hyphens" option has been taken into account, the underfull one
-;; is chosen, unless the "Prefer Overfulls" option is checked.
+;; the Avoid Hyphens option has been taken into account, the underfull one is
+;; chosen, unless the "Prefer Overfulls" option is checked.
 
 ;; Even though the inter-word spacing is fixed, there is a difference between
 ;; the justified disposition and the flush left one, although the chance of
@@ -30,7 +30,7 @@
 ;; the offset) takes precedence. Thus, the options apply only when there is no
 ;; fit, and two solutions (one underfull and one overfull) are equally bad.
 ;; In the ragged dispositions, we care less about the paragraph's width, so
-;; the options take precedence. For example, if the "Avoid Hyphens" option is
+;; the options take precedence. For example, if the Avoid Hyphens option is
 ;; checked, a word boundary will always be preferred to a hyphen boundary,
 ;; even if it's farther away from the paragraph's width.
 
@@ -38,8 +38,8 @@
 ;; option has no effect.
 
 
-;; #### TODO: the "Width Offset" idea is but one possibility for modulating
-;; the decision betwee under and overfulls. There are many other ideas that we
+;; #### TODO: the Width Offset idea is but one possibility for modulating the
+;; decision betwee under and overfulls. There are many other ideas that we
 ;; could implement to further tune the results. Here are two of them.
 ;;
 ;; 1. We could consider that hyphens (and why not punctuation !) use less ink
@@ -58,10 +58,10 @@
 
 
 (defparameter *fixed-variants*
-  '(:underfull :best :overfull))
+  '(:underfull :anyfull :overfull))
 
 (defparameter *fixed-variants-help-keys*
-  '(:fixed-variant-underfull :fixed-variant-best :fixed-variant-overfull))
+  '(:fixed-variant-underfull :fixed-variant-anyfull :fixed-variant-overfull))
 
 (defparameter *fixed-options*
   '((:avoid-hyphens t) (:prefer-overfulls t)))
@@ -71,15 +71,15 @@
 
 (defparameter *fixed-tooltips*
   '(:fixed-variant-underfull "Always prefer underfull lines."
-    :fixed-variant-best "Prefer lines closer to the paragraph
+    :fixed-variant-anyfull "Prefer lines closer to the paragraph
 width, whether underfull or overfull."
     :fixed-variant-overfull "Always prefer overfull lines."
     :fixed-option-avoid-hyphens "Avoid hyphenating words when possible."
     :fixed-option-prefer-overfulls
-    "In the Best variant, when the underfull and overfull
-lines are equally distant from the paragraph width,
-and after the \"Avoid Hyphens\" option has been taken
-into account if applicable, choose the overfull rather
+    "In the Anyfull variant, when the underfull and overfull
+lines are equally distant from the paragraph's width
+(modulo the offset), and after the Avoid Hyphens option
+has been taken into account, choose the overfull rather
 than the underfull one."))
 
 
@@ -104,12 +104,12 @@ This function is used in the justified disposition when there is no fit."
     ;; Still no choice in these two policies.
     ((eq policy :underfull) underfull)
     ((eq policy :overfull) overfull)
-    ;; Best policy from now on.
+    ;; Anyfull policy from now on.
     ;; One solution is closer to the paragraph's width, so still no choice.
     ((< (- width underwidth) (- overwidth width)) underfull)
     ((> (- width underwidth) (- overwidth width)) overfull)
     ;; Equidistance.
-    ;; If we have two, or no hyphen, the "Avoid Hyphens" option has no effect,
+    ;; If we have two, or no hyphen, the Avoid Hyphens option has no effect,
     ;; but we might still prefer overfulls.
     ((or (and (hyphenation-point-p (stop-elt underfull))
 	      (hyphenation-point-p (stop-elt overfull)))
@@ -143,7 +143,7 @@ This function is used in the justified disposition when there is no fit."
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop-idx boundary))
 	;; #### NOTE: we're satisfied to stop at the first word overfull, even
-	;; if we don't have an hyphen overfull, because the "Avoid Hyphens"
+	;; if we don't have an hyphen overfull, because the Avoid Hyphens
 	;; options would have no effect there. On the other hand, if we
 	;; already have an hyphen overfull, it's still important to collect a
 	;; word overfull if possible, because of that very same option.
@@ -199,7 +199,7 @@ This function is used in the justified disposition when there is no fit."
 			   (or word-overfull overfull)
 			   overfull))
 			(t underfull)))
-		 (:best
+		 (:anyfull
 		  (cond
 		    ;; We have a hyphen fit but we prefer to avoid hyphens.
 		    ;; Choose a word solution if possible.
@@ -210,7 +210,7 @@ This function is used in the justified disposition when there is no fit."
 		       (fallback-boundary
 			word-underfull word-underwidth
 			word-overfull word-overwidth
-			(+ width width-offset) :best t prefer-overfulls)
+			(+ width width-offset) :anyfull t prefer-overfulls)
 		       fit))
 		    ;; We have a fit and we don't care about hyphens or it's a
 		    ;; word fit. Choose it.
@@ -223,17 +223,17 @@ This function is used in the justified disposition when there is no fit."
 		       (fallback-boundary
 			word-underfull word-underwidth
 			word-overfull word-overwidth
-			(+ width width-offset) :best t prefer-overfulls)
+			(+ width width-offset) :anyfull t prefer-overfulls)
 		       (fallback-boundary
 			underfull underwidth overfull overwidth
 			(+ width width-offset)
-			:best t prefer-overfulls)))
+			:anyfull t prefer-overfulls)))
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (t
 		     (fallback-boundary
 		      underfull underwidth overfull overwidth
 		      (+ width width-offset)
-		      :best nil prefer-overfulls)))))))))
+		      :anyfull nil prefer-overfulls)))))))))
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
