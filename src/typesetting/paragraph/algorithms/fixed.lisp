@@ -200,50 +200,40 @@ This function is used in the justified disposition when there is no fit."
 			   overfull))
 			(t underfull)))
 		 (:best
-		  (flet
-		      ((best-*full (underfull underwidth overfull overwidth)
-			 (cond ((< (- width underwidth) (- overwidth width))
-				underfull)
-			       ((> (- (+ width width-offset) underwidth)
-				   (- overwidth (+ width width-offset)))
-				overfull)
-			       (prefer-overfulls overfull)
-			       (t underfull))))
-		    (cond
-		      ;; We have a hyphen fit but we prefer to avoid hyphens.
-		      ;; Choose a word solution if possible.
-		      ((and fit
-			    (hyphenation-point-p (stop-elt fit))
-			    avoid-hyphens)
-		       (cond ((and word-underfull word-overfull)
-			      (best-*full word-underfull word-underwidth
-					  word-overfull word-overwidth))
-			     (word-underfull word-underfull)
-			     (word-overfull word-overfull)
-			     (t fit)))
-		      ;; We have a fit and we don't care about hyphens or it's
-		      ;; a word fit. Choose it.
-		      (fit fit)
-		      ;; No fit, and only one other possibility, so no choice.
-		      ((and underfull (not overfull)) underfull)
-		      ((and overfull (not underfull)) overfull)
-		      ;; Now we know there are two possibilities.
-		      (t
-		       (if avoid-hyphens
-			 ;; We want to avoid hyphens. Choose a word solution,
-			 ;; or the best of the two possibilities.
-			 (cond ((and word-underfull word-overfull)
-				(best-*full word-underfull word-underwidth
-					    word-overfull word-overwidth))
-			       (word-underfull word-underfull)
-			       (word-overfull word-overfull)
-			       (t
-				(best-*full underfull underwidth
-					    overfull overwidth)))
-			 ;; We don't care about hyphens. Choose the best
-			 ;; solution.
-			 (best-*full underfull underwidth
-				     overfull overwidth)))))))))))
+		  (cond
+		    ;; We have a hyphen fit but we prefer to avoid hyphens.
+		    ;; Choose a word solution if possible.
+		    ((and fit
+			  (hyphenation-point-p (stop-elt fit))
+			  avoid-hyphens)
+		     (if (or word-underfull word-overfull)
+		       (fallback-boundary
+			word-underfull word-underwidth
+			word-overfull word-overwidth
+			(+ width width-offset) :best t prefer-overfulls)
+		       fit))
+		    ;; We have a fit and we don't care about hyphens or it's a
+		    ;; word fit. Choose it.
+		    (fit fit)
+		    ;; Not fit.
+		    ;; We want to avoid hyphens. Choose a word solution if
+		    ;; any, or the best of the two possibilities regardless.
+		    (avoid-hyphens
+		     (if (or word-underfull word-overfull)
+		       (fallback-boundary
+			word-underfull word-underwidth
+			word-overfull word-overwidth
+			(+ width width-offset) :best t prefer-overfulls)
+		       (fallback-boundary
+			underfull underwidth overfull overwidth
+			(+ width width-offset)
+			:best t prefer-overfulls)))
+		    ;; We don't care about hyphens. Choose the best solution.
+		    (t
+		     (fallback-boundary
+		      underfull underwidth overfull overwidth
+		      (+ width width-offset)
+		      :best nil prefer-overfulls)))))))))
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
