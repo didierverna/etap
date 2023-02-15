@@ -93,8 +93,8 @@ the underfull one."))
 
 ;; #### NOTE: the WIDTH below already takes the offset into account.
 (defun fallback-boundary
-    (underfull underwidth overfull overwidth width
-     policy avoid-hyphens prefer-overfulls)
+    (underfull underwidth overfull overwidth width prefer-overfulls
+     &optional (policy :anyfull) avoid-hyphens)
   "Select either UNDERFULL or OVERFULL fallback boundary.
 This function is used in the justified disposition when there is no fit."
   (cond
@@ -174,8 +174,8 @@ This function is used in the justified disposition when there is no fit."
 	       (or fit
 		   (fallback-boundary
 		    underfull underwidth overfull overwidth
-		    (+ width width-offset)
-		    variant avoid-hyphens prefer-overfulls))
+		    (+ width width-offset) prefer-overfulls
+		    variant avoid-hyphens))
 	       ;; No justification.
 	       (ecase variant
 		 (:underfull
@@ -211,7 +211,7 @@ This function is used in the justified disposition when there is no fit."
 		       (fallback-boundary
 			word-underfull word-underwidth
 			word-overfull word-overwidth
-			(+ width width-offset) :anyfull t prefer-overfulls)
+			(+ width width-offset) prefer-overfulls)
 		       fit))
 		    ;; We have a fit and we don't care about hyphens or it's a
 		    ;; word fit. Choose it.
@@ -224,17 +224,15 @@ This function is used in the justified disposition when there is no fit."
 		       (fallback-boundary
 			word-underfull word-underwidth
 			word-overfull word-overwidth
-			(+ width width-offset) :anyfull t prefer-overfulls)
+			(+ width width-offset) prefer-overfulls)
 		       (fallback-boundary
 			underfull underwidth overfull overwidth
-			(+ width width-offset)
-			:anyfull t prefer-overfulls)))
+			(+ width width-offset) prefer-overfulls)))
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (t
 		     (fallback-boundary
 		      underfull underwidth overfull overwidth
-		      (+ width width-offset)
-		      :anyfull nil prefer-overfulls)))))))))
+		      (+ width width-offset) prefer-overfulls)))))))))
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
