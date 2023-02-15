@@ -172,7 +172,8 @@ This function is used in the justified disposition when there is no fit."
 	     (if justification
 	       (or fit
 		   (fallback-boundary
-		    underfull underwidth overfull overwidth width
+		    underfull underwidth overfull overwidth
+		    (+ width width-offset)
 		    variant avoid-hyphens prefer-overfulls))
 	       ;; No justification.
 	       (ecase variant
