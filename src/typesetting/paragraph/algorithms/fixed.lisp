@@ -76,11 +76,12 @@ width, whether underfull or overfull."
     :fixed-variant-overfull "Always prefer overfull lines."
     :fixed-option-avoid-hyphens "Avoid hyphenating words when possible."
     :fixed-option-prefer-overfulls
-    "In the Anyfull variant, when the underfull and overfull
-lines are equally distant from the paragraph's width
-(modulo the offset), and after the Avoid Hyphens option
-has been taken into account, choose the overfull rather
-than the underfull one."))
+    "In the Anyfull variant, when the underfull and
+overfull lines are equally distant from the
+paragraph's width (modulo the offset), and
+after the Avoid Hyphens option has been taken
+into account, choose the overfull rather than
+the underfull one."))
 
 
 (defmacro define-fixed-caliber (name min default max)
