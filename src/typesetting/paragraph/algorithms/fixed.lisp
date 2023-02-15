@@ -3,42 +3,44 @@
 ;; paragraph-wide considerations.
 
 ;; The "Underfull" variant only allows underfull lines (unless there is no
-;; choice). The "Overfull" one does the opposite. The "Best" one chooses which
-;; is closest to the paragraph's width.
+;; choice). The "Overfull" one does the opposite. The "Best" one normally
+;; selects the solution that is the closest to the paragraph's width, whether
+;; underfull or overfull. The behavior of these variants is further modulated
+;; by the options described below.
 
 ;; The "Width Offset" option affects how the Best variant computes the
-;; proximity of a solution to the paragraph's width in ragged dispositions.
-;; When non-zero, it virtually decreases the paragraph's width when doing
-;; comparisons, so that underfulls appear less underfull, and overfulls appear
-;; more overfull. The concrete effect is to let the algorithm choose the
-;; closest solution, but if it's the overfull one, not /too/ overfull.
+;; proximity of a solution to the paragraph's width. When non-zero, it
+;; virtually decreases the paragraph's width when doing comparisons, so that
+;; underfulls appear less underfull, and overfulls appear more overfull. In
+;; other words, the larger the offset, the fewer allowed overfulls.
 
 ;; When the "Avoid Hyphens" option is checked, line solutions without
-;; hyphenation are preferred when there is a choice. Note that this option
-;; takes precedence over the "Prefer Overfulls" one (see below).
+;; hyphenation are preferred when there is a choice. This option takes
+;; precedence over the "Prefer Overfulls" one (see below).
 
 ;; In the Best variant, when the underfull and overfull line solutions are
-;; equally distant from the paragraph's width (modulo the width offset if
-;; applicable), and after the "Avoid Hyphens" option has been taken into
-;; account if applicable, the underfull one is chosen, unless the "Prefer
-;; Overfulls" option is checked.
+;; equally distant from the paragraph's width (modulo the offset), and after
+;; the "Avoid Hyphens" option has been taken into account, the underfull one
+;; is chosen, unless the "Prefer Overfulls" option is checked.
 
 ;; Even though the inter-word spacing is fixed, there is a difference between
-;; the justified disposition and the flush left one. For justification,
-;; getting as close to the paragraph's width as possible takes precedence over
-;; the "Avoid Hyphens" and "Prefer Overfulls" option, so they apply only when
-;; there is no fit, and two solutions (one underfull and one overfull) are
-;; equally distant from the paragraph's width (which should be extremely
-;; rare). In the other dispositions, the options take precedence.
+;; the justified disposition and the flush left one, although the chance of
+;; actually witnessing it should be extremely thin.
+;; In justified disposition, getting as close to the paragraph's width (modulo
+;; the offset) takes precedence. Thus, the options apply only when there is no
+;; fit, and two solutions (one underfull and one overfull) are equally bad.
+;; In the ragged dispositions, we care less about the paragraph's width, so
+;; the options take precedence. For example, if the "Avoid Hyphens" option is
+;; checked, a word boundary will always be preferred to a hyphen boundary,
+;; even if it's farther away from the paragraph's width.
 
 ;; Finally, note that because the inter-word spacing is fixed, the sloppy
 ;; option has no effect.
 
 
-;; #### TODO: the Width Offset option is but one possibility for modulating
-;; the decision in ragged dispositions. Although perhaps not very interesting
-;; in this particular algorithm, there are many other ideas that we could
-;; implement to further tune the result. Here are two of them.
+;; #### TODO: the "Width Offset" idea is but one possibility for modulating
+;; the decision betwee under and overfulls. There are many other ideas that we
+;; could implement to further tune the results. Here are two of them.
 ;;
 ;; 1. We could consider that hyphens (and why not punctuation !) use less ink
 ;;    than letters, so at the same distance from the paragraph's width,
@@ -88,6 +90,7 @@ than the underfull one."))
 ;; #### FIXME: the -50pt value below is somewhat arbitrary.
 (define-fixed-caliber width-offset -50 0 0)
 
+;; #### NOTE: the WIDTH below already takes the offset into account.
 (defun fallback-boundary
     (underfull underwidth overfull overwidth width
      policy avoid-hyphens prefer-overfulls)
