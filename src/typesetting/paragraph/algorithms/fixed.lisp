@@ -178,60 +178,44 @@ the underfull one."))
 		    (+ width width-offset) prefer-overfulls
 		    variant avoid-hyphens))
 	       ;; No justification.
-	       (ecase variant
-		 (:underfull
-		  (cond ((and fit
-			      (hyphenation-point-p (stop-elt fit))
-			      avoid-hyphens)
-			 (or word-underfull fit))
-			(fit fit)
-			(underfull
-			 (if avoid-hyphens
-			   (or word-underfull underfull)
-			   underfull))
-			(t overfull)))
-		 (:overfull
-		  (cond ((and fit
-			      (hyphenation-point-p (stop-elt fit))
-			      avoid-hyphens)
-			 (or word-overfull fit))
-			(fit fit)
-			(overfull
-			 (if avoid-hyphens
-			   (or word-overfull overfull)
-			   overfull))
-			(t underfull)))
-		 (:anyfull
-		  (cond
-		    ;; We have a hyphen fit but we prefer to avoid hyphens.
-		    ;; Choose a word solution if possible.
-		    ((and fit
-			  (hyphenation-point-p (stop-elt fit))
-			  avoid-hyphens)
-		     (or (fallback-boundary
-			  word-underfull word-underwidth
-			  word-overfull word-overwidth
-			  (+ width width-offset) prefer-overfulls)
-			 fit))
-		    ;; We have a fit and we don't care about hyphens or it's a
-		    ;; word fit. Choose it.
-		    (fit fit)
-		    ;; Not fit.
-		    ;; We want to avoid hyphens. Choose a word solution if
-		    ;; any, or the best of the two possibilities regardless.
-		    (avoid-hyphens
-		     (or (fallback-boundary
-			  word-underfull word-underwidth
-			  word-overfull word-overwidth
-			  (+ width width-offset) prefer-overfulls)
-			 (fallback-boundary
-			  underfull underwidth overfull overwidth
-			  (+ width width-offset) prefer-overfulls)))
-		    ;; We don't care about hyphens. Choose the best solution.
-		    (t
-		     (fallback-boundary
-		      underfull underwidth overfull overwidth
-		      (+ width width-offset) prefer-overfulls)))))))))
+	       (cond ((and fit
+			   (hyphenation-point-p (stop-elt fit))
+			   avoid-hyphens)
+		      ;; We have a hyphen fit but we prefer to avoid hyphens.
+		      ;; Choose a word solution if possible. Otherwise,
+		      ;; fallback to the hyphen fit.
+		      (ecase variant
+			(:underfull (or word-underfull fit))
+			(:anyfull
+			 (or (fallback-boundary
+			      word-underfull word-underwidth
+			      word-overfull word-overwidth
+			      (+ width width-offset) prefer-overfulls)
+			     fit))
+			(:overfull (or word-overfull fit))))
+		     ;; We have a fit and we don't care about hyphens or it's
+		     ;; a word fit. Choose it.
+		     (fit fit)
+		     (avoid-hyphens
+		      ;; We don't have a fit and we want to avoid hyphens.
+		      ;; Choose a word solution if possible.
+		      (ecase variant
+			(:underfull (or word-underfull underfull overfull))
+			(:anyfull
+			 (or (fallback-boundary
+			      word-underfull word-underwidth
+			      word-overfull word-overwidth
+			      (+ width width-offset) prefer-overfulls)
+			     (fallback-boundary
+			      underfull underwidth overfull overwidth
+			      (+ width width-offset) prefer-overfulls)))
+			(:overfull (or word-overfull overfull underfull))))
+		     (t
+		      ;; We don't care about hyphens. Choose the best
+		      ;; solution.
+		      (fallback-boundary
+		       underfull underwidth overfull overwidth
+		       (+ width width-offset) prefer-overfulls variant)))))))
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
