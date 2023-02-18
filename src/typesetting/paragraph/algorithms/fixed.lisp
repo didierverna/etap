@@ -137,7 +137,7 @@ the underfull one."))
 ;; parameterized).
 
 (defun fixed-justified-line-boundary
-    (lineup start width fallback avoid-hyphens prefer-overfulls width-offset)
+    (lineup start width fallback width-offset avoid-hyphens prefer-overfulls)
   "Return the Fixed algorithm's view of the end of a justified line boundary."
   (loop :with underfull :with underwidth
 	:with fit
@@ -167,7 +167,7 @@ the underfull one."))
 ;; overfulls. After that, we look at the fallbacks and options, and decide on
 ;; what to return from the collected possibilities.
 (defun fixed-ragged-line-boundary
-    (lineup start width fallback avoid-hyphens prefer-overfulls width-offset
+    (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
      &optional (width-function #'lineup-width))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with hyphen-underfull :with word-underfull
@@ -255,7 +255,7 @@ the underfull one."))
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
-     &key fallback avoid-hyphens prefer-overfulls width-offset
+     &key fallback width-offset avoid-hyphens prefer-overfulls
      &aux (get-line-boundary  (if (eq (disposition-type disposition) :justified)
 				#'fixed-justified-line-boundary
 				#'fixed-ragged-line-boundary)))
@@ -266,5 +266,5 @@ the underfull one."))
 	:while start
 	:for boundary := (funcall get-line-boundary
 			   lineup start width fallback
-			   avoid-hyphens prefer-overfulls width-offset)
+			   width-offset avoid-hyphens prefer-overfulls)
 	:collect (make-line lineup start (stop-idx boundary))))

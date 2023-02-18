@@ -429,8 +429,8 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 		 :width-offset width-offset))
 	     (lambda (start)
 	       (fixed-ragged-line-boundary
-		lineup start width fallback
-		avoid-hyphens prefer-overfulls width-offset
+		lineup start width fallback  width-offset
+		avoid-hyphens prefer-overfulls
 		(ecase variant
 		  (:first #'lineup-max-width)
 		  (:best #'lineup-width)
