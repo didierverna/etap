@@ -6,7 +6,11 @@
 ;; that is, with the minimum number of characters and the maximum stretch,
 ;; while remaining below the paragraph width. The "Last" variant does the
 ;; opposite (maximum number of characters and maximum shrink). Finally, the
-;; "Best" variant preserves the natural inter-word spacing.
+;; "Best" variant preserves the natural inter-word spacing. The ragged
+;; dispositions actually work exactly like those of the Fixed algorithm, and
+;; thus react to "Width Offset", "Avoid Hyphens", and "Prefer Overfulls" in
+;; the same way. In fact, in ragged dispositions, the Best Fit and the Fixed
+;; algorithms are strictly equivalent.
 
 ;; In the Justified disposition, the First variant selects the first line that
 ;; fits the paragraph width exactly (hence, also with the minimum number of
@@ -70,18 +74,6 @@
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
 ;; algorithm, choosing the first solution that stays close to the natural
 ;; inter-word space.
-
-;; Note that except for the Justified disposition, the Best-Fit algorithm is
-;; equivalent to the Underfull-Fixed one (which is why the Relax option has no
-;; effect on it).
-
-;; #### TODO: we had a lot of fun implementing all sorts of crazy options in
-;; the Fixed algorithm (and then some, and there's still room for more fun;
-;; see the comments there). In fact, all of this work could be used here. More
-;; specifically, every time the Fit algorithm cannot find a solution, it could
-;; fall back to a decision based on the Fixed parameters. What we do currently
-;; is much simpler: we prefer underfulls and use overfulls as a last resort,
-;; which in fact corresponds to the Underfull variant of the Fixed algorithm.
 
 ;; #### TODO: maybe we could think of other potential weight functions for the
 ;; Best/Justified version, and provide a choice? See for instance some ideas
