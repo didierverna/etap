@@ -39,7 +39,7 @@
 
 
 ;; #### TODO: the Width Offset idea is but one possibility for modulating the
-;; decision betwee under and overfulls. There are many other ideas that we
+;; decision between under and overfulls. There are many other ideas that we
 ;; could implement to further tune the results. Here are two of them.
 ;;
 ;; 1. We could consider that hyphens (and why not punctuation !) use less ink
