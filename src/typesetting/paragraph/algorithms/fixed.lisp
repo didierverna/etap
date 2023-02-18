@@ -91,6 +91,7 @@ the underfull one."))
 ;; #### FIXME: the -50pt value below is somewhat arbitrary.
 (define-fixed-caliber width-offset -50 0 0)
 
+
 ;; #### NOTE: the WIDTH below already takes the offset into account.
 (defun fixed-fallback-boundary
     (underfull underwidth overfull overwidth width prefer-overfulls
@@ -126,16 +127,49 @@ the underfull one."))
     ;; Finally, we might still prefer overfulls.
     (t (if prefer-overfulls overfull underfull))))
 
+
+;; #### NOTE: the two functions below are very similar. The only difference is
+;; that the one used for justification only collects the last underfull and
+;; the first overfull, regardless of their word / hyphen nature (that's
+;; because getting as close to the paragraph's width takes precedence). They
+;; are implemented as two different functions because the Fit algorithm reuses
+;; the ragged version below (that's also why the width function is
+;; parameterized).
+
+(defun fixed-justified-line-boundary
+    (lineup start width variant avoid-hyphens prefer-overfulls width-offset)
+  "Return the Fixed algorithm's view of the end of a justified line boundary."
+  (loop :with underfull :with underwidth
+	:with fit
+	:with overfull :with overwidth
+	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
+	;; first, and then NIL.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (stop-idx boundary))
+	:while (and boundary (not overfull))
+	:for w := (lineup-width lineup start (stop-idx boundary))
+	:if (< w width)
+	  ;; Track the last underfulls because they're the closest to WIDTH.
+	  :do (setq underfull boundary underwidth w)
+	:else :if (= w width)
+	  :do (setq fit boundary)
+	:else
+	  :do (setq overfull boundary overwidth w)
+	:finally (return (or fit
+			     (fixed-fallback-boundary
+			      underfull underwidth overfull overwidth
+			      (+ width width-offset) prefer-overfulls
+			      variant avoid-hyphens)))))
+
 ;; In order to handle all variants and options, this function starts by
 ;; collecting the interesting breakpoints, that is, the last word and hyphen
 ;; underfulls, a possible miraculous fit, and the first word and hyphen
 ;; overfulls. After that, we look at the variants and options, and decide on
 ;; what to return from the collected possibilities.
-(defun fixed-line-boundary
-    (lineup start width justification variant
-     avoid-hyphens prefer-overfulls width-offset
+(defun fixed-ragged-line-boundary
+    (lineup start width variant avoid-hyphens prefer-overfulls width-offset
      &optional (width-function #'lineup-width))
-  "Return the Fixed algorithm's view of the end of line boundary."
+  "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underwidth :with hyphen-underwidth :with word-underwidth
 	:with fit
@@ -172,51 +206,44 @@ the underfull one."))
 		     (setq word-overfull boundary word-overwidth w))
 	:finally
 	   (return
-	     (if justification
-	       (or fit
-		   (fixed-fallback-boundary
-		    underfull underwidth overfull overwidth
-		    (+ width width-offset) prefer-overfulls
-		    variant avoid-hyphens))
-	       ;; No justification.
-	       (cond ((and fit
-			   (hyphenation-point-p (stop-elt fit))
-			   avoid-hyphens)
-		      ;; We have a hyphen fit but we prefer to avoid hyphens.
-		      ;; Choose a word solution if possible. Otherwise,
-		      ;; fallback to the hyphen fit.
-		      (ecase variant
-			(:underfull (or word-underfull fit))
-			(:anyfull
-			 (or (fixed-fallback-boundary
-			      word-underfull word-underwidth
-			      word-overfull word-overwidth
-			      (+ width width-offset) prefer-overfulls)
-			     fit))
-			(:overfull (or word-overfull fit))))
-		     ;; We have a fit and we don't care about hyphens or it's
-		     ;; a word fit. Choose it.
-		     (fit fit)
-		     (avoid-hyphens
-		      ;; We don't have a fit and we want to avoid hyphens.
-		      ;; Choose a word solution if possible.
-		      (ecase variant
-			(:underfull (or word-underfull underfull overfull))
-			(:anyfull
-			 (or (fixed-fallback-boundary
-			      word-underfull word-underwidth
-			      word-overfull word-overwidth
-			      (+ width width-offset) prefer-overfulls)
-			     (fixed-fallback-boundary
-			      underfull underwidth overfull overwidth
-			      (+ width width-offset) prefer-overfulls)))
-			(:overfull (or word-overfull overfull underfull))))
-		     (t
-		      ;; We don't care about hyphens. Choose the best
-		      ;; solution.
-		      (fixed-fallback-boundary
-		       underfull underwidth overfull overwidth
-		       (+ width width-offset) prefer-overfulls variant)))))))
+	     (cond ((and fit
+			 (hyphenation-point-p (stop-elt fit))
+			 avoid-hyphens)
+		    ;; We have a hyphen fit but we prefer to avoid hyphens.
+		    ;; Choose a word solution if possible. Otherwise, fallback
+		    ;; to the hyphen fit.
+		    (ecase variant
+		      (:underfull (or word-underfull fit))
+		      (:anyfull
+		       (or (fixed-fallback-boundary
+			    word-underfull word-underwidth
+			    word-overfull word-overwidth
+			    (+ width width-offset) prefer-overfulls)
+			   fit))
+		      (:overfull (or word-overfull fit))))
+		   ;; We have a fit and we don't care about hyphens or it's a
+		   ;; word fit. Choose it.
+		   (fit fit)
+		   (avoid-hyphens
+		    ;; We don't have a fit and we want to avoid hyphens.
+		    ;; Choose a word solution if possible.
+		    (ecase variant
+		      (:underfull (or word-underfull underfull overfull))
+		      (:anyfull
+		       (or (fixed-fallback-boundary
+			    word-underfull word-underwidth
+			    word-overfull word-overwidth
+			    (+ width width-offset) prefer-overfulls)
+			   (fixed-fallback-boundary
+			    underfull underwidth overfull overwidth
+			    (+ width width-offset) prefer-overfulls)))
+		      (:overfull (or word-overfull overfull underfull))))
+		   (t
+		    ;; We don't care about hyphens. Choose the best solution.
+		    (fixed-fallback-boundary
+		     underfull underwidth overfull overwidth
+		     (+ width width-offset) prefer-overfulls variant))))))
+
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
@@ -229,13 +256,15 @@ the underfull one."))
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
      &key variant avoid-hyphens prefer-overfulls width-offset
-     &aux (justification (eq (disposition-type disposition) :justified)))
+     &aux (get-line-boundary  (if (eq (disposition-type disposition) :justified)
+				#'fixed-justified-line-boundary
+				#'fixed-ragged-line-boundary)))
   "Typeset LINEUP with the Fixed algorithm."
   (default-fixed variant)
   (calibrate-fixed width-offset)
   (loop :for start := 0 :then (next-start boundary)
 	:while start
-	:for boundary := (fixed-line-boundary
-			  lineup start width justification variant
-			  avoid-hyphens prefer-overfulls width-offset)
+	:for boundary := (funcall get-line-boundary
+			   lineup start width variant
+			   avoid-hyphens prefer-overfulls width-offset)
 	:collect (make-line lineup start (stop-idx boundary))))

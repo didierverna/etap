@@ -205,21 +205,11 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   (remove-if-not (lambda (boundary) (discretionaryp (stop-elt boundary)))
       boundaries))
 
-(defgeneric fit-line-boundary
-    (lineup start width disposition variant &key &allow-other-keys)
+(defgeneric fit-justified-line-boundary
+    (lineup start width variant &key &allow-other-keys)
   (:documentation
-   "Return the Fit algorithm's view of the end of line boundary.")
-  (:method (lineup start width disposition variant
-	    &key fallback avoid-hyphens prefer-overfulls width-offset)
-    "Find a Fit boundary for ragged dispositions."
-    (fixed-line-boundary lineup start width nil
-			 fallback avoid-hyphens prefer-overfulls width-offset
-			 (ecase variant
-			   (:first #'lineup-max-width)
-			   (:best #'lineup-width)
-			   (:last #'lineup-min-width))))
-  (:method (lineup start width (disposition (eql :justified)) variant
-	    &key avoid-hyphens)
+   "Return the Fit algorithm's view of the end of a justified line boundary.")
+  (:method (lineup start width variant &key avoid-hyphens)
     "Find a First or Last Fit boundary for the justified disposition."
     ;; #### NOTE: here, we collect all the possible fits, but only the last
     ;; underfull and the first overfull, regardless of whether they are
@@ -258,8 +248,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 		       (:first (car (last boundaries)))
 		       (:last (car boundaries)))
 		     (or underfull overfull)))))))
-  (:method (lineup start width
-	    (disposition (eql :justified)) (variant (eql :best))
+  (:method (lineup start width (variant (eql :best))
 	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
 		 prefer-shrink prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
@@ -347,6 +336,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			 (t
 			  (cdar sorted-weights)))))))))
 
+
 (defgeneric fit-make-line
     (lineup start stop disposition variant &key &allow-other-keys)
   (:documentation "Make a Fit line from LINEUP chunk between START and STOP.")
@@ -424,7 +414,27 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
     (lineup disposition width (algorithm (eql :fit))
      &key variant fallback discriminating-function
 	  hyphen-penalty explicit-hyphen-penalty width-offset
-	  prefer-shrink avoid-hyphens prefer-overfulls relax)
+	  prefer-shrink avoid-hyphens prefer-overfulls relax
+     &aux (get-line-boundary
+	   (if (eq (disposition-type disposition) :justified)
+	     (lambda (start)
+	       (fit-justified-line-boundary lineup start width variant
+		 :prefer-shrink prefer-shrink
+		 :discriminating-function discriminating-function
+		 :hyphen-penalty hyphen-penalty
+		 :explicit-hyphen-penalty explicit-hyphen-penalty
+	         :fallback fallback
+		 :avoid-hyphens avoid-hyphens
+		 :prefer-overfulls prefer-overfulls
+		 :width-offset width-offset))
+	     (lambda (start)
+	       (fixed-ragged-line-boundary
+		lineup start width fallback
+		avoid-hyphens prefer-overfulls width-offset
+		(ecase variant
+		  (:first #'lineup-max-width)
+		  (:best #'lineup-width)
+		  (:last #'lineup-min-width)))))))
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
   (default-fit fallback)
@@ -434,17 +444,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   (calibrate-fit width-offset)
   (loop :for start := 0 :then (next-start boundary)
 	:while start
-	:for boundary
-	  := (fit-line-boundary
-	      lineup start width (disposition-type disposition) variant
-	      :fallback fallback
-	      :prefer-shrink prefer-shrink
-	      :discriminating-function discriminating-function
-	      :hyphen-penalty hyphen-penalty
-	      :explicit-hyphen-penalty explicit-hyphen-penalty
-	      :avoid-hyphens avoid-hyphens
-	      :prefer-overfulls prefer-overfulls
-	      :width-offset width-offset)
+	:for boundary := (funcall get-line-boundary start)
 	:collect (apply #'fit-make-line lineup start (stop-idx boundary)
 			(disposition-type disposition) variant
 			:width width
