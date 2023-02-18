@@ -74,7 +74,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (setf (algorithm (context interface))
 	(cons :fixed
 	      (apply #'append
-		(radio-selection fixed :variant interface)
+		(radio-selection fixed :fallback interface)
 		(slider-value fixed :width-offset interface)
 		(choice-selected-items (fixed-options interface)))))
   (update interface))
@@ -358,15 +358,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
-   (fixed-variant radio-button-panel
+   (fixed-fallback radio-button-panel
      :layout-class 'column-layout
      :visible-max-height nil
-     :title "Variant" :title-position :frame
-     :items *fixed-variants*
-     :help-keys *fixed-variants-help-keys*
+     :title "Fallback" :title-position :frame
+     :items *fixed-fallbacks*
+     :help-keys *fixed-fallbacks-help-keys*
      :print-function 'title-capitalize
      :selection-callback 'set-fixed-algorithm
-     :reader fixed-variant)
+     :reader fixed-fallback)
    (fixed-options check-button-panel
      :layout-class 'column-layout
      :visible-max-height nil
@@ -665,7 +665,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text)
      :reader settings-2)
-   (fixed-settings row-layout '(fixed-variant fixed-options fixed-parameters))
+   (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
      '(fixed-width-offset)
      :title "Other Parameters"
@@ -757,7 +757,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
-	 (set-variant fixed)
+	 (set-fallback fixed)
 	 (set-options fixed)
 	 ;; SET-SLIDER doesn't handle more informative titles than just
 	 ;; displaying the values.
