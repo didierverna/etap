@@ -365,10 +365,13 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
-		    ;; A negative scale means that the line would naturally be
-		    ;; overfull, so we can only deshrink up to that scale.
-		    ;; Otherwise, we can deshrink completely.
-		    (if (and scale (< scale 0)) scale 0))))
+		    ;; A positive scale means that the line is naturally
+		    ;; underfull, so we can deshrink completely.
+		    ;; A scale between -1 and 0 means that the line can fit,
+		    ;; so we can deshrink p to that.
+		    ;; Finally, a scale < -1 means that the line is cannot fit
+		    ;; at all, so we must stay at our original -1.
+		    (if (>= scale 0) 0 (max scale -1)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width sloppy last)
