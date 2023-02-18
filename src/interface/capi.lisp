@@ -97,14 +97,24 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(cons :fit
 	      (apply #'append
 		(radio-selection fit :variant interface)
+		(radio-selection fit :fallback interface)
 		(radio-selection fit :discriminating-function interface)
 		(slider-value fit :hyphen-penalty interface)
 		(slider-value fit :explicit-hyphen-penalty interface)
+		(slider-value fit :width-offset interface)
 		(choice-selected-items (fit-options interface)))))
   (update interface))
 
 (define-slider-callback fit-hyphen-penalty)
 (define-slider-callback fit-explicit-hyphen-penalty)
+;; DEFINE-SLIDER-CALLBACK doesn't handle more informative titles than just
+;; displaying the values.
+(defun set-fit-width-offset (pane value status)
+  (declare (ignore status))
+  (setf (titled-object-title pane)
+	(format nil "Width Offset: ~Dpt (~Fcm)"
+	  value (/ value 28.452755)))
+  (set-fit-algorithm nil (top-level-interface pane)))
 
 
 ;; Barnett
@@ -388,6 +398,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-variant)
+   (fit-fallback radio-button-panel
+     :layout-class 'column-layout
+     :visible-max-height nil
+     :title "Fallback" :title-position :frame
+     :items *fit-fallbacks*
+     :help-keys *fit-fallbacks-help-keys*
+     :print-function 'title-capitalize
+     :selection-callback 'set-fit-algorithm
+     :reader fit-fallback)
    (fit-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
@@ -425,6 +444,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-fit-explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
+   (fit-width-offset slider
+     :title (format nil "Width Offset: ~Dpt (~Fcm))"
+	      (caliber-default *fit-width-offset*)
+	      (/ (caliber-default *fit-width-offset*) 28.452755))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *fit-width-offset*)
+     :end (caliber-max *fit-width-offset*)
+     :slug-start (caliber-default *fit-width-offset*)
+     :tick-frequency 0
+     :callback 'set-fit-width-offset
+     :reader fit-width-offset)
    (duncan-discriminating-function option-pane
      :title "Discriminating Function:"
      :items *duncan-discriminating-functions*
@@ -640,10 +671,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :title "Other Parameters"
      :title-position :frame
      :visible-max-height nil)
-   (fit-settings row-layout '(fit-variant fit-options fit-parameters))
+   (fit-settings row-layout '(fit-variant fit-fallback fit-options fit-parameters))
    (fit-parameters column-layout
      '(fit-discriminating-function
-       fit-hyphen-penalty fit-explicit-hyphen-penalty)
+       fit-hyphen-penalty fit-explicit-hyphen-penalty fit-width-offset)
      :title "Other Parameters"
      :title-position :frame
      :visible-max-height nil)
@@ -685,6 +716,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				    "*" (string prefix) "-VARIANTS*"))))
 	     `(setf (choice-selected-item (,accessor etap))
 		    (or (cadr (member :variant options)) (car ,choices)))))
+	 (set-fallback (prefix)
+	   (let ((accessor (intern (concatenate 'string
+				     (string prefix) "-FALLBACK")))
+		 (choices (intern (concatenate 'string
+				    "*" (string prefix) "-FALLBACKS*"))))
+	     `(setf (choice-selected-item (,accessor etap))
+		    (or (cadr (member :fallback options)) (car ,choices)))))
 	 (set-options (prefix)
 	   (let ((accessor (intern (concatenate 'string
 				     (string prefix) "-OPTIONS")))
@@ -733,9 +771,19 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(:fit
 	 (setf (choice-selection (algorithms etap)) 1)
 	 (set-variant fit)
+	 (set-fallback fit)
 	 (set-options fit)
 	 (set-choice fit :discriminating-function)
-	 (set-sliders fit :hyphen-penalty :explicit-hyphen-penalty))
+	 (set-sliders fit :hyphen-penalty :explicit-hyphen-penalty)
+	 ;; SET-SLIDER doesn't handle more informative titles than just
+	 ;; displaying the values.
+	 (setf (range-slug-start (fit-width-offset etap))
+	       (or (cadr (member :width-offset options))
+		   (caliber-default *fit-width-offset*)))
+	 (setf (titled-object-title (fit-width-offset etap))
+	       (format nil "Width Offset: ~Dpt (~Fcm)"
+		 (range-slug-start (fit-width-offset etap))
+		 (/ (range-slug-start (fit-width-offset etap)) 28.452755))))
 	(:barnett
 	 (setf (choice-selection (algorithms etap)) 2))
 	(:duncan

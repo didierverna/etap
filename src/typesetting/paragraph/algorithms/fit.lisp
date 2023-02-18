@@ -100,15 +100,40 @@
 (defparameter *fit-variants-help-keys*
   '(:fit-variant-first :fit-variant-best :fit-variant-last))
 
+(defparameter *fit-fallbacks*
+  '(:underfull :anyfull :overfull))
+
+(defparameter *fit-fallbacks-help-keys*
+  '(:fit-fallback-underfull :fit-fallback-anyfull :fit-fallback-overfull))
+
 (defparameter *fit-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
 (defparameter *fit-options*
-  '((:avoid-hyphens t) (:relax t) (:prefer-shrink t) (:prefer-overfulls t)))
+  '((:prefer-shrink t) (:avoid-hyphens t) (:prefer-overfulls t) (:relax t)))
 
 (defparameter *fit-options-help-keys*
-  '(:fit-option-avoid-hyphens :fit-option-relax
-    :fit-option-prefer-shrink :fit-option-prefer-overfulls))
+  '(:fit-option-prefer-shrink
+    :fit-option-avoid-hyphens :fit-option-prefer-overfulls :fit-option-relax))
+
+(defparameter *fit-tooltips*
+  '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
+    :fit-variant-best "Minimize scaling."
+    :fit-variant-last "Prefer lines with more words (more shrink)."
+    :fit-fallback-underfull "Always prefer underfull lines."
+    :fit-fallback-anyfull "Prefer lines closer to the paragraph
+width, whether underfull or overfull."
+    :fit-fallback-overfull "Always prefer overfull lines."
+    :fit-option-prefer-shrink "In the Best/Justified version,
+prefer shrinking over stretching
+for equally good solutions."
+    :fit-option-avoid-hyphens "Except for the Best/Justified version,
+avoid hyphenating words when possible."
+    :fit-option-prefer-overfulls "In the Best/Justified version,
+prefer overfull over underfull
+for equally bad solutions."
+    :fit-option-relax "For the First and Last variants in ragged dispositions,
+de-stretch or de-shrink lines afterwards."))
 
 
 (defmacro define-fit-caliber (name min default max)
@@ -117,22 +142,10 @@
 
 (define-fit-caliber hyphen-penalty -1000 50 1000)
 (define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
+;; #### FIXME: the -50pt value below is somewhat arbitrary.
+(define-fit-caliber width-offset -50 0 0)
 
 
-(defparameter *fit-tooltips*
-  '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
-    :fit-variant-best "Minimize scaling."
-    :fit-variant-last "Prefer lines with more words (more shrink)."
-    :fit-option-avoid-hyphens "Except for the Best/Justified version,
-avoid hyphenating words when possible."
-    :fit-option-relax "For the First and Last variants in ragged dispositions,
-de-stretch or de-shrink lines afterwards."
-    :fit-option-prefer-shrink "In the Best/Justified version,
-prefer shrinking over stretching
-for equally good solutions."
-    :fit-option-prefer-overfulls "In the Best/Justified version,
-prefer overfull over underfull
-for equally bad solutions."))
 
 
 (defun fit-weight
@@ -196,32 +209,15 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
     (lineup start width disposition variant &key &allow-other-keys)
   (:documentation
    "Return the Fit algorithm's view of the end of line boundary.")
-  (:method (lineup start width disposition variant &key avoid-hyphens)
+  (:method (lineup start width disposition variant
+	    &key fallback avoid-hyphens prefer-overfulls width-offset)
     "Find a Fit boundary for ragged dispositions."
-    (let ((lineup-width-function (ecase variant
-				   (:first #'lineup-max-width)
-				   (:best #'lineup-width)
-				   (:last #'lineup-min-width))))
-      (loop :with previous :with word-previous
-	    ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
-	    ;; NIL) first, and then NIL.
-	    :for boundary := (next-boundary lineup start)
-	      :then (next-boundary lineup (stop-idx boundary))
-	    :while (and boundary
-			(<= (funcall lineup-width-function
-			      lineup start (stop-idx boundary))
-			    width))
-	    :do (setq previous boundary)
-	    :do (unless (discretionaryp (stop-elt boundary))
-		  (setq word-previous boundary))
-	    :finally (return (if previous
-			       (if avoid-hyphens
-				 (or word-previous previous)
-				 previous)
-			       ;; #### NOTE: if we need to return this, we
-			       ;; have an unbreakable overfull with no
-			       ;; elasticity (a very long word).
-			       boundary)))))
+    (fixed-line-boundary lineup start width nil
+			 fallback avoid-hyphens prefer-overfulls width-offset
+			 (ecase variant
+			   (:first #'lineup-max-width)
+			   (:best #'lineup-width)
+			   (:last #'lineup-min-width))))
   (:method (lineup start width (disposition (eql :justified)) variant
 	    &key avoid-hyphens)
     "Find a First or Last Fit boundary for the justified disposition."
@@ -426,25 +422,29 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fit))
-     &key variant discriminating-function
-	  hyphen-penalty explicit-hyphen-penalty
-	  relax avoid-hyphens prefer-shrink prefer-overfulls)
+     &key variant fallback discriminating-function
+	  hyphen-penalty explicit-hyphen-penalty width-offset
+	  prefer-shrink avoid-hyphens prefer-overfulls relax)
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
+  (default-fit fallback)
   (default-fit discriminating-function)
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
+  (calibrate-fit width-offset)
   (loop :for start := 0 :then (next-start boundary)
 	:while start
 	:for boundary
 	  := (fit-line-boundary
-		 lineup start width (disposition-type disposition) variant
-	       :avoid-hyphens avoid-hyphens
-	       :discriminating-function discriminating-function
-	       :hyphen-penalty hyphen-penalty
-	       :explicit-hyphen-penalty explicit-hyphen-penalty
-	       :prefer-shrink prefer-shrink
-	       :prefer-overfulls prefer-overfulls)
+	      lineup start width (disposition-type disposition) variant
+	      :fallback fallback
+	      :prefer-shrink prefer-shrink
+	      :discriminating-function discriminating-function
+	      :hyphen-penalty hyphen-penalty
+	      :explicit-hyphen-penalty explicit-hyphen-penalty
+	      :avoid-hyphens avoid-hyphens
+	      :prefer-overfulls prefer-overfulls
+	      :width-offset width-offset)
 	:collect (apply #'fit-make-line lineup start (stop-idx boundary)
 			(disposition-type disposition) variant
 			:width width

@@ -92,7 +92,7 @@ the underfull one."))
 (define-fixed-caliber width-offset -50 0 0)
 
 ;; #### NOTE: the WIDTH below already takes the offset into account.
-(defun fallback-boundary
+(defun fixed-fallback-boundary
     (underfull underwidth overfull overwidth width prefer-overfulls
      &optional (policy :anyfull) avoid-hyphens)
   "Select UNDERFULL or OVERFULL boundary as a fallback solution, or NIL."
@@ -133,7 +133,8 @@ the underfull one."))
 ;; what to return from the collected possibilities.
 (defun fixed-line-boundary
     (lineup start width justification variant
-     avoid-hyphens prefer-overfulls width-offset)
+     avoid-hyphens prefer-overfulls width-offset
+     &optional (width-function #'lineup-width))
   "Return the Fixed algorithm's view of the end of line boundary."
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with underwidth :with hyphen-underwidth :with word-underwidth
@@ -150,7 +151,7 @@ the underfull one."))
 	;; already have an hyphen overfull, it's still important to collect a
 	;; word overfull if possible, because of that very same option.
 	:while (and boundary (not word-overfull))
-	:for w := (lineup-width lineup start (stop-idx boundary))
+	:for w := (funcall width-function lineup start (stop-idx boundary))
 	:for hyphenp := (hyphenation-point-p (stop-elt boundary))
 	:if (< w width)
 	  ;; Track the last underfulls because they're the closest to WIDTH.
@@ -173,7 +174,7 @@ the underfull one."))
 	   (return
 	     (if justification
 	       (or fit
-		   (fallback-boundary
+		   (fixed-fallback-boundary
 		    underfull underwidth overfull overwidth
 		    (+ width width-offset) prefer-overfulls
 		    variant avoid-hyphens))
@@ -187,7 +188,7 @@ the underfull one."))
 		      (ecase variant
 			(:underfull (or word-underfull fit))
 			(:anyfull
-			 (or (fallback-boundary
+			 (or (fixed-fallback-boundary
 			      word-underfull word-underwidth
 			      word-overfull word-overwidth
 			      (+ width width-offset) prefer-overfulls)
@@ -202,18 +203,18 @@ the underfull one."))
 		      (ecase variant
 			(:underfull (or word-underfull underfull overfull))
 			(:anyfull
-			 (or (fallback-boundary
+			 (or (fixed-fallback-boundary
 			      word-underfull word-underwidth
 			      word-overfull word-overwidth
 			      (+ width width-offset) prefer-overfulls)
-			     (fallback-boundary
+			     (fixed-fallback-boundary
 			      underfull underwidth overfull overwidth
 			      (+ width width-offset) prefer-overfulls)))
 			(:overfull (or word-overfull overfull underfull))))
 		     (t
 		      ;; We don't care about hyphens. Choose the best
 		      ;; solution.
-		      (fallback-boundary
+		      (fixed-fallback-boundary
 		       underfull underwidth overfull overwidth
 		       (+ width width-offset) prefer-overfulls variant)))))))
 
