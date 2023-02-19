@@ -16,11 +16,10 @@
 ;; fits the paragraph width exactly (hence, also with the minimum number of
 ;; characters and the maximum stretch). The Last variant does the opposite
 ;; (maximum number of characters and maximum shrink). The Best variant uses
-;; TeX's "badness + hyphen penalty" to weight solutions.
-
-;; The "Avoid Hyphens" option affects all Boolean decision versions, that is,
-;; all but the Best/Justified one. When checked, line solutions without
-;; hyphenation are always preferred when there is a choice.
+;; TeX's "badness + hyphen penalty" to weight solutions. When there is no fit,
+;; all versions fall back to the ragged (or Fixed algorithm) logic. That is,
+;; they behave according to the settings of "Width Offset", "Avoid Hyphens",
+;; and "Prefer Overfulls".
 
 ;; The "Relax" option affects the First and Last variants in ragged
 ;; dispositions. When checked, lines are "de-stretched" or "de-shrunk" towards
@@ -28,47 +27,30 @@
 ;; variant), after having been created, and without changing their potential
 ;; contents. More specifically:
 ;; - For the First Fit, lines are de-stretched as much as possible, but not to
-;;   the point that another word would fit in. The effect is thus to make the
+;;   the point that another chunk would fit in. The effect is thus to make the
 ;;   paragraph more compact.
 ;; - For the Last Fit, lines are de-shrunk as much as possible towards the
-;;   natural inter-word space, without producing overfull lines. The effect is
-;;   thus to make the paragraph less compact.
+;;   natural inter-word space, without producing overfulls (already overfull
+;;   lines cannot be deshrunk, as the overfull would be even more important).
+;;   The effect is thus to make the paragraph less compact.
 
-;; The "[Explicit ]Hyphen Penalty" option affects the Best/Justified version's
-;; weight function in the TeX way.
+;; The "[Explicit ]Hyphen Penalty" option affects the Best Fit in justified
+;; disposition in the TeX way when weighting solutions. In particular, this
+;; means that infinite penalties are understood, leading to either forbidden
+;; or mandatory discretionary breaks. Note however that we only use TeX's
+;; badness to weight actual solutions, so the badness itself can never be
+;; infinite.
 
-;; In the Best/Justified version, several line boundaries may turn out to have
-;; the same "best" weight (badness + hyphen penalty). A weight of -∞ cannot
-;; occur because that would be a mandatory discretionary break, so it would
-;; have been already treated. Two possibilities may thus occur:
-;;
-;; 1. Numerical weight. Because of the badness definition, this can only mean
-;;    that we have different boundaries with or without varying hyphen
-;;    penalties.
-;; 2. +∞ weight. Prohibited discretionary breaks have been skipped, so
-;;    we have cases of infinite badness. This means unstretchable underfulls,
-;;    with maybe one final overfull.
-;;
-;; In case n.1, we minimize the difference between the natural width of the
-;; line and the desired one if the discriminating function is "Minimize
-;; Distance", or the scaling ratio otherwise ("Minimize Scaling"). The
-;; difference is that in the second case, we take the frequent difference
+;; In this scenario, several solutions may turn out to have the same weight,
+;; meaning different boundaries with or without varying hyphen penalties. The
+;; "Discriminating Function" is used to break the tie. For "Minimize
+;; Distance", we minimize the difference between the natural width of the line
+;; and the desired one. For "minimize Scaling", we minimize the scaling ratio.
+;; The difference is that in the second case, we take the frequent difference
 ;; between maximum stretching and shrinking into account. If this leads to
 ;; equality again, then we necessarily have one short and one long line. We
 ;; normally choose the short line (in other words, we prefer stretching)
 ;; unless the "Prefer Shrink" option is checked.
-;;
-;; In case n.2, and if there isn't an overfull, we'll select the last boundary
-;; because it is the one that fills the line to the maximum possible. If
-;; there's an overfull, we need to choose between the last two boundaries,
-;; that is, between the last unstretchable underfull, and the overfull. We
-;; normally choose the underfull line, unless the "Prefer Overfull" option is
-;; checked. Note that the overfull may or may not have some shrinkability
-;; (remember that TeX's definition of badness for overfull is always +∞), so
-;; maybe the overfull could be compressed, but not too much. We don't want to
-;; handle that as a special case, because a better way to do it would be to
-;; change the definition of badness to /not/ be infinite all of a sudden for
-;; overfulls, but be more subtle.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
@@ -77,10 +59,7 @@
 
 ;; #### TODO: maybe we could think of other potential weight functions for the
 ;; Best/Justified version, and provide a choice? See for instance some ideas
-;; in the Fixed algorithm's comment section. Note however that the way we
-;; collect possible line endings in the Best/Justified version is tightly
-;; coupled to our knowledge of the besting function, so this may need to
-;; evolve as well.
+;; in the Fixed algorithm's comment section.
 
 
 (in-package :etap)
