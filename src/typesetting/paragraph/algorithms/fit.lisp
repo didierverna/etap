@@ -95,11 +95,14 @@
     :fit-fallback-anyfull "Prefer lines closer to the paragraph
 width, whether underfull or overfull."
     :fit-fallback-overfull "Always prefer overfull lines."
-    :fit-option-avoid-hyphens "Except for the Best/Justified version,
-avoid hyphenating words when possible."
-    :fit-option-prefer-overfulls "In the Best/Justified version,
-prefer overfull over underfull
-for equally bad solutions."
+    :fit-option-avoid-hyphens "Avoid hyphenating words when possible."
+    :fit-option-prefer-overfulls
+    "In the Anyfull fallback, when the underfull and
+overfull lines are equally distant from the
+paragraph's width (modulo the offset), and
+after the Avoid Hyphens option has been taken
+into account, choose the overfull rather than
+the underfull one."
     :fit-option-relax "For the First and Last variants in ragged dispositions,
 de-stretch or de-shrink lines afterwards."
     :fit-option-prefer-shrink "In the Best/Justified version,
