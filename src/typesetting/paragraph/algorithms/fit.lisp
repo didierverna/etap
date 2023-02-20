@@ -81,11 +81,11 @@
   '(:minimize-distance :minimize-scaling))
 
 (defparameter *fit-options*
-  '((:prefer-shrink t) (:avoid-hyphens t) (:prefer-overfulls t) (:relax t)))
+  '((:avoid-hyphens t) (:prefer-overfulls t) (:relax t) (:prefer-shrink t)))
 
 (defparameter *fit-options-help-keys*
-  '(:fit-option-prefer-shrink
-    :fit-option-avoid-hyphens :fit-option-prefer-overfulls :fit-option-relax))
+  '(:fit-option-avoid-hyphens :fit-option-prefer-overfulls :fit-option-relax
+    :fit-option-prefer-shrink))
 
 (defparameter *fit-tooltips*
   '(:fit-variant-first "Prefer lines with fewer words (more stretch)."
@@ -95,16 +95,16 @@
     :fit-fallback-anyfull "Prefer lines closer to the paragraph
 width, whether underfull or overfull."
     :fit-fallback-overfull "Always prefer overfull lines."
-    :fit-option-prefer-shrink "In the Best/Justified version,
-prefer shrinking over stretching
-for equally good solutions."
     :fit-option-avoid-hyphens "Except for the Best/Justified version,
 avoid hyphenating words when possible."
     :fit-option-prefer-overfulls "In the Best/Justified version,
 prefer overfull over underfull
 for equally bad solutions."
     :fit-option-relax "For the First and Last variants in ragged dispositions,
-de-stretch or de-shrink lines afterwards."))
+de-stretch or de-shrink lines afterwards."
+    :fit-option-prefer-shrink "In the Best/Justified version,
+prefer shrinking over stretching
+for equally good solutions."))
 
 
 (defmacro define-fit-caliber (name min default max)
@@ -216,8 +216,8 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			     (+ width width-offset)
 			     prefer-overfulls fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
-	    &key discriminating-function
-		 hyphen-penalty explicit-hyphen-penalty prefer-shrink 
+	    &key hyphen-penalty explicit-hyphen-penalty
+		 discriminating-function prefer-shrink 
 		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
     ;; #### NOTE: below, we collect boundaries in reverse order because we
@@ -342,7 +342,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 		    (if (>= scale 0) 0 (max scale -1)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
-	    &key width sloppy last)
+	    &key width last sloppy)
     "Make a justified Fit line from LINEUP chunk between START and STOP."
     (if last
       ;; The last line, which almost never fits exactly, needs a special
@@ -375,21 +375,21 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fit))
-     &key variant fallback discriminating-function
-	  hyphen-penalty explicit-hyphen-penalty width-offset
-	  prefer-shrink avoid-hyphens prefer-overfulls relax
+     &key variant fallback
+	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
+	  discriminating-function hyphen-penalty explicit-hyphen-penalty 
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
 	       (fit-justified-line-boundary lineup start width variant
-		 :prefer-shrink prefer-shrink
-		 :discriminating-function discriminating-function
 		 :hyphen-penalty hyphen-penalty
 		 :explicit-hyphen-penalty explicit-hyphen-penalty
+		 :discriminating-function discriminating-function
+		 :prefer-shrink prefer-shrink
 	         :fallback fallback
+		 :width-offset width-offset
 		 :avoid-hyphens avoid-hyphens
-		 :prefer-overfulls prefer-overfulls
-		 :width-offset width-offset))
+		 :prefer-overfulls prefer-overfulls))
 	     (lambda (start)
 	       (fixed-ragged-line-boundary
 		lineup start width fallback  width-offset
@@ -401,10 +401,10 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
   (default-fit fallback)
+  (calibrate-fit width-offset)
   (default-fit discriminating-function)
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
-  (calibrate-fit width-offset)
   (loop :for start := 0 :then (next-start boundary)
 	:while start
 	:for boundary := (funcall get-line-boundary start)
