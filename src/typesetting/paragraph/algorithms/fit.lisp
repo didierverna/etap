@@ -216,18 +216,16 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			     (+ width width-offset)
 			     prefer-overfulls fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
-	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
-		 prefer-shrink prefer-overfulls)
+	    &key discriminating-function
+		 hyphen-penalty explicit-hyphen-penalty prefer-shrink 
+		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
-    ;; #### NOTE: in order to handle all possible hyphen penalty values
-    ;; (negative or positive, as well as infinite), we collect all potential
-    ;; breaks until the first overfull, prematurely ending on mandatory hyphen
-    ;; breaks. That's because the badness of overfull is infinite anyway, so
-    ;; there's no point in collecting more than one.
     ;; #### NOTE: below, we collect boundaries in reverse order because we
     ;; will often need to access the most recent ones, and we use STABLE-SORT
     ;; to preserve that order.
-    (loop :with boundaries :with overfull
+    (loop :with underfull :with underwidth
+	  :with fits := (list)
+	  :with overfull :with overwidth
 	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
 	  ;; NIL) first, and then NIL.
 	  :for boundary := (next-boundary lineup start)
@@ -239,69 +237,64 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			 (<< explicit-hyphen-penalty +∞))
 		    (and (not (explicitp (stop-elt boundary)))
 			 (<< hyphen-penalty +∞)))
-	    :if (> (min-width span) width)
-	      :do (setq overfull t)
-	      :and :do (push boundary boundaries)
-	    :else :if (and (discretionaryp (stop-elt boundary))
-			   (or (and (explicitp (stop-elt boundary))
-				    (eq explicit-hyphen-penalty -∞))
-			       (and (not (explicitp (stop-elt boundary)))
-				    (eq hyphen-penalty -∞))))
+	    :if (and (discretionaryp (stop-elt boundary))
+		     (or (and (explicitp (stop-elt boundary))
+			      (eq explicit-hyphen-penalty -∞))
+			 (and (not (explicitp (stop-elt boundary)))
+			      (eq hyphen-penalty -∞))))
 	      :do (return boundary)
+	    :else :if (< (max-width span) width)
+	      :do (setq underfull boundary underwidth (max-width span))
+	    :else :if (and (<= (min-width span) width)
+			   (>= (max-width span) width))
+	      :do (push boundary fits) ;; note the reverse order!
 	    :else
-	      :do (push boundary boundaries)
+	      :do (setq overfull boundary overwidth (min-width span))
 	  :finally
 	     (return
-	       (if (= (length boundaries) 1)
-		 (car boundaries)
-		 (let ((sorted-weights
-			 (stable-sort
-			  (fit-weights
-			   lineup start width boundaries
-			   hyphen-penalty explicit-hyphen-penalty)
-			  #'<< :key #'car)))
-		   (cond ((eql (caar sorted-weights) (caadr sorted-weights))
-			  (setq sorted-weights
-				(remove-if-not
-				 (lambda (weight)
-				   (eql weight (caar sorted-weights)))
-				 sorted-weights
-				 :key #'car))
-			  (cond ((numberp (caar sorted-weights))
-				 (let ((sorted-scores
-					 (stable-sort
-					  (funcall
-					      (ecase discriminating-function
-						(:minimize-distance
-						 #'fit-deltas)
-						(:minimize-scaling
-						 #'fit-scales))
-					    lineup start width
-					    (mapcar #'cdr sorted-weights))
-					  #'< :key #'car)))
-				   (cond ((= (caar sorted-scores)
-					     (caadr sorted-scores))
-					  (setq sorted-scores
-						(remove-if-not
-						 (lambda (delta)
-						   (= delta
-						      (caar sorted-scores)))
-						 sorted-scores
-						 :key #'car))
-					  (assert (= (length sorted-scores) 2))
-					  (if prefer-shrink
-					    (cdar sorted-scores)
-					    (cdadr sorted-scores)))
-					 (t
-					  (cdar sorted-scores)))))
-				(overfull
-				 (if prefer-overfulls
-				   (cdar sorted-weights)
-				   (cdadr sorted-weights)))
-				(t
-				 (cdar sorted-weights))))
-			 (t
-			  (cdar sorted-weights)))))))))
+	       (cond (fits
+		      (let ((sorted-weights
+			      (stable-sort
+			       (fit-weights lineup start width fits
+					    hyphen-penalty explicit-hyphen-penalty)
+			       #'<< :key #'car)))
+			(cond ((eql (caar sorted-weights) (caadr sorted-weights))
+			       (setq sorted-weights
+				     (remove-if-not
+					 (lambda (weight)
+					   (= weight (caar sorted-weights)))
+					 sorted-weights
+				       :key #'car))
+			       (let ((sorted-scores
+				       (stable-sort
+					(funcall
+					    (ecase discriminating-function
+					      (:minimize-distance #'fit-deltas)
+					      (:minimize-scaling #'fit-scales))
+					  lineup start width
+					  (mapcar #'cdr sorted-weights))
+					#'< :key #'car)))
+				 (cond ((= (caar sorted-scores)
+					   (caadr sorted-scores))
+					(setq sorted-scores
+					      (remove-if-not
+						  (lambda (delta)
+						    (= delta (caar sorted-scores)))
+						  sorted-scores
+						:key #'car))
+					(assert (= (length sorted-scores) 2))
+					(if prefer-shrink
+					  (cdar sorted-scores)
+					  (cdadr sorted-scores)))
+				       (t
+					(cdar sorted-scores)))))
+			      (t
+			       (cdar sorted-weights)))))
+		     (t
+		      (fixed-fallback-boundary
+		       underfull underwidth overfull overwidth
+		       (+ width width-offset)
+		       prefer-overfulls fallback avoid-hyphens)))))))
 
 
 (defgeneric fit-make-line
