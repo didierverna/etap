@@ -202,24 +202,19 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	    :do (push boundary fits) ;; note the reverse order!
 	  :else
 	    :do (setq overfull boundary overwidth (min-width span))
-	  :finally
-	     (return
-	       (if (= (length fits) 1)
-		 (car fits)
-		 (let ((boundaries
-			 ;; #### NOTE: NIL if FITS is anyway.
-			 (if avoid-hyphens
-			   (or (word-boundaries fits)
-			       (hyphen-boundaries fits))
-			   fits)))
-		   (if boundaries
-		     (ecase variant
-		       (:first (car (last boundaries)))
-		       (:last (car boundaries)))
-		     (fixed-fallback-boundary
-		      underfull underwidth overfull overwidth
-		      (+ width width-offset)
-		      prefer-overfulls fallback avoid-hyphens)))))))
+	  :finally (return
+		     (cond (fits
+			    (when avoid-hyphens
+			      (setq fits (or (word-boundaries fits)
+					     (hyphen-boundaries fits))))
+			    (ecase variant
+			      (:first (car (last fits)))
+			      (:last (car fits))))
+			   (t
+			    (fixed-fallback-boundary
+			     underfull underwidth overfull overwidth
+			     (+ width width-offset)
+			     prefer-overfulls fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
 	    &key discriminating-function hyphen-penalty explicit-hyphen-penalty
 		 prefer-shrink prefer-overfulls)
