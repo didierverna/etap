@@ -108,14 +108,21 @@ pointing to the first possible breaks."
        nodes))))
 
 
-(defclass paragraph-layout () ((edges :initarg :edges :accessor edges)))
+(defclass paragraph-layout ()
+  ((edges :documentation "The list of edges from one break to the next."
+	  :initarg :edges :accessor edges))
+  (:documentation "The PARAGRAPH-LAYOUT class.
+A paragraph layout represents one possible way to break the lineup."))
 
 (defmethod initialize-instance :around ((layout paragraph-layout) &key edge)
+  "Initialize LAYOUT's edges with the the first EDGE."
   (call-next-method layout :edges (list edge)))
 
-(defgeneric update-paragraph-layout (layout edge))
+(defgeneric update-paragraph-layout (layout edge)
+  (:documentation "Update LAYOUT after the addition of EDGE."))
 
 (defun %paragraph-layouts (node layout-type)
+  "Return the list of possible layouts starting at NODE."
   (mapcan (lambda (edge)
 	    (if (edges (node edge))
 	      (mapc (lambda (layout)
@@ -129,4 +136,5 @@ pointing to the first possible breaks."
     (node algorithm
      &aux (layout-type
 	   (intern (format nil "~A-LAYOUT" (algorithm-type algorithm)) :etap)))
+  "Return ALGORITHM's view of layouts for paragraph starting at NODE."
   (%paragraph-layouts node layout-type))
