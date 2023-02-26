@@ -56,7 +56,7 @@ for a LINEUP paragraph of WIDTH starting at BOUNDARY. If no line breaking
 solution is found, this function returns NIL."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
-	    (if (= (stop-idx boundary) (length lineup))
+	    (if (null (stop-elt boundary))
 	      (make-paragraph-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply #'next-boundaries
