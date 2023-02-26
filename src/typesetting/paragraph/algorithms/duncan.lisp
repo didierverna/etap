@@ -109,9 +109,17 @@
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (next-start (boundary (node edge)))
 	:for stop := (stop-idx (boundary (node edge)))
-	:if justified
+	:if (and justified (stop-elt (boundary (node edge))))
+	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start stop width sloppy)
+	:else :if justified
+	  ;; Justified last line: maybe shrink it but don't stretch it.
+	  :collect (let ((scale (lineup-scale lineup start stop width)))
+		     (if (and scale (< scale 0))
+		       (make-wide-line lineup start stop width)
+		       (make-line lineup start stop)))
 	:else
+	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
 
 (defmethod make-lines
