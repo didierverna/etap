@@ -80,34 +80,34 @@
 	       ;; as soon as we have an underfull line.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :for scale
-			:= (lineup-scale lineup start (stop-idx hyphen) width)
+		      :for stop := (stop-idx hyphen)
+		      :for scale := (lineup-scale lineup start stop width)
 		      :when (if scale
 			      (>= scale -1)
-			      (<= (lineup-width lineup start (stop-idx hyphen))
-				  width))
+			      (<= (lineup-width lineup start stop) width))
 			:do (return hyphen)
 		      :finally (return (or word-underfull word-overfull))))
 	       (t
 		(or word-underfull word-overfull))))))
 
 (defmethod make-lines
-    (lineup disposition width (algorithm (eql :barnett)) &key)
+    (lineup disposition width (algorithm (eql :barnett))
+     &key
+     &aux (justified (eq (disposition-type disposition) :justified)))
   "Typeset LINEUP with the Barnett algorithm."
   (loop :for start := 0 :then (next-start boundary)
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
-	:if (and (eq (disposition-type disposition) :justified)
-		 (stop-elt boundary))
+	:for stop := (stop-idx boundary)
+	:if (and justified (stop-elt boundary))
 	  ;; Justified regular line: make it fit.
-	  :collect (make-wide-line lineup start (stop-idx boundary) width t)
-	:else :if (eq (disposition-type disposition) :justified)
+	  :collect (make-wide-line lineup start stop width t)
+	:else :if justified
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (let ((scale (lineup-scale lineup start (stop-idx boundary)
-					      width)))
+	  :collect (let ((scale (lineup-scale lineup start stop width)))
 		     (if (and scale (< scale 0))
-		       (make-wide-line lineup start (stop-idx boundary) width)
-		       (make-line lineup start (stop-idx boundary))))
+		       (make-wide-line lineup start stop width)
+		       (make-line lineup start stop)))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
-	  :collect (make-line lineup start (stop-idx boundary))))
+	  :collect (make-line lineup start stop)))
