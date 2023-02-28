@@ -26,16 +26,18 @@ Algorithms using a graph to represent paragraph breaking solutions specialize
 this class to add specific properties to their edges."))
 
 
-(defclass paragraph-node ()
+(defclass node ()
   ((boundary :documentation "This node's boundary."
 	     :initarg :boundary :reader boundary)
    (edges :documentation "The edges from this node to other nodes."
 	  :initarg :edges :reader edges))
-  (:documentation "The PARAGRAPH-NODE class."))
+  (:documentation "The NODE class.
+A node represents a boundary at which a paragraph is broken, and links to the
+next possible break positions."))
 
-(defun make-paragraph-node (boundary edges)
-  "Make a paragraph node out of BOUNDARY and EDGES."
-  (make-instance 'paragraph-node :boundary boundary :edges edges))
+(defun make-node (boundary edges)
+  "Make a node at BOUNDARY, followed by EDGES."
+  (make-instance 'node :boundary boundary :edges edges))
 
 
 (defgeneric next-boundaries
@@ -51,7 +53,7 @@ this class to add specific properties to their edges."))
 ;; whistles like \parshape, the subsequent solutions would differ, depending
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
-(defun create-paragraph-node
+(defun create-node
     (lineup width algorithm-type edge-type boundary hash &rest options)
   "Create a node representing ALGORITHM-TYPE's view a line breaking solution
 for a LINEUP paragraph of WIDTH starting at BOUNDARY. If no line breaking
@@ -59,18 +61,18 @@ solution is found, this function returns NIL."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
 	    (if (null (stop-elt boundary))
-	      (make-paragraph-node boundary nil)
+	      (make-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply #'next-boundaries
 					 lineup (next-start boundary) width
 					 algorithm-type options)
-				 :when (apply #'create-paragraph-node
+				 :when (apply #'create-node
 					 lineup width algorithm-type edge-type
 					 next-boundary hash
 					 options)
 				   :collect :it)))
 		(when nodes
-		  (make-paragraph-node
+		  (make-node
 		   boundary
 		   (mapcar (lambda (node)
 			     (apply #'make-instance edge-type
@@ -88,7 +90,7 @@ solution is found, this function returns NIL."
 	  (nodes (loop :for next-boundary
 			 :in (apply #'next-boundaries lineup 0 width
 				    algorithm-type options)
-		       :when (apply #'create-paragraph-node
+		       :when (apply #'create-node
 			       lineup width algorithm-type edge-type
 			       next-boundary hash
 			       options)
@@ -101,7 +103,7 @@ Otherwise, it returns the first node, that is, the node representing the start
 of the paragraph. Thus, this node contains a null boundary and the edges
 pointing to the first possible breaks."
   (when nodes
-    (make-paragraph-node
+    (make-node
      nil
      (mapcar (lambda (node)
 	       (apply #'make-instance edge-type
