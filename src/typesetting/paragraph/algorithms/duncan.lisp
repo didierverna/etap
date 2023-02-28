@@ -31,7 +31,7 @@
     ((edge duncan-edge)
      &key lineup width start
 	  (discriminating-function (car *duncan-discriminating-functions*))
-     &aux (stop (stop-idx (boundary (node edge))))
+     &aux (stop (stop-idx (boundary (destination edge))))
 	  (span (lineup-span lineup start stop)))
   (unless (word-stop-p lineup stop)
     (setf (hyphen edge) 1))
@@ -107,9 +107,9 @@
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
-	:and start := 0 :then (next-start (boundary (node edge)))
-	:for stop := (stop-idx (boundary (node edge)))
-	:if (and justified (stop-elt (boundary (node edge))))
+	:and start := 0 :then (next-start (boundary (destination edge)))
+	:for stop := (stop-idx (boundary (destination edge)))
+	:if (and justified (stop-elt (boundary (destination edge))))
 	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start stop width sloppy)
 	:else :if justified

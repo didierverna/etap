@@ -19,8 +19,8 @@
 
 
 (defclass edge ()
-  ((node :documentation "The node this edge points to."
-	 :initarg :node :reader node))
+  ((destination :documentation "The node this edge points to."
+		:initarg :destination :reader destination))
   (:documentation "The EDGE class.
 Algorithms using a graph to represent paragraph breaking solutions specialize
 this class to add specific properties to their edges."))
@@ -76,7 +76,7 @@ solution is found, this function returns NIL."
 			     (apply #'make-instance edge-type
 				    :lineup lineup :width width
 				    :start (next-start boundary)
-				    :node node
+				    :destination node
 				    options))
 		     nodes))))))))
 
@@ -105,7 +105,7 @@ pointing to the first possible breaks."
      nil
      (mapcar (lambda (node)
 	       (apply #'make-instance edge-type
-		      :lineup lineup :width width :start 0 :node node
+		      :lineup lineup :width width :start 0 :destination node
 		      options))
        nodes))))
 
@@ -126,11 +126,11 @@ A paragraph layout represents one possible way to break the lineup."))
 (defun %paragraph-layouts (node layout-type)
   "Return the list of possible layouts starting at NODE."
   (mapcan (lambda (edge)
-	    (if (edges (node edge))
+	    (if (edges (destination edge))
 	      (mapc (lambda (layout)
 		      (push edge (edges layout))
 		      (update-paragraph-layout layout edge))
-		(%paragraph-layouts (node edge) layout-type))
+		(%paragraph-layouts (destination edge) layout-type))
 	      (list (make-instance layout-type :edge edge))))
     (edges node)))
 

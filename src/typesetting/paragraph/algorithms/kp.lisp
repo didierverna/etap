@@ -56,7 +56,7 @@
     ((edge kp-edge)
      &key lineup width start line-penalty hyphen-penalty explicit-hyphen-penalty
      &allow-other-keys
-     &aux (stop (stop-idx (boundary (node edge))))
+     &aux (stop (stop-idx (boundary (destination edge))))
 	  (hyphenp (not (word-stop-p lineup stop)))
 	  (scale (lineup-scale lineup start stop width))
 	  (badness (badness lineup start stop width))
@@ -153,8 +153,8 @@
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
-	:and start := 0 :then (next-start (boundary (node edge)))
-	:for stop := (stop-idx (boundary (node edge)))
+	:and start := 0 :then (next-start (boundary (destination edge)))
+	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
 	  :collect (make-wide-line lineup start stop width sloppy)
 	:else
