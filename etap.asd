@@ -41,9 +41,9 @@
 			   (:file "fixed" :depends-on ("common"))
 			   (:file "fit" :depends-on  ("common"))
 			   (:file "barnett" :depends-on  ("common"))
-			   (:file "node" :depends-on ("common"))
-			   (:file "duncan" :depends-on  ("node"))
-			   (:file "kp" :depends-on  ("node"))))
+			   (:file "graph" :depends-on ("common"))
+			   (:file "duncan" :depends-on  ("graph"))
+			   (:file "kp" :depends-on  ("graph"))))
 		 (:file "paragraph")))))
      (:module "interface"
       :components
