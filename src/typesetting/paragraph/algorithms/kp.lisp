@@ -46,7 +46,7 @@
 	(t ;; -∞
 	 (^ (++ line-penalty badness) 2))))
 
-(defclass kp-edge (paragraph-edge)
+(defclass kp-edge (edge)
   ((hyphenp :accessor hyphenp)
    (fitness-class :accessor fitness-class)
    ;; #### NOTE: these are only line-local demerits.

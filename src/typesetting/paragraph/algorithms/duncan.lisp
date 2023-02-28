@@ -21,7 +21,7 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
-(defclass duncan-edge (paragraph-edge)
+(defclass duncan-edge (edge)
   ((hyphen :initform 0 :accessor hyphen)
    (overfull :initform 0 :accessor overfull)
    (underfull :initform 0 :accessor underfull)

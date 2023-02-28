@@ -18,10 +18,10 @@
 (in-package :etap)
 
 
-(defclass paragraph-edge ()
+(defclass edge ()
   ((node :documentation "The node this edge points to."
 	 :initarg :node :reader node))
-  (:documentation "The PARAGRAPH-EDGE class."))
+  (:documentation "The EDGE class."))
 
 
 (defclass paragraph-node ()
