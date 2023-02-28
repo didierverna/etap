@@ -21,7 +21,9 @@
 (defclass edge ()
   ((node :documentation "The node this edge points to."
 	 :initarg :node :reader node))
-  (:documentation "The EDGE class."))
+  (:documentation "The EDGE class.
+Algorithms using a graph to represent paragraph breaking solutions specialize
+this class to add specific properties to their edges."))
 
 
 (defclass paragraph-node ()
