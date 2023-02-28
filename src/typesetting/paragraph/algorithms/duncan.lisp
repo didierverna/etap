@@ -31,6 +31,7 @@
     ((edge duncan-edge)
      &key lineup width start
 	  (discriminating-function (car *duncan-discriminating-functions*))
+     &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge))))
 	  (span (lineup-span lineup start stop)))
   (unless (word-stop-p lineup stop)
@@ -45,40 +46,6 @@
 	  (:minimize-scaling
 	   (when (and (zerop (underfull edge)) (zerop (overfull edge)))
 	     (abs (lineup-scale lineup start stop width)))))))
-
-(defun duncan-next-boundaries (lineup start width &key &allow-other-keys)
-  (loop :with underfull
-	:with fits := (list)
-	:with overfull
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop-idx boundary))
-	:while (and boundary (not overfull))
-	:for span := (lineup-span lineup start (stop-idx boundary))
-	:if (< (max-width span) width)
-	  :do (setq underfull boundary)
-	:else :if (and (<= (min-width span) width)
-		       (>= (max-width span) width))
-	  :do (push boundary fits)
-	:else
-	  :do (setq overfull boundary)
-	:finally
-	   ;; #### WARNING: here we avoid preventive fulls, that is, we don't
-	   ;; return *full boundaries if there is at least one fit boundary.
-	   ;; Experience shows that including preventive fulls leads to
-	   ;; an explosion of the graph size. On the other hand, maybe it is
-	   ;; possible that we miss better solutions like this. For example,
-	   ;; it could be possible that by making a line arbitrarily underfull
-	   ;; instead of fit, we reduce the number of subsequent *fulls. I
-	   ;; hope that if it's possible, it would only affect very rare
-	   ;; cases.
-	   (return (cond (fits fits)
-			 ((and underfull overfull) (list overfull underfull))
-			 (overfull (list overfull))
-			 (underfull (list underfull))))))
-
 
 (defclass duncan-layout (paragraph-layout)
   ((hyphens :accessor hyphens)
@@ -122,13 +89,20 @@
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
 
+;; #### TODO: this is in fact not specific to Duncan but... here we avoid
+;; preventive fulls, that is, we don't return *full boundaries if there is at
+;; least one fit boundary. Experience shows that including preventive fulls
+;; leads to an explosion of the graph size. On the other hand, maybe it is
+;; possible that we miss better solutions like this. For example, it could be
+;; possible that by making a line arbitrarily underfull instead of fit, we
+;; reduce the number of subsequent *fulls. I hope that if it's possible, it
+;; would only affect very rare cases. But this should be experimented.
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   (declare (ignore discriminating-function))
   (let* ((graph (apply #'make-graph lineup width
-		       :edge-type 'duncan-edge
-		       :next-boundaries #'duncan-next-boundaries
+		       :edge-type 'duncan-edge :fulls t
 		       options))
 	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects

@@ -40,6 +40,50 @@ next possible break positions."))
   (make-instance 'node :boundary boundary :edges edges))
 
 
+
+;; #### FIXME: the &allow-other-keys below is dirty. That's because we don't
+;; currently make a distinction in the OPTIONS argument to MAKE-GRAPH, between
+;; what goes to NEXT-BOUNDARIES and to MAKE-INSTANCE EDGE-TYPE. This needs to
+;; be cleaned up.
+
+;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
+;; instead of just a Boolean, for keeping more than 1 *full.
+(defun next-boundaries
+    (lineup start width &key fulls &allow-other-keys)
+  "Find the possible endings for LINEUP line of WIDTH beginning at START.
+If no possible ending is found, return NIL, unless FULLS, in which case return
+the last underfull and the first overfull (if any) as a fallback solution.
+If FULLS is :PREVENTIVE, also return these fulls even if possible endings were
+found.
+The possible endings are listed in reverse order (from last to first)."
+  (loop :with underfull
+	:with fits := (list)
+	:with overfull
+	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
+	;; first, and then NIL.
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (stop-idx boundary))
+	:while (and boundary (not overfull))
+	:for span := (lineup-span lineup start (stop-idx boundary))
+	:if (< (max-width span) width)
+	  :do (setq underfull boundary)
+	:else :if (and (<= (min-width span) width) (>= (max-width span) width))
+	  :do (push boundary fits)
+	:else
+	  :do (setq overfull boundary)
+	:finally
+	   (return
+	     (cond ((eq fulls :preventive)
+		    (append
+		     (when overfull (list overfull))
+		     fits
+		     (when underfull (list underfull))))
+		   (fulls
+		    (or fits
+			(append (when overfull (list overfull))
+				(when underfull (list underfull)))))
+		   (t fits)))))
+
 ;; #### WARNING: we use a hash table for storing and sharing nodes to express
 ;; the fact that however we reach a break, all subsequent solutions for the
 ;; rest of the paragraph will be the same. Note however that this is valid
@@ -53,7 +97,7 @@ next possible break positions."))
 BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the sub-graph's root node.
-This function memoizes previsouly computed sub-graphs into HASH table."
+This function memoizes previously computed sub-graphs into HASH table."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
 	    (if (null (stop-elt boundary))
