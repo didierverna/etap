@@ -39,7 +39,7 @@
 		  :components
 			  ((:file "common")
 			   (:file "fixed" :depends-on ("common"))
-			   (:file "fit" :depends-on  ("common"))
+			   (:file "fit" :depends-on  ("fixed"))
 			   (:file "barnett" :depends-on  ("common"))
 			   (:file "graph" :depends-on ("common"))
 			   (:file "duncan" :depends-on  ("graph"))
