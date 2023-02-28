@@ -40,12 +40,6 @@ next possible break positions."))
   (make-instance 'node :boundary boundary :edges edges))
 
 
-(defgeneric next-boundaries
-    (lineup start width child-type &key &allow-other-keys)
-  (:documentation
-   "Find the possible next boundaries from START position in LINEUP."))
-
-
 ;; #### WARNING: we use a hash table for storing and sharing nodes to express
 ;; the fact that however we reach a break, all subsequent solutions for the
 ;; rest of the paragraph will be the same. Note however that this is valid
@@ -54,7 +48,7 @@ next possible break positions."))
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
 (defun make-subgraph
-    (lineup width boundary algorithm-type edge-type hash &rest options)
+    (lineup width boundary edge-type next-boundaries hash &rest options)
   "Make a solutions sub-graph for breaking LINEUP's remainder starting at
 BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
@@ -65,12 +59,12 @@ This function memoizes previsouly computed sub-graphs into HASH table."
 	    (if (null (stop-elt boundary))
 	      (make-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
-				   :in (apply #'next-boundaries
+				   :in (apply next-boundaries
 					 lineup (next-start boundary) width
-					 algorithm-type options)
+					 options)
 				 :when (apply #'make-subgraph
 					 lineup width next-boundary
-					 algorithm-type edge-type hash
+					 edge-type next-boundaries hash
 					 options)
 				   :collect :it)))
 		(when nodes
@@ -85,23 +79,21 @@ This function memoizes previsouly computed sub-graphs into HASH table."
 		     nodes))))))))
 
 (defun make-graph
-    (lineup width algorithm-type
-     &rest options
-     &aux (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
-	  (hash (make-hash-table))
+    (lineup width
+     &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
+     &allow-other-keys
+     &aux (hash (make-hash-table))
+	  (options (remove-keys keys :edge-type :next-boundaries))
 	  (nodes (loop :for next-boundary
-			 :in (apply #'next-boundaries lineup 0 width
-				    algorithm-type options)
+			 :in (apply next-boundaries lineup 0 width options)
 		       :when (apply #'make-subgraph
 			       lineup width next-boundary
-			       algorithm-type edge-type hash
+			       edge-type next-boundaries hash
 			       options)
 			 :collect :it)))
   "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
-Otherwise, it returns the root node, that is, the node representing the start
-of the paragraph. Thus, this node contains a null boundary and the edges
-pointing to the first possible breaks."
+Otherwise, it returns the graph's root node."
   (when nodes
     (make-node
      nil

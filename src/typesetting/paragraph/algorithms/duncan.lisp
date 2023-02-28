@@ -46,7 +46,7 @@
 	   (when (and (zerop (underfull edge)) (zerop (overfull edge)))
 	     (abs (lineup-scale lineup start stop width)))))))
 
-(defmethod next-boundaries (lineup start width (algorithm (eql :duncan)) &key)
+(defun duncan-next-boundaries (lineup start width &key &allow-other-keys)
   (loop :with underfull
 	:with fits := (list)
 	:with overfull
@@ -126,7 +126,10 @@
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   (declare (ignore discriminating-function))
-  (let* ((graph (apply #'make-graph lineup width :duncan options))
+  (let* ((graph (apply #'make-graph lineup width
+		       :edge-type 'duncan-edge
+		       :next-boundaries #'duncan-next-boundaries
+		       options))
 	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects
 	   (sort (remove-if-not (lambda (layout)

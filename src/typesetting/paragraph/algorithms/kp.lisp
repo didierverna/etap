@@ -78,11 +78,12 @@
   (setf (fitness-class edge) (scale-fitness-class scale))
   (setf (demerits edge) (local-demerits badness penalty line-penalty)))
 
-(defmethod next-boundaries
-    (lineup start width (algorithm (eql :kp))
+(defun kp-next-boundaries
+    (lineup start width
      &key pass threshold
 	  hyphen-penalty explicit-hyphen-penalty
-	  emergency-stretch)
+	  emergency-stretch
+     &allow-other-keys)
   (loop :with boundaries :with overfull :with emergency-boundary
 	;; #### NOTE: this works even the first time because at worst,
 	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
@@ -166,10 +167,14 @@
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
   (let* ((graph (or (when (<<= 0 pre-tolerance)
-		      (make-graph lineup width :kp
+		      (make-graph lineup width
+			:edge-type 'kp-edge
+			:next-boundaries #'kp-next-boundaries
 			:pass 1 :threshold pre-tolerance
 			:line-penalty line-penalty))
-		    (make-graph lineup width :kp
+		    (make-graph lineup width
+		      :edge-type 'kp-edge
+		      :next-boundaries #'kp-next-boundaries
 		      :pass 2 :threshold tolerance
 		      :line-penalty line-penalty
 		      :hyphen-penalty hyphen-penalty
@@ -183,7 +188,9 @@
     (setq layouts (sort layouts #'<< :key #'demerits))
     (when (and (not (zerop emergency-stretch))
 	       (eql (demerits (car layouts)) +∞))
-      (setq graph (make-graph lineup width :kp
+      (setq graph (make-graph lineup width
+		    :edge-type 'kp-edge
+		    :next-boundaries #'kp-next-boundaries
 		    :pass 3 :threshold tolerance
 		    :line-penalty line-penalty
 		    :hyphen-penalty hyphen-penalty
