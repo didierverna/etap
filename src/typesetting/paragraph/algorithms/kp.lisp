@@ -166,10 +166,10 @@
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
   (let* ((graph (or (when (<<= 0 pre-tolerance)
-		      (paragraph-graph lineup width :kp
+		      (make-graph lineup width :kp
 			:pass 1 :threshold pre-tolerance
 			:line-penalty line-penalty))
-		    (paragraph-graph lineup width :kp
+		    (make-graph lineup width :kp
 		      :pass 2 :threshold tolerance
 		      :line-penalty line-penalty
 		      :hyphen-penalty hyphen-penalty
@@ -183,7 +183,7 @@
     (setq layouts (sort layouts #'<< :key #'demerits))
     (when (and (not (zerop emergency-stretch))
 	       (eql (demerits (car layouts)) +∞))
-      (setq graph (paragraph-graph lineup width :kp
+      (setq graph (make-graph lineup width :kp
 		    :pass 3 :threshold tolerance
 		    :line-penalty line-penalty
 		    :hyphen-penalty hyphen-penalty

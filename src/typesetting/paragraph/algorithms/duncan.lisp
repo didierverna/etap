@@ -126,7 +126,7 @@
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   (declare (ignore discriminating-function))
-  (let* ((graph (apply #'paragraph-graph lineup width :duncan options))
+  (let* ((graph (apply #'make-graph lineup width :duncan options))
 	 (layouts (paragraph-layouts graph :duncan))
 	 (perfects
 	   (sort (remove-if-not (lambda (layout)

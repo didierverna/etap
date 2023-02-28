@@ -53,11 +53,13 @@ next possible break positions."))
 ;; whistles like \parshape, the subsequent solutions would differ, depending
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
-(defun create-node
-    (lineup width algorithm-type edge-type boundary hash &rest options)
-  "Create a node representing ALGORITHM-TYPE's view a line breaking solution
-for a LINEUP paragraph of WIDTH starting at BOUNDARY. If no line breaking
-solution is found, this function returns NIL."
+(defun make-subgraph
+    (lineup width boundary algorithm-type edge-type hash &rest options)
+  "Make a solutions sub-graph for breaking LINEUP's remainder starting at
+BOUNDARY into a paragraph of WIDTH.
+If no line breaking solution is found, this function returns NIL.
+Otherwise, it returns the sub-graph's root node.
+This function memoizes previsouly computed sub-graphs into HASH table."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
 	    (if (null (stop-elt boundary))
@@ -66,9 +68,9 @@ solution is found, this function returns NIL."
 				   :in (apply #'next-boundaries
 					 lineup (next-start boundary) width
 					 algorithm-type options)
-				 :when (apply #'create-node
-					 lineup width algorithm-type edge-type
-					 next-boundary hash
+				 :when (apply #'make-subgraph
+					 lineup width next-boundary
+					 algorithm-type edge-type hash
 					 options)
 				   :collect :it)))
 		(when nodes
@@ -82,7 +84,7 @@ solution is found, this function returns NIL."
 				    options))
 		     nodes))))))))
 
-(defun paragraph-graph
+(defun make-graph
     (lineup width algorithm-type
      &rest options
      &aux (edge-type (intern (format nil "~A-EDGE" algorithm-type) :etap))
@@ -90,16 +92,14 @@ solution is found, this function returns NIL."
 	  (nodes (loop :for next-boundary
 			 :in (apply #'next-boundaries lineup 0 width
 				    algorithm-type options)
-		       :when (apply #'create-node
-			       lineup width algorithm-type edge-type
-			       next-boundary hash
+		       :when (apply #'make-subgraph
+			       lineup width next-boundary
+			       algorithm-type edge-type hash
 			       options)
 			 :collect :it)))
-  "Create a graph representing a LINEUP paragraph of WIDTH with ALGORITHM-TYPE.
-The graph contains the algorithm's view of all line break solutions, that is,
-all possible routes from one boundary to another.
+  "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
-Otherwise, it returns the first node, that is, the node representing the start
+Otherwise, it returns the root node, that is, the node representing the start
 of the paragraph. Thus, this node contains a null boundary and the edges
 pointing to the first possible breaks."
   (when nodes
