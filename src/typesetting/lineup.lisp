@@ -638,7 +638,7 @@ different from TARGET."
     :documentation
     "The lineup index for a beginning of line at that boundary."
     :initarg :start-idx :reader start-idx))
-  (:default-initargs :allow-other-keys t) ;; allow :lineup and :start
+  (:default-initargs :allow-other-keys t) ;; allow :lineup
   (:documentation "Base class for lineup boundaries.
 A boundary represents a possible break point in the lineup.
 The end of the lineup is represented by a special boundary with a null item
@@ -647,6 +647,7 @@ and start index (the stop index being the lineup's length).
 Algorithms may provide their own boundary sub-class."))
 
 (defun next-boundary (lineup start &optional (boundary-class 'boundary)
+				   &rest keys &key &allow-other-keys
 				   &aux (length (length lineup)))
   "Return the next boundary in LINEUP after START position, or NIL.
 The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
@@ -669,6 +670,6 @@ case it signals that there is no more boundary to find by returning NIL."
 	(glue (setq stop-idx idx start-idx (1+ idx)))
 	(discretionary (setq stop-idx (1+ idx) start-idx idx))
 	(null (setq stop-idx length)))
-      (make-instance boundary-class
-	:item item :stop-idx stop-idx :start-idx start-idx
-	:lineup lineup :start start))))
+      (apply #'make-instance boundary-class
+	     :item item :stop-idx stop-idx :start-idx start-idx
+	     :lineup lineup keys))))
