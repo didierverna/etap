@@ -120,6 +120,17 @@ for equally good solutions."))
 (define-fit-caliber width-offset -50 0 0)
 
 
+(defclass fit-boundary (boundary)
+  ((span :documentation "The span of the line ending at this boundary."
+	 :reader span))
+  (:documentation "The Fit algorithm's boundary class."))
+
+(defmethod initialize-instance :after
+    ((boundary fit-boundary) &key lineup start)
+  "Compute the span of LINEUP line from START to BOUNDARY."
+  (setf (slot-value boundary 'span)
+	(lineup-span lineup start (stop-idx boundary))))
+
 
 (defun fit-weight
     (lineup start width boundary hyphen-penalty explicit-hyphen-penalty
@@ -189,22 +200,21 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   (:method (lineup start width variant
 	    &key fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a First or Last Fit boundary for the justified disposition."
-    (loop :with underfull :with underwidth
-	  :with fits := (list)
-	  :with overfull :with overwidth
-	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
-	  ;; NIL) first, and then NIL.
-	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (stop-idx boundary))
+    (loop :with underfull :with fits := (list) :with overfull
+	  :for boundary := (next-boundary lineup start 'fit-boundary
+					  :start start)
+	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				 :start start)
 	  :while (and boundary (not overfull))
-	  :for span := (lineup-span lineup start (stop-idx boundary))
-	  :if (< (max-width span) width)
-	    :do (setq underfull boundary underwidth (max-width span))
-	  :else :if (and (<= (min-width span) width)
-			 (>= (max-width span) width))
+	  :if (< (max-width (span boundary)) width)
+	    :do (setq underfull (change-class boundary 'fixed-boundary
+				  :width (max-width (span boundary))))
+	  :else :if (and (<= (min-width (span boundary)) width)
+			 (>= (max-width (span boundary)) width))
 	    :do (push boundary fits) ;; note the reverse order!
 	  :else
-	    :do (setq overfull boundary overwidth (min-width span))
+	    :do (setq overfull (change-class boundary 'fixed-boundary
+				 :width (min-width (span boundary))))
 	  :finally (return
 		     (cond (fits
 			    (when avoid-hyphens
@@ -215,9 +225,9 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			      (:last (car fits))))
 			   (t
 			    (fixed-fallback-boundary
-			     underfull underwidth overfull overwidth
-			     (+ width width-offset)
-			     prefer-overfulls fallback avoid-hyphens))))))
+			     underfull overfull
+			     (+ width width-offset) prefer-overfulls
+			     fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
 	    &key hyphen-penalty explicit-hyphen-penalty
 		 discriminating-function prefer-shrink
@@ -226,15 +236,12 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
     ;; #### NOTE: below, we collect boundaries in reverse order because we
     ;; will often need to access the most recent ones, and we use STABLE-SORT
     ;; to preserve that order.
-    (loop :with underfull :with underwidth
-	  :with fits := (list)
-	  :with overfull :with overwidth
-	  ;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH
-	  ;; NIL) first, and then NIL.
-	  :for boundary := (next-boundary lineup start)
-	    :then (next-boundary lineup (stop-idx boundary))
+    (loop :with underfull :with fits := (list) :with overfull
+	  :for boundary := (next-boundary lineup start 'fit-boundary
+					  :start start)
+	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				 :start start)
 	  :while (and boundary (not overfull))
-	  :for span := (lineup-span lineup start (stop-idx boundary))
 	  :when (or (not (discretionaryp (item boundary)))
 		    (and (explicitp (item boundary))
 			 (<< explicit-hyphen-penalty +∞))
@@ -246,13 +253,15 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			 (and (not (explicitp (item boundary)))
 			      (eq hyphen-penalty -∞))))
 	      :do (return boundary)
-	    :else :if (< (max-width span) width)
-	      :do (setq underfull boundary underwidth (max-width span))
-	    :else :if (and (<= (min-width span) width)
-			   (>= (max-width span) width))
+	    :else :if (< (max-width (span boundary)) width)
+		    :do (setq underfull (change-class boundary 'fixed-boundary
+					  :width (max-width (span boundary))))
+	    :else :if (and (<= (min-width (span boundary)) width)
+			   (>= (max-width (span boundary)) width))
 	      :do (push boundary fits) ;; note the reverse order!
 	    :else
-	      :do (setq overfull boundary overwidth (min-width span))
+	      :do (setq overfull (change-class boundary 'fixed-boundary
+				   :width (min-width (span boundary))))
 	  :finally
 	     (return
 	       (cond (fits
@@ -295,9 +304,9 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			       (cdar sorted-weights)))))
 		     (t
 		      (fixed-fallback-boundary
-		       underfull underwidth overfull overwidth
-		       (+ width width-offset)
-		       prefer-overfulls fallback avoid-hyphens)))))))
+		       underfull overfull
+		       (+ width width-offset) prefer-overfulls fallback
+		       avoid-hyphens)))))))
 
 
 (defgeneric fit-make-line

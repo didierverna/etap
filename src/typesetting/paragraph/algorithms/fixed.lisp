@@ -94,7 +94,7 @@ the underfull one."))
 
 (defclass fixed-boundary (boundary)
   ((width :documentation "The width of the line ending at this boundary."
-	  :reader width))
+	  :initarg :width :reader width))
   (:documentation "The Fixed algorithm's boundary class."))
 
 (defmethod initialize-instance :after
