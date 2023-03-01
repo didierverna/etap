@@ -268,9 +268,11 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 		      (let ((sorted-weights
 			      (stable-sort
 			       (fit-weights lineup start width fits
-					    hyphen-penalty explicit-hyphen-penalty)
+					    hyphen-penalty
+					    explicit-hyphen-penalty)
 			       #'<< :key #'car)))
-			(cond ((eql (caar sorted-weights) (caadr sorted-weights))
+			(cond ((eql (caar sorted-weights)
+				    (caadr sorted-weights))
 			       (setq sorted-weights
 				     (remove-if-not
 					 (lambda (weight)
@@ -291,7 +293,8 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 					(setq sorted-scores
 					      (remove-if-not
 						  (lambda (delta)
-						    (= delta (caar sorted-scores)))
+						    (= delta
+						       (caar sorted-scores)))
 						  sorted-scores
 						:key #'car))
 					(assert (= (length sorted-scores) 2))
