@@ -100,11 +100,11 @@ Otherwise, it returns the sub-graph's root node.
 This function memoizes previously computed sub-graphs into HASH table."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
-	    (if (null (stop-elt boundary))
+	    (if (null (item boundary))
 	      (make-node boundary nil)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply next-boundaries
-					 lineup (next-start boundary) width
+					 lineup (start-idx boundary) width
 					 options)
 				 :when (apply #'make-subgraph
 					 lineup width next-boundary
@@ -117,7 +117,7 @@ This function memoizes previously computed sub-graphs into HASH table."
 		   (mapcar (lambda (node)
 			     (apply #'make-instance edge-type
 				    :lineup lineup :width width
-				    :start (next-start boundary)
+				    :start (start-idx boundary)
 				    :destination node
 				    options))
 		     nodes))))))))

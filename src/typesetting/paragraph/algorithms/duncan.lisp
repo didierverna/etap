@@ -74,9 +74,9 @@
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
-	:and start := 0 :then (next-start (boundary (destination edge)))
+	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
-	:if (and justified (stop-elt (boundary (destination edge))))
+	:if (and justified (item (boundary (destination edge))))
 	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start stop width sloppy)
 	:else :if justified

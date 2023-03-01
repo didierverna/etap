@@ -47,7 +47,7 @@
 	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not word-overfull))
 	:for w := (lineup-width lineup start (stop-idx boundary))
-	:if  (discretionaryp (stop-elt boundary))
+	:if  (discretionaryp (item boundary))
 	  ;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	  ;; what we need for putting "as much as will fit" on the line.
 	  :do (push boundary hyphens)
@@ -95,11 +95,11 @@
      &key
      &aux (justified (eq (disposition-type disposition) :justified)))
   "Typeset LINEUP with the Barnett algorithm."
-  (loop :for start := 0 :then (next-start boundary)
+  (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
 	:for stop := (stop-idx boundary)
-	:if (and justified (stop-elt boundary))
+	:if (and justified (item boundary))
 	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start stop width t)
 	:else :if justified

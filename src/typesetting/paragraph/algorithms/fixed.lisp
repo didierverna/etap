@@ -114,14 +114,14 @@ the underfull one."))
     ;; Equidistance.
     ;; If we have two, or no hyphen, the Avoid Hyphens option has no effect,
     ;; but we might still prefer overfulls.
-    ((or (and (hyphenation-point-p (stop-elt underfull))
-	      (hyphenation-point-p (stop-elt overfull)))
-	 (and (not (hyphenation-point-p (stop-elt underfull)))
-	      (not (hyphenation-point-p (stop-elt overfull)))))
+    ((or (and (hyphenation-point-p (item underfull))
+	      (hyphenation-point-p (item overfull)))
+	 (and (not (hyphenation-point-p (item underfull)))
+	      (not (hyphenation-point-p (item overfull)))))
      (if prefer-overfulls overfull underfull))
     ;; Exactly one hyphen. If we care, choose the other solution.
     (avoid-hyphens
-     (if (hyphenation-point-p (stop-elt underfull))
+     (if (hyphenation-point-p (item underfull))
        overfull
        underfull))
     ;; Finally, we might still prefer overfulls.
@@ -186,7 +186,7 @@ the underfull one."))
 	;; word overfull if possible, because of that very same option.
 	:while (and boundary (not word-overfull))
 	:for w := (funcall width-function lineup start (stop-idx boundary))
-	:for hyphenp := (hyphenation-point-p (stop-elt boundary))
+	:for hyphenp := (hyphenation-point-p (item boundary))
 	:if (< w width)
 	  ;; Track the last underfulls because they're the closest to WIDTH.
 	  :do (setq underfull boundary underwidth w)
@@ -207,7 +207,7 @@ the underfull one."))
 	:finally
 	   (return
 	     (cond ((and fit
-			 (hyphenation-point-p (stop-elt fit))
+			 (hyphenation-point-p (item fit))
 			 avoid-hyphens)
 		    ;; We have a hyphen fit but we prefer to avoid hyphens.
 		    ;; Choose a word solution if possible. Otherwise, fallback
@@ -262,7 +262,7 @@ the underfull one."))
   "Typeset LINEUP with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (loop :for start := 0 :then (next-start boundary)
+  (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (funcall get-line-boundary
 			   lineup start width fallback

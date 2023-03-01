@@ -92,18 +92,18 @@
 	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
 	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
-	:when (or (not (discretionaryp (stop-elt boundary)))
+	:when (or (not (discretionaryp (item boundary)))
 		  (and (> pass 1)
-		       (or (and (explicitp (stop-elt boundary))
+		       (or (and (explicitp (item boundary))
 				(<< explicit-hyphen-penalty +∞))
-			   (and (not (explicitp (stop-elt boundary)))
+			   (and (not (explicitp (item boundary)))
 				(<< hyphen-penalty +∞)))))
 	  :if (> min-width width)
 	    :do (setq overfull boundary)
-	  :else :if (and (discretionaryp (stop-elt boundary))
-			 (or (and (explicitp (stop-elt boundary))
+	  :else :if (and (discretionaryp (item boundary))
+			 (or (and (explicitp (item boundary))
 				  (eq explicit-hyphen-penalty -∞))
-			     (and (not (explicitp (stop-elt boundary)))
+			     (and (not (explicitp (item boundary)))
 				  (eq hyphen-penalty -∞))))
 	    :do (return (list boundary))
 	  :else :if (<<= (badness lineup start (stop-idx boundary) width
@@ -154,7 +154,7 @@
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
-	:and start := 0 :then (next-start (boundary (destination edge)))
+	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
 	  :collect (make-wide-line lineup start stop width sloppy)
@@ -225,7 +225,7 @@
 	      &aux (previous-boundary (kp-node-boundary node))
 		   (previous-line (car key))
 		   (previous-fitness-class (cdr key)))
-       (let ((scale (lineup-scale lineup (next-start previous-boundary)
+       (let ((scale (lineup-scale lineup (start-idx previous-boundary)
 				  (stop-idx boundary) width emergency-stretch)))
 	 (when (or (<< scale -1)
 		   (eq break-penalty -∞)
@@ -243,8 +243,8 @@
 		       (local-demerits badness break-penalty line-penalty)))
 		 (when (> (abs (- fitness-class previous-fitness-class)) 1)
 		   (setq demerits (++ demerits adjacent-demerits)))
-		 (when (discretionaryp (stop-elt previous-boundary))
-		   (if (discretionaryp (stop-elt boundary))
+		 (when (discretionaryp (item previous-boundary))
+		   (if (discretionaryp (item boundary))
 		     (setq demerits (++ demerits double-hyphen-demerits))
 		     ;; #### WARNING: final hyphen demerits are added here
 		     ;; although they really concern the previous node. TeX
@@ -292,15 +292,15 @@
   (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
     (setf (gethash '(0 . 1) nodes)
 	  ;; #### WARNING: fake boundary!
-	  (kp-make-node :boundary (make-boundary 0 nil) :demerits 0))
+	  (kp-make-node :boundary (make-boundary nil 0 0) :demerits 0))
     (loop :for boundary := (next-boundary lineup)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
 	  :for break-penalty
-	    := (cond ((not (discretionaryp (stop-elt boundary))) 0)
-		     ((explicitp (stop-elt boundary)) explicit-hyphen-penalty)
+	    := (cond ((not (discretionaryp (item boundary))) 0)
+		     ((explicitp (item boundary)) explicit-hyphen-penalty)
 		     (t hyphen-penalty))
-	  :when (or (not (discretionaryp (stop-elt boundary)))
+	  :when (or (not (discretionaryp (item boundary)))
 		    (and (> pass 1) (<< break-penalty +∞)))
 	    :do (kp-try-boundary boundary nodes
 		  lineup width pass threshold line-penalty break-penalty
@@ -361,7 +361,7 @@
 	    :for end := best :then (kp-node-previous end)
 	    :for beg := (kp-node-previous end)
 	    :while beg
-	    :for start := (next-start (kp-node-boundary beg))
+	    :for start := (start-idx (kp-node-boundary beg))
 	    :for stop := (stop-idx (kp-node-boundary end))
 	    :do (push
 		 (if justified

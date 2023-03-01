@@ -627,22 +627,35 @@ different from TARGET."
 ;; Lineup boundaries
 ;; -----------------
 
-(defstruct
-    (boundary :conc-name (:constructor make-boundary (stop-idx stop-elt)))
-  "The BOUNDARY structure.
-A boundary contains a STOP-IDX at which a lineup can be broken, and the
-corresponding lineup STOP-ELT. The last boundary is represented by a STOP-IDX
-of (length lineup) and a STOP-ELT."
-  stop-idx stop-elt)
+(defclass boundary ()
+  ((item
+    :documentation "The lineup item at that boundary."
+    :initarg :item :reader item)
+   (stop-idx
+    :documentation "The lineup index for an end of line at that boundary."
+    :initarg :stop-idx :reader stop-idx)
+   (start-idx
+    :documentation
+    "The lineup index for a beginning of line at that boundary."
+    :initarg :start-idx :reader start-idx))
+  (:documentation "The BOUNDARY class.
+A boundary represents a possible break point in the lineup.
+The end of the lineup is represented by a special boundary with the following
+slots: ITEM = NIL, STOP-IDX = lineup's length, START-IDX = NIL."))
+
+(defun make-boundary (item stop-idx start-idx)
+  "Make a new boundary out of ITEM, STOP-IDX, and START-IDX."
+  (make-instance 'boundary :item item :stop-idx stop-idx :start-idx start-idx))
 
 (defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
   "Return the next boundary in LINEUP after START position, or NIL.
 This function understands the terminal case where START = LINEUP's
-length (possibly coming from a previous boundary's INDEX, in which case
-it signals that there is no more boundary to find by returning NIL."
+length (possibly coming from the end of lineup special boundary), in which
+case it signals that there is no more boundary to find by returning NIL."
   (unless (= start length)
     (let* ((point (position-if #'break-point-p lineup :start (1+ start)))
-	   (element (when point (aref lineup point))))
+	   (item (when point (aref lineup point)))
+	   stop-idx start-idx)
       ;; #### FIXME: this hack has been removed, but this currently breaks the
       ;; KP algorithm (at least). We need to support penalties.
       ;; #### WARNING: this is a kludge to never break at the end of the final
@@ -651,16 +664,8 @@ it signals that there is no more boundary to find by returning NIL."
       ;; \penalty10000 before the final glue (and it also adds \penalty-10000
       ;; afterwards), but we don't have that level of generality yet.
       ;; (when (eql point (1- length)) (setq point nil))
-      (make-boundary
-       (etypecase element
-	 (glue point)
-	 (discretionary (1+ point))
-	 (null length))
-       element))))
-
-(defun next-start (boundary)
-  "Return BOUNDARY's beginning of next line index."
-  (etypecase (stop-elt boundary)
-    (glue (1+ (stop-idx boundary)))
-    (discretionary (stop-idx boundary))
-    (null nil)))
+      (etypecase item
+	(glue (setq stop-idx point start-idx (1+ point)))
+	(discretionary (setq stop-idx (1+ point) start-idx point))
+	(null (setq stop-idx length)))
+      (make-boundary item stop-idx start-idx))))

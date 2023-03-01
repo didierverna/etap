@@ -127,12 +127,12 @@ for equally good solutions."))
   "Return the weight of LINEUP chunk between START and BOUNDARY.
 The weight is calculated in the TeX way, that is, badness plus possible hyphen
 penalty."
-  (if (discretionaryp (stop-elt boundary))
+  (if (discretionaryp (item boundary))
     ;; #### NOTE: infinitely negative hyphen penalties have already been
     ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
     ;; risk of doing -∞ + +∞ here.
     (++ badness
-	(if (explicitp (stop-elt boundary))
+	(if (explicitp (item boundary))
 	  explicit-hyphen-penalty
 	  hyphen-penalty))
     badness))
@@ -170,12 +170,12 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 
 (defun word-boundaries (boundaries)
   "Select only word boundaries from BOUNDARIES."
-  (remove-if (lambda (boundary) (discretionaryp (stop-elt boundary)))
+  (remove-if (lambda (boundary) (discretionaryp (item boundary)))
       boundaries))
 
 (defun hyphen-boundaries (boundaries)
   "Select only hyphen boundaries from BOUNDARIES."
-  (remove-if-not (lambda (boundary) (discretionaryp (stop-elt boundary)))
+  (remove-if-not (lambda (boundary) (discretionaryp (item boundary)))
       boundaries))
 
 ;; #### NOTE: this function only collects the last underfull and the first
@@ -220,7 +220,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			     prefer-overfulls fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
 	    &key hyphen-penalty explicit-hyphen-penalty
-		 discriminating-function prefer-shrink 
+		 discriminating-function prefer-shrink
 		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
     ;; #### NOTE: below, we collect boundaries in reverse order because we
@@ -235,15 +235,15 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while (and boundary (not overfull))
 	  :for span := (lineup-span lineup start (stop-idx boundary))
-	  :when (or (not (discretionaryp (stop-elt boundary)))
-		    (and (explicitp (stop-elt boundary))
+	  :when (or (not (discretionaryp (item boundary)))
+		    (and (explicitp (item boundary))
 			 (<< explicit-hyphen-penalty +∞))
-		    (and (not (explicitp (stop-elt boundary)))
+		    (and (not (explicitp (item boundary)))
 			 (<< hyphen-penalty +∞)))
-	    :if (and (discretionaryp (stop-elt boundary))
-		     (or (and (explicitp (stop-elt boundary))
+	    :if (and (discretionaryp (item boundary))
+		     (or (and (explicitp (item boundary))
 			      (eq explicit-hyphen-penalty -∞))
-			 (and (not (explicitp (stop-elt boundary)))
+			 (and (not (explicitp (item boundary)))
 			      (eq hyphen-penalty -∞))))
 	      :do (return boundary)
 	    :else :if (< (max-width span) width)
@@ -380,7 +380,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
     (lineup disposition width (algorithm (eql :fit))
      &key variant fallback
 	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-	  discriminating-function hyphen-penalty explicit-hyphen-penalty 
+	  discriminating-function hyphen-penalty explicit-hyphen-penalty
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
@@ -389,7 +389,7 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 		 :explicit-hyphen-penalty explicit-hyphen-penalty
 		 :discriminating-function discriminating-function
 		 :prefer-shrink prefer-shrink
-	         :fallback fallback
+		 :fallback fallback
 		 :width-offset width-offset
 		 :avoid-hyphens avoid-hyphens
 		 :prefer-overfulls prefer-overfulls))
@@ -408,12 +408,12 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
   (default-fit discriminating-function)
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
-  (loop :for start := 0 :then (next-start boundary)
+  (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (funcall get-line-boundary start)
 	:collect (apply #'fit-make-line lineup start (stop-idx boundary)
 			(disposition-type disposition) variant
 			:width width
 			:relax relax
-			:last (null (stop-elt boundary))
+			:last (null (item boundary))
 			(disposition-options disposition))))
