@@ -256,9 +256,9 @@ the underfull one."))
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fixed))
      &key fallback width-offset avoid-hyphens prefer-overfulls
-     &aux (get-line-boundary  (if (eq (disposition-type disposition) :justified)
-				#'fixed-justified-line-boundary
-				#'fixed-ragged-line-boundary)))
+     &aux (get-line-boundary (if (eq (disposition-type disposition) :justified)
+			       #'fixed-justified-line-boundary
+			       #'fixed-ragged-line-boundary)))
   "Typeset LINEUP with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
