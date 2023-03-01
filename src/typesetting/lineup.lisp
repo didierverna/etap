@@ -638,23 +638,24 @@ different from TARGET."
     :documentation
     "The lineup index for a beginning of line at that boundary."
     :initarg :start-idx :reader start-idx))
-  (:documentation "The BOUNDARY class.
+  (:default-initargs :allow-other-keys t) ;; allow :lineup and :start
+  (:documentation "Base class for lineup boundaries.
 A boundary represents a possible break point in the lineup.
-The end of the lineup is represented by a special boundary with the following
-slots: ITEM = NIL, STOP-IDX = lineup's length, START-IDX = NIL."))
+The end of the lineup is represented by a special boundary with a null item
+and start index (the stop index being the lineup's length).
 
-(defun make-boundary (item stop-idx start-idx)
-  "Make a new boundary out of ITEM, STOP-IDX, and START-IDX."
-  (make-instance 'boundary :item item :stop-idx stop-idx :start-idx start-idx))
+Algorithms may provide their own boundary sub-class."))
 
-(defun next-boundary (lineup &optional (start 0) &aux (length (length lineup)))
+(defun next-boundary (lineup start &optional (boundary-class 'boundary)
+				   &aux (length (length lineup)))
   "Return the next boundary in LINEUP after START position, or NIL.
+The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
 This function understands the terminal case where START = LINEUP's
 length (possibly coming from the end of lineup special boundary), in which
 case it signals that there is no more boundary to find by returning NIL."
   (unless (= start length)
-    (let* ((point (position-if #'break-point-p lineup :start (1+ start)))
-	   (item (when point (aref lineup point)))
+    (let* ((idx (position-if #'break-point-p lineup :start (1+ start)))
+	   (item (when idx (aref lineup idx)))
 	   stop-idx start-idx)
       ;; #### FIXME: this hack has been removed, but this currently breaks the
       ;; KP algorithm (at least). We need to support penalties.
@@ -665,7 +666,9 @@ case it signals that there is no more boundary to find by returning NIL."
       ;; afterwards), but we don't have that level of generality yet.
       ;; (when (eql point (1- length)) (setq point nil))
       (etypecase item
-	(glue (setq stop-idx point start-idx (1+ point)))
-	(discretionary (setq stop-idx (1+ point) start-idx point))
+	(glue (setq stop-idx idx start-idx (1+ idx)))
+	(discretionary (setq stop-idx (1+ idx) start-idx idx))
 	(null (setq stop-idx length)))
-      (make-boundary item stop-idx start-idx))))
+      (make-instance boundary-class
+	:item item :stop-idx stop-idx :start-idx start-idx
+	:lineup lineup :start start))))

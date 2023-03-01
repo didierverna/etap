@@ -292,8 +292,8 @@
   (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
     (setf (gethash '(0 . 1) nodes)
 	  ;; #### WARNING: fake boundary!
-	  (kp-make-node :boundary (make-boundary nil 0 0) :demerits 0))
-    (loop :for boundary := (next-boundary lineup)
+	  (kp-make-node :boundary (make-instance 'boundary) :demerits 0))
+    (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
 	  :for break-penalty
