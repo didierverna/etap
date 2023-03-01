@@ -35,42 +35,49 @@
 (in-package :etap)
 
 
+(defclass barnett-boundary (fixed-boundary)
+  ((scale :documentation "The scale of the line ending at this boundary."
+	  :reader scale))
+  (:documentation "The Barnett algorithm's boundary class."))
+
+(defmethod initialize-instance :after
+    ((boundary barnett-boundary) &key lineup start width)
+  "Compute the scale of LINEUP line of WIDTH from START to BOUNDARY."
+  (setf (slot-value boundary 'scale)
+	(lineup-scale lineup start (stop-idx boundary) width)))
+
+
 ;; This function starts by collecting all the possible break points, that is,
 ;; the last word underfull, all possible hyphenation points, and the first
 ;; word overfull. After that, we make a decision.
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
   (loop :with word-underfull :with hyphens :with word-overfull
-	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
-	;; first, and then NIL.
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop-idx boundary))
+	:for boundary := (next-boundary lineup start 'barnett-boundary
+					:start start :width width)
+	  :then (next-boundary lineup (stop-idx boundary) 'barnett-boundary
+			       :start start :width width)
 	:while (and boundary (not word-overfull))
-	:for w := (lineup-width lineup start (stop-idx boundary))
 	:if  (discretionaryp (item boundary))
 	  ;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	  ;; what we need for putting "as much as will fit" on the line.
 	  :do (push boundary hyphens)
-	:else :if (<= w width)
+	:else :if (<= (width boundary) width)
 	  :do (setq word-underfull boundary hyphens nil)
-	:else :if (> w width)
+	:else :if (> (width boundary) width)
 	  :do (setq word-overfull boundary)
 	:finally
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
 	       ((and word-overfull
-		     (let ((scale (lineup-scale lineup start
-						(stop-idx word-overfull)
-						width)))
-		       (and scale (>= scale -1))))
+		     (scale word-overfull)
+		     (>= (scale word-overfull) -1))
 		word-overfull)
 	       ;; A word underfull that fits.
 	       ((and word-underfull
-		     (let ((scale (lineup-scale lineup start
-						(stop-idx word-underfull)
-						width)))
-		       (and scale (<= scale 1))))
+		     (scale word-underfull)
+		     (<= (scale word-underfull) 1))
 		word-underfull)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
@@ -80,11 +87,9 @@
 	       ;; as soon as we have an underfull line.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :for stop := (stop-idx hyphen)
-		      :for scale := (lineup-scale lineup start stop width)
-		      :when (if scale
-			      (>= scale -1)
-			      (<= (lineup-width lineup start stop) width))
+		      :when (if (scale hyphen)
+			      (>= (scale hyphen) -1)
+			      (<= (width hyphen) width))
 			:do (return hyphen)
 		      :finally (return (or word-underfull word-overfull))))
 	       (t
@@ -104,7 +109,7 @@
 	  :collect (make-wide-line lineup start stop width t)
 	:else :if justified
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (let ((scale (lineup-scale lineup start stop width)))
+		:collect (let ((scale (scale boundary)))
 		     (if (and scale (< scale 0))
 		       (make-wide-line lineup start stop width)
 		       (make-line lineup start stop)))
