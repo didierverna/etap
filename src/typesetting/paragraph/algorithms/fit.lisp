@@ -201,10 +201,10 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	    &key fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a First or Last Fit boundary for the justified disposition."
     (loop :with underfull :with fits := (list) :with overfull
-	  :for boundary := (next-boundary lineup start 'fit-boundary
-					  :start start)
-	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				 :start start)
+	  :for boundary
+	    := (next-boundary lineup start 'fit-boundary :start start)
+	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				   :start start)
 	  :while (and boundary (not overfull))
 	  :if (< (max-width (span boundary)) width)
 	    :do (setq underfull (change-class boundary 'fixed-boundary
@@ -237,10 +237,10 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
     ;; will often need to access the most recent ones, and we use STABLE-SORT
     ;; to preserve that order.
     (loop :with underfull :with fits := (list) :with overfull
-	  :for boundary := (next-boundary lineup start 'fit-boundary
-					  :start start)
-	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				 :start start)
+	  :for boundary
+	    := (next-boundary lineup start 'fit-boundary :start start)
+	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				   :start start)
 	  :while (and boundary (not overfull))
 	  :when (or (not (discretionaryp (item boundary)))
 		    (and (explicitp (item boundary))
@@ -254,8 +254,8 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 			      (eq hyphen-penalty -∞))))
 	      :do (return boundary)
 	    :else :if (< (max-width (span boundary)) width)
-		    :do (setq underfull (change-class boundary 'fixed-boundary
-					  :width (max-width (span boundary))))
+	      :do (setq underfull (change-class boundary 'fixed-boundary
+				    :width (max-width (span boundary))))
 	    :else :if (and (<= (min-width (span boundary)) width)
 			   (>= (max-width (span boundary)) width))
 	      :do (push boundary fits) ;; note the reverse order!
