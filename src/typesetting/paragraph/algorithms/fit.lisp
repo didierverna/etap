@@ -141,13 +141,11 @@ A fit boundary stores the computed span of the line ending there."))
 
 (defun word-boundaries (boundaries)
   "Select only word boundaries from BOUNDARIES."
-  (remove-if (lambda (boundary) (discretionaryp (item boundary)))
-      boundaries))
+  (remove-if #'discretionaryp boundaries :key #'item))
 
 (defun hyphen-boundaries (boundaries)
   "Select only hyphen boundaries from BOUNDARIES."
-  (remove-if-not (lambda (boundary) (discretionaryp (item boundary)))
-      boundaries))
+  (remove-if-not #'discretionaryp boundaries :key #'item))
 
 ;; #### NOTE: this function only collects the last underfull and the first
 ;; overfull, regardless of their word / hyphen nature (that's because getting
