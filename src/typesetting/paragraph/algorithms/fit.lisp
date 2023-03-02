@@ -123,7 +123,8 @@ for equally good solutions."))
 (defclass fit-boundary (boundary)
   ((span :documentation "The span of the line ending at this boundary."
 	 :reader span))
-  (:documentation "The Fit algorithm's boundary class."))
+  (:documentation "The FIT-BOUNDARY class.
+A fit boundary stores the computed span of the line ending there."))
 
 (defmethod initialize-instance :after
     ((boundary fit-boundary) &key lineup start)

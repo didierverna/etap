@@ -99,12 +99,16 @@ the underfull one."))
 (defclass fixed-boundary (boundary)
   ((width :documentation "The width of the line ending at this boundary."
 	  :initarg :width :reader width))
-  (:documentation "The Fixed algorithm's boundary class."))
+  (:documentation "The FIXED-BOUNDARY class.
+A fixed boundary stores the computed width of the line ending there.
+Depending on the context, this may be be the natural width of the line,
+or whatever else is required by the algorithm using the boundary."))
 
 (defmethod initialize-instance :after
     ((boundary fixed-boundary)
      &key lineup start (width-function #'lineup-width))
-  "Compute the width of LINEUP from START to BOUNDARY with WIDTH-FUNCTION."
+  "Compute the width of LINEUP from START to BOUNDARY.
+The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
   (setf (slot-value boundary 'width)
 	(funcall width-function lineup start (stop-idx boundary))))
 
@@ -112,7 +116,7 @@ the underfull one."))
 ;; #### NOTE: the WIDTH below already takes the offset into account.
 (defun fixed-fallback-boundary (underfull overfull width prefer-overfulls
 				&optional (policy :anyfull) avoid-hyphens)
-  "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary solution."
+  "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary."
   (cond
     ;; No possibility, no choice.
     ((and (null underfull) (null overfull)) nil)
