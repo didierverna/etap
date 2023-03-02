@@ -132,52 +132,11 @@ for equally good solutions."))
 	(lineup-span lineup start (stop-idx boundary))))
 
 
-(defun fit-weight
-    (lineup start width boundary hyphen-penalty explicit-hyphen-penalty
-     &aux (badness (badness lineup start (stop-idx boundary) width)))
-  "Return the weight of LINEUP chunk between START and BOUNDARY.
-The weight is calculated in the TeX way, that is, badness plus possible hyphen
-penalty."
-  (if (discretionaryp (item boundary))
-    ;; #### NOTE: infinitely negative hyphen penalties have already been
-    ;; handled by an immediate RETURN from FIT-LINE-BOUNDARY, so there's no
-    ;; risk of doing -∞ + +∞ here.
-    (++ badness
-	(if (explicitp (item boundary))
-	  explicit-hyphen-penalty
-	  hyphen-penalty))
-    badness))
+(defclass fit-weighted-boundary (fit-boundary)
+  ((weight :documentation "This boundary's weight."
+	   :initarg :weight :accessor weight))
+  (:documentation "The Fit algorithm's weighted boundary class."))
 
-(defun fit-weights
-    (lineup start width boundaries hyphen-penalty explicit-hyphen-penalty)
-  "Compute the weights of LINEUP chunks between START and BOUNDARIES.
-Return a list of the form ((WEIGHT . BOUNDARY) ...)."
-  (mapcar
-      (lambda (boundary)
-	(cons (fit-weight lineup start width boundary
-			  hyphen-penalty explicit-hyphen-penalty)
-	      boundary))
-    boundaries))
-
-(defun fit-deltas (lineup start width boundaries)
-  "Compute the deltas of LINEUP chunks between START and BOUNDARIES.
-This means the difference (in absolute value) between WIDTH and each chunk's
-natural width. Return a list of the form ((DELTA . BOUNDARY) ...)."
-  (mapcar (lambda (boundary)
-	    (cons (abs (- width
-			  (lineup-width lineup start (stop-idx boundary))))
-		  boundary))
-    boundaries))
-
-;; #### WARNING: this only works for elastic lines!
-(defun fit-scales (lineup start width boundaries)
-  "Compute the scales of LINEUP chunks between START and BOUNDARIES.
-This means the scaling required for a chunk to reach WIDTH, in absolute value.
-Return a list of the form ((SCALE . BOUNDARY) ...)."
-  (mapcar (lambda (boundary)
-	    (cons (abs (lineup-scale lineup start (stop-idx boundary) width))
-		  boundary))
-    boundaries))
 
 (defun word-boundaries (boundaries)
   "Select only word boundaries from BOUNDARIES."
@@ -215,19 +174,20 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 	  :else
 	    :do (setq overfull (change-class boundary 'fixed-boundary
 				 :width (min-width (span boundary))))
-	  :finally (return
-		     (cond (fits
-			    (when avoid-hyphens
-			      (setq fits (or (word-boundaries fits)
-					     (hyphen-boundaries fits))))
-			    (ecase variant
-			      (:first (car (last fits)))
-			      (:last (car fits))))
-			   (t
-			    (fixed-fallback-boundary
-			     underfull overfull
-			     (+ width width-offset) prefer-overfulls
-			     fallback avoid-hyphens))))))
+	  :finally
+	     (return
+	       (cond (fits
+		      (when avoid-hyphens
+			(setq fits (or (word-boundaries fits)
+				       (hyphen-boundaries fits))))
+		      (ecase variant
+			(:first (car (last fits)))
+			(:last (first fits))))
+		     (t
+		      (fixed-fallback-boundary
+		       underfull overfull
+		       (+ width width-offset) prefer-overfulls
+		       fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
 	    &key hyphen-penalty explicit-hyphen-penalty
 		 discriminating-function prefer-shrink
@@ -264,47 +224,76 @@ Return a list of the form ((SCALE . BOUNDARY) ...)."
 				   :width (min-width (span boundary))))
 	  :finally
 	     (return
-	       (cond (fits
-		      (let ((sorted-weights
-			      (stable-sort
-			       (fit-weights lineup start width fits
-					    hyphen-penalty
-					    explicit-hyphen-penalty)
-			       #'<< :key #'car)))
-			(cond ((eql (caar sorted-weights)
-				    (caadr sorted-weights))
-			       (setq sorted-weights
+	       (cond ((and fits (not (cdr fits)))
+		      (car fits))
+		     (fits
+		      (flet ((weight (fit)
+			       "\
+Return the weight of LINEUP chunk between START and BOUNDARY.
+The weight is calculated in the TeX way, that is, badness plus possible hyphen
+penalty."
+			       (let ((badness
+				       (badness
+					lineup start (stop-idx fit) width)))
+				 (if (discretionaryp (item fit))
+				   ;; #### NOTE: infinitely negative hyphen
+				   ;; penalties have already been handled by
+				   ;; an immediate RETURN from
+				   ;; FIT-LINE-BOUNDARY, so there's no risk of
+				   ;; doing -∞ + +∞ here.
+				   (++ badness
+				       (if (explicitp (item fit))
+					 explicit-hyphen-penalty
+					 hyphen-penalty))
+				   badness))))
+			(mapc (lambda (fit)
+				(change-class fit 'fit-weighted-boundary
+				  :weight (weight fit)))
+			  fits))
+		      (flet ((sort-fits ()
+			       "Stable sort fits by weight."
+			       (setq fits
+				     (stable-sort fits #'<< :key #'weight)))
+			     (keep-best-fits (&aux (best (weight (first fits))))
+			       "Keep only fits as good as the first one."
+			       (setq fits
 				     (remove-if-not
-					 (lambda (weight)
-					   (= weight (caar sorted-weights)))
-					 sorted-weights
-				       :key #'car))
-			       (let ((sorted-scores
-				       (stable-sort
-					(funcall
-					    (ecase discriminating-function
-					      (:minimize-distance #'fit-deltas)
-					      (:minimize-scaling #'fit-scales))
-					  lineup start width
-					  (mapcar #'cdr sorted-weights))
-					#'< :key #'car)))
-				 (cond ((= (caar sorted-scores)
-					   (caadr sorted-scores))
-					(setq sorted-scores
-					      (remove-if-not
-						  (lambda (delta)
-						    (= delta
-						       (caar sorted-scores)))
-						  sorted-scores
-						:key #'car))
-					(assert (= (length sorted-scores) 2))
-					(if prefer-shrink
-					  (cdar sorted-scores)
-					  (cdadr sorted-scores)))
-				       (t
-					(cdar sorted-scores)))))
+					 (lambda (weight) (= weight best))
+					 fits :key #'weight))))
+			(sort-fits)
+			(cond ((eql (weight (first fits))
+				    (weight (second fits)))
+			       (keep-best-fits)
+			       (let ((new-weight
+				       (ecase discriminating-function
+					 (:minimize-distance
+					  (lambda (fit)
+					    (abs
+					     (- width
+						(normal-width (span fit))))))
+					 (:minimize-scaling
+					  (lambda (fit)
+					    (abs
+					     (lineup-scale
+					      lineup start (stop-idx fit)
+					      width)))))))
+				 (mapc
+				     (lambda (fit)
+				       (setf (weight fit)
+					     (funcall new-weight fit)))
+				   fits))
+			       (sort-fits)
+			       (cond ((= (weight (first fits))
+					 (weight (second fits)))
+				      (keep-best-fits)
+				      (assert (= (length fits) 2))
+				      (if prefer-shrink
+					(first fits)
+					(second fits)))
+				     (t
+				      (first fits))))
 			      (t
-			       (cdar sorted-weights)))))
+			       (first fits)))))
 		     (t
 		      (fixed-fallback-boundary
 		       underfull overfull
