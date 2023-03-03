@@ -56,33 +56,29 @@ the last underfull and the first overfull (if any) as a fallback solution.
 If FULLS is :PREVENTIVE, also return these fulls even if possible endings were
 found.
 The possible endings are listed in reverse order (from last to first)."
-  (loop :with underfull
-	:with fits := (list)
-	:with overfull
-	;; #### NOTE: if we reach the end of the lineup, we get #S(LENGTH NIL)
-	;; first, and then NIL.
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop-idx boundary))
+  (loop :with underfull	:with fits := (list) :with overfull
+	:for boundary
+	  := (next-boundary lineup start 'fit-boundary :start start)
+	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				 :start start)
 	:while (and boundary (not overfull))
-	:for span := (lineup-span lineup start (stop-idx boundary))
-	:if (< (max-width span) width)
-	  :do (setq underfull boundary)
-	:else :if (and (<= (min-width span) width) (>= (max-width span) width))
-	  :do (push boundary fits)
-	:else
-	  :do (setq overfull boundary)
+	:do (cond ((< (max-width (span boundary)) width)
+		   (setq underfull boundary))
+		  ((and (<= (min-width (span boundary)) width)
+			(>= (max-width (span boundary)) width))
+		   (push boundary fits))
+		  (t
+		   (setq overfull boundary)))
 	:finally
-	   (return
-	     (cond ((eq fulls :preventive)
-		    (append
-		     (when overfull (list overfull))
-		     fits
-		     (when underfull (list underfull))))
-		   (fulls
-		    (or fits
-			(append (when overfull (list overfull))
-				(when underfull (list underfull)))))
-		   (t fits)))))
+	   (return (cond ((eq fulls :preventive)
+			  (append (when overfull (list overfull))
+				  fits
+				  (when underfull (list underfull))))
+			 (fulls
+			  (or fits
+			      (append (when overfull (list overfull))
+				      (when underfull (list underfull)))))
+			 (t fits)))))
 
 ;; #### WARNING: we use a hash table for storing and sharing nodes to express
 ;; the fact that however we reach a break, all subsequent solutions for the
