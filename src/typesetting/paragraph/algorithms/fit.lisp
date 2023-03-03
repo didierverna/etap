@@ -357,10 +357,10 @@ penalty."
 	   ;; Stretch as much as possible.
 	   (make-line lineup start stop (if (and scale (< scale 1)) scale 1)))
 	  (:best
-	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
-	   ;; normal spacing.
+	   ;; If the line needs to be shrunk, shrink it as much as possible.
+	   ;; Otherwise, keep the normal spacing.
 	   (if (and scale (< scale 0))
-	     (make-line lineup start stop scale)
+	     (make-line lineup start stop (max scale -1))
 	     (make-line lineup start stop)))
 	  (:last
 	   ;; Shrink as much as possible.
