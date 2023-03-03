@@ -47,38 +47,31 @@
 	(lineup-scale lineup start (stop-idx boundary) width)))
 
 
-;; This function starts by collecting all the possible break points, that is,
-;; the last word underfull, all possible hyphenation points, and the first
-;; word overfull. After that, we make a decision.
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
-  (loop :with word-underfull :with hyphens :with word-overfull
+  (loop :with underword :with hyphens := (list) :with overword
 	:for boundary := (next-boundary lineup start 'barnett-boundary
 					:start start :width width)
 	  :then (next-boundary lineup (stop-idx boundary) 'barnett-boundary
 			       :start start :width width)
-	:while (and boundary (not word-overfull))
-	:if  (discretionaryp (item boundary))
-	  ;; #### NOTE: keeping hyphen solutions in reverse order is exactly
-	  ;; what we need for putting "as much as will fit" on the line.
-	  :do (push boundary hyphens)
-	:else :if (<= (width boundary) width)
-	  :do (setq word-underfull boundary hyphens nil)
-	:else :if (> (width boundary) width)
-	  :do (setq word-overfull boundary)
+	:while (and boundary (not overword))
+	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
+	;; what we need for putting "as much as will fit" on the line.
+	:do (cond ((discretionaryp (item boundary))
+		   (push boundary hyphens))
+		  ((<= (width boundary) width)
+		   (setq underword boundary hyphens nil))
+		  ((> (width boundary) width)
+		   (setq overword boundary)))
 	:finally
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
-	       ((and word-overfull
-		     (scale word-overfull)
-		     (>= (scale word-overfull) -1))
-		word-overfull)
+	       ((and overword (scale overword) (>= (scale overword) -1))
+		overword)
 	       ;; A word underfull that fits.
-	       ((and word-underfull
-		     (scale word-underfull)
-		     (<= (scale word-underfull) 1))
-		word-underfull)
+	       ((and underword (scale underword) (<= (scale underword) 1))
+		underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
@@ -91,9 +84,9 @@
 			      (>= (scale hyphen) -1)
 			      (<= (width hyphen) width))
 			:do (return hyphen)
-		      :finally (return (or word-underfull word-overfull))))
+		      :finally (return (or underword overword))))
 	       (t
-		(or word-underfull word-overfull))))))
+		(or underword overword))))))
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett))
