@@ -376,6 +376,21 @@ penalty."
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
+(defmethod make-lines :around
+    (lineup disposition width (algorithm (eql :fit))
+     &key hyphen-penalty explicit-hyphen-penalty)
+  "Apply hyphen penalties to the lineup."
+  (calibrate-fit hyphen-penalty t)
+  (calibrate-fit explicit-hyphen-penalty t)
+  (mapc (lambda (item)
+	  (when (hyphenation-point-p item)
+	    (setf (penalty item)
+		  (if (explicitp item)
+		    explicit-hyphen-penalty
+		    hyphen-penalty))))
+    lineup)
+  (call-next-method))
+
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fit))
      &key variant fallback
@@ -406,8 +421,6 @@ penalty."
   (default-fit fallback)
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
-  (calibrate-fit hyphen-penalty t)
-  (calibrate-fit explicit-hyphen-penalty t)
   (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (funcall get-line-boundary start)
