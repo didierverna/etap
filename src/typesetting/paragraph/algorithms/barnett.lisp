@@ -97,7 +97,7 @@
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
 	:for stop := (stop-idx boundary)
-	:if (and justified (item boundary))
+	:if (and justified (not (last-boundary-p boundary)))
 	  ;; Justified regular line: make it fit.
 	  :collect (make-wide-line lineup start stop width t)
 	:else :if justified
