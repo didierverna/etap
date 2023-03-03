@@ -667,6 +667,10 @@ and start index (the stop index being the lineup's length).
 
 Algorithms may provide their own boundary sub-class."))
 
+(defun last-boundary-p (boundary)
+  "Return T if BOUNDARY is the last one."
+  (null (item boundary)))
+
 (defun next-boundary (lineup start &optional (boundary-class 'boundary)
 				   &rest keys &key &allow-other-keys
 				   &aux (length (length lineup)))
