@@ -57,7 +57,7 @@
 	:while (and boundary (not overword))
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.
-	:do (cond ((discretionaryp (item boundary))
+	:do (cond ((hyphenation-point-p (item boundary))
 		   (push boundary hyphens))
 		  ((<= (width boundary) width)
 		   (setq underword boundary hyphens nil))
