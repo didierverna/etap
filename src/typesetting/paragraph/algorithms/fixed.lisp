@@ -165,13 +165,9 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
 				 :start start)
 	:while (and boundary (not overfull))
-	:if (< (width boundary) width)
-	  ;; Track the last underfulls because they're the closest to WIDTH.
-	  :do (setq underfull boundary)
-	:else :if (= (width boundary) width)
-	  :do (setq fit boundary)
-	:else
-	  :do (setq overfull boundary)
+	:do (cond ((< (width boundary) width) (setq underfull boundary))
+		  ((= (width boundary) width) (setq fit boundary))
+		  (t (setq overfull boundary)))
 	:finally
 	   (return (or fit
 		       (fixed-fallback-boundary
