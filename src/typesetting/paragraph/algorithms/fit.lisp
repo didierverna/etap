@@ -184,7 +184,7 @@ This function returns three values:
 (defun first/last-fit-justified-line-boundary
     (lineup start width variant
      fallback width-offset avoid-hyphens prefer-overfulls)
-  "Find a First or Last Fit boundary for the justified disposition."
+  "Find a first- or last-fit boundary for the justified disposition."
   (multiple-value-bind (fits underfull overfull)
       (fit-collect-boundaries-for-justification lineup start width)
     (cond (fits
@@ -203,7 +203,7 @@ This function returns three values:
     (lineup start width
      discriminating-function prefer-shrink
      fallback width-offset avoid-hyphens prefer-overfulls)
-  "Find a Best Fit boundary for the justified disposition."
+  "Find a best-fit boundary for the justified disposition."
   (multiple-value-bind (fits underfull overfull)
       (fit-collect-boundaries-for-justification lineup start width)
     (cond ((and fits (not (cdr fits)))
