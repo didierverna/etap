@@ -109,10 +109,10 @@
 	  :collect (make-wide-line lineup start stop width t)
 	:else :if justified
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-		:collect (let ((scale (scale boundary)))
+	  :collect (let ((scale (scale boundary)))
 		     (if (and scale (< scale 0))
-		       (make-wide-line lineup start stop width)
-		       (make-line lineup start stop)))
+			 (make-wide-line lineup start stop width)
+			 (make-line lineup start stop)))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
