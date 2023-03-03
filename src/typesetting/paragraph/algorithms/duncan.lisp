@@ -72,13 +72,14 @@
 (defun duncan-make-lines
     (lineup disposition width layout
      &aux (justified (eq (disposition-type disposition) :justified))
-	  (sloppy (cadr (member :sloppy (disposition-options disposition)))))
+	  (overstretch
+	   (cadr (member :overstretch (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if (and justified (item (boundary (destination edge))))
 	  ;; Justified regular line: make it fit.
-	  :collect (make-wide-line lineup start stop width sloppy)
+	  :collect (make-wide-line lineup start stop width overstretch)
 	:else :if justified
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (let ((scale (lineup-scale lineup start stop width)))

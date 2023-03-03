@@ -6,15 +6,15 @@
 (defparameter *dispositions*
   '(:flush-left :centered :flush-right :justified))
 
-(defparameter *disposition-options* '((:sloppy t)))
+(defparameter *disposition-options* '((:overstretch t)))
 
 (defparameter *disposition-options-help-keys*
-  '(:disposition-option-sloppy))
+  '(:disposition-option-overstretch))
 
 (defparameter *disposition-options-tooltips*
-  '(:disposition-option-sloppy
-    "In Justified disposition, stretch or shrink as needed,
-ignoring the font's inter-word spacing boundaries."))
+  '(:disposition-option-overstretch
+    "In Justified disposition, stretch as needed,
+ignoring the font's inter-word spacing recommendation."))
 
 (defun disposition-type (disposition)
   "Return DISPOSITION type."
@@ -143,17 +143,16 @@ origin. A line also remembers its scale factor."))
     :scale scale))
 
 (defun make-wide-line
-    (lineup start stop width &optional sloppy
+    (lineup start stop width &optional overstretch
      &aux (scale (lineup-scale lineup start stop width)))
   "Make a line of WIDTH from LINEUP chunk between START and STOP.
 If no elasticity is available, the line will remain at its normal width.
 If some elasticity is available, get as close as possible to WIDTH within the
 limits of the available elasticity.
-If SLOPPY, disregard the limits and stretch as needed. Note that even when
-SLOPPY, the line will never be shrunk more than possible. "
+If OVERSTRETCH, disregard the limit and stretch as much needed."
   (if scale
     (make-line lineup start stop
-		 (cond (sloppy (max scale -1))
+		 (cond (overstretch (max scale -1))
 		       ((zerop scale) 0)
 		       ((< scale 0) (max scale -1))
 		       ((> scale 0) (min scale 1))))

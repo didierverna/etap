@@ -23,8 +23,8 @@
 ;;    have given a result closer to the normal spacing).
 ;; 3. Finally, the last sentence seems to suggest that when no solution is
 ;;    found, this algorithm falls back to an underfull line, but overstretches
-;;    it to reach the paragraph's width. In other words, it's always sloppy,
-;;    and that's why the sloppy option will have no effect.
+;;    it to reach the paragraph's width. That's why the "Overstretch" option
+;;    has no effect (it's always on).
 
 ;; #### FIXME: I don't know if Barnett is restricted to the Justified
 ;; disposition, or if it does something for the ragged ones. Currently, I'm
@@ -75,7 +75,7 @@
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
-	       ;; for the word underfull, and this algorithm is sloppy by
+	       ;; for the word underfull, and this algorithm overstretches by
 	       ;; definition. Also, when we don't have any elasticity, we stop
 	       ;; as soon as we have an underfull line.
 	       (hyphens

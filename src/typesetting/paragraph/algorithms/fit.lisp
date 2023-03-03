@@ -306,7 +306,7 @@ This function returns three values:
 		    (if (>= scale 0) 0 (max scale -1)))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
-	    &key width sloppy
+	    &key width overstretch
 	    &aux (stop (stop-idx boundary)))
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (if (last-boundary-p boundary)
@@ -327,7 +327,7 @@ This function returns three values:
 	  (:last
 	   ;; Shrink as much as possible.
 	   (make-line lineup start stop -1))))
-      (make-wide-line lineup start stop width sloppy))))
+      (make-wide-line lineup start stop width overstretch))))
 
 
 (defmacro calibrate-fit (name &optional infinity)

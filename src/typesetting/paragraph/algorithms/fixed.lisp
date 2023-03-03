@@ -34,8 +34,8 @@
 ;; checked, a word boundary will always be preferred to a hyphen boundary,
 ;; even if it's farther away from the paragraph's width.
 
-;; Finally, note that because the inter-word spacing is fixed, the sloppy
-;; option has no effect.
+;; Finally, note that because the inter-word spacing is fixed, the
+;; "Overstretch" option has no effect.
 
 
 ;; #### TODO: the Width Offset idea is but one possibility for modulating the
