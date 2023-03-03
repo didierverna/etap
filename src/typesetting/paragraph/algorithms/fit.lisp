@@ -159,20 +159,24 @@ A fit boundary stores the computed span of the line ending there."))
 	    &key fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a First or Last Fit boundary for the justified disposition."
     (loop :with underfull :with fits := (list) :with overfull
+	  :with continue := t
 	  :for boundary
 	    := (next-boundary lineup start 'fit-boundary :start start)
 	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 				   :start start)
-	  :while (and boundary (not overfull))
-	  :if (< (max-width (span boundary)) width)
-	    :do (setq underfull (change-class boundary 'fixed-boundary
-				  :width (max-width (span boundary))))
-	  :else :if (and (<= (min-width (span boundary)) width)
-			 (>= (max-width (span boundary)) width))
-	    :do (push boundary fits) ;; note the reverse order!
-	  :else
-	    :do (setq overfull (change-class boundary 'fixed-boundary
-				 :width (min-width (span boundary))))
+	  :while continue
+	  :do (when (<< (penalty (item boundary)) +∞)
+		(when (eq (penalty (item boundary)) -∞) (setq continue nil))
+		(cond ((< (max-width (span boundary)) width)
+		       (setq underfull (change-class boundary 'fixed-boundary
+					 :width (max-width (span boundary)))))
+		      ((and (<= (min-width (span boundary)) width)
+			    (>= (max-width (span boundary)) width))
+		       (push boundary fits)) ;; note the reverse order!
+		      (t
+		       (setq continue nil
+			     overfull (change-class boundary 'fixed-boundary
+					:width (min-width (span boundary)))))))
 	  :finally
 	     (return
 	       (cond (fits
