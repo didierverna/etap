@@ -191,50 +191,52 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
   (loop :with underfull :with hyphen-underfull :with word-underfull
 	:with fit
 	:with overfull :with hyphen-overfull :with word-overfull
+	:with continue := t
 	:for boundary
 	  := (next-boundary lineup start 'fixed-boundary
 			    :start start :width-function width-function)
 	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
 				 :start start :width-function width-function)
-	;; #### NOTE: we're satisfied to stop at the first word overfull, even
-	;; if we don't have an hyphen overfull, because the Avoid Hyphens
-	;; options would have no effect there. On the other hand, if we
-	;; already have an hyphen overfull, it's still important to collect a
-	;; word overfull if possible, because of that very same option.
-	:while (and boundary (not word-overfull))
-	:for hyphenp := (hyphenation-point-p (item boundary))
-	:if (< (width boundary) width)
-	  ;; Track the last underfulls because they're the closest to WIDTH.
-	  :do (setq underfull boundary)
-	  :and :do (if hyphenp
-		     (setq hyphen-underfull boundary)
-		     (setq word-underfull boundary))
-	:else :if (= (width boundary) width)
-	  :do (setq fit boundary)
-	:else
-	  ;; Track the first overfulls because they're the closest to WIDTH.
-	  :do (unless overfull (setq overfull boundary))
-	  :and :do (if hyphenp
-		     (unless hyphen-overfull
-		       (setq hyphen-overfull boundary))
-		     ;; No check required here because we stop at the first
-		     ;; word overfull.
-		     (setq word-overfull boundary))
+	;; #### NOTE: we stop at the first word overfull, even if we don't
+	;; have an hyphen overfull, because the Avoid Hyphens options would
+	;; have no effect there. On the other hand, if we already have an
+	;; hyphen overfull, it's still important to collect a word overfull if
+	;; possible, because of that very same option.
+	:while continue
+	:do (when (<< (penalty (item boundary)) +∞)
+	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
+	      (let ((hyphenp (hyphenation-point-p (item boundary))))
+		(cond ((< (width boundary) width)
+		       ;; Track the last underfulls because they're the
+		       ;; closest to WIDTH.
+		       (setq underfull boundary)
+		       (if hyphenp
+			 (setq hyphen-underfull boundary)
+			 (setq word-underfull boundary)))
+		      ((= (width boundary) width)
+		       (setq fit boundary))
+		      (t
+		       ;; Track the first overfulls because they're the
+		       ;; closest to WIDTH.
+		       (unless overfull (setq overfull boundary))
+		       (if hyphenp
+			 (unless hyphen-overfull
+			   (setq hyphen-overfull boundary))
+			 ;; No check required here because we stop at the
+			 ;; first word overfull.
+			 (setq word-overfull boundary continue nil))))))
 	:finally
 	   (return
-	     (cond ((and fit
-			 (hyphenation-point-p (item fit))
-			 avoid-hyphens)
+	     (cond ((and fit (hyphenation-point-p (item fit)) avoid-hyphens)
 		    ;; We have a hyphen fit but we prefer to avoid hyphens.
 		    ;; Choose a word solution if possible. Otherwise, fallback
 		    ;; to the hyphen fit.
 		    (ecase fallback
 		      (:underfull (or word-underfull fit))
-		      (:anyfull
-		       (or (fixed-fallback-boundary
-			    word-underfull word-overfull
-			    (+ width width-offset) prefer-overfulls)
-			   fit))
+		      (:anyfull (or (fixed-fallback-boundary
+				     word-underfull word-overfull
+				     (+ width width-offset) prefer-overfulls)
+				    fit))
 		      (:overfull (or word-overfull fit))))
 		   ;; We have a fit and we don't care about hyphens or it's a
 		   ;; word fit. Choose it.
@@ -244,13 +246,12 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		    ;; Choose a word solution if possible.
 		    (ecase fallback
 		      (:underfull (or word-underfull underfull overfull))
-		      (:anyfull
-		       (or (fixed-fallback-boundary
-			    word-underfull word-overfull
-			    (+ width width-offset) prefer-overfulls)
-			   (fixed-fallback-boundary
-			    underfull overfull
-			    (+ width width-offset) prefer-overfulls)))
+		      (:anyfull (or (fixed-fallback-boundary
+				     word-underfull word-overfull
+				     (+ width width-offset) prefer-overfulls)
+				    (fixed-fallback-boundary
+				     underfull overfull
+				     (+ width width-offset) prefer-overfulls)))
 		      (:overfull (or word-overfull overfull underfull))))
 		   (t
 		    ;; We don't care about hyphens. Choose the best solution.
