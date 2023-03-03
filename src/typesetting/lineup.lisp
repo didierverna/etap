@@ -87,6 +87,18 @@ Kerns represent inter-letter horizontal spacing."))
 ;; Break points
 ;; ------------
 
+;; #### FIXME: there is a confusion around the meaning of infinitely negative
+;; penalties (perhaps in TeX as well). Infinitely negative penalties mean both
+;; "force the break", and "prefer this one over the others when there are
+;; several fit solutions to choose from". But these are two different things.
+;; We could want to make a distinction, for example, declare that a break is
+;; mandatory without altering the weight computation. In such a case, we could
+;; end up choosing another (better) break and keep this one for later, when we
+;; pass over it again.
+
+;; Note that if we ever fix this, maybe the whole notion of infinite penalty
+;; is going away.
+
 (defgeneric penalty (item)
   (:documentation "Return ITEM's penalty.")
   ;; This methods applies to the last boundary (which has a null item), and
