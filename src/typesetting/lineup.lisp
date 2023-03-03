@@ -87,8 +87,17 @@ Kerns represent inter-letter horizontal spacing."))
 ;; Break points
 ;; ------------
 
+(defgeneric penalty (item)
+  (:documentation "Return ITEM's penalty.")
+  ;; This methods applies to the last boundary (which has a null item), and
+  ;; means to force the break there.
+  (:method ((item null))
+    "Return -∞."
+    -∞))
+
 (defclass break-point ()
-  ()
+  ((penalty :documentation "The penalty for breaking here."
+	    :initform 0 :initarg :penalty :accessor penalty))
   (:documentation "The BREAK-POINT class.
 This is the base class for all objects at which lines can be broken."))
 
