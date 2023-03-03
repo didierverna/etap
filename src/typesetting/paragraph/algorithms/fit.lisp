@@ -188,39 +188,31 @@ A fit boundary stores the computed span of the line ending there."))
 		       (+ width width-offset) prefer-overfulls
 		       fallback avoid-hyphens))))))
   (:method (lineup start width (variant (eql :best))
-	    &key hyphen-penalty explicit-hyphen-penalty
-		 discriminating-function prefer-shrink
+	    &key discriminating-function prefer-shrink
 		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
     ;; #### NOTE: below, we collect boundaries in reverse order because we
     ;; will often need to access the most recent ones, and we use STABLE-SORT
     ;; to preserve that order.
     (loop :with underfull :with fits := (list) :with overfull
+	  :with continue := t
 	  :for boundary
 	    := (next-boundary lineup start 'fit-boundary :start start)
 	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 				   :start start)
-	  :while (and boundary (not overfull))
-	  :when (or (not (discretionaryp (item boundary)))
-		    (and (explicitp (item boundary))
-			 (<< explicit-hyphen-penalty +∞))
-		    (and (not (explicitp (item boundary)))
-			 (<< hyphen-penalty +∞)))
-	    :if (and (discretionaryp (item boundary))
-		     (or (and (explicitp (item boundary))
-			      (eq explicit-hyphen-penalty -∞))
-			 (and (not (explicitp (item boundary)))
-			      (eq hyphen-penalty -∞))))
-	      :do (return boundary)
-	    :else :if (< (max-width (span boundary)) width)
-	      :do (setq underfull (change-class boundary 'fixed-boundary
-				    :width (max-width (span boundary))))
-	    :else :if (and (<= (min-width (span boundary)) width)
-			   (>= (max-width (span boundary)) width))
-	      :do (push boundary fits) ;; note the reverse order!
-	    :else
-	      :do (setq overfull (change-class boundary 'fixed-boundary
-				   :width (min-width (span boundary))))
+	  :while continue
+	  :do (when (<< (penalty (item boundary)) +∞)
+		(when (eq (penalty (item boundary)) -∞) (setq continue nil))
+		(cond ((< (max-width (span boundary)) width)
+		       (setq underfull (change-class boundary 'fixed-boundary
+					 :width (max-width (span boundary)))))
+		      ((and (<= (min-width (span boundary)) width)
+			    (>= (max-width (span boundary)) width))
+		       (push boundary fits)) ;; note the reverse order!
+		      (t
+		       (setq continue nil
+			     overfull (change-class boundary 'fixed-boundary
+					:width (min-width (span boundary)))))))
 	  :finally
 	     (return
 	       (cond ((and fits (not (cdr fits)))
@@ -231,20 +223,12 @@ A fit boundary stores the computed span of the line ending there."))
 Return the weight of LINEUP chunk between START and BOUNDARY.
 The weight is calculated in the TeX way, that is, badness plus possible hyphen
 penalty."
-			       (let ((badness
-				       (badness
-					lineup start (stop-idx fit) width)))
-				 (if (discretionaryp (item fit))
-				   ;; #### NOTE: infinitely negative hyphen
-				   ;; penalties have already been handled by
-				   ;; an immediate RETURN from
-				   ;; FIT-LINE-BOUNDARY, so there's no risk of
-				   ;; doing -∞ + +∞ here.
-				   (++ badness
-				       (if (explicitp (item fit))
-					 explicit-hyphen-penalty
-					 hyphen-penalty))
-				   badness))))
+			       ;; #### NOTE: infinitely negative hyphen
+			       ;; penalties have already been handled by an
+			       ;; immediate RETURN from FIT-LINE-BOUNDARY, so
+			       ;; there's no risk of doing -∞ + +∞ here.
+			       (++ (badness lineup start (stop-idx fit) width)
+				   (penalty (item fit)))))
 			(mapc (lambda (fit)
 				(change-class fit 'fit-weighted-boundary
 				  :weight (weight fit)))
@@ -395,13 +379,11 @@ penalty."
     (lineup disposition width (algorithm (eql :fit))
      &key variant fallback
 	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-	  discriminating-function hyphen-penalty explicit-hyphen-penalty
+	  discriminating-function
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
 	       (fit-justified-line-boundary lineup start width variant
-		 :hyphen-penalty hyphen-penalty
-		 :explicit-hyphen-penalty explicit-hyphen-penalty
 		 :discriminating-function discriminating-function
 		 :prefer-shrink prefer-shrink
 		 :fallback fallback
