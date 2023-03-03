@@ -186,9 +186,9 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
     (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
      &optional (width-function #'lineup-width))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
-  (loop :with underfull :with hyphen-underfull :with word-underfull
+  (loop :with underfull :with underhyphen :with underword
 	:with fit
-	:with overfull :with hyphen-overfull :with word-overfull
+	:with overfull :with overhyphen :with overword
 	:with continue := t
 	:for boundary
 	  := (next-boundary lineup start 'fixed-boundary
@@ -204,8 +204,8 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
 		       (if hyphenp
-			 (setq hyphen-underfull boundary)
-			 (setq word-underfull boundary)))
+			 (setq underhyphen boundary)
+			 (setq underword boundary)))
 		      ((= (width boundary) width)
 		       (setq fit boundary))
 		      (t
@@ -213,11 +213,10 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		       ;; closest to WIDTH.
 		       (unless overfull (setq overfull boundary))
 		       (if hyphenp
-			 (unless hyphen-overfull
-			   (setq hyphen-overfull boundary))
+			 (unless overhyphen (setq overhyphen boundary))
 			 ;; No check required here because we stop at the
 			 ;; first word overfull.
-			 (setq word-overfull boundary continue nil))))))
+			 (setq overword boundary continue nil))))))
 	:finally
 	   (return
 	     (cond ((and fit (hyphenation-point-p (item fit)) avoid-hyphens)
@@ -225,12 +224,12 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		    ;; Choose a word solution if possible. Otherwise, fallback
 		    ;; to the hyphen fit.
 		    (ecase fallback
-		      (:underfull (or word-underfull fit))
+		      (:underfull (or underword fit))
 		      (:anyfull (or (fixed-fallback-boundary
-				     word-underfull word-overfull
+				     underword overword
 				     (+ width width-offset) prefer-overfulls)
 				    fit))
-		      (:overfull (or word-overfull fit))))
+		      (:overfull (or overword fit))))
 		   ;; We have a fit and we don't care about hyphens or it's a
 		   ;; word fit. Choose it.
 		   (fit fit)
@@ -238,14 +237,14 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		    ;; We don't have a fit and we want to avoid hyphens.
 		    ;; Choose a word solution if possible.
 		    (ecase fallback
-		      (:underfull (or word-underfull underfull overfull))
+		      (:underfull (or underword underfull overfull))
 		      (:anyfull (or (fixed-fallback-boundary
-				     word-underfull word-overfull
+				     underword overword
 				     (+ width width-offset) prefer-overfulls)
 				    (fixed-fallback-boundary
 				     underfull overfull
 				     (+ width width-offset) prefer-overfulls)))
-		      (:overfull (or word-overfull overfull underfull))))
+		      (:overfull (or overword overfull underfull))))
 		   (t
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (fixed-fallback-boundary
