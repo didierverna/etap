@@ -9,7 +9,7 @@
 ;; "Best" variant preserves the natural inter-word spacing. The ragged
 ;; dispositions actually work exactly like those of the Fixed algorithm, and
 ;; thus react to "Width Offset", "Avoid Hyphens", and "Prefer Overfulls" in
-;; the same way. In fact, in ragged dispositions, the Best Fit and the Fixed
+;; the same way. In fact, in ragged dispositions, the best-fit and the Fixed
 ;; algorithms are strictly equivalent.
 
 ;; In the Justified disposition, the First variant selects the first line that
@@ -26,31 +26,35 @@
 ;; the natural inter-word spacing (which is why it is meaningless for the Best
 ;; variant), after having been created, and without changing their potential
 ;; contents. More specifically:
-;; - For the First Fit, lines are de-stretched as much as possible, but not to
+;; - For the first-fit, lines are de-stretched as much as possible, but not to
 ;;   the point that another chunk would fit in. The effect is thus to make the
 ;;   paragraph more compact.
-;; - For the Last Fit, lines are de-shrunk as much as possible towards the
+;; - For the last-fit, lines are de-shrunk as much as possible towards the
 ;;   natural inter-word space, without producing overfulls (already overfull
 ;;   lines cannot be deshrunk, as the overfull would be even more important).
 ;;   The effect is thus to make the paragraph less compact.
 
-;; The "[Explicit ]Hyphen Penalty" option affects the Best Fit in justified
+;; The "[Explicit ]Hyphen Penalty" option affects the best-fit in justified
 ;; disposition in the TeX way when weighting solutions. In particular, this
-;; means that infinite penalties are understood, leading to either forbidden
-;; or mandatory discretionary breaks. Note however that we only use TeX's
-;; badness to weight actual solutions, so the badness itself can never be
-;; infinite.
+;; means that infinite penalties are understood, leading to either prohibited
+;; or mandatory breaks. Note however that we only use TeX's badness to weight
+;; fit solutions, so the badness itself can never be infinite.
 
-;; In this scenario, several solutions may turn out to have the same weight,
-;; meaning different boundaries with or without varying hyphen penalties. The
-;; "Discriminating Function" is used to break the tie. For "Minimize
-;; Distance", we minimize the difference between the natural width of the line
-;; and the desired one. For "minimize Scaling", we minimize the scaling ratio.
-;; The difference is that in the second case, we take the frequent difference
-;; between maximum stretching and shrinking into account. If this leads to
-;; equality again, then we necessarily have one short and one long line. We
-;; normally choose the short line (in other words, we prefer stretching)
-;; unless the "Prefer Shrink" option is checked.
+;; Even though there is no weighting of the solutions in the other variants /
+;; dispositions, infinite penalties (adjusted with the same option) are
+;; understood, leading to support both mandatory and prohibited breaks.
+;; Numerical penalty values have no effect.
+
+;; In the justified best-fit scenario, several solutions may turn out to have
+;; the same weight, meaning different boundaries with or without varying
+;; hyphen penalties. The "Discriminating Function" is used to break the tie.
+;; For "Minimize Distance", we minimize the difference between the natural
+;; width of the line and the desired one. For "minimize Scaling", we minimize
+;; the scaling ratio. The difference is that in the second case, we take the
+;; frequent difference between maximum stretching and shrinking into account.
+;; If this leads to equality again, then we necessarily have one short and one
+;; long line. We normally choose the short line (in other words, we prefer
+;; stretching) unless the "Prefer Shrink" option is checked.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
 ;; the Knuth-Plass paper, what he calls "first fit" is probably the Duncan
