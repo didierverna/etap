@@ -88,23 +88,30 @@
 	       (t
 		(or underword overword))))))
 
+;; #### NOTE: I'm handling the overshrink option below as in the other
+;; algorithms, but I think that by construction, the only overfulls that we
+;; can get are when there is no elasticity, so this option has no effect.
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett))
      &key
-     &aux (justified (eq (disposition-type disposition) :justified)))
+     &aux (justified (eq (disposition-type disposition) :justified))
+          (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP with the Barnett algorithm."
   (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
 	:for stop := (stop-idx boundary)
 	:if (and justified (not (last-boundary-p boundary)))
-	  ;; Justified regular line: make it fit.
-	  :collect (make-wide-line lineup start stop width t)
+	  ;; Justified regular line: make it always overstreched, and maybe
+	  ;; overshrunk.
+	  :collect (make-wide-line lineup start stop width t overshrink)
 	:else :if justified
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (let ((scale (scale boundary)))
 		     (if (and scale (< scale 0))
-			 (make-wide-line lineup start stop width)
+			 (make-wide-line lineup start stop width
+					 nil overshrink)
 			 (make-line lineup start stop)))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.

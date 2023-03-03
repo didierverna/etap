@@ -306,7 +306,7 @@ This function returns three values:
 		    (if (>= scale 0) 0 (max scale -1)))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
-	    &key width overstretch
+	    &key width overstretch overshrink
 	    &aux (stop (stop-idx boundary)))
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (if (last-boundary-p boundary)
@@ -316,18 +316,25 @@ This function returns three values:
       (let ((scale (lineup-scale lineup start stop width)))
 	(ecase variant
 	  (:first
-	   ;; Stretch as much as possible.
-	   (make-line lineup start stop (if (and scale (< scale 1)) scale 1)))
+	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
+	   ;; much as possible, without overstretching.
+	   (when scale
+	     (cond ((< scale 0)
+		    (unless overshrink (setq scale (max scale -1))))
+		   ((> scale 0)
+		    (setq scale (min scale 1)))))
+	   (make-line lineup start stop (or scale 0)))
 	  (:best
-	   ;; If the line needs to be shrunk, shrink it as much as possible.
-	   ;; Otherwise, keep the normal spacing.
+	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
+	   ;; normal spacing.
 	   (if (and scale (< scale 0))
-	     (make-line lineup start stop (max scale -1))
+	     (make-line lineup start stop (if overshrink scale (max scale -1)))
 	     (make-line lineup start stop)))
 	  (:last
 	   ;; Shrink as much as possible.
-	   (make-line lineup start stop -1))))
-      (make-wide-line lineup start stop width overstretch))))
+	   (make-line lineup start stop
+		      (if (and scale (< scale 0) overshrink) scale -1)))))
+      (make-wide-line lineup start stop width overstretch overshrink))))
 
 
 (defmacro calibrate-fit (name &optional infinity)

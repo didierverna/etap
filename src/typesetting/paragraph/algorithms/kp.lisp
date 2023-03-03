@@ -153,12 +153,15 @@
     (lineup disposition width layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition)))))
+	   (cadr (member :overstretch (disposition-options disposition))))
+	  (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
-	  :collect (make-wide-line lineup start stop width overstretch)
+	  :collect (make-wide-line lineup start stop width
+				   overstretch overshrink)
 	:else
 	  :collect (make-line lineup start stop)))
 
@@ -316,7 +319,9 @@
      pre-tolerance tolerance emergency-stretch looseness
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition)))))
+	   (cadr (member :overstretch (disposition-options disposition))))
+	  (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
   (let ((nodes (or (when (<<= 0 pre-tolerance)
 		     (kp-create-nodes lineup width 1 pre-tolerance
 		       line-penalty hyphen-penalty explicit-hyphen-penalty
@@ -367,7 +372,8 @@
 	    :for stop := (stop-idx (kp-node-boundary end))
 	    :do (push
 		 (if justified
-		   (make-wide-line lineup start stop width overstretch)
+		   (make-wide-line lineup start stop width
+				   overstretch overshrink)
 		   (make-line lineup start stop))
 		 lines)
 	    :finally (return lines)))))
