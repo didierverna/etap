@@ -175,11 +175,13 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 			(+ width width-offset) prefer-overfulls
 			fallback avoid-hyphens)))))
 
-;; In order to handle all fallbacks and options, this function starts by
-;; collecting the interesting breakpoints, that is, the last word and hyphen
-;; underfulls, a possible miraculous fit, and the first word and hyphen
-;; overfulls. After that, we look at the fallbacks and options, and decide on
-;; what to return from the collected possibilities.
+;; #### NOTE: in this function, we stop at the first word overfull, even if we
+;; don't have an hyphen overfull, because the Avoid Hyphens options would have
+;; no effect there. On the other hand, if we already have an hyphen overfull,
+;; it's still important to collect a word overfull if possible, because of
+;; that very same option.
+;; #### NOTE: this function handles infinite penalties because it is used by
+;; the Fit algorithm as well.
 (defun fixed-ragged-line-boundary
     (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
      &optional (width-function #'lineup-width))
@@ -193,11 +195,6 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 			    :start start :width-function width-function)
 	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
 				 :start start :width-function width-function)
-	;; #### NOTE: we stop at the first word overfull, even if we don't
-	;; have an hyphen overfull, because the Avoid Hyphens options would
-	;; have no effect there. On the other hand, if we already have an
-	;; hyphen overfull, it's still important to collect a word overfull if
-	;; possible, because of that very same option.
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
