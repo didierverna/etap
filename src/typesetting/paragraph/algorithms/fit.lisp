@@ -272,16 +272,18 @@ This function returns three values:
 
 
 (defgeneric fit-make-line
-    (lineup start stop disposition variant &key &allow-other-keys)
-  (:documentation "Make a Fit line from LINEUP chunk between START and STOP.")
-  (:method (lineup start stop disposition (variant (eql :first))
-	    &key width relax last
-	    ;; By default, lines are stretched as much as possible.
-	    &aux (scale 1))
-    "Make a first-fit ragged line from LINEUP chunk between START and STOP."
+    (lineup start boundary disposition variant &key &allow-other-keys)
+  (:documentation
+   "Make a Fit line from LINEUP chunk between START and BOUNDARY.")
+  (:method (lineup start boundary disposition (variant (eql :first))
+	    &key width relax
+	    &aux (stop (stop-idx boundary))
+	         ;; By default, lines are stretched as much as possible.
+		 (scale 1))
+    "Make a first-fit ragged line from LINEUP chunk between START and BOUNDARY."
     (when relax
       (setq scale
-	    (if last
+	    (if (last-boundary-p boundary)
 	      ;; There is no constraint on destretching the last line.
 	      0
 	      ;; On the other hand, do not destretch any other line so much
@@ -295,14 +297,15 @@ This function returns three values:
 		;; Otherwise, we can destretch completely.
 		(if (and scale (> scale 0)) scale 0)))))
     (make-line lineup start stop scale))
-  (:method (lineup start stop disposition (variant (eql :best)) &key)
-    "Make a best-fit ragged line from LINEUP chunk between START and STOP."
-    (make-line lineup start stop))
-  (:method (lineup start stop disposition (variant (eql :last))
+  (:method (lineup start boundary disposition (variant (eql :best)) &key)
+    "Make a best-fit ragged line from LINEUP chunk between START and BOUNDARY."
+    (make-line lineup start (stop-idx boundary)))
+  (:method (lineup start boundary disposition (variant (eql :last))
 	    &key width relax
-	    ;; By default, lines are shrunk as much as possible.
-	    &aux (scale -1))
-    "Make a last-fit ragged line from LINEUP chunk between START and STOP."
+	    &aux (stop (stop-idx boundary))
+	         ;; By default, lines are shrunk as much as possible.
+		 (scale -1))
+    "Make a last-fit ragged line from LINEUP chunk between START and BOUNDARY."
     (when relax
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
@@ -315,10 +318,11 @@ This function returns three values:
 		    ;; at all, so we must stay at our original -1.
 		    (if (>= scale 0) 0 (max scale -1)))))
     (make-line lineup start stop scale))
-  (:method (lineup start stop (disposition (eql :justified)) variant
-	    &key width last sloppy)
+  (:method (lineup start boundary (disposition (eql :justified)) variant
+	    &key width sloppy
+	    &aux (stop (stop-idx boundary)))
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
-    (if last
+    (if (last-boundary-p boundary)
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
       ;; to be close to the general effect of the selected variant.
@@ -393,9 +397,8 @@ This function returns three values:
   (loop :for start := 0 :then (start-idx boundary)
 	:while start
 	:for boundary := (funcall get-line-boundary start)
-	:collect (apply #'fit-make-line lineup start (stop-idx boundary)
+	:collect (apply #'fit-make-line lineup start boundary
 			(disposition-type disposition) variant
 			:width width
 			:relax relax
-			:last (null (item boundary))
 			(disposition-options disposition))))
