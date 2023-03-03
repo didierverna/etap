@@ -221,10 +221,8 @@ This function returns three values:
 	     fits)
 	   (flet ((keep-best-fits (&aux (best (weight (first fits))))
 		    "Keep only fits as good as the first one."
-		    (setq fits (remove-if-not
-				   ;; Note that only numerical comparison is
-				   ;; needed here.
-				   (lambda (weight) (= weight best))
+		    ;; Note that only numerical comparison is needed here.
+		    (setq fits (remove-if-not (lambda (weight) (= weight best))
 				   fits :key #'weight))))
 	     ;; Note the use of << here, because we can have (at most) one
 	     ;; infinitely negative weight.
