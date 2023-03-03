@@ -240,9 +240,8 @@ This function returns three values:
 				 (abs (- width (normal-width (span fit))))))
 			      (:minimize-scaling
 			       (lambda (fit)
-				 (abs
-				  (lineup-scale lineup start (stop-idx fit)
-						width)))))))
+				 (abs (lineup-scale lineup start (stop-idx fit)
+						    width)))))))
 		      (mapc
 			  (lambda (fit)
 			    (setf (weight fit) (funcall new-weight fit)))
