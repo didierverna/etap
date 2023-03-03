@@ -268,7 +268,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				   :justified)
 			       (< (width pinned-line) (width paragraph)))
 			:do (gp:draw-rectangle pane
-				(+ x (width pinned-line) 5)
+				(+ (width paragraph) 5)
 				(- y (height pinned-line))
 				5
 				(+ (height pinned-line) (depth pinned-line))
@@ -277,7 +277,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if (< (scale pinned-line) -1)
 		  :do (gp:draw-rectangle pane
-			  (+ x (width pinned-line) 5)
+			  (+ (width paragraph) 5)
 			  (- y (height pinned-line))
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
@@ -285,7 +285,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			:scale-thickness nil :filled t)
 		:else :if (> (scale pinned-line) 1)
 			:do (gp:draw-rectangle pane
-				(+ x (width pinned-line) 5)
+				(+ (width paragraph) 5)
 				(- y (height pinned-line))
 				5
 				(+ (height pinned-line) (depth pinned-line))
