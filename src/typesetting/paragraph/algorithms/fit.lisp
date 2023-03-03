@@ -139,6 +139,40 @@ A fit boundary stores the computed span of the line ending there."))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 
+;; #### NOTE: this function collects boundaries between the last underfull
+;; (included) and the first overfull (included), regardless of their
+;; hyphenation status. That's because getting as close to the paragraph's
+;; width takes precedence in justified disposition.
+(defun fit-collect-boundaries-for-justification (lineup start width)
+  "Collect boundaries for justification by the Fit algorithm.
+Boundaries are collected for a LINEUP line beginning at START, and for a
+paragraph of WIDTH.
+This function returns three values:
+- a (possibly empty) list of fit boundaries from last to first,
+- the last underfull boundary, if any,
+- the first overfull boundary, if any."
+  (loop :with underfull :with fits := (list) :with overfull
+	:with continue := t
+	:for boundary
+	  := (next-boundary lineup start 'fit-boundary :start start)
+	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+				 :start start)
+	:while continue
+	:do (when (<< (penalty (item boundary)) +∞)
+	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
+	      (cond ((< (max-width (span boundary)) width)
+		     (setq underfull (change-class boundary 'fixed-boundary
+				       :width (max-width (span boundary)))))
+		    ((and (<= (min-width (span boundary)) width)
+			  (>= (max-width (span boundary)) width))
+		     (push boundary fits)) ;; note the reverse order
+		    (t
+		     (setq continue nil
+			   overfull (change-class boundary 'fixed-boundary
+				      :width (min-width (span boundary)))))))
+	:finally (return (values fits underfull overfull))))
+
+
 (defun word-boundaries (boundaries)
   "Select only word boundaries from BOUNDARIES."
   (remove-if #'discretionaryp boundaries :key #'item))
@@ -147,10 +181,6 @@ A fit boundary stores the computed span of the line ending there."))
   "Select only hyphen boundaries from BOUNDARIES."
   (remove-if-not #'discretionaryp boundaries :key #'item))
 
-;; #### NOTE: this function only collects the last underfull and the first
-;; overfull, regardless of their word / hyphen nature (that's because getting
-;; as close to the paragraph's width takes precedence in justified
-;; disposition).
 (defgeneric fit-justified-line-boundary
     (lineup start width variant &key &allow-other-keys)
   (:documentation
@@ -158,134 +188,89 @@ A fit boundary stores the computed span of the line ending there."))
   (:method (lineup start width variant
 	    &key fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a First or Last Fit boundary for the justified disposition."
-    (loop :with underfull :with fits := (list) :with overfull
-	  :with continue := t
-	  :for boundary
-	    := (next-boundary lineup start 'fit-boundary :start start)
-	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				   :start start)
-	  :while continue
-	  :do (when (<< (penalty (item boundary)) +∞)
-		(when (eq (penalty (item boundary)) -∞) (setq continue nil))
-		(cond ((< (max-width (span boundary)) width)
-		       (setq underfull (change-class boundary 'fixed-boundary
-					 :width (max-width (span boundary)))))
-		      ((and (<= (min-width (span boundary)) width)
-			    (>= (max-width (span boundary)) width))
-		       (push boundary fits)) ;; note the reverse order!
-		      (t
-		       (setq continue nil
-			     overfull (change-class boundary 'fixed-boundary
-					:width (min-width (span boundary)))))))
-	  :finally
-	     (return
-	       (cond (fits
-		      (when avoid-hyphens
-			(setq fits (or (word-boundaries fits)
-				       (hyphen-boundaries fits))))
-		      (ecase variant
-			(:first (car (last fits)))
-			(:last (first fits))))
-		     (t
-		      (fixed-fallback-boundary
-		       underfull overfull
-		       (+ width width-offset) prefer-overfulls
-		       fallback avoid-hyphens))))))
+    (multiple-value-bind (fits underfull overfull)
+	(fit-collect-boundaries-for-justification lineup start width)
+      (cond (fits
+	     (when avoid-hyphens
+	       (setq fits
+		     (or (word-boundaries fits) (hyphen-boundaries fits))))
+	     (ecase variant
+	       (:first (car (last fits)))
+	       (:last (first fits))))
+	    (t
+	     (fixed-fallback-boundary
+	      underfull overfull
+	      (+ width width-offset) prefer-overfulls
+	      fallback avoid-hyphens)))))
   (:method (lineup start width (variant (eql :best))
 	    &key discriminating-function prefer-shrink
 		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a Best Fit boundary for the justified disposition."
-    ;; #### NOTE: below, we collect boundaries in reverse order because we
-    ;; will often need to access the most recent ones, and we use STABLE-SORT
-    ;; to preserve that order.
-    (loop :with underfull :with fits := (list) :with overfull
-	  :with continue := t
-	  :for boundary
-	    := (next-boundary lineup start 'fit-boundary :start start)
-	      :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				   :start start)
-	  :while continue
-	  :do (when (<< (penalty (item boundary)) +∞)
-		(when (eq (penalty (item boundary)) -∞) (setq continue nil))
-		(cond ((< (max-width (span boundary)) width)
-		       (setq underfull (change-class boundary 'fixed-boundary
-					 :width (max-width (span boundary)))))
-		      ((and (<= (min-width (span boundary)) width)
-			    (>= (max-width (span boundary)) width))
-		       (push boundary fits)) ;; note the reverse order!
-		      (t
-		       (setq continue nil
-			     overfull (change-class boundary 'fixed-boundary
-					:width (min-width (span boundary)))))))
-	  :finally
-	     (return
-	       (cond ((and fits (not (cdr fits)))
-		      (car fits))
-		     (fits
-		      (flet ((weight (fit)
-			       "\
-Return the weight of LINEUP chunk between START and BOUNDARY.
-The weight is calculated in the TeX way, that is, badness plus possible hyphen
-penalty."
-			       ;; #### NOTE: infinitely negative hyphen
-			       ;; penalties have already been handled by an
-			       ;; immediate RETURN from FIT-LINE-BOUNDARY, so
-			       ;; there's no risk of doing -∞ + +∞ here.
-			       (++ (badness lineup start (stop-idx fit) width)
-				   (penalty (item fit)))))
-			(mapc (lambda (fit)
-				(change-class fit 'fit-weighted-boundary
-				  :weight (weight fit)))
+    (multiple-value-bind (fits underfull overfull)
+	(fit-collect-boundaries-for-justification lineup start width)
+      (cond ((and fits (not (cdr fits)))
+	     (car fits))
+	    (fits
+	     ;; #### NOTE: since we're only working with fits here, the
+	     ;; badness can only be numerical (not infinite). Also, there is
+	     ;; at most one boundary with a penalty of -∞ (because of the way
+	     ;; we collect boundaries). This means that we can end up with at
+	     ;; most one infinitely negative weight below.
+	     (flet ((weight (fit)
+		      "Return the weight of LINEUP chunk between START and FIT.
+This is the TeX weight, that is, badness plus possible penalty."
+		      (++ (badness lineup start (stop-idx fit) width)
+			  (penalty (item fit)))))
+	       (mapc (lambda (fit)
+		       (change-class fit 'fit-weighted-boundary
+			 :weight (weight fit)))
+		 fits))
+	     (flet ((keep-best-fits (&aux (best (weight (first fits))))
+		      "Keep only fits as good as the first one."
+		      (setq fits (remove-if-not
+				     ;; Note that only numerical comparison is
+				     ;; needed here.
+				     (lambda (weight) (= weight best))
+				     fits :key #'weight))))
+	       ;; Note the use of << here, because we can have (at most) one
+	       ;; infinitely negative weight.
+	       (setq fits (stable-sort fits #'<< :key #'weight))
+	       (cond ((eql (weight (first fits)) (weight (second fits)))
+		      ;; If we have equality, then the weights can only be
+		      ;; numerical.
+		      (keep-best-fits)
+		      (let ((new-weight
+			      (ecase discriminating-function
+				(:minimize-distance
+				 (lambda (fit)
+				   (abs (- width (normal-width (span fit))))))
+				(:minimize-scaling
+				 (lambda (fit)
+				   (abs
+				    (lineup-scale lineup start (stop-idx fit)
+						  width)))))))
+			(mapc
+			    (lambda (fit)
+			      (setf (weight fit) (funcall new-weight fit)))
 			  fits))
-		      (flet ((sort-fits ()
-			       "Stable sort fits by weight."
-			       (setq fits
-				     (stable-sort fits #'<< :key #'weight)))
-			     (keep-best-fits (&aux (best (weight (first fits))))
-			       "Keep only fits as good as the first one."
-			       (setq fits
-				     (remove-if-not
-					 (lambda (weight) (= weight best))
-					 fits :key #'weight))))
-			(sort-fits)
-			(cond ((eql (weight (first fits))
-				    (weight (second fits)))
-			       (keep-best-fits)
-			       (let ((new-weight
-				       (ecase discriminating-function
-					 (:minimize-distance
-					  (lambda (fit)
-					    (abs
-					     (- width
-						(normal-width (span fit))))))
-					 (:minimize-scaling
-					  (lambda (fit)
-					    (abs
-					     (lineup-scale
-					      lineup start (stop-idx fit)
-					      width)))))))
-				 (mapc
-				     (lambda (fit)
-				       (setf (weight fit)
-					     (funcall new-weight fit)))
-				   fits))
-			       (sort-fits)
-			       (cond ((= (weight (first fits))
-					 (weight (second fits)))
-				      (keep-best-fits)
-				      (assert (= (length fits) 2))
-				      (if prefer-shrink
-					(first fits)
-					(second fits)))
-				     (t
-				      (first fits))))
-			      (t
-			       (first fits)))))
+		      ;; No need to use << here, since the weight are
+		      ;; numerical.
+		      (setq fits (stable-sort fits #'< :key #'weight))
+		      (cond ((= (weight (first fits)) (weight (second fits)))
+			     (keep-best-fits)
+			     (assert (= (length fits) 2))
+			     (if prefer-shrink
+			       (first fits)
+			       (second fits)))
+			    (t
+			     (first fits))))
 		     (t
-		      (fixed-fallback-boundary
-		       underfull overfull
-		       (+ width width-offset) prefer-overfulls fallback
-		       avoid-hyphens)))))))
+		      (first fits)))))
+	    (t
+	     (fixed-fallback-boundary
+	      underfull overfull
+	      (+ width width-offset) prefer-overfulls fallback
+	      avoid-hyphens))))))
 
 
 (defgeneric fit-make-line
