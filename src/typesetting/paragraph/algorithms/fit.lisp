@@ -211,8 +211,8 @@ This function returns three values:
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
 	(fit-collect-boundaries-for-justification lineup start width)
-      (cond ((and fits (not (cdr fits)))
-	     (car fits))
+      (cond ((and fits (null (cdr fits)))
+	     (first fits))
 	    (fits
 	     ;; #### NOTE: since we're only working with fits here, the
 	     ;; badness can only be numerical (not infinite). Also, there is
@@ -224,46 +224,33 @@ This function returns three values:
 		       :weight (++ (badness lineup start (stop-idx fit) width)
 				   (penalty (item fit)))))
 	       fits)
-	     (flet ((keep-best-fits (&aux (best (weight (first fits))))
-		      "Keep only fits as good as the first one."
-		      ;; Note that only numerical comparison is needed here.
-		      (setq fits (remove-if-not
-				     (lambda (weight) (= weight best))
-				     fits :key #'weight))))
-	       ;; Note the use of << here, because we can have (at most) one
-	       ;; infinitely negative weight.
-	       (setq fits (stable-sort fits #'<< :key #'weight))
-	       (cond ((eql (weight (first fits)) (weight (second fits)))
-		      ;; If we have equality, then the weights can only be
-		      ;; numerical.
-		      (keep-best-fits)
-		      (let ((new-weight
-			      (ecase discriminating-function
-				(:minimize-distance
-				 (lambda (fit)
-				   (abs (- width (normal-width (span fit))))))
-				(:minimize-scaling
-				 (lambda (fit)
-				   (abs
-				    (lineup-scale lineup start (stop-idx fit)
-						  width)))))))
-			(mapc
-			    (lambda (fit)
-			      (setf (weight fit) (funcall new-weight fit)))
-			  fits))
-		      ;; No need to use << here, since the weight are
-		      ;; numerical.
-		      (setq fits (stable-sort fits #'< :key #'weight))
-		      (cond ((= (weight (first fits)) (weight (second fits)))
-			     (keep-best-fits)
-			     (assert (= (length fits) 2))
-			     (if prefer-shrink
-			       (first fits)
-			       (second fits)))
-			    (t
-			     (first fits))))
-		     (t
-		      (first fits)))))
+	     ;; Note the use of << and EQL here, because we can have (at most)
+	     ;; one infinitely negative weight.
+	     (setq fits (stable-sort fits #'<< :key #'weight))
+	     (setq fits (retain (weight (first fits)) fits
+			  :test #'eql :key #'weight))
+	     (when (cdr fits)
+	       ;; We have two or more equal weights, so they can only be
+	       ;; numerical.
+	       (let ((new-weight
+		       (ecase discriminating-function
+			 (:minimize-distance
+			  (lambda (fit)
+			    (abs (- width (normal-width (span fit))))))
+			 (:minimize-scaling
+			  (lambda (fit)
+			    (abs (lineup-scale lineup start (stop-idx fit)
+					       width)))))))
+		 (mapc (lambda (fit)
+			 (setf (weight fit) (funcall new-weight fit)))
+		   fits))
+	       (setq fits (stable-sort fits #'< :key #'weight))
+	       (setq fits (retain (weight (first fits)) fits
+			    :test #'= :key #'weight)))
+	     (cond ((cdr fits)
+		    (assert (= (length fits) 2))
+		    (if prefer-shrink (first fits) (second fits)))
+		   (t (first fits))))
 	    (t
 	     (fixed-fallback-boundary
 	      underfull overfull

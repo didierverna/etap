@@ -12,6 +12,19 @@ it; and this ball was her favorite plaything."
   "The text.")
 
 
+(defun retain (object list &key (test #'eq) key pre-test)
+  "Return a copy of LIST from which only OBJECT is retained.
+Each item in LIST is TESTed with EQ by default. TEST is performed on the item
+itself by default, or on the result of applying KEY to it. Optionally, only
+items satisfying PRE-TEST are considered."
+  (loop :for element :in list
+	:when (and (or (not pre-test) (funcall pre-test element))
+		   (funcall test
+		     (if key (funcall key element) element)
+		     object))
+	  :collect element))
+
+
 (defun select-keys (keys &rest selected)
   "Return a new property list from KEYS with only SELECTED ones."
   (loop :for key :in keys :by #'cddr
