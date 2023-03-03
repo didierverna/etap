@@ -181,87 +181,90 @@ This function returns three values:
   "Select only hyphen boundaries from BOUNDARIES."
   (remove-if-not #'discretionaryp boundaries :key #'item))
 
-(defun first/last-fit-justified-line-boundary
-    (lineup start width variant
-     fallback width-offset avoid-hyphens prefer-overfulls)
-  "Find a first- or last-fit boundary for the justified disposition."
-  (multiple-value-bind (fits underfull overfull)
-      (fit-collect-boundaries-for-justification lineup start width)
-    (cond (fits
-	   (when avoid-hyphens
-	     (setq fits (or (word-boundaries fits) (hyphen-boundaries fits))))
-	   (ecase variant
-	     (:first (car (last fits)))
-	     (:last (first fits))))
-	  (t
-	   (fixed-fallback-boundary
-	    underfull overfull
-	    (+ width width-offset) prefer-overfulls
-	    fallback avoid-hyphens)))))
-
-(defun best-fit-justified-line-boundary
-    (lineup start width
-     discriminating-function prefer-shrink
-     fallback width-offset avoid-hyphens prefer-overfulls)
-  "Find a best-fit boundary for the justified disposition."
-  (multiple-value-bind (fits underfull overfull)
-      (fit-collect-boundaries-for-justification lineup start width)
-    (cond ((and fits (not (cdr fits)))
-	   (car fits))
-	  (fits
-	   ;; #### NOTE: since we're only working with fits here, the badness
-	   ;; can only be numerical (not infinite). Also, there is at most one
-	   ;; boundary with a penalty of -∞ (because of the way we collect
-	   ;; boundaries). This means that we can end up with at most one
-	   ;; infinitely negative weight below.
-	   (mapc (lambda (fit)
-		   (change-class fit 'fit-weighted-boundary
-		     :weight (++ (badness lineup start (stop-idx fit) width)
-				 (penalty (item fit)))))
-	     fits)
-	   (flet ((keep-best-fits (&aux (best (weight (first fits))))
-		    "Keep only fits as good as the first one."
-		    ;; Note that only numerical comparison is needed here.
-		    (setq fits (remove-if-not (lambda (weight) (= weight best))
-				   fits :key #'weight))))
-	     ;; Note the use of << here, because we can have (at most) one
-	     ;; infinitely negative weight.
-	     (setq fits (stable-sort fits #'<< :key #'weight))
-	     (cond ((eql (weight (first fits)) (weight (second fits)))
-		    ;; If we have equality, then the weights can only be
-		    ;; numerical.
-		    (keep-best-fits)
-		    (let ((new-weight
-			    (ecase discriminating-function
-			      (:minimize-distance
-			       (lambda (fit)
-				 (abs (- width (normal-width (span fit))))))
-			      (:minimize-scaling
-			       (lambda (fit)
-				 (abs (lineup-scale lineup start (stop-idx fit)
-						    width)))))))
-		      (mapc
-			  (lambda (fit)
-			    (setf (weight fit) (funcall new-weight fit)))
-			fits))
-		    ;; No need to use << here, since the weight are
-		    ;; numerical.
-		    (setq fits (stable-sort fits #'< :key #'weight))
-		    (cond ((= (weight (first fits)) (weight (second fits)))
-			   (keep-best-fits)
-			   (assert (= (length fits) 2))
-			   (if prefer-shrink
-			     (first fits)
-			     (second fits)))
-			  (t
-			   (first fits))))
-		   (t
-		    (first fits)))))
-	  (t
-	   (fixed-fallback-boundary
-	    underfull overfull
-	    (+ width width-offset) prefer-overfulls fallback
-	    avoid-hyphens)))))
+(defgeneric fit-justified-line-boundary
+    (lineup start width variant &key &allow-other-keys)
+  (:documentation
+   "Return the Fit algorithm's view of the end of a justified line boundary.")
+  (:method (lineup start width variant
+	    &key fallback width-offset avoid-hyphens prefer-overfulls)
+    "Find a first-/last-fit boundary for the justified disposition."
+    (multiple-value-bind (fits underfull overfull)
+	(fit-collect-boundaries-for-justification lineup start width)
+      (cond (fits
+	     (when avoid-hyphens
+	       (setq fits (or (word-boundaries fits) (hyphen-boundaries fits))))
+	     (ecase variant
+	       (:first (car (last fits)))
+	       (:last (first fits))))
+	    (t
+	     (fixed-fallback-boundary
+	      underfull overfull
+	      (+ width width-offset) prefer-overfulls
+	      fallback avoid-hyphens)))))
+  (:method (lineup start width (variant (eql :best))
+            &key discriminating-function prefer-shrink
+                 fallback width-offset avoid-hyphens prefer-overfulls)
+    "Find a best-fit boundary for the justified disposition."
+    (multiple-value-bind (fits underfull overfull)
+	(fit-collect-boundaries-for-justification lineup start width)
+      (cond ((and fits (not (cdr fits)))
+	     (car fits))
+	    (fits
+	     ;; #### NOTE: since we're only working with fits here, the
+	     ;; badness can only be numerical (not infinite). Also, there is
+	     ;; at most one boundary with a penalty of -∞ (because of the way
+	     ;; we collect boundaries). This means that we can end up with at
+	     ;; most one infinitely negative weight below.
+	     (mapc (lambda (fit)
+		     (change-class fit 'fit-weighted-boundary
+		       :weight (++ (badness lineup start (stop-idx fit) width)
+				   (penalty (item fit)))))
+	       fits)
+	     (flet ((keep-best-fits (&aux (best (weight (first fits))))
+		      "Keep only fits as good as the first one."
+		      ;; Note that only numerical comparison is needed here.
+		      (setq fits (remove-if-not
+				     (lambda (weight) (= weight best))
+				     fits :key #'weight))))
+	       ;; Note the use of << here, because we can have (at most) one
+	       ;; infinitely negative weight.
+	       (setq fits (stable-sort fits #'<< :key #'weight))
+	       (cond ((eql (weight (first fits)) (weight (second fits)))
+		      ;; If we have equality, then the weights can only be
+		      ;; numerical.
+		      (keep-best-fits)
+		      (let ((new-weight
+			      (ecase discriminating-function
+				(:minimize-distance
+				 (lambda (fit)
+				   (abs (- width (normal-width (span fit))))))
+				(:minimize-scaling
+				 (lambda (fit)
+				   (abs
+				    (lineup-scale lineup start (stop-idx fit)
+						  width)))))))
+			(mapc
+			    (lambda (fit)
+			      (setf (weight fit) (funcall new-weight fit)))
+			  fits))
+		      ;; No need to use << here, since the weight are
+		      ;; numerical.
+		      (setq fits (stable-sort fits #'< :key #'weight))
+		      (cond ((= (weight (first fits)) (weight (second fits)))
+			     (keep-best-fits)
+			     (assert (= (length fits) 2))
+			     (if prefer-shrink
+			       (first fits)
+			       (second fits)))
+			    (t
+			     (first fits))))
+		     (t
+		      (first fits)))))
+	    (t
+	     (fixed-fallback-boundary
+	      underfull overfull
+	      (+ width width-offset) prefer-overfulls fallback
+	      avoid-hyphens))))))
 
 
 (defgeneric fit-make-line
@@ -362,16 +365,14 @@ This function returns three values:
 	  discriminating-function
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
-	     (if (eq variant :best)
-	       (lambda (start)
-		 (best-fit-justified-line-boundary
-		  lineup start width
-		  discriminating-function prefer-shrink
-		  fallback width-offset avoid-hyphens prefer-overfulls))
-	       (lambda (start)
-		 (first/last-fit-justified-line-boundary
-		  lineup start width variant
-		  fallback width-offset avoid-hyphens prefer-overfulls)))
+	     (lambda (start)
+               (fit-justified-line-boundary lineup start width variant
+                 :discriminating-function discriminating-function
+                 :prefer-shrink prefer-shrink
+                 :fallback fallback
+                 :width-offset width-offset
+                 :avoid-hyphens avoid-hyphens
+                 :prefer-overfulls prefer-overfulls))
 	     (lambda (start)
 	       (fixed-ragged-line-boundary
 		lineup start width
