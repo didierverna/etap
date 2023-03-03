@@ -271,7 +271,7 @@ This function returns three values:
 	    &key width relax last
 	    ;; By default, lines are stretched as much as possible.
 	    &aux (scale 1))
-    "Make a ragged first-fit line from LINEUP chunk between START and STOP."
+    "Make a first-fit ragged line from LINEUP chunk between START and STOP."
     (when relax
       (setq scale
 	    (if last
@@ -289,13 +289,13 @@ This function returns three values:
 		(if (and scale (> scale 0)) scale 0)))))
     (make-line lineup start stop scale))
   (:method (lineup start stop disposition (variant (eql :best)) &key)
-    "Make a ragged best-fit line from LINEUP chunk between START and STOP."
+    "Make a best-fit ragged line from LINEUP chunk between START and STOP."
     (make-line lineup start stop))
   (:method (lineup start stop disposition (variant (eql :last))
 	    &key width relax
 	    ;; By default, lines are shrunk as much as possible.
 	    &aux (scale -1))
-    "Make a ragged last-fit line from LINEUP chunk between START and STOP."
+    "Make a last-fit ragged line from LINEUP chunk between START and STOP."
     (when relax
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
@@ -310,7 +310,7 @@ This function returns three values:
     (make-line lineup start stop scale))
   (:method (lineup start stop (disposition (eql :justified)) variant
 	    &key width last sloppy)
-    "Make a justified Fit line from LINEUP chunk between START and STOP."
+    "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (if last
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
