@@ -303,7 +303,7 @@ This function returns three values:
 		    ;; so we can deshrink up to that.
 		    ;; Finally, a scale < -1 means that the line is cannot fit
 		    ;; at all, so we must stay at our original -1.
-		    (if (>= scale 0) 0 (max scale -1)))))
+		    (if scale (if (>= scale 0) 0 (max scale -1)) 0))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
 	    &key width overstretch overshrink
