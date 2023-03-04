@@ -62,13 +62,9 @@ The possible endings are listed in reverse order (from last to first)."
 	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 				 :start start)
 	:while (and boundary (not overfull))
-	:do (cond ((< (max-width (span boundary)) width)
-		   (setq underfull boundary))
-		  ((and (<= (min-width (span boundary)) width)
-			(>= (max-width (span boundary)) width))
-		   (push boundary fits))
-		  (t
-		   (setq overfull boundary)))
+	:do (cond ((< (max-width boundary) width) (setq underfull boundary))
+		  ((> (min-width boundary) width) (setq overfull boundary))
+		  (t (push boundary fits))) ;; note the reverse order
 	:finally
 	   (return (cond ((eq fulls :preventive)
 			  (append (when overfull (list overfull))
@@ -112,7 +108,7 @@ This function memoizes previously computed sub-graphs into HASH table."
 		   boundary
 		   (mapcar (lambda (node)
 			     (apply #'make-instance edge-type
-				    :lineup lineup :width width
+				    :lineup lineup :paragraph-width width
 				    :start (start-idx boundary)
 				    :destination node
 				    options))
@@ -139,7 +135,8 @@ Otherwise, it returns the graph's root node."
      nil
      (mapcar (lambda (node)
 	       (apply #'make-instance edge-type
-		      :lineup lineup :width width :start 0 :destination node
+		      :lineup lineup :paragraph-width width :start 0
+		      :destination node
 		      options))
        nodes))))
 

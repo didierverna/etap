@@ -124,17 +124,27 @@ for equally good solutions."))
 (define-fit-caliber width-offset -50 0 0)
 
 
-(defclass fit-boundary (boundary)
-  ((span :documentation "The span of the line ending at this boundary."
-	 :reader span))
-  (:documentation "The FIT-BOUNDARY class.
-A fit boundary stores the computed span of the line ending there."))
+(defclass fit-boundary (fixed-boundary)
+  ((stretch :documentation "This boundary's line stretching capacity."
+	    :initarg :stretch :reader stretch)
+   (shrink :documentation "This boundary's line shrinking capacity."
+	   :initarg :shrink :reader shrink)
+   (min-width :documentation "This boundary's minimum line width."
+	      :reader min-width)
+   (max-width :documentation "This boundary's maximum line width."
+	      :reader max-width))
+  (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary) &key lineup start)
-  "Compute the span of LINEUP line from START to BOUNDARY."
-  (setf (slot-value boundary 'span)
-	(lineup-span lineup start (stop-idx boundary))))
+    ((boundary fit-boundary) &key width stretch shrink)
+  "Compute BOUNDARY's minimum and maximum line widths."
+  (setf (slot-value boundary 'min-width) (- width shrink))
+  (setf (slot-value boundary 'max-width) (+ width stretch)))
+
+(defun boundary-scale (boundary target)
+  "Return the amount of scaling required to reach TARGET width from BOUNDARY.
+See `scaling' for more information."
+  (scaling (width boundary) target (stretch boundary) (shrink boundary)))
 
 
 (defclass fit-weighted-boundary (fit-boundary)
@@ -143,18 +153,18 @@ A fit boundary stores the computed span of the line ending there."))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 
-;; #### NOTE: this function collects boundaries between the last underfull
-;; (included) and the first overfull (included), regardless of their
-;; hyphenation status. That's because getting as close to the paragraph's
-;; width takes precedence in justified disposition.
-(defun fit-collect-boundaries-for-justification (lineup start width)
-  "Collect boundaries for justification by the Fit algorithm.
+;; This function collects boundaries between the last underfull (included) and
+;; the first overfull (included), regardless of their hyphenation status.
+;; That's because getting as close to the paragraph's width takes precedence
+;; in justified disposition.
+(defun fit-justified-line-boundaries (lineup start width)
+  "Return possible boundaries for justification by the Fit algorithm.
 Boundaries are collected for a LINEUP line beginning at START, and for a
 paragraph of WIDTH.
 This function returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
-- the last underfull boundary, if any,
-- the first overfull boundary, if any."
+- the last underfull boundary or NIL,
+- the first overfull boundary or NIL."
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
 	:for boundary
@@ -164,16 +174,12 @@ This function returns three values:
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((< (max-width (span boundary)) width)
-		     (setq underfull (change-class boundary 'fixed-boundary
-				       :width (max-width (span boundary)))))
-		    ((and (<= (min-width (span boundary)) width)
-			  (>= (max-width (span boundary)) width))
-		     (push boundary fits)) ;; note the reverse order
+	      (cond ((< (max-width boundary) width)
+		     (setq underfull boundary))
+		    ((> (min-width boundary) width)
+		     (setq overfull boundary continue nil))
 		    (t
-		     (setq continue nil
-			   overfull (change-class boundary 'fixed-boundary
-				      :width (min-width (span boundary)))))))
+		     (push boundary fits)))) ;; note the reverse order
 	:finally (return (values fits underfull overfull))))
 
 
@@ -193,7 +199,7 @@ This function returns three values:
 	    &key fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a first-/last-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
-	(fit-collect-boundaries-for-justification lineup start width)
+	(fit-justified-line-boundaries lineup start width)
       (cond (fits
 	     (when avoid-hyphens
 	       (setq fits (or (word-boundaries fits) (hyphen-boundaries fits))))
@@ -210,7 +216,7 @@ This function returns three values:
                  fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
-	(fit-collect-boundaries-for-justification lineup start width)
+	(fit-justified-line-boundaries lineup start width)
       (cond ((and fits (null (cdr fits)))
 	     (first fits))
 	    (fits
@@ -235,12 +241,9 @@ This function returns three values:
 	       (let ((new-weight
 		       (ecase discriminating-function
 			 (:minimize-distance
-			  (lambda (fit)
-			    (abs (- width (normal-width (span fit))))))
+			  (lambda (fit) (abs (- width (width fit)))))
 			 (:minimize-scaling
-			  (lambda (fit)
-			    (abs (lineup-scale lineup start (stop-idx fit)
-					       width)))))))
+			  (lambda (fit) (abs (boundary-scale fit width)))))))
 		 (mapc (lambda (fit)
 			 (setf (weight fit) (funcall new-weight fit)))
 		   fits))
@@ -275,10 +278,9 @@ This function returns three values:
 	      0
 	      ;; On the other hand, do not destretch any other line so much
 	      ;; that another chunk would fit in.
-	      (let ((scale
-		      (lineup-scale
-		       lineup start (stop-idx (next-boundary lineup stop))
-		       width)))
+	      (let ((scale (lineup-scale
+			    lineup start (stop-idx (next-boundary lineup stop))
+			    width)))
 		;; A positive scale means that another chunk would fit in, and
 		;; still be underfull, so we can destretch only up to that.
 		;; Otherwise, we can destretch completely.
@@ -296,6 +298,8 @@ This function returns three values:
     (when relax
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
+      ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
+      ;; calling BOUNDARY-SCALE.
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
 		    ;; A positive scale means that the line is naturally
 		    ;; underfull, so we can deshrink completely.
@@ -313,7 +317,7 @@ This function returns three values:
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
       ;; to be close to the general effect of the selected variant.
-      (let ((scale (lineup-scale lineup start stop width)))
+      (let ((scale (boundary-scale boundary width)))
 	(ecase variant
 	  (:first
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
@@ -380,9 +384,7 @@ This function returns three values:
 		lineup start width
 		fallback  width-offset avoid-hyphens prefer-overfulls
 		(ecase variant
-		  (:first #'lineup-max-width)
-		  (:best #'lineup-width)
-		  (:last #'lineup-min-width)))))))
+		  (:first :max) (:best :natural) (:last :min)))))))
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
   (default-fit fallback)

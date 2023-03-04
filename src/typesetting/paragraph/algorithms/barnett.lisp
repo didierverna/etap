@@ -41,19 +41,19 @@
   (:documentation "The Barnett algorithm's boundary class."))
 
 (defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key lineup start width)
-  "Compute the scale of LINEUP line of WIDTH from START to BOUNDARY."
+    ((boundary barnett-boundary) &key lineup start paragraph-width)
+  "Compute the scale of LINEUP line of PARAGRAPH-WIDTH from START to BOUNDARY."
   (setf (slot-value boundary 'scale)
-	(lineup-scale lineup start (stop-idx boundary) width)))
+	(lineup-scale lineup start (stop-idx boundary) paragraph-width)))
 
 
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
   (loop :with underword :with hyphens := (list) :with overword
 	:for boundary := (next-boundary lineup start 'barnett-boundary
-					:start start :width width)
+					:start start :paragraph-width width)
 	  :then (next-boundary lineup (stop-idx boundary) 'barnett-boundary
-			       :start start :width width)
+			       :start start :paragraph-width width)
 	:while (and boundary (not overword))
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.
@@ -90,7 +90,8 @@
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we
-;; can get are when there is no elasticity, so this option has no effect.
+;; can get are when there is no elasticity, so this option should have no
+;; effect.
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett))
      &key

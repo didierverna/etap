@@ -53,11 +53,6 @@
 ;;    the Avoid Hyphens option is checked, a hyphen solution would still be
 ;;    preferred to a word one if the later really is too far away.
 
-;; #### NOTE: there are two places where the width function is parametrized
-;; below: INITIALIZE-INSTANCE and FIXED-RAGGED-LINE-BOUNDARY. This is because
-;; the Fit algorithm reuses those things, possibly with MAX-WITH and MIN-WIDTH
-;; instead of just WIDTH, for the First and Last variants.
-
 (in-package :etap)
 
 
@@ -96,24 +91,42 @@ the underfull one."))
 (define-fixed-caliber width-offset -50 0 0)
 
 
+;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
+;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
+;; fixed boundaries, but this function may actually be passed fit boundaries
+;; from the Fit algorithm in justified disposition, in which case the min,
+;; max, and natural widths are indeed going to be be different.
 (defclass fixed-boundary (boundary)
-  ((width :documentation "The width of the line ending at this boundary."
-	  :initarg :width :reader width))
-  (:documentation "The FIXED-BOUNDARY class.
-A fixed boundary stores the computed width of the line ending there.
-Depending on the context, this may be be the natural width of the line,
-or whatever else is required by the algorithm using the boundary."))
+  ((width :documentation "This boundary's line width.
+This is normally the line's natural width, but it can also be its minimum or
+maximum width, when the boundary is manipulated by the Fit algorithm."
+	  :reader width :reader min-width :reader max-width))
+  (:documentation "The FIXED-BOUNDARY class."))
 
+;; #### NOTE: since LINEUP-WIDTH computes the stretch and shrink amounts at
+;; the same time as the line's width, we might just as well remember those
+;; values for other boundary classes.
+(defmethod initialize-instance :around
+    ((boundary fixed-boundary) &rest keys &key lineup start stop-idx)
+  "Compute and propagate BOUNDARY's line properties to subsequent methods."
+  (multiple-value-bind (width stretch shrink)
+      (lineup-width lineup start stop-idx)
+    (apply #'call-next-method boundary
+	   :width width :stretch stretch :shrink shrink keys)))
+
+;; #### NOTE: the first- and last-fit algorithms use fixed boundaries with
+;; non-natural widths in ragged dispositions, hence the parametrization below.
 (defmethod initialize-instance :after
-    ((boundary fixed-boundary)
-     &key lineup start (width-function #'lineup-width))
-  "Compute the width of LINEUP from START to BOUNDARY.
-The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
+    ((boundary fixed-boundary) &key width stretch shrink (width-kind :natural))
+  "Initialize BOUNDARY's width with WIDTH-KIND (natural width by default)."
   (setf (slot-value boundary 'width)
-	(funcall width-function lineup start (stop-idx boundary))))
+	(ecase width-kind
+	  (:natural width)
+	  (:min (- width shrink))
+	  (:max (+ width stretch)))))
 
 
-;; #### NOTE: the WIDTH below already takes the offset into account.
+;; #### NOTE: the WIDTH below already takes the width offset into account.
 (defun fixed-fallback-boundary (underfull overfull width prefer-overfulls
 				&optional (policy :anyfull) avoid-hyphens)
   "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary."
@@ -129,8 +142,10 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
     ((eq policy :overfull) overfull)
     ;; Anyfull policy from now on.
     ;; One solution is closer to the paragraph's width, so still no choice.
-    ((< (- width (width underfull)) (- (width overfull) width)) underfull)
-    ((> (- width (width underfull)) (- (width overfull) width)) overfull)
+    ((< (- width (max-width underfull)) (- (min-width overfull) width))
+     underfull)
+    ((> (- width (max-width underfull)) (- (min-width overfull) width))
+     overfull)
     ;; Equidistance.
     ;; If we have two, or no hyphen, the Avoid Hyphens option has no effect,
     ;; but we might still prefer overfulls.
@@ -146,14 +161,10 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
     (t (if prefer-overfulls overfull underfull))))
 
 
-;; #### NOTE: the two functions below are very similar. The only difference is
-;; that the one used for justification only collects the last underfull and
-;; the first overfull, regardless of their word / hyphen nature (that's
-;; because getting as close to the paragraph's width takes precedence). They
-;; are implemented as two different functions because the Fit algorithm reuses
-;; the ragged version below (that's also why the width function is
-;; parameterized).
-
+;; This function collects boundaries between the last underfull (included) and
+;; the first overfull (included), regardless of their hyphenation status.
+;; That's because getting as close to the paragraph's width takes precedence
+;; in justified disposition.
 (defun fixed-justified-line-boundary
     (lineup start width fallback width-offset avoid-hyphens prefer-overfulls)
   "Return the Fixed algorithm's view of the end of a justified line boundary."
@@ -173,16 +184,19 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 			(+ width width-offset) prefer-overfulls
 			fallback avoid-hyphens)))))
 
-;; #### NOTE: in this function, we stop at the first word overfull, even if we
-;; don't have an hyphen overfull, because the Avoid Hyphens options would have
-;; no effect there. On the other hand, if we already have an hyphen overfull,
-;; it's still important to collect a word overfull if possible, because of
-;; that very same option.
-;; #### NOTE: this function handles infinite penalties because it is used by
-;; the Fit algorithm as well.
+
+;; #### NOTE: the function below handles infinite penalties and understands a
+;; WIDTH-KIND argument because the first- and last-fit algorithms in ragged
+;; dispositions use it.
+
+;; In this function, we stop at the first word overfull even if we don't have
+;; an hyphen overfull yet, because the Avoid Hyphens options would have no
+;; effect. On the other hand, if we already have an hyphen overfull, it's
+;; still important to collect a word overfull if possible, because of that
+;; very same option.
 (defun fixed-ragged-line-boundary
     (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
-     &optional (width-function #'lineup-width))
+     &optional (width-kind :natural))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with underhyphen :with underword
 	:with fit
@@ -190,9 +204,9 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 	:with continue := t
 	:for boundary
 	  := (next-boundary lineup start 'fixed-boundary
-			    :start start :width-function width-function)
+			    :start start :width-kind width-kind)
 	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
-				 :start start :width-function width-function)
+				 :start start :width-kind width-kind)
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))

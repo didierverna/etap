@@ -589,59 +589,41 @@ Return three values: the total width, stretch, and shrink."
     (- width shrink)))
 
 
-;; ------------
-;; Lineup spans
-;; ------------
-
-(defstruct (span :conc-name
-		 (:constructor make-span (normal-width min-width max-width)))
-  "The SPAN structure.
-A span contains normal, min, and max width information, and represents
-length properties of a lineup (chunk)."
-  normal-width min-width max-width)
-
-(defmethod width ((span span))
-  "Return SPAN's normal width."
-  (normal-width span))
-
-(defun lineup-span (lineup start stop)
-  "Return the span of LINEUP between START and STOP."
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (make-span width (- width shrink) (+ width stretch))))
-
-
 ;; -------------
 ;; Lineup scales
 ;; -------------
 
+(defun scaling (width target stretch shrink)
+  "Return the amount of scaling required to reach TARGET from WIDTH.
+The amount in question is 0 if WIDTH is equal to TARGET.
+Otherwise, it's a stretching (positive) or shrinking (negative) ratio relative
+to the elasticity provided by STRETCH and SHRINK. In other words, the absolute
+ratio would be one if all elasticity is used, greater than one if more
+elasticity than available is needed, and lesser than one if more elasticity
+than needed is available.
+Return NIL if no elasticity is available and WIDTH is different from TARGET."
+  (cond ((= width target)
+	 0)
+	((< width target)
+	 ;; #### FIXME: this hack has been removed but this currently breaks
+	 ;; the KP algorithm (at least). We need to understand computation
+	 ;; with infinity.
+	 ;; #### WARNING: this is a kludge for the last glue in the paragraph.
+	 ;; We consider that a total stretch of more than 100000 is infinite.
+	 ;; (if (>= stretch 100000)
+	 ;; 0
+	 (unless (zerop stretch) (/ (- target width) stretch)))
+	;; )
+	((> width target)
+	 (unless (zerop shrink) (/ (- target width) shrink)))))
+
 (defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
 STOP to reach TARGET width, possibly with EXTRA stretch.
-The amount in question is 0 if the chunk's normal width is equal to TARGET.
-Otherwise, it's a stretching (positive) or shrinking (negative) ratio relative
-to the chunk's elasticity. In other words, the absolute ratio would be one if
-all elasticity is used, greater than one if more elasticity than available is
-needed, and lesser than one if more elasticity than needed is available.
-
-Return NIL if no elasticity is available and the chunk's normal width is
-different from TARGET."
+See `scale' for more information."
   (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
     (when extra (incf stretch extra))
-    (cond ((= width target)
-	   0)
-	  ((< width target)
-	   ;; #### FIXME: this hack has been removed but this currently breaks
-	   ;; the KP algorithm (at least). We need to understand computation
-	   ;; with infinity.
-	   ;; #### WARNING: this is a kludge for the last glue in the
-	   ;; paragraph. We consider that a total stretch of more than 100000
-	   ;; is infinite.
-	   ;; (if (>= stretch 100000)
-	   ;; 0
-	   (unless (zerop stretch) (/ (- target width) stretch)))
-	  ;; )
-	  ((> width target)
-	   (unless (zerop shrink) (/ (- target width) shrink))))))
+    (scaling width target stretch shrink)))
 
 
 ;; -----------------

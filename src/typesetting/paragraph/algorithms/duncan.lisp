@@ -9,10 +9,10 @@
 ;; discriminating function to make a choice).
 
 ;; #### FIXME: I don't know if Duncan is restricted to the Justified
-;; #### disposition, or if it does something for the ragged ones. Currently,
-;; #### I'm just creating lines intended for justification, and putting them
-;; #### back to normal spacing otherwise. Given what this algorithm does, it
-;; #### results in many overfulls.
+;; disposition, or if it does something for the ragged ones. Currently, I'm
+;; just creating lines intended for justification, and putting them back to
+;; normal spacing otherwise. Given what this algorithm does, it results in
+;; many overfulls.
 
 
 (in-package :etap)
@@ -29,23 +29,23 @@
 
 (defmethod initialize-instance :after
     ((edge duncan-edge)
-     &key lineup width start
+     &key lineup paragraph-width start
 	  (discriminating-function (car *duncan-discriminating-functions*))
      &allow-other-keys
-     &aux (stop (stop-idx (boundary (destination edge))))
-	  (span (lineup-span lineup start stop)))
-  (unless (word-stop-p lineup stop)
-    (setf (hyphen edge) 1))
-  (cond ((< (max-width span) width)
-	 (setf (underfull edge) 1))
-	((> (min-width span) width)
-	 (setf (overfull edge) 1)))
-  (setf (weight edge)
-	(ecase discriminating-function
-	  (:minimize-distance (abs (- width (normal-width span))))
-	  (:minimize-scaling
-	   (when (and (zerop (underfull edge)) (zerop (overfull edge)))
-	     (abs (lineup-scale lineup start stop width)))))))
+     &aux (stop (stop-idx (boundary (destination edge)))))
+  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+    (let ((min-width (- width shrink))
+	  (max-width (+ width stretch)))
+      (unless (word-stop-p lineup stop)
+	(setf (hyphen edge) 1))
+      (cond ((< max-width paragraph-width) (setf (underfull edge) 1))
+	    ((> min-width paragraph-width) (setf (overfull edge) 1)))
+      (setf (weight edge)
+	    (ecase discriminating-function
+	      (:minimize-distance (abs (- paragraph-width width)))
+	      (:minimize-scaling
+	       (when (and (zerop (underfull edge)) (zerop (overfull edge)))
+		 (abs (lineup-scale lineup start stop paragraph-width)))))))))
 
 (defclass duncan-layout (paragraph-layout)
   ((hyphens :accessor hyphens)

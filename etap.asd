@@ -29,7 +29,8 @@
      (:module "typesetting"
       :serial t
       :components
-      ((:file "lineup")
+      ((:file "arith")
+       (:file "lineup")
        (:file "common")
        (:module "paragraph"
 	:serial t
@@ -40,7 +41,7 @@
 			  ((:file "common")
 			   (:file "fixed" :depends-on ("common"))
 			   (:file "fit" :depends-on  ("fixed"))
-			   (:file "barnett" :depends-on  ("common"))
+			   (:file "barnett" :depends-on  ("fixed"))
 			   (:file "graph" :depends-on ("fit"))
 			   (:file "duncan" :depends-on  ("graph"))
 			   (:file "kp" :depends-on  ("graph"))))

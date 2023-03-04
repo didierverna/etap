@@ -54,12 +54,13 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup width start line-penalty hyphen-penalty explicit-hyphen-penalty
+     &key lineup paragraph-width start
+	  line-penalty hyphen-penalty explicit-hyphen-penalty
      &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge))))
 	  (hyphenp (not (word-stop-p lineup stop)))
-	  (scale (lineup-scale lineup start stop width))
-	  (badness (badness lineup start stop width))
+	  (scale (lineup-scale lineup start stop paragraph-width))
+	  (badness (badness lineup start stop paragraph-width))
 	  (penalty (if hyphenp
 		     (if (pre-break (aref lineup (1- stop)))
 		       hyphen-penalty
@@ -296,7 +297,9 @@
   (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
     (setf (gethash '(0 . 1) nodes)
 	  ;; #### WARNING: fake boundary!
-	  (kp-make-node :boundary (make-instance 'boundary) :demerits 0))
+	  (kp-make-node :boundary (make-instance 'boundary
+				    :item nil :start-idx 0)
+			:demerits 0))
     (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
