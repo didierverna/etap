@@ -41,10 +41,10 @@
   (:documentation "The Barnett algorithm's boundary class."))
 
 (defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key lineup start paragraph-width)
+    ((boundary barnett-boundary) &key width stretch shrink paragraph-width)
   "Compute the scale of LINEUP line of PARAGRAPH-WIDTH from START to BOUNDARY."
   (setf (slot-value boundary 'scale)
-	(lineup-scale lineup start (stop-idx boundary) paragraph-width)))
+	(scaling width paragraph-width stretch shrink)))
 
 
 (defun barnett-line-boundary (lineup start width)
