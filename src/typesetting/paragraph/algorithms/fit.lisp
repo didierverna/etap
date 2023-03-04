@@ -300,7 +300,7 @@ This function returns three values:
 		    ;; A positive scale means that the line is naturally
 		    ;; underfull, so we can deshrink completely.
 		    ;; A scale between -1 and 0 means that the line can fit,
-		    ;; so we can deshrink p to that.
+		    ;; so we can deshrink up to that.
 		    ;; Finally, a scale < -1 means that the line is cannot fit
 		    ;; at all, so we must stay at our original -1.
 		    (if (>= scale 0) 0 (max scale -1)))))
