@@ -653,16 +653,16 @@ Algorithms may provide their own boundary sub-class."))
   "Return T if BOUNDARY is the last one."
   (null (item boundary)))
 
-(defun next-boundary (lineup start &optional (boundary-class 'boundary)
+(defun next-boundary (lineup from &optional (boundary-class 'boundary)
 				   &rest keys &key &allow-other-keys
 				   &aux (length (length lineup)))
-  "Return the next boundary in LINEUP after START position, or NIL.
+  "Return the next boundary in LINEUP FROM position, or NIL.
 The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
-This function understands the terminal case where START = LINEUP's
+This function understands the terminal case where FROM = LINEUP's
 length (possibly coming from the end of lineup special boundary), in which
 case it signals that there is no more boundary to find by returning NIL."
-  (unless (= start length)
-    (let* ((idx (position-if #'break-point-p lineup :start (1+ start)))
+  (unless (= from length)
+    (let* ((idx (position-if #'break-point-p lineup :start (1+ from)))
 	   (item (when idx (aref lineup idx)))
 	   stop-idx start-idx)
       ;; #### FIXME: this hack has been removed, but this currently breaks the
