@@ -141,9 +141,7 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
      (if prefer-overfulls overfull underfull))
     ;; Exactly one hyphen. If we care, choose the other solution.
     (avoid-hyphens
-     (if (hyphenation-point-p (item underfull))
-       overfull
-       underfull))
+     (if (hyphenation-point-p (item underfull)) overfull underfull))
     ;; Finally, we might still prefer overfulls.
     (t (if prefer-overfulls overfull underfull))))
 
@@ -206,8 +204,7 @@ The with is computed with WIDTH-FUNCTION (LINEUP-WIDTH by default)."
 		       (if hyphenp
 			 (setq underhyphen boundary)
 			 (setq underword boundary)))
-		      ((= (width boundary) width)
-		       (setq fit boundary))
+		      ((= (width boundary) width) (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
 		       ;; closest to WIDTH.
