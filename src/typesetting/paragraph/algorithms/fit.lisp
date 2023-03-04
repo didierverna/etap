@@ -278,8 +278,9 @@ This function returns three values:
 	      0
 	      ;; On the other hand, do not destretch any other line so much
 	      ;; that another chunk would fit in.
-	      (let ((scale (lineup-scale
-			    lineup start (stop-idx (next-boundary lineup stop))
+	      (let ((scale (boundary-scale
+			    (next-boundary lineup stop 'fit-boundary
+					   :start start)
 			    width)))
 		;; A positive scale means that another chunk would fit in, and
 		;; still be underfull, so we can destretch only up to that.
