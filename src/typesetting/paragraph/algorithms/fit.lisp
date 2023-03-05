@@ -183,14 +183,6 @@ This function returns three values:
 	:finally (return (values fits underfull overfull))))
 
 
-(defun word-boundaries (boundaries)
-  "Select only word boundaries from BOUNDARIES."
-  (remove-if #'discretionaryp boundaries :key #'item))
-
-(defun hyphen-boundaries (boundaries)
-  "Select only hyphen boundaries from BOUNDARIES."
-  (remove-if-not #'discretionaryp boundaries :key #'item))
-
 (defgeneric fit-justified-line-boundary
     (lineup start width variant &key &allow-other-keys)
   (:documentation
@@ -202,7 +194,13 @@ This function returns three values:
 	(fit-justified-line-boundaries lineup start width)
       (cond (fits
 	     (when avoid-hyphens
-	       (setq fits (or (word-boundaries fits) (hyphen-boundaries fits))))
+	       (setq fits
+		     (loop :for boundary :in fits
+			   :if (hyphenation-point-p (item boundary))
+			     :collect boundary :into hyphens
+			   :else
+			     :collect boundary :into others
+			   :finally (return (or others hyphens)))))
 	     (ecase variant
 	       (:first (car (last fits)))
 	       (:last (first fits))))
