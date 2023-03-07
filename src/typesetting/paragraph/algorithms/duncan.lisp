@@ -29,7 +29,7 @@
 
 (defmethod initialize-instance :after
     ((edge duncan-edge)
-     &key lineup start paragraph-width
+     &key lineup start width
 	  (discriminating-function (car *duncan-discriminating-functions*))
      &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge)))))
@@ -37,14 +37,14 @@
       (lineup-width lineup start stop)
     (unless (word-stop-p lineup stop)
       (setf (hyphen edge) 1))
-    (cond ((< max paragraph-width) (setf (underfull edge) 1))
-	  ((> min paragraph-width) (setf (overfull edge) 1)))
+    (cond ((< max width) (setf (underfull edge) 1))
+	  ((> min width) (setf (overfull edge) 1)))
     (setf (weight edge)
 	  (ecase discriminating-function
-	    (:minimize-distance (abs (- paragraph-width natural)))
+	    (:minimize-distance (abs (- width natural)))
 	    (:minimize-scaling
 	     (when (and (zerop (underfull edge)) (zerop (overfull edge)))
-	       (abs (scaling natural paragraph-width stretch shrink))))))))
+	       (abs (scaling natural width stretch shrink))))))))
 
 (defclass duncan-layout (paragraph-layout)
   ((hyphens :accessor hyphens)

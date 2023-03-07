@@ -110,9 +110,8 @@ This function memoizes previously computed sub-graphs into HASH table."
 		   boundary
 		   (mapcar (lambda (node)
 			     (apply #'make-instance edge-type
-				    :lineup lineup :paragraph-width width
-				    :start (start-idx boundary)
-				    :destination node
+				    :lineup lineup :start (start-idx boundary)
+				    :width width :destination node
 				    options))
 		     nodes))))))))
 
@@ -137,8 +136,7 @@ Otherwise, it returns the graph's root node."
      nil
      (mapcar (lambda (node)
 	       (apply #'make-instance edge-type
-		      :lineup lineup :paragraph-width width :start 0
-		      :destination node
+		      :lineup lineup :start 0 :width width :destination node
 		      options))
        nodes))))
 

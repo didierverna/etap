@@ -54,13 +54,13 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup paragraph-width start
+     &key lineup start width
 	  line-penalty hyphen-penalty explicit-hyphen-penalty
      &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge))))
 	  (hyphenp (not (word-stop-p lineup stop)))
-	  (scale (lineup-scale lineup start stop paragraph-width))
-	  (badness (badness lineup start stop paragraph-width))
+	  (scale (lineup-scale lineup start stop width))
+	  (badness (badness lineup start stop width))
 	  (penalty (if hyphenp
 		     (if (pre-break (aref lineup (1- stop)))
 		       hyphen-penalty
