@@ -36,24 +36,24 @@
 
 
 (defclass barnett-boundary (fixed-boundary)
-  ((scale :documentation "The scale of the line ending at this boundary."
+  ((scale :documentation "This boundary's required scaling."
 	  :reader scale))
   (:documentation "The Barnett algorithm's boundary class."))
 
 (defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key width stretch shrink paragraph-width)
-  "Compute the scale of LINEUP line of PARAGRAPH-WIDTH from START to BOUNDARY."
+    ((boundary barnett-boundary) &key natural-width width stretch shrink)
+  "Initialize BOUNDARY's scale."
   (setf (slot-value boundary 'scale)
-	(scaling width paragraph-width stretch shrink)))
+	(scaling natural-width width stretch shrink)))
 
 
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
   (loop :with underword :with hyphens := (list) :with overword
 	:for boundary := (next-boundary lineup start 'barnett-boundary
-					:start start :paragraph-width width)
+					:start start :width width)
 	  :then (next-boundary lineup (stop-idx boundary) 'barnett-boundary
-			       :start start :paragraph-width width)
+			       :start start :width width)
 	:while (and boundary (not overword))
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.

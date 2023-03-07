@@ -61,13 +61,11 @@ The possible endings are listed in reverse order (from last to first)."
 	  := (next-boundary lineup start)
 	    :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
-	:for (natural-width stretch shrink)
+	:for (natural max min)
 	  := (multiple-value-list
 	      (lineup-width lineup start (stop-idx boundary)))
-	:for min-width := (- natural-width shrink)
-	:for max-width := (+ natural-width stretch)
-	:do (cond ((< max-width width) (setq underfull boundary))
-		  ((> min-width width) (setq overfull boundary))
+	:do (cond ((< max width) (setq underfull boundary))
+		  ((> min width) (setq overfull boundary))
 		  (t (push boundary fits))) ;; note the reverse order
 	:finally
 	   (return (cond ((eq fulls :preventive)

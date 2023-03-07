@@ -557,7 +557,8 @@ If element is a discretionary, return the appropriate pre/no/post break part."
 
 (defun lineup-width (lineup start stop)
   "Compute LINEUP's width between START and STOP.
-Return three values: the total width, stretch, and shrink."
+Return five values: the natural, maximum, and minimum width, followed by the
+stretch and shrink amounts."
   ;; #### FIXME: this is ugly. Do we still need this hack ?
   (unless stop (setq stop (length lineup)))
   (loop :with width := 0
@@ -565,28 +566,28 @@ Return three values: the total width, stretch, and shrink."
 	:with shrink := 0
 	:for i :from start :upto (1- stop)
 	;; #### FIXME: this works for now, but it is not quite right in the
-	;; #### general case. When ELEMENT is a list (typically the contents
-	;; #### of a discretionary, there could be anything inside, including,
-	;; #### e.g., glues. See also the long comment above the KERNING
-	;; #### function.
+	;; general case. When ELEMENT is a list (typically the contents of a
+	;; discretionary, there could be anything inside, including, e.g.,
+	;; glues. See also the long comment above the KERNING function.
 	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
 	  :do (incf stretch (stretch element))
 	  :and :do (incf shrink (shrink element))
-	:finally (return (values width stretch shrink))))
+	:finally (return (values width (+ width stretch) (- width shrink)
+				 stretch shrink))))
 
 (defun lineup-max-width (lineup start stop)
   "Return LINEUP's width between START and STOP, with maximal stretching."
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (declare (ignore shrink))
-    (+ width stretch)))
+  (multiple-value-bind (natural max) (lineup-width lineup start stop)
+    (declare (ignore natural))
+    max))
 
 (defun lineup-min-width (lineup start stop)
   "Return LINEUP's width between START and STOP, with maximal shrinking."
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
-    (declare (ignore stretch))
-    (- width shrink)))
+  (multiple-value-bind (natural max min) (lineup-width lineup start stop)
+    (declare (ignore natural max))
+    min))
 
 
 ;; -------------
@@ -620,8 +621,10 @@ Return NIL if no elasticity is available and WIDTH is different from TARGET."
 (defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
 STOP to reach TARGET width, possibly with EXTRA stretch.
-See `scale' for more information."
-  (multiple-value-bind (width stretch shrink) (lineup-width lineup start stop)
+See `scaling' for more information."
+  (multiple-value-bind (width max min stretch shrink)
+      (lineup-width lineup start stop)
+    (declare (ignore max min))
     (when extra (incf stretch extra))
     (scaling width target stretch shrink)))
 

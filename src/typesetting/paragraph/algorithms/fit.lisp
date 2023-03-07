@@ -125,26 +125,19 @@ for equally good solutions."))
 
 
 (defclass fit-boundary (fixed-boundary)
-  ((stretch :documentation "This boundary's line stretching capacity."
-	    :initarg :stretch :reader stretch)
-   (shrink :documentation "This boundary's line shrinking capacity."
-	   :initarg :shrink :reader shrink)
+  ((max-width :documentation "This boundary's maximum line width."
+	      :initarg :max-width :reader max-width)
    (min-width :documentation "This boundary's minimum line width."
-	      :reader min-width)
-   (max-width :documentation "This boundary's maximum line width."
-	      :reader max-width))
+	      :initarg :min-width :reader min-width)
+   (scale :documentation "This boundary's required scaling."
+	  :reader scale))
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary) &key width stretch shrink)
-  "Compute BOUNDARY's minimum and maximum line widths."
-  (setf (slot-value boundary 'min-width) (- width shrink))
-  (setf (slot-value boundary 'max-width) (+ width stretch)))
-
-(defun boundary-scale (boundary target)
-  "Return the amount of scaling required to reach TARGET width from BOUNDARY.
-See `scaling' for more information."
-  (scaling (width boundary) target (stretch boundary) (shrink boundary)))
+    ((boundary fit-boundary) &key natural-width width stretch shrink)
+  "Initialize BOUNDARY's scale."
+  (setf (slot-value boundary 'scale)
+	(scaling natural-width width stretch shrink)))
 
 
 (defclass fit-weighted-boundary (fit-boundary)
@@ -168,9 +161,10 @@ This function returns three values:
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
 	:for boundary
-	  := (next-boundary lineup start 'fit-boundary :start start)
+	  := (next-boundary lineup start 'fit-boundary
+			    :start start :width width)
 	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				 :start start)
+				 :start start :width width)
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
@@ -241,7 +235,7 @@ This function returns three values:
 			 (:minimize-distance
 			  (lambda (fit) (abs (- width (width fit)))))
 			 (:minimize-scaling
-			  (lambda (fit) (abs (boundary-scale fit width)))))))
+			  (lambda (fit) (abs (scale fit)))))))
 		 (mapc (lambda (fit)
 			 (setf (weight fit) (funcall new-weight fit)))
 		   fits))
@@ -276,10 +270,8 @@ This function returns three values:
 	      0
 	      ;; On the other hand, do not destretch any other line so much
 	      ;; that another chunk would fit in.
-	      (let ((scale (boundary-scale
-			    (next-boundary lineup stop 'fit-boundary
-					   :start start)
-			    width)))
+	      (let ((scale (scale (next-boundary lineup stop 'fit-boundary
+						 :start start :width width))))
 		;; A positive scale means that another chunk would fit in, and
 		;; still be underfull, so we can destretch only up to that.
 		;; Otherwise, we can destretch completely.
@@ -316,7 +308,7 @@ This function returns three values:
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
       ;; to be close to the general effect of the selected variant.
-      (let ((scale (boundary-scale boundary width)))
+      (let ((scale (scale boundary)))
 	(ecase variant
 	  (:first
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as

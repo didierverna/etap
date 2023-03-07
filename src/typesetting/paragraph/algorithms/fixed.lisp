@@ -103,27 +103,29 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  :reader width :reader min-width :reader max-width))
   (:documentation "The FIXED-BOUNDARY class."))
 
-;; #### NOTE: since LINEUP-WIDTH computes the stretch and shrink amounts at
-;; the same time as the line's width, we might just as well remember those
-;; values for other boundary classes.
+;; #### NOTE: since LINEUP-WIDTH computes the whole line properties, we might
+;; just as well remember those values for other boundary classes.
 (defmethod initialize-instance :around
     ((boundary fixed-boundary) &rest keys &key lineup start stop-idx)
   "Compute and propagate BOUNDARY's line properties to subsequent methods."
-  (multiple-value-bind (width stretch shrink)
+  (multiple-value-bind (natural max min stretch shrink)
       (lineup-width lineup start stop-idx)
     (apply #'call-next-method boundary
-	   :width width :stretch stretch :shrink shrink keys)))
+	   :natural-width natural :max-width max :min-width min
+	   :stretch stretch :shrink shrink
+	   keys)))
 
 ;; #### NOTE: the first- and last-fit algorithms use fixed boundaries with
 ;; non-natural widths in ragged dispositions, hence the parametrization below.
 (defmethod initialize-instance :after
-    ((boundary fixed-boundary) &key width stretch shrink (width-kind :natural))
+    ((boundary fixed-boundary)
+     &key natural-width max-width min-width (width-kind :natural))
   "Initialize BOUNDARY's width with WIDTH-KIND (natural width by default)."
   (setf (slot-value boundary 'width)
 	(ecase width-kind
-	  (:natural width)
-	  (:min (- width shrink))
-	  (:max (+ width stretch)))))
+	  (:natural natural-width)
+	  (:min min-width)
+	  (:max max-width))))
 
 
 ;; #### NOTE: the WIDTH below already takes the width offset into account.
