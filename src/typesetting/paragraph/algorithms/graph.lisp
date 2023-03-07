@@ -143,13 +143,13 @@ Otherwise, it returns the graph's root node."
 
 (defclass paragraph-layout ()
   ((edges :documentation "The list of edges from one break to the next."
-	  :initarg :edges :accessor edges))
+	  :accessor edges))
   (:documentation "The PARAGRAPH-LAYOUT class.
 A paragraph layout represents one possible way to break the lineup."))
 
-(defmethod initialize-instance :around ((layout paragraph-layout) &key edge)
+(defmethod initialize-instance :after ((layout paragraph-layout) &key edge)
   "Initialize LAYOUT's edges with the the first EDGE."
-  (call-next-method layout :edges (list edge)))
+  (setf (slot-value layout 'edges) (list edge)))
 
 (defgeneric update-paragraph-layout (layout edge)
   (:documentation "Update LAYOUT after the addition of EDGE."))

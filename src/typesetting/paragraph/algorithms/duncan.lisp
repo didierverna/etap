@@ -21,11 +21,17 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+
 (defclass duncan-edge (edge)
-  ((hyphen :initform 0 :accessor hyphen)
-   (overfull :initform 0 :accessor overfull)
-   (underfull :initform 0 :accessor underfull)
-   (weight :accessor weight)))
+  ((hyphenp :documentation "Whether this edge is hyphenated."
+	    :reader hyphenp)
+   (fitness :documentation "This edge's fitness status.
+Possible values are :underfull, :fit, and :overfull."
+	    :reader fitness)
+   (weight :documentation "This edge's weight.
+The weight is computed according to the discriminating function."
+	   :reader weight))
+  (:documentation "The DUNCAN-EDGE class."))
 
 (defmethod initialize-instance :after
     ((edge duncan-edge)
@@ -33,36 +39,46 @@
 	  (discriminating-function (car *duncan-discriminating-functions*))
      &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge)))))
+  "Initialize Duncan EDGE's properties."
+  (setf (slot-value edge 'hyphenp)
+	(hyphenation-point-p (item (boundary (destination edge)))))
   (multiple-value-bind (natural max min stretch shrink)
       (lineup-width lineup start stop)
-    (unless (word-stop-p lineup stop)
-      (setf (hyphen edge) 1))
-    (cond ((< max width) (setf (underfull edge) 1))
-	  ((> min width) (setf (overfull edge) 1)))
-    (setf (weight edge)
+    (setf (slot-value edge 'fitness)
+	  (cond ((< max width) :underfull)
+		((> min width) :overfull)
+		(t :fit)))
+    (setf (slot-value edge 'weight)
 	  (ecase discriminating-function
 	    (:minimize-distance (abs (- width natural)))
 	    (:minimize-scaling
-	     (when (and (zerop (underfull edge)) (zerop (overfull edge)))
+	     (when (eq (fitness edge) :fit)
 	       (abs (scaling natural width stretch shrink))))))))
 
-(defclass duncan-layout (paragraph-layout)
-  ((hyphens :accessor hyphens)
-   (underfulls :accessor underfulls)
-   (overfulls :accessor overfulls)
-   (weight :accessor weight)))
 
-(defmethod initialize-instance :after
-    ((layout duncan-layout) &key &aux (edge (car (edges layout))))
-  (setf (hyphens layout) (hyphen edge)
-	(underfulls layout) (underfull edge)
-	(overfulls layout) (overfull edge)
+(defclass duncan-layout (paragraph-layout)
+  ((hyphens :documentation "This layout's number of hyphenated lines."
+	    :accessor hyphens)
+   (underfulls :documentation "This layout's number of underfull lines."
+	       :accessor underfulls)
+   (overfulls :documentation "This layout's number of overfull lines."
+	      :accessor overfulls)
+   (weight :documentation "This layout's weight."
+	   :accessor weight))
+  (:documentation "The DUNCAN-LAYOUT class."))
+
+(defmethod initialize-instance :after ((layout duncan-layout) &key edge)
+  "Initialize Duncan LAYOUT's properties."
+  (setf (hyphens layout) (if (hyphenp edge) 1 0)
+	(underfulls layout) (if (eq (fitness edge) :underfull) 1 0)
+	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
 	(weight layout) (weight edge)))
 
 (defmethod update-paragraph-layout ((layout duncan-layout) (edge duncan-edge))
-  (incf (hyphens layout) (hyphen edge))
-  (incf (underfulls layout) (underfull edge))
-  (incf (overfulls layout) (overfull edge))
+  (when (hyphenp edge) (incf (hyphens layout)))
+  (case (fitness edge)
+    (:underfull (incf (underfulls layout)))
+    (:overfull (incf (overfulls layout))))
   (setf (weight layout)
 	(when (and (weight layout) (weight edge))
 	  (+ (weight layout) (weight edge)))))
@@ -78,16 +94,16 @@
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
-	:if (and justified (item (boundary (destination edge))))
-	  ;; Justified regular line: make it fit.
-	  :collect (make-wide-line lineup start stop width
-				   overstretch overshrink)
-	:else :if justified
+	:if (and justified (last-boundary-p (boundary (destination edge))))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (let ((scale (lineup-scale lineup start stop width)))
 		     (if (and scale (< scale 0))
 		       (make-wide-line lineup start stop width nil overshrink)
 		       (make-line lineup start stop)))
+	:else :if justified
+	  ;; Justified regular line: make it fit.
+	  :collect (make-wide-line lineup start stop width
+				   overstretch overshrink)
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
