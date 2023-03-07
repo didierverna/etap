@@ -219,7 +219,7 @@ This function returns three values:
 	     ;; most one infinitely negative weight below.
 	     (mapc (lambda (fit)
 		     (change-class fit 'fit-weighted-boundary
-		       :weight (++ (badness lineup start (stop-idx fit) width)
+		       :weight (++ (scale-badness (scale fit))
 				   (penalty (item fit)))))
 	       fits)
 	     ;; Note the use of << and EQL here, because we can have (at most)
