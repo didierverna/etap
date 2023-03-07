@@ -132,7 +132,8 @@
   (setf (size layout) 1
 	(demerits layout) (demerits edge)))
 
-(defmethod update-paragraph-layout ((layout kp-layout) (edge kp-edge))
+(defmethod update-paragraph-layout
+    ((layout kp-layout) &aux (edge (first (edges layout))))
   (incf (size layout))
   (setf (demerits layout) (++ (demerits layout) (demerits edge))))
 

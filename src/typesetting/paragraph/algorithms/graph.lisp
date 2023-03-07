@@ -151,8 +151,8 @@ A paragraph layout represents one possible way to break the lineup."))
   "Initialize LAYOUT's edges with the the first EDGE."
   (setf (slot-value layout 'edges) (list edge)))
 
-(defgeneric update-paragraph-layout (layout edge)
-  (:documentation "Update LAYOUT after the addition of EDGE."))
+(defgeneric update-paragraph-layout (layout)
+  (:documentation "Update LAYOUT after pushing a new edge on it."))
 
 (defun %paragraph-layouts (node layout-type)
   "Return the list of possible layouts starting at NODE."
@@ -160,7 +160,7 @@ A paragraph layout represents one possible way to break the lineup."))
 	    (if (edges (destination edge))
 	      (mapc (lambda (layout)
 		      (push edge (edges layout))
-		      (update-paragraph-layout layout edge))
+		      (update-paragraph-layout layout))
 		(%paragraph-layouts (destination edge) layout-type))
 	      (list (make-instance layout-type :edge edge))))
     (edges node)))
