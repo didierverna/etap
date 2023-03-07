@@ -210,8 +210,8 @@ This function returns three values:
 	      (+ width width-offset) prefer-overfulls
 	      fallback avoid-hyphens)))))
   (:method (lineup start width (variant (eql :best))
-            &key discriminating-function prefer-shrink
-                 fallback width-offset avoid-hyphens prefer-overfulls)
+	    &key discriminating-function prefer-shrink
+		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
 	(fit-justified-line-boundaries lineup start width)
@@ -266,7 +266,7 @@ This function returns three values:
   (:method (lineup start boundary disposition (variant (eql :first))
 	    &key width relax
 	    &aux (stop (stop-idx boundary))
-	         ;; By default, lines are stretched as much as possible.
+		 ;; By default, lines are stretched as much as possible.
 		 (scale 1))
     "Make a first-fit ragged line from LINEUP chunk between START and BOUNDARY."
     (when relax
@@ -291,7 +291,7 @@ This function returns three values:
   (:method (lineup start boundary disposition (variant (eql :last))
 	    &key width relax
 	    &aux (stop (stop-idx boundary))
-	         ;; By default, lines are shrunk as much as possible.
+		 ;; By default, lines are shrunk as much as possible.
 		 (scale -1))
     "Make a last-fit ragged line from LINEUP chunk between START and BOUNDARY."
     (when relax
@@ -371,13 +371,13 @@ This function returns three values:
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
-               (fit-justified-line-boundary lineup start width variant
-                 :discriminating-function discriminating-function
-                 :prefer-shrink prefer-shrink
-                 :fallback fallback
-                 :width-offset width-offset
-                 :avoid-hyphens avoid-hyphens
-                 :prefer-overfulls prefer-overfulls))
+	       (fit-justified-line-boundary lineup start width variant
+		 :discriminating-function discriminating-function
+		 :prefer-shrink prefer-shrink
+		 :fallback fallback
+		 :width-offset width-offset
+		 :avoid-hyphens avoid-hyphens
+		 :prefer-overfulls prefer-overfulls))
 	     (lambda (start)
 	       (fixed-ragged-line-boundary
 		lineup start width
