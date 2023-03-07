@@ -35,8 +35,8 @@ this class to add specific properties to their edges."))
 A node represents a boundary at which a paragraph is broken, and links to the
 next possible break positions."))
 
-(defun make-node (boundary edges)
-  "Make a node at BOUNDARY, followed by EDGES."
+(defun make-node (boundary &optional edges)
+  "Make a node at BOUNDARY, optionally followed by EDGES."
   (make-instance 'node :boundary boundary :edges edges))
 
 
@@ -94,8 +94,8 @@ Otherwise, it returns the sub-graph's root node.
 This function memoizes previously computed sub-graphs into HASH table."
   (or (gethash (stop-idx boundary) hash)
       (setf (gethash (stop-idx boundary) hash)
-	    (if (null (item boundary))
-	      (make-node boundary nil)
+	    (if (last-boundary-p boundary)
+	      (make-node boundary)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply next-boundaries
 					 lineup (start-idx boundary) width
