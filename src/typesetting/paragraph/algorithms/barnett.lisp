@@ -96,7 +96,7 @@
     (lineup disposition width (algorithm (eql :barnett))
      &key
      &aux (justified (eq (disposition-type disposition) :justified))
-          (overshrink
+	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP with the Barnett algorithm."
   (loop :for start := 0 :then (start-idx boundary)
