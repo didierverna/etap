@@ -18,9 +18,22 @@
 (in-package :etap)
 
 
+;; =============
+;; Specification
+;; =============
+
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+
+
+;; ====================
+;; Graph Specialization
+;; ====================
+
+;; -----
+;; Edges
+;; -----
 
 (defclass duncan-edge (edge)
   ((hyphenp :documentation "Whether this edge is hyphenated."
@@ -56,6 +69,10 @@ The weight is computed according to the discriminating function."
 	       (abs (scaling natural width stretch shrink))))))))
 
 
+;; -------
+;; Layouts
+;; -------
+
 (defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
 	    :accessor hyphens)
@@ -85,6 +102,11 @@ The weight is computed according to the discriminating function."
 	  (+ (weight layout) (weight edge)))))
 
 
+
+;; =========
+;; Algorithm
+;; =========
+
 (defun duncan-make-lines
     (lineup disposition width layout
      &aux (justified (eq (disposition-type disposition) :justified))
@@ -108,6 +130,7 @@ The weight is computed according to the discriminating function."
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
+
 
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
 ;; preventive fulls, that is, we don't return *full boundaries if there is at

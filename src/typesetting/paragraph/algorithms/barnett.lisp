@@ -35,6 +35,10 @@
 (in-package :etap)
 
 
+;; ==========
+;; Boundaries
+;; ==========
+
 (defclass barnett-boundary (fixed-boundary)
   ((scale :documentation "This boundary's required scaling."
 	  :reader scale))
@@ -46,6 +50,11 @@
   (setf (slot-value boundary 'scale)
 	(scaling natural-width width stretch shrink)))
 
+
+
+;; =========
+;; Algorithm
+;; =========
 
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
@@ -87,6 +96,12 @@
 		      :finally (return (or underword overword))))
 	       (t
 		(or underword overword))))))
+
+
+
+;; ===========
+;; Entry Point
+;; ===========
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we

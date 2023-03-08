@@ -69,6 +69,10 @@
 (in-package :etap)
 
 
+;; =============
+;; Specification
+;; =============
+
 (defparameter *fit-variants*
   '(:first :best :last))
 
@@ -124,6 +128,11 @@ for equally good solutions."))
 (define-fit-caliber width-offset -50 0 0)
 
 
+
+;; ==========
+;; Boundaries
+;; ==========
+
 (defclass fit-boundary (fixed-boundary)
   ((max-width :documentation "This boundary's maximum line width."
 	      :initarg :max-width :reader max-width)
@@ -145,6 +154,11 @@ for equally good solutions."))
 	   :initarg :weight :accessor weight))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
+
+
+;; =========
+;; Algorithm
+;; =========
 
 ;; This function collects boundaries between the last underfull (included) and
 ;; the first overfull (included), regardless of their hyphenation status.
@@ -331,6 +345,11 @@ This function returns three values:
 		      (if (and scale (< scale 0) overshrink) scale -1)))))
       (make-wide-line lineup start stop width overstretch overshrink))))
 
+
+
+;; ===========
+;; Entry Point
+;; ===========
 
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."

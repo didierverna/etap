@@ -56,6 +56,10 @@
 (in-package :etap)
 
 
+;; =============
+;; Specification
+;; =============
+
 (defparameter *fixed-fallbacks*
   '(:underfull :anyfull :overfull))
 
@@ -90,6 +94,11 @@ the underfull one."))
 ;; #### FIXME: the -50pt value below is somewhat arbitrary.
 (define-fixed-caliber width-offset -50 0 0)
 
+
+
+;; ==========
+;; Boundaries
+;; ==========
 
 ;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
 ;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
@@ -127,6 +136,11 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  (:min min-width)
 	  (:max max-width))))
 
+
+
+;; =========
+;; Algorithm
+;; =========
 
 ;; #### NOTE: the WIDTH below already takes the width offset into account.
 (defun fixed-fallback-boundary (underfull overfull width prefer-overfulls
@@ -260,6 +274,11 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		     (+ width width-offset) prefer-overfulls
 		     fallback))))))
 
+
+
+;; ===========
+;; Entry Point
+;; ===========
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
