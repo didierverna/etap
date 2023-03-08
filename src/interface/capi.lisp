@@ -671,7 +671,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :title "Other Parameters"
      :title-position :frame
      :visible-max-height nil)
-   (fit-settings row-layout '(fit-variant fit-fallback fit-options fit-parameters))
+   (fit-settings row-layout
+		 '(fit-variant fit-fallback fit-options fit-parameters))
    (fit-parameters column-layout
      '(fit-discriminating-function
        fit-hyphen-penalty fit-explicit-hyphen-penalty fit-width-offset)
