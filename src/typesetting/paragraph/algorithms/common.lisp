@@ -74,15 +74,44 @@ Note the S appended to NAME in the choices variable name."
 ;; Entry Point
 ;; ===========
 
+(define-method-combination make-lines ()
+  ((before-around (:before-around) :order :most-specific-last)
+   (around (:around))
+   (after-around (:after-around))
+   (before (:before))
+   (primary () :required t)
+   (after (:after)))
+  "The MAKE-LINES method combination.
+Similar to the standard one, with the addition of two new method groups,
+:before-around and :after-around, which are sorted in most specific last /
+first respectively, and which require explicit chaining."
+  (flet ((call-methods (methods)
+	   (mapcar #'(lambda (method)
+		       `(call-method ,method))
+	     methods)))
+    (let ((form (if (or before after (rest primary))
+		  `(multiple-value-prog1
+		       (progn ,@(call-methods before)
+			      (call-method ,(first primary)
+					   ,(rest primary)))
+		     ,@(call-methods (reverse after)))
+		  `(call-method ,(first primary))))
+	  (around (append before-around around after-around)))
+      (if around
+	`(call-method ,(first around)
+		      (,@(rest around)
+		       (make-method ,form)))
+	form))))
+
 (defgeneric make-lines
     (lineup disposition width algorithm &key &allow-other-keys)
+  (:method-combination make-lines)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
-  (:method :around (lineup disposition width algorithm &rest args)
-    "Proceed only if LINEUP is not null, and transform it into an array."
-    ;; #### FIXME: this is not satisfactory. Testing for emptyness should be
-    ;; done first and foremost (before any specific code), while conversion to
-    ;; an array should be done last (after specific code).
-    (when lineup
-      (setq lineup (make-array (length lineup) :initial-contents lineup))
-      (apply #'call-next-method lineup disposition width algorithm args))))
+  (:method :before-around (lineup disposition width algorithm &rest args)
+    "Proceed only if LINEUP is not null."
+    (when lineup (call-next-method)))
+  (:method :after-around (lineup disposition width algorithm &rest args)
+    "Transform LINEUP into an array."
+    (setq lineup (make-array (length lineup) :initial-contents lineup))
+    (apply #'call-next-method lineup disposition width algorithm args)))

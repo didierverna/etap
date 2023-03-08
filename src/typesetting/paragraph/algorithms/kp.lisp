@@ -374,9 +374,7 @@
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
-  ;; #### NOTE: see comment in the MAKE-LINE defgeneric form about the test
-  ;; for emptiness.
-  (when lineup (endpush (make-glue :stretch 100000 :penalty +∞) lineup))
+  (endpush (make-glue :stretch 100000 :penalty +∞) lineup)
   (call-next-method))
 
 (defmethod make-lines
