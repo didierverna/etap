@@ -124,49 +124,33 @@ The weight is computed according to the discriminating function."
   (let* ((graph (apply #'make-graph lineup width
 		       :edge-type 'duncan-edge :fulls t
 		       options))
-	 (layouts (paragraph-layouts graph :duncan))
-	 (perfects
-	   (sort (remove-if-not (lambda (layout)
-				  (and (zerop (hyphens layout))
-				       (zerop (underfulls layout))
-				       (zerop (overfulls layout))))
-				layouts)
-		 #'< :key #'weight))
-	 (hyphened
-	   (remove-if-not (lambda (layout)
-			    (and (not (zerop (hyphens layout)))
-				 (zerop (underfulls layout))
-				 (zerop (overfulls layout))))
-			  layouts))
-	 (misfits
-	   (remove-if (lambda (layout)
-			(and (zerop (underfulls layout))
-			     (zerop (overfulls layout))))
-		      layouts)))
-    (cond (perfects
-	   (duncan-make-lines lineup disposition width (car perfects)))
-	  (hyphened
-	   (let ((minimum-hyphens (loop :for layout :in hyphened
-					:minimize (hyphens layout))))
-	     (duncan-make-lines
-	      lineup disposition width
-	      (car (sort (remove-if-not
-			  (lambda (hyphens) (= hyphens minimum-hyphens))
-			  hyphened :key #'hyphens)
-			 #'< :key #'weight)))))
-	  (t
-	   (let* ((minimum-fulls
-		    (loop :for misfit :in misfits
-			  :minimize (+ (underfulls misfit)
-				       (overfulls misfit))))
-		  (best-misfits
-		    (remove-if-not (lambda (misfit)
-				     (= (+ (underfulls misfit)
-					   (overfulls misfit))
-					minimum-fulls))
-				   misfits))
-		  (minimum-hyphens (loop :for misfit :in best-misfits
-					 :minimize (hyphens misfit))))
-	     (duncan-make-lines
-	      lineup disposition width
-	      (find minimum-hyphens best-misfits :key #'hyphens)))))))
+	 (layouts (paragraph-layouts graph :duncan)))
+    (labels ((perfect (layout)
+	       (and (zerop (hyphens layout))
+		    (zerop (underfulls layout))
+		    (zerop (overfulls layout))))
+	     (hyphened (layout)
+	       (and (not (zerop (hyphens layout)))
+		    (zerop (underfulls layout))
+		    (zerop (overfulls layout))))
+	     (misfit (layout)
+	       (or (not (zerop (underfulls layout)))
+		   (not (zerop (overfulls layout)))))
+	     (better (l1 l2) ;; The Almighty Duncan Sorting Function!
+	       (or (and (perfect l1) (perfect l2) (< (weight l1) (weight l2)))
+		   (and (perfect l1) (not (perfect l2)))
+		   (and (hyphened l1) (hyphened l2)
+			(= (hyphens l1) (hyphens l2))
+			(< (weight l1) (weight l2)))
+		   (and (hyphened l1) (hyphened l2)
+			(< (hyphens l1) (hyphens l2)))
+		   (and (hyphened l1) (misfit l2))
+		   (and (misfit l1) (misfit l2)
+			(= (+ (underfulls l1) (overfulls l1))
+			   (+ (underfulls l2) (overfulls l2)))
+			(< (hyphens l1) (hyphens l2)))
+		   (and (misfit l1) (misfit l2)
+			(< (+ (underfulls l1) (overfulls l1))
+			   (+ (underfulls l2) (overfulls l2)))))))
+      (duncan-make-lines lineup disposition width
+			 (car (sort layouts #'better))))))
