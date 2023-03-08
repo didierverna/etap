@@ -141,26 +141,32 @@ Otherwise, it returns the graph's root node."
        nodes))))
 
 
+
+;; =======
+;; Layouts
+;; =======
+
 (defclass layout ()
   ((edges :documentation "The list of edges from one break to the next."
 	  :accessor edges))
   (:documentation "The LAYOUT class.
-A layout represents one path from the root and leaf nodes of a graph."))
+A layout represents one path from the root to the leaf node of a graph."))
 
-(defmethod initialize-instance :after ((layout layout) &key edge)
+(defmethod initialize-instance :before ((layout layout) &key edge)
   "Initialize LAYOUT's edges with the the first EDGE."
   (setf (slot-value layout 'edges) (list edge)))
 
-(defgeneric update-layout (layout)
-  (:documentation "Update LAYOUT after pushing a new edge on it."))
+(defgeneric push-edge (edge layout)
+  (:documentation "Push EDGE on LAYOUT.")
+  (:method (edge layout)
+    "Perform the pushing."
+    (push edge (edges layout))))
 
 (defun layouts (graph layout-type)
   "Return GRAPH's layouts of LAYOUT-TYPE."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
-	      (mapc (lambda (layout)
-		      (push edge (edges layout))
-		      (update-layout layout))
+	      (mapc (lambda (layout) (push-edge edge layout))
 		(layouts (destination edge) layout-type))
 	      (list (make-instance layout-type :edge edge))))
     (edges graph)))

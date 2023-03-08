@@ -114,8 +114,7 @@
   (setf (size layout) 1
 	(demerits layout) (demerits edge)))
 
-(defmethod update-layout
-    ((layout kp-layout) &aux (edge (first (edges layout))))
+(defmethod push-edge :after (edge (layout kp-layout))
   (incf (size layout))
   (setf (demerits layout) (++ (demerits layout) (demerits edge))))
 

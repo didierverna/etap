@@ -91,8 +91,7 @@ The weight is computed according to the discriminating function."
 	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
 	(weight layout) (weight edge)))
 
-(defmethod update-layout
-    ((layout duncan-layout) &aux (edge (first (edges layout))))
+(defmethod push-edge :after (edge (layout duncan-layout))
   (when (hyphenp edge) (incf (hyphens layout)))
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
