@@ -364,7 +364,7 @@
 (defmethod make-lines :around
     (lineup disposition width (algorithm (eql :knuth-plass))
      &key hyphen-penalty explicit-hyphen-penalty)
-  "Apply hyphen penalties to the lineup."
+  "Apply hyphen penalties and add a final glue to the lineup."
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
   (mapc (lambda (item)
@@ -374,6 +374,9 @@
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
+  ;; #### NOTE: see comment in the MAKE-LINE defgeneric form about the test
+  ;; for emptiness.
+  (when lineup (endpush (make-glue :stretch 100000 :penalty +∞) lineup))
   (call-next-method))
 
 (defmethod make-lines

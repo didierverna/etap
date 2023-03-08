@@ -172,12 +172,12 @@ This class represents hyphenation point discretionaries."))
 ;; Glues
 
 (defclass glue (break-point)
-  ((width :initarg :width :reader width
+  ((width :initform 0 :initarg :width :reader width
 	  :documentation "The glues's natural width.")
-   (stretch :initarg :stretch :reader stretch
-	    :documentation "The glue's stretchability.")
-   (shrink :initarg :shrink :reader shrink
-	   :documentation "The glue's shrinkability."))
+   (shrink :initform 0 :initarg :shrink :reader shrink
+	   :documentation "The glue's shrinkability.")
+   (stretch :initform 0 :initarg :stretch :reader stretch
+	    :documentation "The glue's stretchability."))
   (:documentation "The GLUE class.
 Glues represent breakable, elastic space."))
 
@@ -185,15 +185,16 @@ Glues represent breakable, elastic space."))
   "Return T if OBJECT is a glue."
   (typep object 'glue))
 
-(defun make-glue (width stretch shrink)
-  "Make a new glue out of WIDTH, STRETCH, and SHRINK."
-  (make-instance 'glue :width width :stretch stretch :shrink shrink))
+(defun make-glue (&rest keys &key width shrink stretch penalty)
+  "Make a new glue out of WIDTH, SHRINK, STRETCH, and PENALTY."
+  (declare (ignore width shrink stretch penalty))
+  (apply #'make-instance 'glue keys))
 
 (defun make-interword-glue (blank &aux (font (tfm:font blank)))
   "Make an interword glue, based on BLANK character's font specifications."
-  (make-glue (tfm:interword-space font)
-	     (tfm:interword-stretch font)
-	     (tfm:interword-shrink font)))
+  (make-glue :width (tfm:interword-space font)
+	     :shrink (tfm:interword-shrink font)
+	     :stretch (tfm:interword-stretch font)))
 
 
 
@@ -506,8 +507,6 @@ defaulted from FEATURES."
 	    (when (hyphenation-point-p element)
 	      (push :hyphenation-clue (no-break element))))
       lineup))
-  ;; #### FIXME: At least TeX's algorithms need to redo this on their own.
-  ;; (when lineup (endpush (make-glue 0 100000 0) lineup))
   lineup)
 
 
@@ -595,15 +594,13 @@ Return NIL if no elasticity is available and WIDTH is different from TARGET."
   (cond ((= width target)
 	 0)
 	((< width target)
-	 ;; #### FIXME: this hack has been removed but this currently breaks
-	 ;; the KP algorithm (at least). We need to understand computation
+	 ;; #### FIXME: this is a kludge for the last glue in the paragraph
+	 ;; added by the KP algorithm. We consider that a total stretch of
+	 ;; more than 100000 is infinite. We need to understand computation
 	 ;; with infinity.
-	 ;; #### WARNING: this is a kludge for the last glue in the paragraph.
-	 ;; We consider that a total stretch of more than 100000 is infinite.
-	 ;; (if (>= stretch 100000)
-	 ;; 0
-	 (unless (zerop stretch) (/ (- target width) stretch)))
-	;; )
+	 (if (>= stretch 100000)
+	   0
+	   (unless (zerop stretch) (/ (- target width) stretch))))
 	((> width target)
 	 (unless (zerop shrink) (/ (- target width) shrink)))))
 
