@@ -141,33 +141,26 @@ Otherwise, it returns the graph's root node."
        nodes))))
 
 
-(defclass paragraph-layout ()
+(defclass layout ()
   ((edges :documentation "The list of edges from one break to the next."
 	  :accessor edges))
-  (:documentation "The PARAGRAPH-LAYOUT class.
-A paragraph layout represents one possible way to break the lineup."))
+  (:documentation "The LAYOUT class.
+A layout represents one path from the root and leaf nodes of a graph."))
 
-(defmethod initialize-instance :after ((layout paragraph-layout) &key edge)
+(defmethod initialize-instance :after ((layout layout) &key edge)
   "Initialize LAYOUT's edges with the the first EDGE."
   (setf (slot-value layout 'edges) (list edge)))
 
-(defgeneric update-paragraph-layout (layout)
+(defgeneric update-layout (layout)
   (:documentation "Update LAYOUT after pushing a new edge on it."))
 
-(defun %paragraph-layouts (node layout-type)
-  "Return the list of possible layouts starting at NODE."
+(defun layouts (graph layout-type)
+  "Return GRAPH's layouts of LAYOUT-TYPE."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
 	      (mapc (lambda (layout)
 		      (push edge (edges layout))
-		      (update-paragraph-layout layout))
-		(%paragraph-layouts (destination edge) layout-type))
+		      (update-layout layout))
+		(layouts (destination edge) layout-type))
 	      (list (make-instance layout-type :edge edge))))
-    (edges node)))
-
-(defun paragraph-layouts
-    (node algorithm
-     &aux (layout-type
-	   (intern (format nil "~A-LAYOUT" (algorithm-type algorithm)) :etap)))
-  "Return ALGORITHM's view of layouts for paragraph starting at NODE."
-  (%paragraph-layouts node layout-type))
+    (edges graph)))

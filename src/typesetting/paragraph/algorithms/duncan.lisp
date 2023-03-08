@@ -56,7 +56,7 @@ The weight is computed according to the discriminating function."
 	       (abs (scaling natural width stretch shrink))))))))
 
 
-(defclass duncan-layout (paragraph-layout)
+(defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
 	    :accessor hyphens)
    (underfulls :documentation "This layout's number of underfull lines."
@@ -74,7 +74,7 @@ The weight is computed according to the discriminating function."
 	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
 	(weight layout) (weight edge)))
 
-(defmethod update-paragraph-layout
+(defmethod update-layout
     ((layout duncan-layout) &aux (edge (first (edges layout))))
   (when (hyphenp edge) (incf (hyphens layout)))
   (case (fitness edge)
@@ -124,7 +124,7 @@ The weight is computed according to the discriminating function."
   (let* ((graph (apply #'make-graph lineup width
 		       :edge-type 'duncan-edge :fulls t
 		       options))
-	 (layouts (paragraph-layouts graph :duncan)))
+	 (layouts (layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
 		    (zerop (underfulls layout))

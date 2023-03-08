@@ -7,8 +7,8 @@
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
   (:shadow :++
-   ;; CAPI exports this and it sucks.
-   :item)
+   ;; CAPI exports these and it sucks.
+   :item :layout)
   (:export
     :make-context :*context*
     :make-lineup

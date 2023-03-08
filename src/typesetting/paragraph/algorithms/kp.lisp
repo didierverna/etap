@@ -106,7 +106,7 @@
 				 (list emergency-boundary)))))))
 
 
-(defclass kp-layout (paragraph-layout)
+(defclass kp-layout (layout)
   ((size :accessor size)
    (demerits :accessor demerits)))
 
@@ -114,7 +114,7 @@
   (setf (size layout) 1
 	(demerits layout) (demerits edge)))
 
-(defmethod update-paragraph-layout
+(defmethod update-layout
     ((layout kp-layout) &aux (edge (first (edges layout))))
   (incf (size layout))
   (setf (demerits layout) (++ (demerits layout) (demerits edge))))
@@ -164,7 +164,7 @@
 		      :next-boundaries #'kp-next-boundaries
 		      :pass 2 :threshold tolerance
 		      :line-penalty line-penalty)))
-	 (layouts (paragraph-layouts graph :kp)))
+	 (layouts (layouts graph 'kp-layout)))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
 	      adjacent-demerits double-hyphen-demerits
@@ -179,7 +179,7 @@
 		    :pass 3 :threshold tolerance
 		    :line-penalty line-penalty
 		    :emergency-stretch emergency-stretch))
-      (setq layouts (paragraph-layouts graph :kp))
+      (setq layouts (layouts graph 'kp-layout))
       (mapc (lambda (layout)
 	      (kp-postprocess-layout layout
 		adjacent-demerits double-hyphen-demerits
