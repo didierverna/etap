@@ -543,13 +543,6 @@ If element is a discretionary, return the appropriate pre/no/post break part."
 	  (t (no-break element)))
     element))
 
-;; #### FIXME: review the use of this by KP and Duncan. In particular, KP is
-;; supposed to have an end of lineup glue, so the end of the lineup is NOT a
-;; word stop.
-(defun word-stop-p (lineup stop)
-  "Return T if LINEUP element at STOP is the end of a word."
-  (or (= stop (length lineup)) (gluep (aref lineup stop))))
-
 
 ;; -------------
 ;; Lineup widths
