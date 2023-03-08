@@ -54,19 +54,8 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup start width
-	  line-penalty hyphen-penalty explicit-hyphen-penalty
-     &allow-other-keys
-     &aux (stop (stop-idx (boundary (destination edge))))
-	  (hyphenp (not (word-stop-p lineup stop)))
-	  (scale (lineup-scale lineup start stop width))
-	  (badness (badness lineup start stop width))
-	  (penalty (if hyphenp
-		     (if (pre-break (aref lineup (1- stop)))
-		       hyphen-penalty
-		       explicit-hyphen-penalty)
-		       0)))
-  (assert (not (eq penalty +∞)))
+     &key lineup start width line-penalty &allow-other-keys
+     &aux (stop (stop-idx (boundary (destination edge)))))
   ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -75,37 +64,31 @@
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf (hyphenp edge) hyphenp)
-  (setf (fitness-class edge) (scale-fitness-class scale))
-  (setf (demerits edge) (local-demerits badness penalty line-penalty)))
+  (setf (hyphenp edge)
+	(hyphenation-point-p (item (boundary (destination edge))))
+	(fitness-class edge)
+	(scale-fitness-class (lineup-scale lineup start stop width))
+	(demerits edge)
+	(local-demerits (badness lineup start stop width)
+			(penalty (item (boundary (destination edge))))
+			line-penalty)))
 
 (defun kp-next-boundaries
     (lineup start width
-     &key pass threshold
-	  hyphen-penalty explicit-hyphen-penalty
-	  emergency-stretch
-     &allow-other-keys)
+     &key pass threshold emergency-stretch &allow-other-keys)
   (loop :with boundaries :with overfull :with emergency-boundary
-	;; #### NOTE: this works even the first time because at worst,
-	;; BOUNDARY is gonna be #S(LENGTH LENGTH LENGTH) first, and NIL only
-	;; afterwards.
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
 	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
-	:when (or (not (discretionaryp (item boundary)))
-		  (and (> pass 1)
-		       (or (and (explicitp (item boundary))
-				(<< explicit-hyphen-penalty +∞))
-			   (and (not (explicitp (item boundary)))
-				(<< hyphen-penalty +∞)))))
+	:when (and (<< (penalty (item boundary)) +∞)
+		   (or (not (hyphenation-point-p (item boundary)))
+		       (> pass 1) ))
 	  :if (> min-width width)
 	    :do (setq overfull boundary)
-	  :else :if (and (discretionaryp (item boundary))
-			 (or (and (explicitp (item boundary))
-				  (eq explicit-hyphen-penalty -∞))
-			     (and (not (explicitp (item boundary)))
-				  (eq hyphen-penalty -∞))))
+	  :else :if (eq (penalty (item boundary)) -∞)
+	    ;; #### FIXME: in fact, this is wrong. See the updated logic in
+	    ;; the Fit algorithm.
 	    :do (return (list boundary))
 	  :else :if (<<= (badness lineup start (stop-idx boundary) width
 				  emergency-stretch)
@@ -127,8 +110,7 @@
   ((size :accessor size)
    (demerits :accessor demerits)))
 
-(defmethod initialize-instance :after
-    ((layout kp-layout)  &key &aux (edge (car (edges layout))))
+(defmethod initialize-instance :after ((layout kp-layout)  &key edge)
   (setf (size layout) 1
 	(demerits layout) (demerits edge)))
 
@@ -168,8 +150,7 @@
 	  :collect (make-line lineup start stop)))
 
 (defun kp-graph-make-lines
-    (lineup disposition width
-     line-penalty hyphen-penalty explicit-hyphen-penalty
+    (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
   (let* ((graph (or (when (<<= 0 pre-tolerance)
@@ -182,9 +163,7 @@
 		      :edge-type 'kp-edge
 		      :next-boundaries #'kp-next-boundaries
 		      :pass 2 :threshold tolerance
-		      :line-penalty line-penalty
-		      :hyphen-penalty hyphen-penalty
-		      :explicit-hyphen-penalty explicit-hyphen-penalty)))
+		      :line-penalty line-penalty)))
 	 (layouts (paragraph-layouts graph :kp)))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
@@ -199,8 +178,6 @@
 		    :next-boundaries #'kp-next-boundaries
 		    :pass 3 :threshold tolerance
 		    :line-penalty line-penalty
-		    :hyphen-penalty hyphen-penalty
-		    :explicit-hyphen-penalty explicit-hyphen-penalty
 		    :emergency-stretch emergency-stretch))
       (setq layouts (paragraph-layouts graph :kp))
       (mapc (lambda (layout)
@@ -222,7 +199,7 @@
   boundary demerits previous)
 
 (defun kp-try-boundary (boundary nodes
-			lineup width pass threshold line-penalty break-penalty
+			lineup width pass threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits emergency-stretch)
   (let (last-deactivated-node new-nodes)
@@ -234,7 +211,7 @@
        (let ((scale (lineup-scale lineup (start-idx previous-boundary)
 				  (stop-idx boundary) width emergency-stretch)))
 	 (when (or (<< scale -1)
-		   (eq break-penalty -∞)
+		   (eq (penalty (item boundary)) -∞)
 		   ;; #### WARNING: we must deactivate all nodes when we reach
 		   ;; the paragraph's end. TeX does this by adding a forced
 		   ;; break at the end.
@@ -246,7 +223,8 @@
 	     (when (<<= badness threshold)
 	       (let ((fitness-class (scale-fitness-class scale))
 		     (demerits
-		       (local-demerits badness break-penalty line-penalty)))
+		       (local-demerits badness (penalty (item boundary))
+				       line-penalty)))
 		 (when (> (abs (- fitness-class previous-fitness-class)) 1)
 		   (setq demerits (++ demerits adjacent-demerits)))
 		 (when (discretionaryp (item previous-boundary))
@@ -291,8 +269,7 @@
 	    (setf (gethash (car new-node) nodes) (cdr new-node)))
       new-nodes)))
 
-(defun kp-create-nodes (lineup width pass threshold
-			line-penalty hyphen-penalty explicit-hyphen-penalty
+(defun kp-create-nodes (lineup width pass threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits &optional emergency-stretch)
   (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
@@ -304,21 +281,17 @@
     (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
-	  :for break-penalty
-	    := (cond ((not (discretionaryp (item boundary))) 0)
-		     ((explicitp (item boundary)) explicit-hyphen-penalty)
-		     (t hyphen-penalty))
-	  :when (or (not (discretionaryp (item boundary)))
-		    (and (> pass 1) (<< break-penalty +∞)))
+	  :when (and (<< (penalty (item boundary)) +∞)
+		     (or (not (hyphenation-point-p (item boundary)))
+			 (> pass 1)))
 	    :do (kp-try-boundary boundary nodes
-		  lineup width pass threshold line-penalty break-penalty
+		  lineup width pass threshold line-penalty
 		  adjacent-demerits double-hyphen-demerits
 		  final-hyphen-demerits emergency-stretch))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 (defun kp-dynamic-make-lines
-    (lineup disposition width
-     line-penalty hyphen-penalty explicit-hyphen-penalty
+    (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
      &aux (justified (eq (disposition-type disposition) :justified))
@@ -328,12 +301,10 @@
 	   (cadr (member :overshrink (disposition-options disposition)))))
   (let ((nodes (or (when (<<= 0 pre-tolerance)
 		     (kp-create-nodes lineup width 1 pre-tolerance
-		       line-penalty hyphen-penalty explicit-hyphen-penalty
-		       adjacent-demerits double-hyphen-demerits
+		       line-penalty adjacent-demerits double-hyphen-demerits
 		       final-hyphen-demerits))
 		   (kp-create-nodes lineup width 2 tolerance
-		     line-penalty hyphen-penalty explicit-hyphen-penalty
-		     adjacent-demerits double-hyphen-demerits
+		     line-penalty adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits))))
     (when (and (not (zerop emergency-stretch))
 	       (loop :for node :being :the :hash-values :in nodes
@@ -341,8 +312,7 @@
 		       :do (return nil)
 		     :finally (return t)))
       (setq nodes (kp-create-nodes lineup width 3 tolerance
-		     line-penalty hyphen-penalty explicit-hyphen-penalty
-		     adjacent-demerits double-hyphen-demerits
+		     line-penalty adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits emergency-stretch)))
     (let ((best (loop :with demerits := +∞ :with best :with last
 		      :for node :being :the :hash-values :in nodes
@@ -391,16 +361,28 @@
   "Default Knuth-Plass NAMEd variable."
   `(default kp ,name))
 
+(defmethod make-lines :around
+    (lineup disposition width (algorithm (eql :knuth-plass))
+     &key hyphen-penalty explicit-hyphen-penalty)
+  "Apply hyphen penalties to the lineup."
+  (calibrate-kp hyphen-penalty t)
+  (calibrate-kp explicit-hyphen-penalty t)
+  (mapc (lambda (item)
+	  (when (hyphenation-point-p item)
+	    (setf (penalty item)
+		  (if (explicitp item)
+		    explicit-hyphen-penalty
+		    hyphen-penalty))))
+    lineup)
+  (call-next-method))
+
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :knuth-plass))
-     &key variant
-	  line-penalty hyphen-penalty explicit-hyphen-penalty
+     &key variant line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
 	  pre-tolerance tolerance emergency-stretch looseness)
   (default-kp variant)
   (calibrate-kp line-penalty)
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
@@ -415,12 +397,10 @@
   (calibrate-kp looseness)
   (ecase variant
     (:graph
-     (kp-graph-make-lines lineup disposition width
-       line-penalty hyphen-penalty explicit-hyphen-penalty
+     (kp-graph-make-lines lineup disposition width line-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))
     (:dynamic
-     (kp-dynamic-make-lines lineup disposition width
-       line-penalty hyphen-penalty explicit-hyphen-penalty
+     (kp-dynamic-make-lines lineup disposition width line-penalty
        adjacent-demerits double-hyphen-demerits final-hyphen-demerits
        pre-tolerance tolerance emergency-stretch looseness))))
