@@ -18,6 +18,14 @@
 (in-package :etap)
 
 
+;; ======
+;; Graphs
+;; ======
+
+;; ---------------
+;; Data Structures
+;; ---------------
+
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
 		:initarg :destination :reader destination))
@@ -40,6 +48,9 @@ next possible break positions."))
   (make-instance 'node :boundary boundary :edges edges))
 
 
+;; ------------------
+;; Graph construction
+;; ------------------
 
 ;; #### FIXME: the &allow-other-keys below is dirty. That's because we don't
 ;; currently make a distinction in the OPTIONS argument to MAKE-GRAPH, between
