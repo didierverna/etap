@@ -108,7 +108,7 @@ first respectively, and which require explicit chaining."
   (:method-combination make-lines)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
-  (:method :before-around (lineup disposition width algorithm &rest args)
+  (:method :before-around (lineup disposition width algorithm &key)
     "Proceed only if LINEUP is not null."
     (when lineup (call-next-method)))
   (:method :after-around (lineup disposition width algorithm &rest args)

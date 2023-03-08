@@ -61,7 +61,7 @@ The possible endings are listed in reverse order (from last to first)."
 	  := (next-boundary lineup start)
 	    :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
-	:for (natural max min)
+	:for (nil max min)
 	  := (multiple-value-list
 	      (lineup-width lineup start (stop-idx boundary)))
 	:do (cond ((< max width) (setq underfull boundary))

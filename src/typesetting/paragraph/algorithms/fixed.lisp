@@ -200,9 +200,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
      &optional (width-kind :natural))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
-  (loop :with underfull :with underhyphen :with underword
-	:with fit
-	:with overfull :with overhyphen :with overword
+  (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
 	:for boundary
 	  := (next-boundary lineup start 'fixed-boundary
@@ -217,18 +215,15 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		       ;; Track the last underfulls because they're the
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
-		       (if hyphenp
-			 (setq underhyphen boundary)
-			 (setq underword boundary)))
+		       (unless hyphenp (setq underword boundary)))
 		      ((= (width boundary) width) (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
 		       ;; closest to WIDTH.
 		       (unless overfull (setq overfull boundary))
-		       (if hyphenp
-			 (unless overhyphen (setq overhyphen boundary))
-			 ;; No check required here because we stop at the
-			 ;; first word overfull.
+		       ;; No check required here because we stop at the first
+		       ;; word overfull anyway.
+		       (unless hyphenp
 			 (setq overword boundary continue nil))))))
 	:finally
 	   (return
