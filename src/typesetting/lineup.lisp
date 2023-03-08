@@ -1,18 +1,15 @@
 ;; #### WARNING: there are a number of characteristics in the lineup that
-;; #### affect the way algorithms are implemented. These specificities should
-;; #### be kept in mind because should they change, said algorithms may become
-;; #### buggy. In particular:
-;; #### - the paragraph string is trimmed for spaces. There is a single glue
-;; ####   between each words, and only one infinitely stretchable glue at the
-;; ####   end of the paragraph (it's actually very large, not infinite).
-;; #### - this last glue is treated in a special way because we neither have
-;; ####   fill units, nor infinite penalties for preventing a break before it.
-;; #### - there is no forced break at the end of the lineup. It's also treated
-;; ####   in a special way.
-;; #### - the only discretionaries that we have come from the hyphenation
-;; ####   step, so they originally appear only in the middle of words.
-;; ####   However, they may turn out to be anywhere after processing ligatures
-;; ####   and kerning.
+;; affect the way algorithms are implemented. These specificities should be
+;; kept in mind because should they change, said algorithms may become buggy.
+;; In particular:
+;; - the paragraph string is trimmed for spaces. There is a single glue
+;;   between each words, and the KP algorithm adds an infinitely stretchable
+;;   glue at the end of the paragraph (it's actually very large, not infinite)
+;; - this last glue is treated in a special way because by the SCALING
+;;   function, because we don't have fill units.
+;; - the only discretionaries that we have come from the hyphenation step, so
+;;   they originally appear only in the middle of words. However, they may
+;;   turn out to be anywhere after processing ligatures and kerning.
 
 (in-package :etap)
 
@@ -207,18 +204,17 @@ Glues represent breakable, elastic space."))
 ;; #### WARNING: in the code below, the lineup is still a list.
 
 ;; #### NOTE: the procedures handling ligatures and kerning below are aware of
-;; #### discretionaries, but they are really meant for those inserted
-;; #### automatically during the hyphenation process, that is,
-;; #### \discretionary{-}{}{} in the middle of a word. They may be useful in
-;; #### the future, for some more general cases, but combining ligatures,
-;; #### kerning, and discretionaries is impossible to do statically in
-;; #### general. For example, if we end up with different potential ligatures
-;; #### starting from a post-break element and going to both a no-break and a
-;; #### pre-break later on, we can't represent that statically. The only truly
-;; #### general solution is to delay ligature and kerning processing until the
-;; #### lineup is flattened. But then, this means that we also need to do that
-;; #### every time we want to poll the size of various lineup chunks. This
-;; #### could be rather expensive (although I haven't tried it).
+;; discretionaries, but they are really meant for those inserted automatically
+;; during the hyphenation process, that is, \discretionary{-}{}{} in the
+;; middle of a word. They may be useful in the future, for some more general
+;; cases, but combining ligatures, kerning, and discretionaries is impossible
+;; to do statically in general. For example, if we end up with different
+;; potential ligatures starting from a post-break element and going to both a
+;; no-break and a pre-break later on, we can't represent that statically. The
+;; only truly general solution is to delay ligature and kerning processing
+;; until the lineup is flattened. But then, this means that we also need to do
+;; that every time we want to poll the size of various lineup chunks. This
+;; could be rather expensive (although I haven't tried it).
 
 ;; -------
 ;; Kerning
@@ -661,14 +657,6 @@ case it signals that there is no more boundary to find by returning NIL."
     (let* ((idx (position-if #'break-point-p lineup :start (1+ from)))
 	   (item (when idx (aref lineup idx)))
 	   stop-idx start-idx)
-      ;; #### FIXME: this hack has been removed, but this currently breaks the
-      ;; KP algorithm (at least). We need to support penalties.
-      ;; #### WARNING: this is a kludge to never break at the end of the final
-      ;; word (that is, just before the final glue). Otherwise, we would end
-      ;; up with a line containing only the final glue. TeX does it by adding
-      ;; \penalty10000 before the final glue (and it also adds \penalty-10000
-      ;; afterwards), but we don't have that level of generality yet.
-      ;; (when (eql point (1- length)) (setq point nil))
       (etypecase item
 	(glue (setq stop-idx idx start-idx (1+ idx)))
 	(discretionary (setq stop-idx (1+ idx) start-idx idx))

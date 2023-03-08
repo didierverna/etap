@@ -80,6 +80,9 @@ Note the S appended to NAME in the choices variable name."
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
   (:method :around (lineup disposition width algorithm &rest args)
     "Proceed only if LINEUP is not null, and transform it into an array."
+    ;; #### FIXME: this is not satisfactory. Testing for emptyness should be
+    ;; done first and foremost (before any specific code), while conversion to
+    ;; an array should be done last (after specific code).
     (when lineup
       (setq lineup (make-array (length lineup) :initial-contents lineup))
       (apply #'call-next-method lineup disposition width algorithm args))))
