@@ -50,7 +50,6 @@ The weight is computed according to the discriminating function."
     ((edge duncan-edge)
      &key lineup start width
 	  (discriminating-function (car *duncan-discriminating-functions*))
-     &allow-other-keys
      &aux (stop (stop-idx (boundary (destination edge)))))
   "Initialize Duncan EDGE's properties."
   (setf (slot-value edge 'hyphenp)
@@ -143,9 +142,8 @@ The weight is computed according to the discriminating function."
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   (declare (ignore discriminating-function))
-  (let* ((graph (apply #'make-graph lineup width
-		       :edge-type 'duncan-edge :fulls t
-		       options))
+  (let* ((graph (funcall #'make-graph lineup width
+			 :edge-type `(duncan-edge ,@options) :fulls t))
 	 (layouts (layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))

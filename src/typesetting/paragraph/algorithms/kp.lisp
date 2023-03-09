@@ -54,7 +54,7 @@
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup start width line-penalty &allow-other-keys
+     &key lineup start width line-penalty
      &aux (stop (stop-idx (boundary (destination edge)))))
   ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
   ;; only an overfull one. For example, we could have collected an hyphenated
@@ -75,7 +75,7 @@
 
 (defun kp-next-boundaries
     (lineup start width
-     &key pass threshold emergency-stretch &allow-other-keys)
+     &key pass threshold emergency-stretch)
   (loop :with boundaries :with overfull :with emergency-boundary
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop-idx boundary))
@@ -129,6 +129,7 @@
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
 		      (++ (demerits layout) adjacent-demerits))))
+  ;; #### FIXME: corner case bug if (size layout) < 2.
   (when (hyphenp (nth (- (size layout) 2) (edges layout)))
     (setf (demerits layout) (++ final-hyphen-demerits (demerits layout)))))
 
@@ -154,15 +155,13 @@
      pre-tolerance tolerance emergency-stretch looseness)
   (let* ((graph (or (when (<<= 0 pre-tolerance)
 		      (make-graph lineup width
-			:edge-type 'kp-edge
+			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
-			:pass 1 :threshold pre-tolerance
-			:line-penalty line-penalty))
+			:pass 1 :threshold pre-tolerance))
 		    (make-graph lineup width
-		      :edge-type 'kp-edge
+		      :edge-type `(kp-edge :line-penalty ,line-penalty)
 		      :next-boundaries #'kp-next-boundaries
-		      :pass 2 :threshold tolerance
-		      :line-penalty line-penalty)))
+		      :pass 2 :threshold tolerance)))
 	 (layouts (layouts graph 'kp-layout)))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
@@ -173,10 +172,9 @@
     (when (and (not (zerop emergency-stretch))
 	       (eql (demerits (car layouts)) +∞))
       (setq graph (make-graph lineup width
-		    :edge-type 'kp-edge
+		    :edge-type `(kp-edge :line-penalty ,line-penalty)
 		    :next-boundaries #'kp-next-boundaries
 		    :pass 3 :threshold tolerance
-		    :line-penalty line-penalty
 		    :emergency-stretch emergency-stretch))
       (setq layouts (layouts graph 'kp-layout))
       (mapc (lambda (layout)

@@ -52,15 +52,9 @@ next possible break positions."))
 ;; Graph construction
 ;; ------------------
 
-;; #### FIXME: the &allow-other-keys below is dirty. That's because we don't
-;; currently make a distinction in the OPTIONS argument to MAKE-GRAPH, between
-;; what goes to NEXT-BOUNDARIES and to MAKE-INSTANCE EDGE-TYPE. This needs to
-;; be cleaned up.
-
 ;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
 ;; instead of just a Boolean, for keeping more than 1 *full.
-(defun next-boundaries
-    (lineup start width &key fulls &allow-other-keys)
+(defun next-boundaries (lineup start width &key fulls)
   "Find the possible endings for LINEUP line of WIDTH beginning at START.
 If no possible ending is found, return NIL, unless FULLS, in which case return
 the last underfull and the first overfull (if any) as a fallback solution.
@@ -97,7 +91,8 @@ The possible endings are listed in reverse order (from last to first)."
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
 (defun make-subgraph
-    (lineup width boundary edge-type next-boundaries hash &rest options)
+    (lineup width boundary edge-type edge-options next-boundaries hash
+     &rest options)
   "Make a solutions sub-graph for breaking LINEUP's remainder starting at
 BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
@@ -113,8 +108,8 @@ This function memoizes previously computed sub-graphs into HASH table."
 					 options)
 				 :when (apply #'make-subgraph
 					 lineup width next-boundary
-					 edge-type next-boundaries hash
-					 options)
+					 edge-type edge-options
+					 next-boundaries hash options)
 				   :collect :it)))
 		(when nodes
 		  (make-node
@@ -123,7 +118,7 @@ This function memoizes previously computed sub-graphs into HASH table."
 			     (apply #'make-instance edge-type
 				    :lineup lineup :start (start-idx boundary)
 				    :width width :destination node
-				    options))
+				    edge-options))
 		     nodes))))))))
 
 (defun make-graph
@@ -131,12 +126,14 @@ This function memoizes previously computed sub-graphs into HASH table."
      &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
      &allow-other-keys
      &aux (hash (make-hash-table))
+	  (edge-options (when (consp edge-type) (cdr edge-type)))
+	  (edge-type (if (consp edge-type) (car edge-type) edge-type))
 	  (options (remove-keys keys :edge-type :next-boundaries))
 	  (nodes (loop :for next-boundary
 			 :in (apply next-boundaries lineup 0 width options)
 		       :when (apply #'make-subgraph
 			       lineup width next-boundary
-			       edge-type next-boundaries hash
+			       edge-type edge-options next-boundaries hash
 			       options)
 			 :collect :it)))
   "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
@@ -148,7 +145,7 @@ Otherwise, it returns the graph's root node."
      (mapcar (lambda (node)
 	       (apply #'make-instance edge-type
 		      :lineup lineup :start 0 :width width :destination node
-		      options))
+		      edge-options))
        nodes))))
 
 
