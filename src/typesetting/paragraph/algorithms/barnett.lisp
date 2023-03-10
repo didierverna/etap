@@ -118,17 +118,17 @@
 	:while start
 	:for boundary := (barnett-line-boundary lineup start width)
 	:for stop := (stop-idx boundary)
-	:if (and justified (not (last-boundary-p boundary)))
-	  ;; Justified regular line: make it always overstreched, and maybe
-	  ;; overshrunk.
-	  :collect (make-wide-line lineup start stop width t overshrink)
-	:else :if justified
+	:if (and justified (last-boundary-p boundary))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (let ((scale (scale boundary)))
 		     (if (and scale (< scale 0))
 			 (make-wide-line lineup start stop width
 					 nil overshrink)
 			 (make-line lineup start stop)))
+	:else :if justified
+	  ;; Justified regular line: make it always overstreched, and maybe
+	  ;; overshrunk.
+	  :collect (make-wide-line lineup start stop width t overshrink)
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
