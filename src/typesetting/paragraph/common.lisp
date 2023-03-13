@@ -63,7 +63,10 @@ The character's 2D position is relative to the line it belongs to."))
 
 
 (defclass pinned-hyphenation-clue (pinned)
-  ()
+  ((explicitp
+    :initform t :initarg :explicit :reader explicitp
+    :documentation
+    "Whether this hyphenation clue comes from an explicit hyphen."))
   (:documentation "The PINNED-HYPHENATION-CLUE class.
 The hyphenation clue's 2D position is relative to the line it belongs to."))
 
@@ -83,10 +86,9 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
   "Return pinned hyphenation clue's depth (0)."
   0)
 
-(defun pin-hyphenation-clue (&rest initargs &key x y)
-  "Pin hyphenation clue at (X, Y)."
-  (declare (ignore x y))
-  (apply #'make-instance 'pinned-hyphenation-clue initargs))
+(defun pin-hyphenation-clue (x &optional (explicit t))
+  "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
+  (make-instance 'pinned-hyphenation-clue :x x :explicit explicit))
 
 
 
@@ -130,19 +132,21 @@ origin. A line also remembers its scale factor."))
     :pinned-objects
     (loop :with x := 0
 	  :for elt :in (flatten-lineup lineup start stop)
-	  :if (eq elt :hyphenation-clue)
-	    :collect (pin-hyphenation-clue :x x)
+	  :if (eq elt :explicit-hyphenation-clue)
+	    :collect (pin-hyphenation-clue x)
+	  :else :if (eq elt :hyphenation-clue)
+	    :collect (pin-hyphenation-clue x nil)
 	  :else :if (typep elt 'tfm:character-metrics)
-		  :collect (pin-character elt :x x)
-		  :and :do (incf x (width elt))
+	    :collect (pin-character elt :x x)
+	    :and :do (incf x (width elt))
 	  :else :if (kernp elt)
-		  :do (incf x (width elt))
+	    :do (incf x (width elt))
 	  :else :if (gluep elt)
-		  :do (incf x (width elt))
-		  :and :unless (zerop scale)
-			 :do (incf x (if (> scale 0)
-				       (* scale (stretch elt))
-				       (* scale (shrink elt)))))
+	    :do (incf x (width elt))
+	    :and :unless (zerop scale)
+		   :do (incf x (if (> scale 0)
+				 (* scale (stretch elt))
+				 (* scale (shrink elt)))))
     :scale scale))
 
 (defun make-wide-line

@@ -32,6 +32,9 @@
   (:method ((clue (eql :hyphenation-clue)))
     "Return 0 (hyphenation clues don't eat horizontal space)."
     0)
+  (:method ((clue (eql :explicit-hyphenation-clue)))
+    "Return 0 (hyphenation clues don't eat horizontal space)."
+    0)
   ;; #### NOTE: NIL in the lineup can occur in several situations, for
   ;; instance as the (empty) no-break or post-break of a hyphenation point.
   (:method ((null (eql nil)))
@@ -505,7 +508,10 @@ defaulted from FEATURES."
   (when hyphenation
     (mapc (lambda (element)
 	    (when (hyphenation-point-p element)
-	      (push :hyphenation-clue (no-break element))))
+	      (push (if (explicitp element)
+		      :explicit-hyphenation-clue
+		      :hyphenation-clue)
+		    (no-break element))))
       lineup))
   lineup)
 

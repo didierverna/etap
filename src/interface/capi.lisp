@@ -321,7 +321,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 					     (+ x (x object) -3) (+ y 5)
 					     (+ x (x object) +3) (+ y 5))
 				       :filled t
-				       :foreground :orange)))))
+				       :foreground (if (explicitp object)
+						     :blue
+						     :orange))))))
 		      (pinned-objects (line pinned-line))))))))
 
 
