@@ -48,6 +48,7 @@
 
 (defclass kp-edge (edge)
   ((hyphenp :accessor hyphenp)
+   (scale :accessor scale)
    (fitness-class :accessor fitness-class)
    ;; #### NOTE: these are only line-local demerits.
    (demerits :accessor demerits)))
@@ -65,11 +66,11 @@
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
   (setf (hyphenp edge)
-	(hyphenation-point-p (item (boundary (destination edge))))
-	(fitness-class edge)
-	(scale-fitness-class (lineup-scale lineup start stop width))
-	(demerits edge)
-	(local-demerits (badness lineup start stop width)
+	(hyphenation-point-p (item (boundary (destination edge)))))
+  (setf (scale edge) (lineup-scale lineup start stop width))
+  (setf (fitness-class edge) (scale-fitness-class (scale edge)))
+  (setf (demerits edge)
+	(local-demerits (scale-badness (scale edge))
 			(penalty (item (boundary (destination edge))))
 			line-penalty)))
 
@@ -144,8 +145,8 @@
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
-	  :collect (make-wide-line lineup start stop width
-				   overstretch overshrink)
+	  :collect (make-scaled-line lineup start stop (scale edge)
+				     overstretch overshrink)
 	:else
 	  :collect (make-line lineup start stop)))
 
