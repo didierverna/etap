@@ -316,34 +316,31 @@ This function returns three values:
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
 	    &key width overstretch overshrink
-	    &aux (stop (stop-idx boundary)))
+	    &aux (stop (stop-idx boundary)) (scale (scale boundary)))
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (if (last-boundary-p boundary)
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
       ;; to be close to the general effect of the selected variant.
-      (let ((scale (scale boundary)))
-	(ecase variant
-	  (:first
-	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
-	   ;; much as possible, without overstretching.
-	   (when scale
-	     (cond ((< scale 0)
-		    (unless overshrink (setq scale (max scale -1))))
-		   ((> scale 0)
-		    (setq scale (min scale 1)))))
-	   (make-line lineup start stop scale))
-	  (:best
-	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
-	   ;; normal spacing.
-	   (if (and scale (< scale 0))
-	     (make-line lineup start stop (if overshrink scale (max scale -1)))
-	     (make-line lineup start stop)))
-	  (:last
-	   ;; Shrink as much as possible.
-	   (make-line lineup start stop
-		      (if (and scale (< scale 0) overshrink) scale -1)))))
-      (make-wide-line lineup start stop width overstretch overshrink))))
+      (ecase variant
+	(:first
+	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
+	 ;; much as possible, without overstretching.
+	 (when scale
+	   (cond ((< scale 0) (unless overshrink (setq scale (max scale -1))))
+		 ((> scale 0) (setq scale (min scale 1)))))
+	 (make-line lineup start stop scale))
+	(:best
+	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
+	 ;; normal spacing.
+	 (if (and scale (< scale 0))
+	   (make-line lineup start stop (if overshrink scale (max scale -1)))
+	   (make-line lineup start stop)))
+	(:last
+	 ;; Shrink as much as possible.
+	 (make-line lineup start stop
+		    (if (and scale (< scale 0) overshrink) scale -1))))
+      (make-scaled-line lineup start stop scale overshrink overstretch))))
 
 
 
