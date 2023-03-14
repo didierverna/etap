@@ -41,6 +41,8 @@
    (fitness :documentation "This edge's fitness status.
 Possible values are :underfull, :fit, and :overfull."
 	    :reader fitness)
+   (scale :documentation "This edge's scale."
+	  :reader scale)
    (weight :documentation "This edge's weight.
 The weight is computed according to the discriminating function."
 	   :reader weight))
@@ -49,23 +51,23 @@ The weight is computed according to the discriminating function."
 (defmethod initialize-instance :after
     ((edge duncan-edge)
      &key lineup start width
-	  (discriminating-function (car *duncan-discriminating-functions*))
-     &aux (stop (stop-idx (boundary (destination edge)))))
+	  (discriminating-function (car *duncan-discriminating-functions*)))
   "Initialize Duncan EDGE's properties."
   (setf (slot-value edge 'hyphenp)
 	(hyphenation-point-p (item (boundary (destination edge)))))
   (multiple-value-bind (natural max min stretch shrink)
-      (lineup-width lineup start stop)
+      (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
 	  (cond ((< max width) :underfull)
 		((> min width) :overfull)
 		(t :fit)))
+    (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
     (setf (slot-value edge 'weight)
 	  (ecase discriminating-function
-	    (:minimize-distance (abs (- width natural)))
+	    (:minimize-distance
+	     (abs (- width natural)))
 	    (:minimize-scaling
-	     (when (eq (fitness edge) :fit)
-	       (abs (scaling natural width stretch shrink))))))))
+	     (when (eq (fitness edge) :fit) (abs (scale edge))))))))
 
 
 ;; -------
@@ -115,16 +117,16 @@ The weight is computed according to the discriminating function."
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
+	:for scale = (scale edge)
 	:if (and justified (last-boundary-p (boundary (destination edge))))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (let ((scale (lineup-scale lineup start stop width)))
-		     (if (and scale (< scale 0))
-		       (make-wide-line lineup start stop width nil overshrink)
-		       (make-line lineup start stop)))
+	  :collect (if (and scale (< scale 0))
+		     (make-scaled-line lineup start stop scale overshrink nil)
+		     (make-line lineup start stop))
 	:else :if justified
 	  ;; Justified regular line: make it fit.
-	  :collect (make-wide-line lineup start stop width
-				   overstretch overshrink)
+	  :collect (make-scaled-line lineup start stop scale
+				     overshrink overstretch)
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-line lineup start stop)))
