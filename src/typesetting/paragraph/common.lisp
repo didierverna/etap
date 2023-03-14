@@ -128,6 +128,7 @@ origin. A line also remembers its scale factor."))
 (defun make-line (lineup start stop &optional (scale 0))
   "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
   (unless stop (setq stop (length lineup)))
+  (unless scale (setq scale 0))
   (make-instance 'line
     :pinned-objects
     (loop :with x := 0
@@ -166,6 +167,5 @@ limits of the available elasticity.
 If OVERSTRETCH, disregard the limit and stretch as much needed.
 If OVERSHRINK, disregard the limit and shrink as much needed."
   (make-line lineup start stop
-	     (or (effective-scale (lineup-scale lineup start stop width)
-				  overshrink overstretch)
-		 0)))
+	     (effective-scale (lineup-scale lineup start stop width)
+			      overshrink overstretch)))
