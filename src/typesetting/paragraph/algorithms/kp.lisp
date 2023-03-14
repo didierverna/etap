@@ -213,7 +213,7 @@
 		   ;; #### WARNING: we must deactivate all nodes when we reach
 		   ;; the paragraph's end. TeX does this by adding a forced
 		   ;; break at the end.
-		   (= (stop-idx boundary) (length lineup)))
+		   (last-boundary-p boundary))
 	   (setq last-deactivated-node (cons key node))
 	   (remhash key nodes))
 	 (when (<<= -1 scale)
