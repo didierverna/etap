@@ -235,7 +235,7 @@
 		     ;; principle. The code is at #859, but it is confusing
 		     ;; because TeX considers the end of a paragraph as
 		     ;; hyphenated, which is explained at #829 :-/.
-		     (when (= (stop-idx boundary) (length lineup))
+		     (when (last-boundary-p boundary)
 		       (setq demerits (++ demerits final-hyphen-demerits)))))
 		 (setq demerits (++ demerits (kp-node-demerits node)))
 		 (let ((previous
