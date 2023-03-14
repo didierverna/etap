@@ -59,4 +59,3 @@ items satisfying PRE-TEST are considered."
   (etypecase object
     (cons (cdr object))
     (symbol nil)))
-
