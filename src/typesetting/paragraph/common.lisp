@@ -125,8 +125,9 @@ origin. A line also remembers its scale factor."))
 	:for elt := (lineup-aref lineup i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
-(defun make-line (lineup start stop &optional (scale 0))
+(defun make-line (lineup start stop &optional scale)
   "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
+  ;; #### FIXME: do we still need this?
   (unless stop (setq stop (length lineup)))
   (unless scale (setq scale 0))
   (make-instance 'line
