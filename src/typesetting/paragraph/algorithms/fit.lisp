@@ -315,7 +315,7 @@ This function returns three values:
 		    (when scale (if (>= scale 0) 0 (max scale -1))))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
-	    &key width overstretch overshrink
+	    &key overstretch overshrink
 	    &aux (stop (stop-idx boundary)) (scale (scale boundary)))
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (if (last-boundary-p boundary)

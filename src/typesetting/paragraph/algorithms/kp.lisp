@@ -135,7 +135,7 @@
     (setf (demerits layout) (++ final-hyphen-demerits (demerits layout)))))
 
 (defun kp-make-layout-lines
-    (lineup disposition width layout
+    (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overstretch
 	   (cadr (member :overstretch (disposition-options disposition))))
@@ -190,7 +190,7 @@
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			    :key #'size))))
-    (kp-make-layout-lines lineup disposition width (car layouts))))
+    (kp-make-layout-lines lineup disposition (car layouts))))
 
 
 (defstruct (kp-node (:constructor kp-make-node))
@@ -287,6 +287,18 @@
 		  adjacent-demerits double-hyphen-demerits
 		  final-hyphen-demerits emergency-stretch))
     (unless (zerop (hash-table-count nodes)) nodes)))
+
+;; #### FIXME: this function probably needs to go away.
+(defun make-wide-line
+    (lineup start stop width &optional overstretch overshrink)
+  "Make a line of WIDTH from LINEUP chunk between START and STOP.
+If no elasticity is available, the line will remain at its normal width.
+If some elasticity is available, get as close as possible to WIDTH within the
+limits of the available elasticity.
+If OVERSTRETCH, disregard the limit and stretch as much needed.
+If OVERSHRINK, disregard the limit and shrink as much needed."
+  (make-scaled-line lineup start stop (lineup-scale lineup start stop width)
+		    overshrink overstretch))
 
 (defun kp-dynamic-make-lines
     (lineup disposition width line-penalty

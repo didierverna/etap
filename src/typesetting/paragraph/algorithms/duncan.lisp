@@ -108,7 +108,7 @@ The weight is computed according to the discriminating function."
 ;; =========
 
 (defun duncan-make-lines
-    (lineup disposition width layout
+    (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overstretch
 	   (cadr (member :overstretch (disposition-options disposition))))
@@ -174,5 +174,4 @@ The weight is computed according to the discriminating function."
 		   (and (misfit l1) (misfit l2)
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
-      (duncan-make-lines lineup disposition width
-			 (car (sort layouts #'better))))))
+      (duncan-make-lines lineup disposition (car (sort layouts #'better))))))
