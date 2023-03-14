@@ -149,18 +149,23 @@ origin. A line also remembers its scale factor."))
 				 (* scale (shrink elt)))))
     :scale scale))
 
+(defun effective-scale (scale overshrink overstretch)
+  "Return effective SCALE, normally limited to [-1,+1].
+Those limitations may be ignored if OVERSHRINK or OVERSTRETCH."
+  (when scale
+    (cond ((< scale 0) (if overshrink scale (max scale -1)))
+	  ((zerop scale) 0)
+	  ((> scale 0) (if overstretch scale (min scale 1))))))
+
 (defun make-wide-line
-    (lineup start stop width &optional overstretch overshrink
-     &aux (scale (lineup-scale lineup start stop width)))
+    (lineup start stop width &optional overstretch overshrink)
   "Make a line of WIDTH from LINEUP chunk between START and STOP.
 If no elasticity is available, the line will remain at its normal width.
 If some elasticity is available, get as close as possible to WIDTH within the
 limits of the available elasticity.
 If OVERSTRETCH, disregard the limit and stretch as much needed.
 If OVERSHRINK, disregard the limit and shrink as much needed."
-  (if scale
-    (make-line lineup start stop
-	       (cond ((< scale 0) (if overshrink scale (max scale -1)))
-		     ((zerop scale) 0)
-		     ((> scale 0) (if overstretch scale (min scale 1)))))
-    (make-line lineup start stop)))
+  (make-line lineup start stop
+	     (or (effective-scale (lineup-scale lineup start stop width)
+				  overshrink overstretch)
+		 0)))
