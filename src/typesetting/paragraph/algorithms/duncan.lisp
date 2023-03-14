@@ -93,6 +93,7 @@ The weight is computed according to the discriminating function."
 	(weight layout) (weight edge)))
 
 (defmethod push-edge :after (edge (layout duncan-layout))
+  "Update Duncan LAYOUT's properties after pushing EDGE to it."
   (when (hyphenp edge) (incf (hyphens layout)))
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
@@ -114,6 +115,7 @@ The weight is computed according to the discriminating function."
 	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
+  "Typeset LINEUP as a DISPOSITION paragraph with Duncan LAYOUT."
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
@@ -143,6 +145,7 @@ The weight is computed according to the discriminating function."
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
+  "Typeset LINEUP with the Duncan algorithm."
   (declare (ignore discriminating-function))
   (let* ((graph (funcall #'make-graph lineup width
 			 :edge-type `(duncan-edge ,@options) :fulls t))
