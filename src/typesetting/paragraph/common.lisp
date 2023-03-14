@@ -159,6 +159,11 @@ Those limitations may be ignored if OVERSHRINK or OVERSTRETCH."
 	  ((zerop scale) 0)
 	  ((> scale 0) (if overstretch scale (min scale 1))))))
 
+(defun make-scaled-line (lineup start stop scale overshrink overstretch)
+  "Make a SCALEd line from LINEUP chunk between START and STOP.
+See `effective-scale' for more information on how SCALE is handled."
+  (make-line lineup start stop (effective-scale scale overshrink overstretch)))
+
 (defun make-wide-line
     (lineup start stop width &optional overstretch overshrink)
   "Make a line of WIDTH from LINEUP chunk between START and STOP.
@@ -167,6 +172,5 @@ If some elasticity is available, get as close as possible to WIDTH within the
 limits of the available elasticity.
 If OVERSTRETCH, disregard the limit and stretch as much needed.
 If OVERSHRINK, disregard the limit and shrink as much needed."
-  (make-line lineup start stop
-	     (effective-scale (lineup-scale lineup start stop width)
-			      overshrink overstretch)))
+  (make-scaled-line lineup start stop (lineup-scale lineup start stop width)
+		    overshrink overstretch))
