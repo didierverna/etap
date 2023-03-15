@@ -76,24 +76,18 @@
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
-	       ((and overword (scale overword) (>= (scale overword) -1))
-		overword)
+	       ((and overword (>== (scale overword) -1)) overword)
 	       ;; A word underfull that fits.
-	       ((and underword (scale underword) (<= (scale underword) 1))
-		underword)
+	       ((and underword (<== (scale underword) 1)) underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
 	       ;; for the word underfull, and this algorithm overstretches by
-	       ;; definition. Also, when we don't have any elasticity, we stop
-	       ;; as soon as we have an underfull line.
+	       ;; definition.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :when (if (scale hyphen)
-			      (>= (scale hyphen) -1)
-			      (<= (width hyphen) width))
-			:do (return hyphen)
-		      :finally (return (or underword overword))))
+		      :when (>== (scale hyphen) -1) :do (return hyphen)
+			:finally (return (or underword overword))))
 	       (t
 		(or underword overword))))))
 
@@ -121,7 +115,7 @@
 	:for scale := (scale boundary)
 	:if (and justified (last-boundary-p boundary))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (and scale (< scale 0))
+	  :collect (if (<< scale 0)
 		     (make-scaled-line lineup start stop scale overshrink nil)
 		     (make-line lineup start stop))
 	:else :if justified
