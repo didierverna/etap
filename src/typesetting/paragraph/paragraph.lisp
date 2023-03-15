@@ -41,14 +41,15 @@ The line's 2D position is relative to the paragraph it belongs to."))
   (declare (ignore x y))
   (apply #'make-instance 'pinned-line :line line initargs))
 
-(defun pin-lines (lines disposition width)
+(defun pin-lines (lines disposition width baselineskip)
   "Pin LINES in DISPOSITION for paragraph WIDTH."
   (loop :for line :in lines
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
-	:for y := 0 :then (+ y 12) ;; #### FIXME: previous line's height!
+	;; #### TODO: nothing fancy about interline spacing yet.
+	:for y := 0 :then (+ y baselineskip)
 	:collect (pin-line line :x x :y y)))
 
 
@@ -71,13 +72,11 @@ paragraph's baseline is the first line's baseline. Not to be confused with the
 height of the whole paragraph."
   (height (first (pinned-lines paragraph))))
 
-(defmethod depth ((paragraph paragraph))
+(defmethod depth
+    ((paragraph paragraph) &aux (last (car (last (pinned-lines paragraph)))))
   "Return paragraph's depth.
 We consider that the paragraph's baseline is the first line's baseline."
-  ;; #### FIXME: this is absolute bullshit. The font size is hard wired and
-  ;; this will break with variable height lines. We need to sum properly.
-  (with-accessors ((pinned-lines pinned-lines)) paragraph
-    (+ (* (1- (length pinned-lines)) 12) (depth (car (last pinned-lines))))))
+  (+ (y last) (depth last)))
 
 (defun make-paragraph
     (&rest keys
@@ -113,4 +112,10 @@ defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
 		     lineup disposition width (algorithm-type algorithm)
 		     (algorithm-options algorithm))
 		   (disposition-type disposition)
-		   width)))
+		   width
+		   ;; #### TODO: 1.2 (expressed in ratio to avoid going all
+		   ;; floats) is what TeX uses with the Computer Modern fonts.
+		   ;; But we should get the appropriate value somewhere (it's
+		   ;; up to the font designers, but it's not in the TFM format
+		   ;; for example).
+		   (* 12/10 (tfm:design-size font)))))
