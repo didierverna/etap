@@ -163,7 +163,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   kp-looseness)
 
 
-;; #### FIXME: compute the function name !
 (defun set-algorithm (value interface)
   "Select algorithm specified by VALUE in INTERFACE."
   (case (car value)
