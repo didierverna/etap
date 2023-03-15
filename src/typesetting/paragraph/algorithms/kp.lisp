@@ -146,7 +146,7 @@
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
 	  :collect (make-scaled-line lineup start stop (scale edge)
-				     overstretch overshrink)
+				     overshrink overstretch)
 	:else
 	  :collect (make-line lineup start stop)))
 
