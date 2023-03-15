@@ -384,7 +384,7 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
-  (endpush (make-glue :stretch 100000 :penalty +∞) lineup)
+  (endpush (make-glue :stretch +∞ :penalty +∞) lineup)
   (call-next-method))
 
 (defmethod make-lines
