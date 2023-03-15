@@ -290,7 +290,7 @@
 
 ;; #### FIXME: this function probably needs to go away.
 (defun make-wide-line
-    (lineup start stop width &optional overstretch overshrink)
+    (lineup start stop width &optional overshrink overstretch)
   "Make a line of WIDTH from LINEUP chunk between START and STOP.
 If no elasticity is available, the line will remain at its normal width.
 If some elasticity is available, get as close as possible to WIDTH within the
@@ -357,7 +357,7 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 	    :do (push
 		 (if justified
 		   (make-wide-line lineup start stop width
-				   overstretch overshrink)
+				   overshrink overstretch)
 		   (make-line lineup start stop))
 		 lines)
 	    :finally (return lines)))))
