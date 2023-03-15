@@ -143,6 +143,10 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; =========
 
 ;; #### NOTE: the WIDTH below already takes the width offset into account.
+;; Also, it is safe to use regular (numerical) arithmetic here because we only
+;; access the max width of underfulls (so necessarily a number; otherwise it
+;; wouldn't be an underfull), and the min width of overfulls (also necessarily
+;; a number).
 (defun fixed-fallback-boundary (underfull overfull width prefer-overfulls
 				&optional (policy :anyfull) avoid-hyphens)
   "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary."
@@ -203,7 +207,8 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 ;; #### NOTE: the function below handles infinite penalties and understands a
 ;; WIDTH-KIND argument because the first- and last-fit algorithms in ragged
-;; dispositions use it.
+;; dispositions use it. Also, because WIDTH-KIND can be set to :max-width, we
+;; need to be prepared to handle a width of +∞.
 
 ;; In this function, we stop at the first word overfull even if we don't have
 ;; an hyphen overfull yet, because the Avoid Hyphens options would have no
@@ -216,21 +221,20 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
-	:for boundary
-	  := (next-boundary lineup start 'fixed-boundary
-			    :start start :width-kind width-kind)
-	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
-				 :start start :width-kind width-kind)
+	:for boundary := (next-boundary lineup start 'fixed-boundary
+					:start start :width-kind width-kind)
+	  :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
+			       :start start :width-kind width-kind)
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
 	      (let ((hyphenp (hyphenation-point-p (item boundary))))
-		(cond ((< (width boundary) width)
+		(cond ((<< (width boundary) width)
 		       ;; Track the last underfulls because they're the
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
 		       (unless hyphenp (setq underword boundary)))
-		      ((= (width boundary) width) (setq fit boundary))
+		      ((== (width boundary) width) (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
 		       ;; closest to WIDTH.

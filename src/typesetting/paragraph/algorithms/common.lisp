@@ -58,13 +58,17 @@ Note the S appended to NAME in the choices variable name."
 ;; Quality measurements
 ;; ====================
 
+
+;; #### FIXME: this is TeX specific, and we should handle infinity properly.
 (defparameter *maximum-badness* 10000)
 
 (defun scale-badness (scale)
-  (if (or (null scale) (< scale -1))
+  (if (or (<< scale -1) (== scale +∞))
     +∞
     (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
 
+;; #### FIXME: this should be called LINEUP-BADNESS, and maybe this should
+;; even be obsolescent, like most lineup- functions.
 (defun badness (lineup start stop width &optional emergency-stretch)
   (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
 

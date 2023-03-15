@@ -33,18 +33,18 @@
 
 
 (defun scale-fitness-class (scale)
-  (cond ((or (null scale) (< scale -1/2)) 3)
+  (cond ((or (<< scale -1/2) (== scale +∞)) 3)
 	((<= -1/2 scale 1/2) 2)
 	((<= 1/2 scale 1) 1)
 	((< 1 scale) 0)))
 
 (defun local-demerits (badness penalty line-penalty)
   (cond ((and (numberp penalty) (<= 0 penalty))
-	 (++ (^ (++ line-penalty badness) 2) (expt penalty 2)))
+	 (++ (^^ (++ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
-	 (++ (^ (++ line-penalty badness) 2) (- (expt penalty 2))))
+	 (++ (^^ (++ line-penalty badness) 2) (- (expt penalty 2))))
 	(t ;; -∞
-	 (^ (++ line-penalty badness) 2))))
+	 (^^ (++ line-penalty badness) 2))))
 
 (defclass kp-edge (edge)
   ((hyphenp :accessor hyphenp)
@@ -91,7 +91,7 @@
 	    ;; #### FIXME: in fact, this is wrong. See the updated logic in
 	    ;; the Fit algorithm.
 	    :do (return (list boundary))
-	  :else :if (<<= (badness lineup start (stop-idx boundary) width
+	  :else :if (<== (badness lineup start (stop-idx boundary) width
 				  emergency-stretch)
 			 threshold)
 	    :do (push boundary boundaries)
@@ -154,7 +154,7 @@
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
-  (let* ((graph (or (when (<<= 0 pre-tolerance)
+  (let* ((graph (or (when (<== 0 pre-tolerance)
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
@@ -216,9 +216,9 @@
 		   (last-boundary-p boundary))
 	   (setq last-deactivated-node (cons key node))
 	   (remhash key nodes))
-	 (when (<<= -1 scale)
+	 (when (<== -1 scale)
 	   (let ((badness (scale-badness scale)))
-	     (when (<<= badness threshold)
+	     (when (<== badness threshold)
 	       (let ((fitness-class (scale-fitness-class scale))
 		     (demerits
 		       (local-demerits badness (penalty (item boundary))
@@ -245,7 +245,7 @@
 				  new-nodes
 				  :key #'car)))
 		   (if previous
-		     (when (<<= demerits (kp-node-demerits (cdr previous)))
+		     (when (<== demerits (kp-node-demerits (cdr previous)))
 		       (setf (kp-node-demerits (cdr previous)) demerits
 			     (kp-node-previous (cdr previous)) node))
 		     (push (cons (cons (1+ previous-line) fitness-class)
@@ -309,7 +309,7 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
-  (let ((nodes (or (when (<<= 0 pre-tolerance)
+  (let ((nodes (or (when (<== 0 pre-tolerance)
 		     (kp-create-nodes lineup width 1 pre-tolerance
 		       line-penalty adjacent-demerits double-hyphen-demerits
 		       final-hyphen-demerits))
@@ -384,7 +384,7 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
-  (endpush (make-glue :stretch 100000 :penalty +∞) lineup)
+  (endpush (make-glue :stretch +∞ :penalty +∞) lineup)
   (call-next-method))
 
 (defmethod make-lines

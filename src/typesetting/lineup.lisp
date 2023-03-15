@@ -4,9 +4,7 @@
 ;; In particular:
 ;; - the paragraph string is trimmed for spaces. There is a single glue
 ;;   between each words, and the KP algorithm adds an infinitely stretchable
-;;   glue at the end of the paragraph (it's actually very large, not infinite)
-;; - this last glue is treated in a special way because by the SCALING
-;;   function, because we don't have fill units.
+;;   glue at the end of the paragraph.
 ;; - the only discretionaries that we have come from the hyphenation step, so
 ;;   they originally appear only in the middle of words. However, they may
 ;;   turn out to be anywhere after processing ligatures and kerning.
@@ -183,6 +181,15 @@ This class represents hyphenation point discretionaries."))
 	    :documentation "The glue's stretchability."))
   (:documentation "The GLUE class.
 Glues represent breakable, elastic space."))
+
+(defmethod initialize-instance :after ((glue glue) &key)
+  "Validate GLUE's dimensions.
+- WIDTH and SHRINK must be non-negative integers,
+- STRETCH must be a non-negative integer, or +∞."
+  (assert (and (rationalp (width glue)) (>= (width glue) 0)))
+  (assert (and (rationalp (shrink glue)) (>= (shrink glue) 0)))
+  (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
+	      (== (stretch glue) +∞))))
 
 (defun gluep (object)
   "Return T if OBJECT is a glue."
@@ -566,9 +573,9 @@ stretch and shrink amounts."
 	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
-	  :do (incf stretch (stretch element))
-	  :and :do (incf shrink (shrink element))
-	:finally (return (values width (+ width stretch) (- width shrink)
+	  :do (setq stretch (++ stretch (stretch element))
+		    shrink (+ shrink (shrink element)))
+	:finally (return (values width (++ width stretch) (- width shrink)
 				 stretch shrink))))
 
 (defun lineup-max-width (lineup start stop)
@@ -591,24 +598,11 @@ stretch and shrink amounts."
 (defun scaling (width target stretch shrink)
   "Return the amount of scaling required to reach TARGET from WIDTH.
 The amount in question is 0 if WIDTH is equal to TARGET.
-Otherwise, it's a stretching (positive) or shrinking (negative) ratio relative
-to the elasticity provided by STRETCH and SHRINK. In other words, the absolute
-ratio would be one if all elasticity is used, greater than one if more
-elasticity than available is needed, and lesser than one if more elasticity
-than needed is available.
-Return NIL if no elasticity is available and WIDTH is different from TARGET."
-  (cond ((= width target)
-	 0)
-	((< width target)
-	 ;; #### FIXME: this is a kludge for the last glue in the paragraph
-	 ;; added by the KP algorithm. We consider that a total stretch of
-	 ;; more than 100000 is infinite. We need to understand computation
-	 ;; with infinity.
-	 (if (>= stretch 100000)
-	   0
-	   (unless (zerop stretch) (/ (- target width) stretch))))
-	((> width target)
-	 (unless (zerop shrink) (/ (- target width) shrink)))))
+Otherwise, it's a possibly infinite stretching (positive) or shrinking
+(negative) ratio relative to the elasticity provided by STRETCH and SHRINK."
+  (cond ((= width target) 0)
+	((< width target) (// (- target width) stretch))
+	((< target width) (// (- target width) shrink))))
 
 (defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
@@ -617,7 +611,7 @@ See `scaling' for more information."
   (multiple-value-bind (width max min stretch shrink)
       (lineup-width lineup start stop)
     (declare (ignore max min))
-    (when extra (incf stretch extra))
+    (when extra (setq stretch (++ stretch extra)))
     (scaling width target stretch shrink)))
 
 

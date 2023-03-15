@@ -125,11 +125,25 @@ origin. A line also remembers its scale factor."))
 	:for elt := (lineup-aref lineup i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
-(defun make-line (lineup start stop &optional scale)
+;; #### FIXME: we normally support infinite elasticity throughout the code
+;; (leading to scalings of 0). However, there's currently only one situation
+;; in which this occurs: the infinitely stretchable glue that the KP algorithm
+;; appends at the end of the lineup. The function below works correctly in
+;; that case because indeed, a final line would return to its normal spacing
+;; (scaling = 0). On the other hand, if / when we start to support multiple
+;; occurrences of infinite elasticity within the same line, we will need to
+;; write things differently, because the actual shrinking / stretching needs
+;; to be spread equally over all infinitely elastic glues (hence, we still
+;; need to keep the target width around).
+(defun make-line (lineup start stop &optional (scale 0))
   "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
   ;; #### FIXME: do we still need this?
   (unless stop (setq stop (length lineup)))
-  (unless scale (setq scale 0))
+  ;; #### NOTE: infinite scaling means that we do not have any elasticity.
+  ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
+  ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
+  ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
+  (unless (numberp scale) (setq scale 0))
   (make-instance 'line
     :pinned-objects
     (loop :with x := 0
@@ -154,10 +168,9 @@ origin. A line also remembers its scale factor."))
 (defun effective-scale (scale overshrink overstretch)
   "Return effective SCALE, normally limited to [-1,+1].
 Those limitations may be ignored if OVERSHRINK or OVERSTRETCH."
-  (when scale
-    (cond ((< scale 0) (if overshrink scale (max scale -1)))
-	  ((zerop scale) 0)
-	  ((> scale 0) (if overstretch scale (min scale 1))))))
+  (cond ((<< scale 0) (if overshrink scale (mmaaxx scale -1)))
+	((== scale 0) 0)
+	((>> scale 0) (if overstretch scale (mmiinn scale 1)))))
 
 (defun make-scaled-line (lineup start stop scale overshrink overstretch)
   "Make a SCALEd line from LINEUP chunk between START and STOP.
