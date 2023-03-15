@@ -33,7 +33,7 @@
 
 
 (defun scale-fitness-class (scale)
-  (cond ((or (null scale) (< scale -1/2)) 3)
+  (cond ((or (<< scale -1/2) (== scale +∞)) 3)
 	((<= -1/2 scale 1/2) 2)
 	((<= 1/2 scale 1) 1)
 	((< 1 scale) 0)))
