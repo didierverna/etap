@@ -62,14 +62,13 @@ If FULLS is :PREVENTIVE, also return these fulls even if possible endings were
 found.
 The possible endings are listed in reverse order (from last to first)."
   (loop :with underfull :with fits := (list) :with overfull
-	:for boundary
-	  := (next-boundary lineup start)
-	    :then (next-boundary lineup (stop-idx boundary))
+	:for boundary := (next-boundary lineup start)
+	  :then (next-boundary lineup (stop-idx boundary))
 	:while (and boundary (not overfull))
 	:for (nil max min)
 	  := (multiple-value-list
 	      (lineup-width lineup start (stop-idx boundary)))
-	:do (cond ((< max width) (setq underfull boundary))
+	:do (cond ((<< max width) (setq underfull boundary))
 		  ((> min width) (setq overfull boundary))
 		  (t (push boundary fits))) ;; note the reverse order
 	:finally
