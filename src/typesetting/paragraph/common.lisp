@@ -137,8 +137,6 @@ origin. A line also remembers its scale factor."))
 ;; need to keep the target width around).
 (defun make-line (lineup start stop &optional (scale 0))
   "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
-  ;; #### FIXME: do we still need this?
-  (unless stop (setq stop (length lineup)))
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
