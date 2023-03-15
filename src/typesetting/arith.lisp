@@ -96,3 +96,7 @@
 (defun mmiinn (x y)
   "Infinity handling MIN."
   (if (<== x y) x y))
+
+(defun aabbss (x)
+  "Infinity handling ABS."
+  (if (numberp x) (abs x) +∞))

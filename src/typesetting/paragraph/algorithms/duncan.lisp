@@ -35,6 +35,10 @@
 ;; Edges
 ;; -----
 
+;; #### NOTE: we handle the weights below with extended arithmetic, but this
+;; is in fact not necessary because they're only used with actual solutions
+;; (hence, for which the scaling would be numerical).
+
 (defclass duncan-edge (edge)
   ((hyphenp :documentation "Whether this edge is hyphenated."
 	    :reader hyphenp)
@@ -58,16 +62,14 @@ The weight is computed according to the discriminating function."
   (multiple-value-bind (natural max min stretch shrink)
       (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
-	  (cond ((< max width) :underfull)
+	  (cond ((<< max width) :underfull)
 		((> min width) :overfull)
 		(t :fit)))
     (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
     (setf (slot-value edge 'weight)
 	  (ecase discriminating-function
-	    (:minimize-distance
-	     (abs (- width natural)))
-	    (:minimize-scaling
-	     (when (eq (fitness edge) :fit) (abs (scale edge))))))))
+	    (:minimize-distance (abs (- width natural)))
+	    (:minimize-scaling (aabbss (scale edge)))))))
 
 
 ;; -------
@@ -98,9 +100,7 @@ The weight is computed according to the discriminating function."
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
     (:overfull (incf (overfulls layout))))
-  (setf (weight layout)
-	(when (and (weight layout) (weight edge))
-	  (+ (weight layout) (weight edge)))))
+  (setf (weight layout) (++ (weight layout) (weight edge))))
 
 
 
@@ -122,7 +122,7 @@ The weight is computed according to the discriminating function."
 	:for scale = (scale edge)
 	:if (and justified (last-boundary-p (boundary (destination edge))))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (and scale (< scale 0))
+	  :collect (if (<< scale 0)
 		     (make-scaled-line lineup start stop scale overshrink nil)
 		     (make-line lineup start stop))
 	:else :if justified
@@ -162,6 +162,8 @@ The weight is computed according to the discriminating function."
 	       (or (not (zerop (underfulls layout)))
 		   (not (zerop (overfulls layout)))))
 	     (better (l1 l2) ;; The Almighty Duncan Sorting Function!
+	       ;; #### NOTE: no need for extended arithmetic when comparing
+	       ;; weights below.
 	       (or (and (perfect l1) (perfect l2) (< (weight l1) (weight l2)))
 		   (and (perfect l1) (not (perfect l2)))
 		   (and (hyphened l1) (hyphened l2)
