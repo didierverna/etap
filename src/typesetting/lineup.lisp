@@ -387,9 +387,9 @@ to the new lineup, and the unprocessed new remainder."
 
 (defun get-character (char font)
   "Get CHAR in FONT. Replace CHAR by a question mark if not found."
-  ;; #### FIXME: no input encoding support yet.
+  ;; #### TODO: no input encoding support yet.
   (or (tfm:get-character (char-code char) font)
-      ;; #### WARNING: this one had better be available! Fall back to a null
+      ;; #### FIXME: this one had better be available! Fall back to a null
       ;; character?
       (tfm:get-character (char-code #\?) font)))
 
