@@ -182,7 +182,7 @@ This function returns three values:
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((< (max-width boundary) width)
+	      (cond ((<< (max-width boundary) width)
 		     (setq underfull boundary))
 		    ((> (min-width boundary) width)
 		     (setq overfull boundary continue nil))
@@ -287,9 +287,10 @@ This function returns three values:
 	      (let ((scale (scale (next-boundary lineup stop 'fit-boundary
 						 :start start :width width))))
 		;; A positive scale means that another chunk would fit in, and
-		;; still be underfull, so we can destretch only up to that.
+		;; still be underfull (possibly not even elastic), so we can
+		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
-		(if (and scale (> scale 0)) scale 0)))))
+		(if (>> scale 0) scale 0)))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary disposition (variant (eql :best)) &key)
     "Make a best-fit ragged line from LINEUP chunk between START and BOUNDARY."
@@ -306,13 +307,14 @@ This function returns three values:
       ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
       ;; calling BOUNDARY-SCALE.
       (setq scale (let ((scale (lineup-scale lineup start stop width)))
-		    ;; A positive scale means that the line is naturally
-		    ;; underfull, so we can deshrink completely.
-		    ;; A scale between -1 and 0 means that the line can fit,
-		    ;; so we can deshrink up to that.
-		    ;; Finally, a scale < -1 means that the line is cannot fit
-		    ;; at all, so we must stay at our original -1.
-		    (when scale (if (>= scale 0) 0 (max scale -1))))))
+		    ;; - A positive scale means that the line is naturally
+		    ;;   underfull (maybe not even elastic), so we can
+		    ;;   deshrink  completely.
+		    ;; - A scale between -1 and 0 means that the line can fit,
+		    ;;   so we can deshrink up to that.
+		    ;; - Finally, a scale < -1 means that the line cannot fit
+		    ;;   at all, so we must stay at our original -1.
+		    (if (>== scale 0) 0 (mmaaxx scale -1)))))
     (make-line lineup start stop scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
 	    &key overstretch overshrink
@@ -326,20 +328,19 @@ This function returns three values:
 	(:first
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	 ;; much as possible, without overstretching.
-	 (when scale
-	   (cond ((< scale 0) (unless overshrink (setq scale (max scale -1))))
-		 ((> scale 0) (setq scale (min scale 1)))))
+	 (cond ((<< scale 0) (unless overshrink (setq scale (mmaaxx scale -1))))
+	       ((>> scale 0) (setq scale (mmiinn scale 1))))
 	 (make-line lineup start stop scale))
 	(:best
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	 ;; normal spacing.
-	 (if (and scale (< scale 0))
-	   (make-line lineup start stop (if overshrink scale (max scale -1)))
+	 (if (<< scale 0)
+	   (make-line lineup start stop (if overshrink scale (mmaaxx scale -1)))
 	   (make-line lineup start stop)))
 	(:last
 	 ;; Shrink as much as possible.
 	 (make-line lineup start stop
-		    (if (and scale (< scale 0) overshrink) scale -1))))
+		    (if (and (<< scale 0) overshrink) scale -1))))
       (make-scaled-line lineup start stop scale overshrink overstretch))))
 
 
