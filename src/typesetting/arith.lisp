@@ -28,12 +28,22 @@
   "Infinity handling <=."
   (or (== x y) (<< x y)))
 
+(defun >> (x y)
+  "Infinity handling >."
+  (cond ((eql x y) nil)
+	((or (eq x +∞) (eq y -∞)) t)
+	((and (numberp x) (numberp y)) (> x y))
+	(t nil)))
+
+(defun >== (x y)
+  "Infinity handling >=."
+  (or (== x y) (>> x y)))
+
 (defun /== (x y)
   "Infinity handling /=."
   (not (== x y)))
 
-;; I know what you're gonna say...
-(defun ++ (x y)
+(defun ++ (x y) ;; I know what you're gonna say...
   "Infinity handling +."
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)
@@ -50,7 +60,17 @@
 	;; handled first.
 	(t +∞)))
 
-(defun // (x y)
+(defun -- (x y)
+  "Infinity handling -."
+  (cond ((and (numberp x) (numberp y)) (- x y))
+	((numberp x) (if (eq y +∞) -∞ +∞))
+	((numberp y) x)
+	((and (eq x +∞) (eq y -∞)) +∞)
+	((and (eq x -∞) (eq y +∞)) -∞)
+	;; #### FIXME: same design decision as above, but bad.
+	(t +∞)))
+
+(defun // (x y) ;; I still know what you're gonna say...
   "Infinity handling /."
   (cond ((and (not (numberp x)) (not (numberp y)))
 	 (error "Don't know how to divide ∞ by ∞."))
@@ -68,3 +88,11 @@
 	 (cond ((zerop power) 1)
 	       ((evenp power) +∞)
 	       (t -∞)))))
+
+(defun mmaaxx (x y)
+  "Infinity handling MAX."
+  (if (>== x y) x y))
+
+(defun mmiinn (x y)
+  "Infinity handling MIN."
+  (if (<== x y) x y))
