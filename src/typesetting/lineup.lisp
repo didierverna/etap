@@ -560,8 +560,6 @@ If element is a discretionary, return the appropriate pre/no/post break part."
   "Compute LINEUP's width between START and STOP.
 Return five values: the natural, maximum, and minimum width, followed by the
 stretch and shrink amounts."
-  ;; #### FIXME: this is ugly. Do we still need this hack ?
-  (unless stop (setq stop (length lineup)))
   (loop :with width := 0
 	:with stretch := 0
 	:with shrink := 0
