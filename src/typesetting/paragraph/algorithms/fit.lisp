@@ -174,11 +174,10 @@ This function returns three values:
 - the first overfull boundary or NIL."
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
-	:for boundary
-	  := (next-boundary lineup start 'fit-boundary
-			    :start start :width width)
-	    :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
-				 :start start :width width)
+	:for boundary := (next-boundary lineup start 'fit-boundary
+					:start start :width width)
+	  :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+			       :start start :width width)
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))

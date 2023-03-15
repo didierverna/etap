@@ -221,11 +221,10 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
-	:for boundary
-	  := (next-boundary lineup start 'fixed-boundary
-			    :start start :width-kind width-kind)
-	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
-				 :start start :width-kind width-kind)
+	:for boundary := (next-boundary lineup start 'fixed-boundary
+					:start start :width-kind width-kind)
+	  :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
+			       :start start :width-kind width-kind)
 	:while continue
 	:do (when (<< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
