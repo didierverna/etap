@@ -129,10 +129,9 @@
 		      (++ (demerits layout) double-hyphen-demerits))
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
-		      (++ (demerits layout) adjacent-demerits))))
-  ;; #### FIXME: corner case bug if (size layout) < 2.
-  (when (hyphenp (nth (- (size layout) 2) (edges layout)))
-    (setf (demerits layout) (++ final-hyphen-demerits (demerits layout)))))
+		      (++ (demerits layout) adjacent-demerits)))
+    (when (hyphenp (nth (- (size layout) 2) (edges layout)))
+      (setf (demerits layout) (++ final-hyphen-demerits (demerits layout))))))
 
 (defun kp-make-layout-lines
     (lineup disposition layout
