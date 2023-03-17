@@ -99,7 +99,7 @@ Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
 corresponding global variable, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
 :fixed, and WIDTH to 284pt."
-  (declare (ignore text font hyphenation-rules kerning ligatures hyphenation))
+  (declare (ignore text hyphenation-rules kerning ligatures hyphenation))
   (unless lineupp
     (setq lineup
 	  (apply #'make-lineup
