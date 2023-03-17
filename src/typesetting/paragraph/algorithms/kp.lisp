@@ -78,25 +78,23 @@
     (lineup start width
      &key pass threshold emergency-stretch)
   (loop :with boundaries :with overfull :with emergency-boundary
+	:with continue := t
 	:for boundary := (next-boundary lineup start)
 	  :then (next-boundary lineup (stop-idx boundary))
-	:while (and boundary (not overfull))
+	:while continue
 	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
-	:when (and (<< (penalty (item boundary)) +∞)
-		   (or (not (hyphenation-point-p (item boundary)))
-		       (> pass 1) ))
-	  :if (> min-width width)
-	    :do (setq overfull boundary)
-	  :else :if (eq (penalty (item boundary)) -∞)
-	    ;; #### FIXME: in fact, this is wrong. See the updated logic in
-	    ;; the Fit algorithm.
-	    :do (return (list boundary))
-	  :else :if (<== (badness lineup start (stop-idx boundary) width
-				  emergency-stretch)
-			 threshold)
-	    :do (push boundary boundaries)
-	  :else
-	    :do (setq emergency-boundary boundary)
+	:do (when (and (<< (penalty (item boundary)) +∞)
+		       (or (not (hyphenation-point-p (item boundary)))
+			   (> pass 1) ))
+	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
+	      (cond ((> min-width width)
+		     (setq overfull boundary continue nil))
+		    ((<== (badness lineup start (stop-idx boundary) width
+				   emergency-stretch)
+			  threshold)
+		     (push boundary boundaries))
+		    (t
+		     (setq emergency-boundary boundary))))
 	:finally (return (if boundaries
 			   boundaries
 			   ;; #### NOTE: we absolutely need to return
