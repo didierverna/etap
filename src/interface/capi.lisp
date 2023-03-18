@@ -341,6 +341,26 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
        (symbol (cadr (member key *tooltips*)))))))
 
 
+(defun display-properties
+    (pane x y
+     &aux (interface (top-level-interface pane))
+	  (zoom (/ (range-slug-start (zoom interface)) 100))
+	  (paragraph (paragraph interface))
+	  (pinned-lines (pinned-lines paragraph)))
+  "Display the properties of the paragraph, or the line clicked on."
+  (when pinned-lines
+    (setq x (/ (- x 20) zoom)
+	  y (- (/ (- y 20) zoom) (height (first (pinned-lines paragraph)))))
+    (let ((line (when (and (>= x 0) (<= x (width paragraph)))
+		  (find-if (lambda (line)
+			     (and (>= y (- (y line) (height line)))
+				  (<= y (+ (y line) (depth line)))))
+			   (pinned-lines paragraph)))))
+      (if line
+	(display-tooltip pane
+	  :text (format nil "Line scale: ~F." (coerce (scale line) 'float)))
+	(display-tooltip pane)))))
+
 ;; Interface
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
@@ -655,7 +675,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'render-paragraph
-     :reader view))
+     :reader view
+	 ;;:input-model '(((:button-1 :press) display-properties))))
+     :input-model '((:motion display-properties))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
