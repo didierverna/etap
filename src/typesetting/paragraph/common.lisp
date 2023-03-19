@@ -100,7 +100,10 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
   ((pinned-objects :initarg :pinned-objects :accessor pinned-objects
 		   :documentation "The list of pinned objects.")
    (scale :initarg :scale :reader scale
-	  :documentation "The line's scale factor."))
+	  :documentation "The line's scale factor.")
+   (hyphenated :initarg :hyphenated :reader hyphenated
+	       :documentation "Whether the line is hyphenated.
+Possible values are nil, :explicit, or :implicit."))
   (:documentation "The LINE class.
 A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
@@ -135,7 +138,12 @@ origin. A line also remembers its scale factor."))
 ;; write things differently, because the actual shrinking / stretching needs
 ;; to be spread equally over all infinitely elastic glues (hence, we still
 ;; need to keep the target width around).
-(defun make-line (lineup start stop &optional (scale 0))
+(defun make-line
+    (lineup start stop
+     &optional (scale 0)
+     &aux (hyphenated
+	   (when (hyphenation-point-p (aref lineup (1- stop)))
+	     (if (explicitp (aref lineup (1- stop))) :explicit :implicit))))
   "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
@@ -161,7 +169,8 @@ origin. A line also remembers its scale factor."))
 		   :do (incf x (if (> scale 0)
 				 (* scale (stretch elt))
 				 (* scale (shrink elt)))))
-    :scale scale))
+    :scale scale
+    :hyphenated hyphenated))
 
 (defun effective-scale (scale overshrink overstretch)
   "Return effective SCALE, normally limited to [-1,+1].
