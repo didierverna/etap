@@ -176,7 +176,7 @@ A layout represents one path from the root to the leaf node of a graph."))
     "Perform the pushing."
     (push edge (edges layout))))
 
-(defun layouts (graph layout-type)
+(defun layouts (graph &optional (layout-type 'layout))
   "Return GRAPH's layouts of LAYOUT-TYPE."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
