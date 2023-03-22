@@ -29,6 +29,9 @@
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
 		:initarg :destination :reader destination))
+  ;; This is necessary to allow the code below to pass :lineup, :start, and
+  ;; :width along, even though this base class doesn't actually use them.
+  (:default-initargs :allow-other-keys t)
   (:documentation "The EDGE class.
 Algorithms using a graph to represent paragraph breaking solutions specialize
 this class to add specific properties to their edges."))
