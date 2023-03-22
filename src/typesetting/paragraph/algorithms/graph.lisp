@@ -146,16 +146,16 @@ This function memoizes previously computed sub-graphs into HASH table."
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the graph's root node, and the nodes hash table as a
 second value."
-  (when nodes
-    (values
+  (values
+   (when nodes
      (make-node
       nil
       (mapcar (lambda (node)
 		(apply #'make-instance edge-type
 		       :lineup lineup :start 0 :width width :destination node
 		       edge-options))
-	nodes))
-     hash)))
+	nodes)))
+   hash))
 
 
 
