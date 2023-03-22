@@ -144,15 +144,18 @@ This function memoizes previously computed sub-graphs into HASH table."
 			 :collect :it)))
   "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
-Otherwise, it returns the graph's root node."
+Otherwise, it returns the graph's root node, and the nodes hash table as a
+second value."
   (when nodes
-    (make-node
-     nil
-     (mapcar (lambda (node)
-	       (apply #'make-instance edge-type
-		      :lineup lineup :start 0 :width width :destination node
-		      edge-options))
-       nodes))))
+    (values
+     (make-node
+      nil
+      (mapcar (lambda (node)
+		(apply #'make-instance edge-type
+		       :lineup lineup :start 0 :width width :destination node
+		       edge-options))
+	nodes))
+     hash)))
 
 
 
