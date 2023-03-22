@@ -57,12 +57,13 @@ next possible break positions."))
 
 ;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
 ;; instead of just a Boolean, for keeping more than 1 *full.
-(defun next-boundaries (lineup start width &key fulls)
+(defun next-boundaries (lineup start width &key fulls strict)
   "Find the possible endings for LINEUP line of WIDTH beginning at START.
 If no possible ending is found, return NIL, unless FULLS, in which case return
 the last underfull and the first overfull (if any) as a fallback solution.
 If FULLS is :PREVENTIVE, also return these fulls even if possible endings were
-found.
+found. If STRICT, consider that even the last line must fit exactly. Otherwise
+(the default), consider a final underfull as a fit.
 The possible endings are listed in reverse order (from last to first)."
   (loop :with underfull :with fits := (list) :with overfull
 	:for boundary := (next-boundary lineup start)
@@ -71,7 +72,10 @@ The possible endings are listed in reverse order (from last to first)."
 	:for (nil max min)
 	  := (multiple-value-list
 	      (lineup-width lineup start (stop-idx boundary)))
-	:do (cond ((<< max width) (setq underfull boundary))
+	:do (cond ((<< max width)
+		   (if (and (last-boundary-p boundary) (not strict))
+		     (push boundary fits)
+		     (setq underfull boundary)))
 		  ((> min width) (setq overfull boundary))
 		  (t (push boundary fits))) ;; note the reverse order
 	:finally

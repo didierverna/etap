@@ -52,5 +52,6 @@
      (:module "experiments"
       :serial t
       :components
-      ((:file "scalar")))
+      ((:file "scalar")
+       (:file "graph")))
      (:file "post")))))
