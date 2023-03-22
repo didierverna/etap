@@ -178,9 +178,10 @@ A layout represents one path from the root to the leaf node of a graph."))
 
 (defun layouts (graph &optional (layout-type 'layout))
   "Return GRAPH's layouts of LAYOUT-TYPE."
-  (mapcan (lambda (edge)
-	    (if (edges (destination edge))
-	      (mapc (lambda (layout) (push-edge edge layout))
-		(layouts (destination edge) layout-type))
-	      (list (make-instance layout-type :edge edge))))
-    (edges graph)))
+  (when graph
+    (mapcan (lambda (edge)
+	      (if (edges (destination edge))
+		(mapc (lambda (layout) (push-edge edge layout))
+		  (layouts (destination edge) layout-type))
+		(list (make-instance layout-type :edge edge))))
+      (edges graph))))
