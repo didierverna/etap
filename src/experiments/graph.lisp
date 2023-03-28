@@ -1,4 +1,36 @@
+;; With the default text, there is 130 possible break points with hyphenation,
+;; and 111 without. The total number of break possibilities is 2^n which is
+;; huge, but most of those are silly when you try to justify to a certain
+;; width.
+
 (in-package :etap)
+
+(defun hash-table-count-non-null (hashtable)
+  "Count non null entries in HASHTABLE."
+  (loop :with count := 0
+	:for value :being :the :hash-values :of hashtable
+	:unless (null value)
+	  :do (incf count)
+	:finally (return count)))
+
+(defun graph-sizes ()
+  (let* ((*context* *experiments-context*)
+	 (lineup (make-lineup)))
+    (setq lineup (make-array (length lineup) :initial-contents lineup))
+    (loop :initially
+      (format t "~&Width Fulls/None Fulls/Fallback Fulls/Preventive~%")
+	  :for width :from *paragraph-min-width* :to *paragraph-max-width*
+	  :for (nil hash1) := (multiple-value-list
+			       (make-graph lineup width))
+	  :for (nil hash2) := (multiple-value-list
+			       (make-graph lineup width :fulls t))
+	  :for (nil hash3) := (multiple-value-list
+			       (make-graph lineup width :fulls :preventive))
+	  :do (format t "~&~S ~S ~S ~S~%"
+		width
+		(hash-table-count-non-null hash1)
+		(hash-table-count-non-null hash2)
+		(hash-table-count-non-null hash3)))))
 
 (defun graph-solutions ()
   "Collect and print the number of solutions per paragraph width.
