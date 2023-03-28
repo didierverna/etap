@@ -104,7 +104,9 @@ BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the sub-graph's root node.
 This function memoizes previously computed sub-graphs into HASH table."
-  (or (gethash (stop-idx boundary) hash)
+  (multiple-value-bind (value found) (gethash (stop-idx boundary) hash)
+    (if found
+      value
       (setf (gethash (stop-idx boundary) hash)
 	    (if (last-boundary-p boundary)
 	      (make-node boundary)
@@ -125,7 +127,7 @@ This function memoizes previously computed sub-graphs into HASH table."
 				    :lineup lineup :start (start-idx boundary)
 				    :width width :destination node
 				    edge-options))
-		     nodes))))))))
+		     nodes)))))))))
 
 (defun make-graph
     (lineup width
