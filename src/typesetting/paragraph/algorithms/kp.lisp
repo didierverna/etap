@@ -4,6 +4,10 @@
 
 (in-package :etap)
 
+;; =============
+;; Specification
+;; =============
+
 (defparameter *kp-variants*
   '(:graph :dynamic))
 
@@ -32,6 +36,11 @@
     :kp-variant-dynamic "Dynamic programming implementation."))
 
 
+
+;; =========
+;; Utilities
+;; =========
+
 (defun scale-fitness-class (scale)
   (cond ((or (<< scale -1/2) (== scale +∞)) 3)
 	((<= -1/2 scale 1/2) 2)
@@ -45,6 +54,16 @@
 	 (++ (^^ (++ line-penalty badness) 2) (- (expt penalty 2))))
 	(t ;; -∞
 	 (^^ (++ line-penalty badness) 2))))
+
+
+
+;; ====================
+;; Graph Implementation
+;; ====================
+
+;; -----
+;; Edges
+;; -----
 
 (defclass kp-edge (edge)
   ((hyphenp :accessor hyphenp)
@@ -73,6 +92,58 @@
 	(local-demerits (scale-badness (scale edge))
 			(penalty (item (boundary (destination edge))))
 			line-penalty)))
+
+
+;; -------
+;; Layouts
+;; -------
+
+(defclass kp-layout (layout)
+  ((size :accessor size)
+   (demerits :accessor demerits)))
+
+(defmethod initialize-instance :after ((layout kp-layout)  &key edge)
+  (setf (size layout) 1
+	(demerits layout) (demerits edge)))
+
+(defmethod push-edge :after (edge (layout kp-layout))
+  (incf (size layout))
+  (setf (demerits layout) (++ (demerits layout) (demerits edge))))
+
+(defun kp-postprocess-layout
+    (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+  (when (> (length (edges layout)) 1)
+    (loop :for edge1 :in (edges layout)
+	  :for edge2 :in (cdr (edges layout))
+	  :when (and (hyphenp edge1) (hyphenp edge2))
+	    :do (setf (demerits layout)
+		      (++ (demerits layout) double-hyphen-demerits))
+	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
+	    :do (setf (demerits layout)
+		      (++ (demerits layout) adjacent-demerits)))
+    (when (hyphenp (nth (- (size layout) 2) (edges layout)))
+      (setf (demerits layout) (++ final-hyphen-demerits (demerits layout))))))
+
+
+;; ---------
+;; Algorithm
+;; ---------
+
+(defun kp-make-layout-lines
+    (lineup disposition layout
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  (overstretch
+	   (cadr (member :overstretch (disposition-options disposition))))
+	  (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
+  (loop :for edge :in (edges layout)
+	:and start := 0 :then (start-idx (boundary (destination edge)))
+	:for stop := (stop-idx (boundary (destination edge)))
+	:if justified
+	  :collect (make-scaled-line lineup start stop (scale edge)
+				     overshrink overstretch)
+	:else
+	  :collect (make-line lineup start stop)))
 
 (defun kp-next-boundaries
     (lineup start width
@@ -103,49 +174,6 @@
 			   (when (> pass 1)
 			     (if overfull (list overfull)
 				 (list emergency-boundary)))))))
-
-
-(defclass kp-layout (layout)
-  ((size :accessor size)
-   (demerits :accessor demerits)))
-
-(defmethod initialize-instance :after ((layout kp-layout)  &key edge)
-  (setf (size layout) 1
-	(demerits layout) (demerits edge)))
-
-(defmethod push-edge :after (edge (layout kp-layout))
-  (incf (size layout))
-  (setf (demerits layout) (++ (demerits layout) (demerits edge))))
-
-(defun kp-postprocess-layout
-    (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
-  (when (> (length (edges layout)) 1)
-    (loop :for edge1 :in (edges layout)
-	  :for edge2 :in (cdr (edges layout))
-	  :when (and (hyphenp edge1) (hyphenp edge2))
-	    :do (setf (demerits layout)
-		      (++ (demerits layout) double-hyphen-demerits))
-	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
-	    :do (setf (demerits layout)
-		      (++ (demerits layout) adjacent-demerits)))
-    (when (hyphenp (nth (- (size layout) 2) (edges layout)))
-      (setf (demerits layout) (++ final-hyphen-demerits (demerits layout))))))
-
-(defun kp-make-layout-lines
-    (lineup disposition layout
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition))))
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
-  (loop :for edge :in (edges layout)
-	:and start := 0 :then (start-idx (boundary (destination edge)))
-	:for stop := (stop-idx (boundary (destination edge)))
-	:if justified
-	  :collect (make-scaled-line lineup start stop (scale edge)
-				     overshrink overstretch)
-	:else
-	  :collect (make-line lineup start stop)))
 
 (defun kp-graph-make-lines
     (lineup disposition width line-penalty
@@ -189,6 +217,11 @@
 			    :key #'size))))
     (kp-make-layout-lines lineup disposition (car layouts))))
 
+
+
+;; ==================================
+;; Dynamic Programming Implementation
+;; ==================================
 
 (defstruct (kp-node (:constructor kp-make-node))
   boundary demerits previous)
@@ -359,6 +392,11 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 		 lines)
 	    :finally (return lines)))))
 
+
+
+;; ===========
+;; Entry Point
+;; ===========
 
 (defmacro calibrate-kp (name &optional infinity)
   "Calibrate NAMEd Knuth-Plass variable."
