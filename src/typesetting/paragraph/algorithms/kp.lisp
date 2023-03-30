@@ -214,7 +214,7 @@
 	(setq layouts (sort layouts (lambda (size1 size2)
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
-			    :key #'size))))
+			:key #'size))))
     (kp-make-layout-lines lineup disposition (car layouts))))
 
 
