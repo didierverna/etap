@@ -226,6 +226,13 @@
 (defstruct (kp-node (:constructor kp-make-node))
   boundary demerits previous)
 
+;; The active nodes hash table is accessed by
+;; key = (boundary line-number fitness-class)
+(defun make-key (boundary line fitness) (list boundary line fitness))
+(defun key-boundary (key) (first key))
+(defun key-line (key) (second key))
+(defun key-fitness (key) (third key))
+
 (defun kp-try-boundary (boundary nodes
 			lineup width pass threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
@@ -233,9 +240,9 @@
   (let (last-deactivated-node new-nodes)
     (maphash
      (lambda (key node
-	      &aux (previous-boundary (kp-node-boundary node))
-		   (previous-line (car key))
-		   (previous-fitness-class (cdr key)))
+	      &aux (previous-boundary (key-boundary key))
+		   (previous-line (key-line key))
+		   (previous-fitness (key-fitness key)))
        (let ((scale (lineup-scale lineup (start-idx previous-boundary)
 				  (stop-idx boundary) width emergency-stretch)))
 	 (when (or (<< scale -1)
@@ -249,11 +256,11 @@
 	 (when (<== -1 scale)
 	   (let ((badness (scale-badness scale)))
 	     (when (<== badness threshold)
-	       (let ((fitness-class (scale-fitness-class scale))
+	       (let ((fitness (scale-fitness-class scale))
 		     (demerits
 		       (local-demerits badness (penalty (item boundary))
 				       line-penalty)))
-		 (when (> (abs (- fitness-class previous-fitness-class)) 1)
+		 (when (> (abs (- fitness previous-fitness)) 1)
 		   (setq demerits (++ demerits adjacent-demerits)))
 		 (when (discretionaryp (item previous-boundary))
 		   (if (discretionaryp (item boundary))
@@ -268,17 +275,14 @@
 		     (when (last-boundary-p boundary)
 		       (setq demerits (++ demerits final-hyphen-demerits)))))
 		 (setq demerits (++ demerits (kp-node-demerits node)))
-		 (let ((previous
-			 (find-if (lambda (key)
-				    (and (= (car key) (1+ previous-line))
-					 (= (cdr key) fitness-class)))
-				  new-nodes
-				  :key #'car)))
+		 (let* ((new-key (make-key boundary (1+ previous-line) fitness))
+			(previous (find new-key new-nodes
+				    :test #'equal :key #'car)))
 		   (if previous
 		     (when (<== demerits (kp-node-demerits (cdr previous)))
 		       (setf (kp-node-demerits (cdr previous)) demerits
 			     (kp-node-previous (cdr previous)) node))
-		     (push (cons (cons (1+ previous-line) fitness-class)
+		     (push (cons new-key
 				 (kp-make-node :boundary boundary
 					       :demerits demerits
 					       :previous node))
@@ -287,8 +291,9 @@
     (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
-	     (cons (cons (1+ (caar last-deactivated-node))
-			 (cdar last-deactivated-node))
+	     (cons (make-key boundary
+			     (1+ (key-line (car last-deactivated-node)))
+			     (key-fitness (car last-deactivated-node)))
 		   (kp-make-node :boundary boundary
 				 :demerits (kp-node-demerits
 					    (cdr last-deactivated-node))
@@ -300,12 +305,11 @@
 (defun kp-create-nodes (lineup width pass threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits &optional emergency-stretch)
-  (let ((nodes (make-hash-table :test #'equal))) ;; key = (line . fitness)
-    (setf (gethash '(0 . 1) nodes)
-	  ;; #### WARNING: fake boundary!
-	  (kp-make-node :boundary (make-instance 'boundary
-				    :item nil :start-idx 0)
-			:demerits 0))
+  ;; #### WARNING: fake boundary!
+  (let ((root-boundary (make-instance 'boundary :item nil :start-idx 0))
+	(nodes (make-hash-table :test #'equal)))
+    (setf (gethash (make-key root-boundary 0 1) nodes)
+	  (kp-make-node :boundary root-boundary :demerits 0))
     (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
