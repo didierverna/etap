@@ -242,52 +242,55 @@
      (lambda (key node
 	      &aux (previous-boundary (key-boundary key))
 		   (previous-line (key-line key))
-		   (previous-fitness (key-fitness key)))
-       (let ((scale (lineup-scale lineup (start-idx previous-boundary)
-				  (stop-idx boundary) width emergency-stretch)))
-	 (when (or (<< scale -1)
-		   (eq (penalty (item boundary)) -∞)
-		   ;; #### WARNING: we must deactivate all nodes when we reach
-		   ;; the paragraph's end. TeX does this by adding a forced
-		   ;; break at the end.
-		   (last-boundary-p boundary))
-	   (setq last-deactivated-node (cons key node))
-	   (remhash key nodes))
-	 (when (<== -1 scale)
-	   (let ((badness (scale-badness scale)))
-	     (when (<== badness threshold)
-	       (let ((fitness (scale-fitness-class scale))
-		     (demerits
-		       (local-demerits badness (penalty (item boundary))
-				       line-penalty)))
-		 (when (> (abs (- fitness previous-fitness)) 1)
-		   (setq demerits (++ demerits adjacent-demerits)))
-		 (when (discretionaryp (item previous-boundary))
-		   (if (discretionaryp (item boundary))
-		     (setq demerits (++ demerits double-hyphen-demerits))
-		     ;; #### WARNING: final hyphen demerits are added here
-		     ;; although they really concern the previous node. TeX
-		     ;; does it like this but I don't really understand how
-		     ;; that's conformant with the dynamic programming
-		     ;; principle. The code is at #859, but it is confusing
-		     ;; because TeX considers the end of a paragraph as
-		     ;; hyphenated, which is explained at #829 :-/.
-		     (when (last-boundary-p boundary)
-		       (setq demerits (++ demerits final-hyphen-demerits)))))
-		 (setq demerits (++ demerits (kp-node-demerits node)))
-		 (let* ((new-key (make-key boundary (1+ previous-line) fitness))
-			(previous (find new-key new-nodes
-				    :test #'equal :key #'car)))
-		   (if previous
-		     (when (<== demerits (kp-node-demerits (cdr previous)))
-		       (setf (kp-node-demerits (cdr previous)) demerits
-			     (kp-node-previous (cdr previous)) node))
-		     (push (cons new-key
-				 (kp-make-node :boundary boundary
-					       :demerits demerits
-					       :previous node))
-			   new-nodes)))))))))
+		   (previous-fitness (key-fitness key))
+		   (scale (lineup-scale lineup
+					(start-idx previous-boundary)
+					(stop-idx boundary)
+					width emergency-stretch)))
+       (when (or (<< scale -1)
+		 (eq (penalty (item boundary)) -∞)
+		 ;; #### WARNING: we must deactivate all nodes when we reach
+		 ;; the paragraph's end. TeX does this by adding a forced
+		 ;; break at the end.
+		 (last-boundary-p boundary))
+	 (setq last-deactivated-node (cons key node))
+	 (remhash key nodes))
+       (when (<== -1 scale)
+	 (let ((badness (scale-badness scale)))
+	   (when (<== badness threshold)
+	     (let ((fitness (scale-fitness-class scale))
+		   (demerits (local-demerits badness (penalty (item boundary))
+					     line-penalty)))
+	       (when (and (>= previous-fitness 0) ;; not first line
+			  (> (abs (- fitness previous-fitness)) 1))
+		 (setq demerits (++ demerits adjacent-demerits)))
+	       (when (discretionaryp (item previous-boundary))
+		 (if (discretionaryp (item boundary))
+		   (setq demerits (++ demerits double-hyphen-demerits))
+		   ;; #### WARNING: final hyphen demerits are added here
+		   ;; although they really concern the previous node. TeX does
+		   ;; it like this but I don't really understand how that's
+		   ;; conformant with the dynamic programming principle. The
+		   ;; code is at #859, but it is confusing because TeX
+		   ;; considers the end of a paragraph as hyphenated, which is
+		   ;; explained at #829 :-/.
+		   (when (last-boundary-p boundary)
+		     (setq demerits (++ demerits final-hyphen-demerits)))))
+	       (setq demerits (++ demerits (kp-node-demerits node)))
+	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
+		      (previous (find new-key new-nodes
+				  :test #'equal :key #'car)))
+		 (if previous
+		   (when (<== demerits (kp-node-demerits (cdr previous)))
+		     (setf (kp-node-demerits (cdr previous)) demerits
+			   (kp-node-previous (cdr previous)) node))
+		   (push (cons new-key
+			       (kp-make-node :boundary boundary
+					     :demerits demerits
+					     :previous node))
+			 new-nodes))))))))
      nodes)
+    ;; #### FIXME: review this carefully wrt what TeX does.
     (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
@@ -305,10 +308,20 @@
 (defun kp-create-nodes (lineup width pass threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits &optional emergency-stretch)
-  ;; #### WARNING: fake boundary!
+  ;; #### WARNING: the root node / boundary are fake because they don't really
+  ;; represent a line ending, but there are some requirements on them in order
+  ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
+  ;; line.
+  ;; - The fake root boundary has a null ITEM (making DISCRETIONARYP return
+  ;;   NIL, essentially telling that we don't have previous hyphenation; so no
+  ;;   double hyphen demerits), and a START-IDX of 0, which is indeed the
+  ;;   case.
+  ;; - The fake root node has a (previous) line number of 0, which is correct,
+  ;;   and a fitness class of -1, meaning no previous fitness class; so no
+  ;;   adjacent demerits.
   (let ((root-boundary (make-instance 'boundary :item nil :start-idx 0))
 	(nodes (make-hash-table :test #'equal)))
-    (setf (gethash (make-key root-boundary 0 1) nodes)
+    (setf (gethash (make-key root-boundary 0 -1) nodes)
 	  (kp-make-node :boundary root-boundary :demerits 0))
     (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
