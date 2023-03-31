@@ -374,39 +374,39 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
     (let ((best (loop :with demerits := +∞ :with best :with last
 		      :for node :being :the :hash-values :in nodes
 			:using (hash-key key)
-		      :do (setq last (cons node (car key)))
+		      :do (setq last (cons (key-line key) node))
 		      :when (<< (kp-node-demerits node) demerits)
-			:do (setq best (cons node (car key))
+			:do (setq best (cons (key-line key) node)
 				  demerits (kp-node-demerits node))
 		      :finally (return (or best last)))))
       (if (zerop looseness)
-	(setq best (car best))
-	(setq best (loop :with ideal-size := (+ (cdr best) looseness)
-			 :with closer := (car best)
-			 :with delta := (abs (- ideal-size (cdr best)))
-			 :for node :being :the :hash-values :in nodes
-			   :using (hash-key key)
-			 :if (< (abs (- ideal-size (car key))) delta)
-			   :do (setq closer node
-				     delta (abs (- ideal-size (car key))))
-			 :else :if (and (= (abs (- ideal-size (car key)))
-					   delta)
-					(< (kp-node-demerits node)
-					   (kp-node-demerits closer)))
-			   :do (setq closer node)
-			 :finally (return closer))))
+	(setq best (cdr best))
+	(setq best
+	      (loop :with ideal-size := (+ (car best) looseness)
+		    :with closer := (cdr best)
+		    :with delta := (abs looseness)
+		    :for node :being :the :hash-values :in nodes
+		      :using (hash-key key)
+		    :do (cond ((< (abs (- ideal-size (key-line key))) delta)
+			       (setq closer node
+				     delta (abs (- ideal-size (key-line key)))))
+			      ((and (= (abs (- ideal-size (key-line key)))
+				       delta)
+				    (< (kp-node-demerits node)
+				       (kp-node-demerits closer)))
+			       (setq closer node)))
+		    :finally (return closer))))
       (loop :with lines
 	    :for end := best :then (kp-node-previous end)
 	    :for beg := (kp-node-previous end)
 	    :while beg
 	    :for start := (start-idx (kp-node-boundary beg))
 	    :for stop := (stop-idx (kp-node-boundary end))
-	    :do (push
-		 (if justified
-		   (make-wide-line lineup start stop width
-				   overshrink overstretch)
-		   (make-line lineup start stop))
-		 lines)
+	    :do (push (if justified
+			(make-wide-line lineup start stop width
+					overshrink overstretch)
+			(make-line lineup start stop))
+		      lines)
 	    :finally (return lines)))))
 
 
