@@ -112,6 +112,9 @@
 
 (defun kp-postprocess-layout
     (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+  ;; See warning in KP-CREATE-NODES about that.
+  (when (= (fitness-class (first (edges layout))) 0)
+    (setf (demerits layout) (++ (demerits layout) adjacent-demerits)))
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
@@ -261,8 +264,7 @@
 	     (let ((fitness (scale-fitness-class scale))
 		   (demerits (local-demerits badness (penalty (item boundary))
 					     line-penalty)))
-	       (when (and (>= previous-fitness 0) ;; not first line
-			  (> (abs (- fitness previous-fitness)) 1))
+	       (when (> (abs (- fitness previous-fitness)) 1)
 		 (setq demerits (++ demerits adjacent-demerits)))
 	       (when (discretionaryp (item previous-boundary))
 		 (if (discretionaryp (item boundary))
@@ -311,14 +313,15 @@
   ;; #### WARNING: the root node / boundary are fake because they don't really
   ;; represent a line ending, but there are some requirements on them in order
   ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
-  ;; line.
-  ;; - The fake root boundary has a null ITEM (making DISCRETIONARYP return
-  ;;   NIL, essentially telling that we don't have previous hyphenation; so no
-  ;;   double hyphen demerits), and a START-IDX of 0, which is indeed the
-  ;;   case.
-  ;; - The fake root node has a (previous) line number of 0, which is correct,
-  ;;   and a fitness class of -1, meaning no previous fitness class; so no
-  ;;   adjacent demerits.
+  ;; line. The fake root boundary has:
+  ;; - a null ITEM (making DISCRETIONARYP return NIL), essentially telling
+  ;;   that we don't have previous hyphenation, so no double hyphen demerits.
+  ;; - a START-IDX of 0, which is correct.
+  ;; - a (previous) line number of 0, which is correct.
+  ;; - a fitness class of 2 (decent). TeX computes adjacent demerits even for
+  ;;   the first line which doesn't really have a previous line. This has the
+  ;;   effect of negatively weighting very loose first lines. See
+  ;;   https://tug.org/pipermail/texhax/2023-May/026091.html
   (let ((root-boundary (make-instance 'boundary :item nil :start-idx 0))
 	(nodes (make-hash-table :test #'equal)))
     (setf (gethash (make-key root-boundary 0 -1) nodes)
