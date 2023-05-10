@@ -218,6 +218,14 @@
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			:key #'size))))
+    ;; #### WARNING: by choosing the first layout here, we're doing the
+    ;; opposite of what TeX does in case of total demerits equality. We could
+    ;; instead check for multiple such layouts and take the last one. On the
+    ;; other hand, while we're using a hash table in the dynamic programming
+    ;; implementation, we're not doing exactly what TeX does either, so
+    ;; there's no rush. It's still important to keep that in mind however,
+    ;; because that explains while we may end up with different solutions
+    ;; between the graph and the dynamic versions.
     (kp-make-layout-lines lineup disposition (car layouts))))
 
 
