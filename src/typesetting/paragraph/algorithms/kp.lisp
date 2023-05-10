@@ -288,6 +288,13 @@
 		      (previous (find new-key new-nodes
 				  :test #'equal :key #'car)))
 		 (if previous
+		   ;; #### NOTE: the inclusive inequality below is conformant
+		   ;; with what TeX does in #855. Concretely, it makes the KP
+		   ;; algorithm greedy in some sense: in case of demerits
+		   ;; equality, TeX keeps the last envisioned solution. On the
+		   ;; other hand, we're in fact not doing exactly the same
+		   ;; thing because we're using MAPHASH and the order of the
+		   ;; nodes in the hash table is not deterministic.
 		   (when (<== demerits (kp-node-demerits (cdr previous)))
 		     (setf (kp-node-demerits (cdr previous)) demerits
 			   (kp-node-previous (cdr previous)) node))
