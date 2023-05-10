@@ -266,18 +266,23 @@
 					     line-penalty)))
 	       (when (> (abs (- fitness previous-fitness)) 1)
 		 (setq demerits (++ demerits adjacent-demerits)))
+	       ;; #### NOTE: according to #859, TeX doesn't consider the
+	       ;; admittedly very rare and weird case where a paragraph would
+	       ;; end with an explicit hyphen. As stipulated in #829, for the
+	       ;; purpose of computing demerits, the end of the paragraph is
+	       ;; always regarded as virtually hyphenated, and in case the
+	       ;; previous line (really) is hyphenated, the value of
+	       ;; final-hyphen-demerits is used instead of
+	       ;; double-hyphen-demerits. One could consider using
+	       ;; double-hyphen-demerits when there actually is a final
+	       ;; hyphen, but on the other hand, the final line is rarely
+	       ;; justified so the two hyphens are very unlikely to create a
+	       ;; ladder.
 	       (when (discretionaryp (item previous-boundary))
-		 (if (discretionaryp (item boundary))
-		   (setq demerits (++ demerits double-hyphen-demerits))
-		   ;; #### WARNING: final hyphen demerits are added here
-		   ;; although they really concern the previous node. TeX does
-		   ;; it like this but I don't really understand how that's
-		   ;; conformant with the dynamic programming principle. The
-		   ;; code is at #859, but it is confusing because TeX
-		   ;; considers the end of a paragraph as hyphenated, which is
-		   ;; explained at #829 :-/.
-		   (when (last-boundary-p boundary)
-		     (setq demerits (++ demerits final-hyphen-demerits)))))
+		 (if (last-boundary-p boundary)
+		   (setq demerits (++ demerits final-hyphen-demerits))
+		   (when (discretionaryp (item boundary))
+		     (setq demerits (++ demerits double-hyphen-demerits)))))
 	       (setq demerits (++ demerits (kp-node-demerits node)))
 	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
 		      (previous (find new-key new-nodes
