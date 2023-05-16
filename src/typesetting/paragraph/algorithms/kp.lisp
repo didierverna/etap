@@ -42,10 +42,10 @@
 ;; =========
 
 (defun scale-fitness-class (scale)
-  (cond ((or (<< scale -1/2) (== scale +∞)) 3)
+  (cond ((<< scale -1/2) 3)
+	((<< 1 scale) 0)
 	((<= -1/2 scale 1/2) 2)
-	((<= 1/2 scale 1) 1)
-	((< 1 scale) 0)))
+	(t 1)))
 
 (defun local-demerits (badness penalty line-penalty)
   (cond ((and (numberp penalty) (<= 0 penalty))
@@ -312,14 +312,24 @@
 					     :previous node))
 			 new-nodes))))))))
      nodes)
-    ;; #### FIXME: review this carefully wrt what TeX does.
     (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
-			     (key-fitness (car last-deactivated-node)))
+			     (scale-fitness-class
+			      (lineup-scale lineup
+					    (start-idx
+					     (key-boundary
+					      (car last-deactivated-node)))
+					    (stop-idx boundary)
+					    width
+					    emergency-stretch)))
 		   (kp-make-node :boundary boundary
+				 ;; #### NOTE: in this situation, TeX sets the
+				 ;; local demerits to 0 (#855) by checking the
+				 ;; artificial_demerits flag. So we just
+				 ;; re-use the previous total.
 				 :demerits (kp-node-demerits
 					    (cdr last-deactivated-node))
 				 :previous (cdr last-deactivated-node))))))
