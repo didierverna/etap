@@ -135,8 +135,6 @@
 (defun kp-make-layout-lines
     (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
-	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   (loop :for edge :in (edges layout)
@@ -144,7 +142,11 @@
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
 	  :collect (make-scaled-line lineup start stop (scale edge)
-				     overshrink overstretch)
+				     ;; #### NOTE: the overstretch option is
+				     ;; always T because TeX has its own
+				     ;; tolerance settings which are not
+				     ;; necessarily 1.
+				     overshrink t)
 	:else
 	  :collect (make-line lineup start stop)))
 
@@ -235,7 +237,7 @@
 ;; ==================================
 
 (defstruct (kp-node (:constructor kp-make-node))
-  boundary demerits previous)
+  boundary scale demerits previous)
 
 ;; The active nodes hash table is accessed by
 ;; key = (boundary line-number fitness-class)
@@ -304,10 +306,12 @@
 		   ;; thing because we're using MAPHASH and the order of the
 		   ;; nodes in the hash table is not deterministic.
 		   (when (<== demerits (kp-node-demerits (cdr previous)))
-		     (setf (kp-node-demerits (cdr previous)) demerits
+		     (setf (kp-node-scale (cdr previous)) scale
+			   (kp-node-demerits (cdr previous)) demerits
 			   (kp-node-previous (cdr previous)) node))
 		   (push (cons new-key
 			       (kp-make-node :boundary boundary
+					     :scale scale
 					     :demerits demerits
 					     :previous node))
 			 new-nodes))))))))
@@ -315,24 +319,25 @@
     (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
-	     (cons (make-key boundary
-			     (1+ (key-line (car last-deactivated-node)))
-			     (scale-fitness-class
-			      (lineup-scale lineup
-					    (start-idx
-					     (key-boundary
-					      (car last-deactivated-node)))
-					    (stop-idx boundary)
-					    width
-					    emergency-stretch)))
-		   (kp-make-node :boundary boundary
-				 ;; #### NOTE: in this situation, TeX sets the
-				 ;; local demerits to 0 (#855) by checking the
-				 ;; artificial_demerits flag. So we just
-				 ;; re-use the previous total.
-				 :demerits (kp-node-demerits
-					    (cdr last-deactivated-node))
-				 :previous (cdr last-deactivated-node))))))
+	     (let ((scale (lineup-scale lineup
+					(start-idx
+					 (key-boundary
+					  (car last-deactivated-node)))
+					(stop-idx boundary)
+					width
+					emergency-stretch)))
+	       (cons (make-key boundary
+			       (1+ (key-line (car last-deactivated-node)))
+			       (scale-fitness-class scale))
+		     (kp-make-node :boundary boundary
+				   :scale scale
+				   ;; #### NOTE: in this situation, TeX sets
+				   ;; the local demerits to 0 (#855) by
+				   ;; checking the artificial_demerits flag.
+				   ;; So we just re-use the previous total.
+				   :demerits (kp-node-demerits
+					      (cdr last-deactivated-node))
+				   :previous (cdr last-deactivated-node)))))))
     (mapc (lambda (new-node)
 	    (setf (gethash (car new-node) nodes) (cdr new-node)))
       new-nodes)))
@@ -368,25 +373,11 @@
 		  final-hyphen-demerits emergency-stretch))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
-;; #### FIXME: this function probably needs to go away.
-(defun make-wide-line
-    (lineup start stop width &optional overshrink overstretch)
-  "Make a line of WIDTH from LINEUP chunk between START and STOP.
-If no elasticity is available, the line will remain at its normal width.
-If some elasticity is available, get as close as possible to WIDTH within the
-limits of the available elasticity.
-If OVERSTRETCH, disregard the limit and stretch as much needed.
-If OVERSHRINK, disregard the limit and shrink as much needed."
-  (make-scaled-line lineup start stop (lineup-scale lineup start stop width)
-		    overshrink overstretch))
-
 (defun kp-dynamic-make-lines
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
      &aux (justified (eq (disposition-type disposition) :justified))
-	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   (let ((nodes (or (when (<== 0 pre-tolerance)
@@ -436,8 +427,12 @@ If OVERSHRINK, disregard the limit and shrink as much needed."
 	    :for start := (start-idx (kp-node-boundary beg))
 	    :for stop := (stop-idx (kp-node-boundary end))
 	    :do (push (if justified
-			(make-wide-line lineup start stop width
-					overshrink overstretch)
+			(make-scaled-line lineup start stop (kp-node-scale end)
+					  ;; #### NOTE: the overstretch option
+					  ;; is always T because TeX has its
+					  ;; own tolerance settings which are
+					  ;; not necessarily 1.
+					  overshrink t)
 			(make-line lineup start stop))
 		      lines)
 	    :finally (return lines)))))
