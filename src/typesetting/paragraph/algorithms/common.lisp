@@ -58,14 +58,54 @@ Note the S appended to NAME in the choices variable name."
 ;; Quality measurements
 ;; ====================
 
+;; #### NOTE: according to #108, TeX clamps badness values to 10000 which is
+;; an approximation of 2^13, and called "infinitely bad", but there's in fact
+;; more to it than that when the badness function is used in the paragraph
+;; breaking algorithm.
 
-;; #### FIXME: this is TeX specific, and we should handle infinity properly.
-(defparameter *maximum-badness* 10000)
+;; According to #853 (and this is explained in #851), an "infinitely bad" + 1
+;; value is returned for lines which can't shrink enough, knowing that it is
+;; strictly prohibited to shrink more than what's available; that is, for a
+;; scaling < -1. Note that this includes lines which have no shrinkability at
+;; all.
+
+;; According to #852, an "infinitely bad" value is returned for the whole
+;; bunch of lines which would require too much stretching (because of the
+;; clamping), but this also includes lines which have no stretchability at
+;; all.
+
+;; In other words, for reasonable lines, the badness doesn't make a
+;; distinction between shrinking and stretching. However, there is a
+;; distinction for unreasonable lines. First of all, the definition of
+;; "unreasonable" is different for stretching and shrinking (see the 2
+;; paragraphs above). And then, the badness is different for unreasonably
+;; shrunk and unreasonably stretched lines.
+
+;; In fact, it seems that TeX uses this distinction only to decide whether or
+;; not to deactivate a node (again, as explained in #851). On the other hand,
+;; in our implementation, we look at the scaling instead of the badness to
+;; make that decision. So it turns out that we can get rid of the clamping
+;; altogether. Note also that the tolerance calibration in our implementation
+;; turns 10000 into +∞, so we 'll indeed get the same effect as in TeX (cf.
+;; #828), that is, to accept arbitrarily bad lines.
+
+;; Consequently, our version of badness below returns +∞ for strictly
+;; prohibited scaling (i.e. no scaling available, or negative below -1) and a
+;; numerical positive value otherwise.
+
+;; #### TODO: we could generalize the notion of badness to allow /some/
+;; overshrinking, possibly with an exponential cost (at least it should be
+;; much more important than for stretching). Maybe one difficulty would be
+;; that if we want to switch to +∞ when there is no more space between words,
+;; the badness computation would then depend on the glue's natural width.
+
+;; #### TODO: we could sign the badness (like the scaling) in order to keep
+;; track of whether we're stretching or shrinking.
 
 (defun scale-badness (scale)
   (if (or (<< scale -1) (== scale +∞))
     +∞
-    (min (* 100 (expt (abs scale) 3)) *maximum-badness*)))
+    (* 100 (expt (abs scale) 3))))
 
 ;; #### FIXME: this should be called LINEUP-BADNESS, and maybe this should
 ;; even be obsolescent, like most lineup- functions.
