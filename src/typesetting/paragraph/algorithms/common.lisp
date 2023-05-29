@@ -34,14 +34,21 @@ A caliber represents values that have a mininum, a maximum, and a default."
      &aux (variable (intern (format nil "~A" name)))
 	  (caliber (intern (format nil "*~A-~A*" prefix name))))
   "Calibrate NAMEd variable according to the *PREFIX-NAME* caliber.
-If the variable's value is out of bounds, either clamp it (the default),
-or use INFINITY values."
+- If the variable's value is NIL, set it to the caliber's default.
+- If the variable's value is already properly calibrated, leave it be.
+- If the variable's value is out of bounds (large inequality), clamp it or set
+  it to an infinity value of the same sign, according to INFINITY. INFINITY
+    may be NIL (the default), T, :positive, or :negative."
   `(cond ((null ,variable)
 	  (setq ,variable (caliber-default ,caliber)))
 	 ((<= ,variable (caliber-min ,caliber))
-	  (setq ,variable ,(if infinity -∞ `(caliber-min ,caliber))))
+	  (setq ,variable ,(if (member infinity '(t :negative))
+			     -∞
+			     `(caliber-min ,caliber))))
 	 ((>= ,variable (caliber-max ,caliber))
-	  (setq ,variable ,(if infinity +∞ `(caliber-max ,caliber))))))
+	  (setq ,variable ,(if (member infinity '(t :positive))
+			     +∞
+			     `(caliber-max ,caliber))))))
 
 
 (defmacro default

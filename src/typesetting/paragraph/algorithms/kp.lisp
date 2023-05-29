@@ -477,19 +477,8 @@
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
-  ;; #### FIXME: I can't remember why these are treated in a special way
-  ;; (maybe because we handle infinity only on the positive side or
-  ;; something). This needs to be reviewed.
-  (when (null pre-tolerance)
-    (setq pre-tolerance (caliber-default *kp-pre-tolerance*)))
-  (when (>= pre-tolerance (caliber-max *kp-pre-tolerance*))
-    (setq pre-tolerance +∞))
-  (when (null tolerance)
-    (setq tolerance (caliber-default *kp-tolerance*)))
-  (cond ((>= tolerance (caliber-max *kp-tolerance*))
-	 (setq tolerance +∞))
-	((< tolerance (caliber-min *kp-tolerance*))
-	 (setq tolerance (caliber-min *kp-tolerance*))))
+  (calibrate-kp pre-tolerance :positive)
+  (calibrate-kp tolerance :positive)
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
   (ecase variant
