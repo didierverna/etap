@@ -184,6 +184,7 @@
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness)
+  "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
   (let* ((graph (or (when (<== 0 pre-tolerance)
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
@@ -251,6 +252,7 @@
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits final
 			&aux (emergency-stretch (when (numberp final) final)))
+  "Examine BOUNDARY and update active NODES accordingly."
   (let (last-deactivated-node new-nodes)
     (maphash
      (lambda (key node
@@ -351,6 +353,15 @@
 (defun kp-create-nodes (lineup width hyphenate threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
 			final-hyphen-demerits &optional final)
+  "Compute the best sequences of breaks for LINEUP in the Knuth-Plass sense.
+This function may be called up to three times (corresponding to \"passes\"
+through the algorithm in the TeX jargon).
+- HYPHENATE means consider hyphenation points as potential breaks. It is NIL
+  for pass 1, and T for passes 2 and 3.
+- FINAL means this is the final pass (in which case we can't allow to loose
+  all nodes). If FINAL is NIL, we're in pass 1. If FINAL is T, we're in pass 2
+  and there is no emergency stretch. Otherwise, FINAL is a non-zero value (the
+  emergency stretch) and we're in pass 3."
   ;; #### WARNING: the root node / boundary are fake because they don't really
   ;; represent a line ending, but there are some requirements on them in order
   ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
@@ -386,6 +397,7 @@
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
+  "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
   (let ((nodes (or (when (<== 0 pre-tolerance)
 		     (kp-create-nodes lineup width nil pre-tolerance
 		       line-penalty adjacent-demerits double-hyphen-demerits
@@ -473,6 +485,7 @@
      &key variant line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
 	  pre-tolerance tolerance emergency-stretch looseness)
+  "Typeset LINEUP with the Knuth-Plass algorithm."
   (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
