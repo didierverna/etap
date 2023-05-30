@@ -247,9 +247,10 @@
 (defun key-fitness (key) (third key))
 
 (defun kp-try-boundary (boundary nodes
-			lineup width pass threshold line-penalty
+			lineup width threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
-			final-hyphen-demerits emergency-stretch)
+			final-hyphen-demerits final
+			&aux (emergency-stretch (when (numberp final) final)))
   (let (last-deactivated-node new-nodes)
     (maphash
      (lambda (key node
@@ -259,7 +260,7 @@
 		   (scale (lineup-scale lineup
 					(start-idx previous-boundary)
 					(stop-idx boundary)
-					width emergency-stretch)))
+					width)))
        (when (or (<< scale -1)
 		 (eq (penalty (item boundary)) -∞)
 		 ;; #### WARNING: we must deactivate all nodes when we reach
@@ -269,7 +270,13 @@
 	 (setq last-deactivated-node (cons key node))
 	 (remhash key nodes))
        (when (<== -1 scale)
-	 (let ((badness (scale-badness scale)))
+	 (let ((badness (scale-badness
+			 (if emergency-stretch
+			   (lineup-scale lineup
+					 (start-idx previous-boundary)
+					 (stop-idx boundary)
+					 width emergency-stretch)
+			   scale))))
 	   (when (<== badness threshold)
 	     (let ((fitness (scale-fitness-class scale))
 		   (demerits (local-demerits badness (penalty (item boundary))
@@ -316,7 +323,7 @@
 					     :previous node))
 			 new-nodes))))))))
      nodes)
-    (when (and (> pass 1) (zerop (hash-table-count nodes)) (null new-nodes))
+    (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
 	     (let ((scale (lineup-scale lineup
@@ -324,8 +331,7 @@
 					 (key-boundary
 					  (car last-deactivated-node)))
 					(stop-idx boundary)
-					width
-					emergency-stretch)))
+					width)))
 	       (cons (make-key boundary
 			       (1+ (key-line (car last-deactivated-node)))
 			       (scale-fitness-class scale))
@@ -342,9 +348,9 @@
 	    (setf (gethash (car new-node) nodes) (cdr new-node)))
       new-nodes)))
 
-(defun kp-create-nodes (lineup width pass threshold line-penalty
+(defun kp-create-nodes (lineup width hyphenate threshold line-penalty
 			adjacent-demerits double-hyphen-demerits
-			final-hyphen-demerits &optional emergency-stretch)
+			final-hyphen-demerits &optional final)
   ;; #### WARNING: the root node / boundary are fake because they don't really
   ;; represent a line ending, but there are some requirements on them in order
   ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
@@ -366,11 +372,11 @@
 	  :while boundary
 	  :when (and (<< (penalty (item boundary)) +∞)
 		     (or (not (hyphenation-point-p (item boundary)))
-			 (> pass 1)))
+			 hyphenate))
 	    :do (kp-try-boundary boundary nodes
-		  lineup width pass threshold line-penalty
+		  lineup width threshold line-penalty
 		  adjacent-demerits double-hyphen-demerits
-		  final-hyphen-demerits emergency-stretch))
+		  final-hyphen-demerits final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 (defun kp-dynamic-make-lines
@@ -381,20 +387,15 @@
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   (let ((nodes (or (when (<== 0 pre-tolerance)
-		     (kp-create-nodes lineup width 1 pre-tolerance
+		     (kp-create-nodes lineup width nil pre-tolerance
 		       line-penalty adjacent-demerits double-hyphen-demerits
 		       final-hyphen-demerits))
-		   (kp-create-nodes lineup width 2 tolerance
+		   (kp-create-nodes lineup width t tolerance
 		     line-penalty adjacent-demerits double-hyphen-demerits
-		     final-hyphen-demerits))))
-    (when (and (not (zerop emergency-stretch))
-	       (loop :for node :being :the :hash-values :in nodes
-		     :when (numberp (kp-node-demerits node))
-		       :do (return nil)
-		     :finally (return t)))
-      (setq nodes (kp-create-nodes lineup width 3 tolerance
+		     final-hyphen-demerits (zerop emergency-stretch))
+		   (kp-create-nodes lineup width t tolerance
 		     line-penalty adjacent-demerits double-hyphen-demerits
-		     final-hyphen-demerits emergency-stretch)))
+		     final-hyphen-demerits emergency-stretch))))
     (let ((best (loop :with demerits := +∞ :with best :with last
 		      :for node :being :the :hash-values :in nodes
 			:using (hash-key key)
