@@ -27,7 +27,7 @@
 (define-kp-caliber final-hyphen-demerits 0 5000 10000)
 (define-kp-caliber pre-tolerance -1 100 10000)
 (define-kp-caliber tolerance 0 200 10000)
-(define-kp-caliber emergency-stretch 0 0 20)
+(define-kp-caliber emergency-stretch 0 0 100)
 (define-kp-caliber looseness -10 0 10)
 
 
