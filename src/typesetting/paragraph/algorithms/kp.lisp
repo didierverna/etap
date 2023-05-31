@@ -168,8 +168,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
 	      (cond ((> min-width width)
 		     (setq overfull boundary continue nil))
-		    ((<== (badness lineup start (stop-idx boundary) width
-				   emergency-stretch)
+		    ((<== (scale-badness
+			   (lineup-scale lineup start (stop-idx boundary)
+					 width emergency-stretch))
 			  threshold)
 		     (push boundary boundaries))
 		    (t

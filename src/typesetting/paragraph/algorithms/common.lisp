@@ -114,11 +114,6 @@ Note the S appended to NAME in the choices variable name."
     +∞
     (* 100 (expt (abs scale) 3))))
 
-;; #### FIXME: this should be called LINEUP-BADNESS, and maybe this should
-;; even be obsolescent, like most lineup- functions.
-(defun badness (lineup start stop width &optional emergency-stretch)
-  (scale-badness (lineup-scale lineup start stop width emergency-stretch)))
-
 
 
 ;; ===========
