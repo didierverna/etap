@@ -152,7 +152,10 @@
 
 (defun kp-next-boundaries
     (lineup start width
-     &key pass threshold emergency-stretch)
+     &key hyphenate threshold final
+     &aux (emergency-stretch (when (numberp final) final)))
+  "Knuth-Plass graph implementation version of `next-boundaries'.
+See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (loop :with boundaries :with overfull :with emergency-boundary
 	:with continue := t
 	:for boundary := (next-boundary lineup start)
@@ -161,7 +164,7 @@
 	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
 	:do (when (and (<< (penalty (item boundary)) +∞)
 		       (or (not (hyphenation-point-p (item boundary)))
-			   (> pass 1) ))
+			   hyphenate ))
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
 	      (cond ((> min-width width)
 		     (setq overfull boundary continue nil))
@@ -171,13 +174,10 @@
 		     (push boundary boundaries))
 		    (t
 		     (setq emergency-boundary boundary))))
-	:finally (return (if boundaries
-			   boundaries
-			   ;; #### NOTE: we absolutely need to return
-			   ;; something here even on pass 2, because the
-			   ;; emergency stretch could be 0.
-			   (when (> pass 1)
-			     (if overfull (list overfull)
+	:finally (return (or boundaries
+			     (when final
+			       (if overfull
+				 (list overfull)
 				 (list emergency-boundary)))))))
 
 (defun kp-graph-make-lines
@@ -189,11 +189,17 @@
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
-			:pass 1 :threshold pre-tolerance))
+			:threshold pre-tolerance))
 		    (make-graph lineup width
 		      :edge-type `(kp-edge :line-penalty ,line-penalty)
 		      :next-boundaries #'kp-next-boundaries
-		      :pass 2 :threshold tolerance)))
+		      :hyphenate t :threshold tolerance
+		      :final (zerop emergency-stretch))
+		    (make-graph lineup width
+		      :edge-type `(kp-edge :line-penalty ,line-penalty)
+		      :next-boundaries #'kp-next-boundaries
+		      :hyphenate t :threshold tolerance
+		      :final emergency-stretch)))
 	 (layouts (layouts graph 'kp-layout)))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
@@ -201,20 +207,6 @@
 	      final-hyphen-demerits))
       layouts)
     (setq layouts (sort layouts #'<< :key #'demerits))
-    (when (and (not (zerop emergency-stretch))
-	       (eql (demerits (car layouts)) +∞))
-      (setq graph (make-graph lineup width
-		    :edge-type `(kp-edge :line-penalty ,line-penalty)
-		    :next-boundaries #'kp-next-boundaries
-		    :pass 3 :threshold tolerance
-		    :emergency-stretch emergency-stretch))
-      (setq layouts (layouts graph 'kp-layout))
-      (mapc (lambda (layout)
-	      (kp-postprocess-layout layout
-		adjacent-demerits double-hyphen-demerits
-		final-hyphen-demerits))
-	layouts)
-      (setq layouts (sort layouts #'<< :key #'demerits)))
     (unless (zerop looseness)
       (let ((ideal-size (+ (size (car layouts)) looseness)))
 	(setq layouts (sort layouts (lambda (size1 size2)
