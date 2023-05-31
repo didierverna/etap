@@ -147,8 +147,8 @@ The weight is computed according to the discriminating function."
      &rest options &key discriminating-function)
   "Typeset LINEUP with the Duncan algorithm."
   (declare (ignore discriminating-function))
-  (let* ((graph (funcall #'make-graph lineup width
-			 :edge-type `(duncan-edge ,@options) :fulls t))
+  (let* ((graph (make-graph lineup width
+	          :edge-type `(duncan-edge ,@options) :fulls t))
 	 (layouts (layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
