@@ -163,8 +163,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	:while continue
 	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
 	:do (when (and (<< (penalty (item boundary)) +∞)
-		       (or (not (hyphenation-point-p (item boundary)))
-			   hyphenate ))
+		       (or hyphenate
+			   (not (hyphenation-point-p (item boundary)))))
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
 	      (cond ((> min-width width)
 		     (setq overfull boundary continue nil))
@@ -375,8 +375,8 @@ through the algorithm in the TeX jargon).
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
 	  :when (and (<< (penalty (item boundary)) +∞)
-		     (or (not (hyphenation-point-p (item boundary)))
-			 hyphenate))
+		     (or hyphenate
+			 (not (hyphenation-point-p (item boundary)))))
 	    :do (kp-try-boundary boundary nodes
 		  lineup width threshold line-penalty
 		  adjacent-demerits double-hyphen-demerits
