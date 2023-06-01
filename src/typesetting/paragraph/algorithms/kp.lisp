@@ -445,9 +445,9 @@ through the algorithm in the TeX jargon).
 
 
 
-;; ===========
-;; Entry Point
-;; ===========
+;; ============
+;; Entry Points
+;; ============
 
 (defmacro calibrate-kp (name &optional infinity)
   "Calibrate NAMEd Knuth-Plass variable."
@@ -457,9 +457,8 @@ through the algorithm in the TeX jargon).
   "Default Knuth-Plass NAMEd variable."
   `(default kp ,name))
 
-(defmethod make-lines :around
-    (lineup disposition width (algorithm (eql :knuth-plass))
-     &key hyphen-penalty explicit-hyphen-penalty)
+(defmethod prepare-lineup (lineup disposition (algorithm (eql :knuth-plass))
+			   &key hyphen-penalty explicit-hyphen-penalty)
   "Apply hyphen penalties and add a final glue to the lineup."
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
@@ -471,7 +470,7 @@ through the algorithm in the TeX jargon).
 		    hyphen-penalty))))
     lineup)
   (endpush (make-glue :stretch +∞ :penalty +∞) lineup)
-  (call-next-method))
+  lineup)
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :knuth-plass))

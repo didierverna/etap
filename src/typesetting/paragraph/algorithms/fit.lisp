@@ -344,9 +344,9 @@ This function returns three values:
 
 
 
-;; ===========
-;; Entry Point
-;; ===========
+;; ============
+;; Entry Points
+;; ============
 
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."
@@ -356,9 +356,8 @@ This function returns three values:
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
-(defmethod make-lines :around
-    (lineup disposition width (algorithm (eql :fit))
-     &key hyphen-penalty explicit-hyphen-penalty)
+(defmethod prepare-lineup (lineup disposition (algorithm (eql :fit))
+			   &key hyphen-penalty explicit-hyphen-penalty)
   "Apply hyphen penalties to the lineup."
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
@@ -369,7 +368,7 @@ This function returns three values:
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
-  (call-next-method))
+  lineup)
 
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :fit))

@@ -116,48 +116,22 @@ Note the S appended to NAME in the choices variable name."
 
 
 
-;; ===========
-;; Entry Point
-;; ===========
+;; ============
+;; Entry Points
+;; ============
 
-(define-method-combination make-lines ()
-  ((before-around (:before-around) :order :most-specific-last)
-   (around (:around))
-   (after-around (:after-around))
-   (before (:before))
-   (primary () :required t)
-   (after (:after)))
-  "The MAKE-LINES method combination.
-Similar to the standard one, with the addition of two new method groups,
-:before-around and :after-around, which are sorted in most specific last /
-first respectively, and which require explicit chaining."
-  (flet ((call-methods (methods)
-	   (mapcar #'(lambda (method)
-		       `(call-method ,method))
-	     methods)))
-    (let ((form (if (or before after (rest primary))
-		  `(multiple-value-prog1
-		       (progn ,@(call-methods before)
-			      (call-method ,(first primary)
-					   ,(rest primary)))
-		     ,@(call-methods (reverse after)))
-		  `(call-method ,(first primary))))
-	  (around (append before-around around after-around)))
-      (if around
-	`(call-method ,(first around)
-		      (,@(rest around)
-		       (make-method ,form)))
-	form))))
+;; #### WARNING: the DISPOSITION argument is currently unused, but will be
+;; when we update the KP algorithm to handle ragged dispositions properly.
+(defgeneric prepare-lineup
+    (lineup disposition algorithm &key &allow-other-keys)
+  (:documentation
+   "Prepare LINEUP for DISPOSITION in an ALGORITHM-specific way.
+Return a possibly modified lineup.")
+  (:method (lineup disposition algorithm &key)
+    "Return LINEUP as-is. This is the default method."
+    lineup))
 
 (defgeneric make-lines
     (lineup disposition width algorithm &key &allow-other-keys)
-  (:method-combination make-lines)
   (:documentation
-   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
-  (:method :before-around (lineup disposition width algorithm &key)
-    "Proceed only if LINEUP is not null."
-    (when lineup (call-next-method)))
-  (:method :after-around (lineup disposition width algorithm &rest args)
-    "Transform LINEUP into an array."
-    (setq lineup (make-array (length lineup) :initial-contents lineup))
-    (apply #'call-next-method lineup disposition width algorithm args)))
+   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))
