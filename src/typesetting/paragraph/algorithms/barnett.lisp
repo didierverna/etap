@@ -116,12 +116,22 @@
 	:if (and justified (last-boundary-p boundary))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (if (<< scale 0)
-		     (make-scaled-line lineup start stop scale overshrink nil)
-		     (make-line lineup start stop))
+		     (make-instance 'line
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :scale scale
+		       :effective-scale (if overshrink scale (mmaaxx scale -1)))
+		     (make-instance 'line
+		       :lineup lineup :start-idx start :stop-idx stop))
 	:else :if justified
 	  ;; Justified regular line: make it always overstreched, and maybe
 	  ;; overshrunk.
-	  :collect (make-scaled-line lineup start stop scale overshrink t)
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop
+		     :scale scale
+		     :effective-scale
+		     (cond ((>== scale 0) scale)
+			   (t (if overshrink scale (mmaaxx scale -1)))))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
-	  :collect (make-line lineup start stop)))
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop)))
