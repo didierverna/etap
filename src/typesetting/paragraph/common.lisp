@@ -103,12 +103,17 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 	      :documentation "This line's start index in LINEUP.")
    (stop-idx :initarg :stop-idx :reader stop-idx
 	     :documentation "This line's stop index in LINEUP.")
-   (effective-scale :initform 0 :initarg :effective-scale
-		    :reader effective-scale
-		    :documentation "The line's effective scale.
-The effective scale is used to pin the line's objects. It may be different
-from the scale computed by the algorithm in use (depending on the algorithm
-itself, and on the Overstretch and Overshrink disposition options).")
+   (scale :initform 0 :initarg :scale :reader scale
+	  :documentation "The line'scale, as computed by the algorithm.
+It may be different from the effective scale used to pin the objects,
+depending on the algorithm itself, and on the Overstretch and Overshrink
+disposition options).")
+   (effective-scale
+    :initarg :effective-scale :reader effective-scale
+    :documentation "The line's effective scale, used for pinning the objects.
+It may be different from the scale computed by the algorithm in use, depending
+on the algorithm itself, and on the Overstretch and Overshrink disposition
+options).")
    (pinned-objects :reader pinned-objects
 		   :documentation "The list of pinned objects.")
    (hyphenated :initarg :hyphenated :reader hyphenated
@@ -140,11 +145,13 @@ origin. A line also remembers its scale factor."))
 	:if (consp elt) :append elt :else :collect elt))
 
 (defmethod initialize-instance :after ((line line) &key &aux scale)
-  "Pin LINE's objects."
+  "Possibly initialize the LINE's effective scale, and pin its objects."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
+  (unless (slot-boundp line 'effective-scale)
+    (setf (slot-value line 'effective-scale) (scale line)))
   (setq scale (if (numberp (effective-scale line)) (effective-scale line) 0))
   (setf (slot-value line 'pinned-objects)
 	(loop :with x := 0
