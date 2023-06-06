@@ -182,7 +182,11 @@ origin. A line also remembers its scale factor."))
   (:documentation "Return a string describing LINE's properties.")
   (:method (line)
     "Advertise LINE's width. This is the default method."
-    (format nil "Line width: ~Spt." (coerce (width line) 'float))))
+    (format nil "Line width: ~Spt.~%Line scale: ~S~:[~;(effective: ~S)~]"
+      (coerce (width line) 'float)
+      (coerce (scale line) 'float)
+      (/== (scale line) (effective-scale line))
+      (effective-scale line))))
 
 ;; #### FIXME: this interface is broken because of the hardwired limits on
 ;; scaling. They're ok for many algorithms, but TeX has its own tolerance

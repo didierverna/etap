@@ -32,6 +32,10 @@ The line's 2D position is relative to the paragraph it belongs to."))
   "Return pinned LINE's depth."
   (depth (line line)))
 
+(defmethod scale ((line pinned-line))
+  "Return pinned LINE's scale."
+  (scale (line line)))
+
 (defmethod effective-scale ((line pinned-line))
   "Return pinned LINE's effective scale factor."
   (effective-scale (line line)))
