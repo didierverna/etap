@@ -290,10 +290,12 @@ This function returns three values:
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
 		(if (>> scale 0) scale 0)))))
-    (make-line lineup start stop scale))
+    (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
+		   :scale scale))
   (:method (lineup start boundary disposition (variant (eql :best)) &key)
     "Make a best-fit ragged line from LINEUP chunk between START and BOUNDARY."
-    (make-line lineup start (stop-idx boundary)))
+    (make-instance 'line
+      :lineup lineup :start-idx start :stop-idx (stop-idx boundary)))
   (:method (lineup start boundary disposition (variant (eql :last))
 	    &key width relax
 	    &aux (stop (stop-idx boundary))
@@ -314,7 +316,8 @@ This function returns three values:
 		    ;; - Finally, a scale < -1 means that the line cannot fit
 		    ;;   at all, so we must stay at our original -1.
 		    (if (>== scale 0) 0 (mmaaxx scale -1)))))
-    (make-line lineup start stop scale))
+    (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
+		   :scale scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
 	    &key overstretch overshrink
 	    &aux (stop (stop-idx boundary)) (scale (scale boundary)))
