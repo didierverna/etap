@@ -268,6 +268,18 @@ This function returns three values:
 	      avoid-hyphens))))))
 
 
+(defclass fit-line (line)
+  ((weight :initarg :weight :reader weight
+	   :documentation "This line's weight."))
+  (:documentation "The Fit line class.
+This class keeps track of the line's weight, as computed in the best /
+justified disposition. Note that unfit lines are still represented by the base
+LINE class."))
+
+(defmethod line-properties strnlcat ((line fit-line))
+  "Return a string advertising LINE's weight."
+  (format nil "Weight: ~S" (print (coerce (weight line) 'float))))
+
 (defgeneric fit-make-line
     (lineup start boundary disposition variant &key &allow-other-keys)
   (:documentation
@@ -322,8 +334,19 @@ This function returns three values:
 		   :scale scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
 	    &key overstretch overshrink
-	    &aux (stop (stop-idx boundary)) (scale (scale boundary)))
+	    &aux (stop (stop-idx boundary))
+		 (scale (scale boundary))
+		 (effective-scale scale)
+		 (line-initargs
+		  `(:lineup ,lineup :start-idx ,start :stop-idx ,stop))
+		 line-class)
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
+    (etypecase boundary
+      (fit-weighted-boundary
+       (setq line-class 'fit-line)
+       (setq line-initargs `(,@line-initargs :weight ,(weight boundary))))
+      (fit-boundary
+       (setq line-class 'line)))
     (if (last-boundary-p boundary)
       ;; The last line, which almost never fits exactly, needs a special
       ;; treatment. Without paragraph-wide considerations, we want its scaling
@@ -332,20 +355,31 @@ This function returns three values:
 	(:first
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	 ;; much as possible, without overstretching.
-	 (cond ((<< scale 0) (unless overshrink (setq scale (mmaaxx scale -1))))
-	       ((>> scale 0) (setq scale (mmiinn scale 1))))
-	 (make-line lineup start stop scale))
+	 (cond ((<< scale 0)
+		(setq scale (mmaaxx scale -1))
+		(unless overshrink (setq effective-scale scale)))
+	       ((>> scale 0)
+		(setq scale (mmiinn scale 1) effective-scale scale))))
 	(:best
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	 ;; normal spacing.
-	 (if (<< scale 0)
-	   (make-line lineup start stop (if overshrink scale (mmaaxx scale -1)))
-	   (make-line lineup start stop)))
+	 (cond ((<< scale 0)
+		(setq scale (mmaaxx scale -1))
+		(unless overshrink (setq effective-scale scale)))
+	       (t (setq scale 0 effective-scale 0))))
 	(:last
 	 ;; Shrink as much as possible.
-	 (make-line lineup start stop
-		    (if (and (<< scale 0) overshrink) scale -1))))
-      (make-scaled-line lineup start stop scale overshrink overstretch))))
+	 (setq scale -1)
+	 (unless (and (<< effective-scale 0) overshrink)
+	   (setq effective-scale -1))))
+      (cond ((<< scale 0)
+	     (setq scale (mmaaxx scale -1))
+	     (unless overshrink (setq effective-scale scale)))
+	    ((>> scale 0)
+	     (setq scale (mmiinn scale 1))
+	     (unless overstretch (setq effective-scale scale)))))
+    (apply #'make-instance line-class
+	   :scale scale :effective-scale effective-scale line-initargs)))
 
 
 

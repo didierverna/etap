@@ -359,7 +359,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
       (if line
 	(display-tooltip pane
 	  ;; (format nil "Line scale: ~F." (coerce (scale line) 'float)))
-	  :text (line-properties line))
+	  :text (line-properties (line line)))
 	(display-tooltip pane)))))
 
 ;; Interface

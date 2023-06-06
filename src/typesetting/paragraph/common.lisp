@@ -178,11 +178,23 @@ origin. A line also remembers its scale factor."))
 	    :explicit
 	    :implicit))))
 
+(defun strnlcat (&rest strings)
+  "Concatenate STRINGS, inserting newlines in between."
+  (with-output-to-string (stream)
+    (loop :for remainder :on strings
+	  :do (princ (car remainder) stream)
+	  :when (cdr remainder) :do (terpri stream))))
+
+(define-method-combination strnlcat
+  :documentation "The STRNLCAT method combination."
+  :operator strnlcat :identity-with-one-argument t)
+
 (defgeneric line-properties (line)
   (:documentation "Return a string describing LINE's properties.")
-  (:method (line)
+  (:method-combination strnlcat :most-specific-last)
+  (:method strnlcat ((line line))
     "Advertise LINE's width. This is the default method."
-    (format nil "Line width: ~Spt.~%Line scale: ~S~:[~; (effective: ~S)~]"
+    (format nil "Width: ~Spt.~%Scale: ~S~:[~; (effective: ~S)~]"
       (coerce (width line) 'float)
       (coerce (scale line) 'float)
       (/== (scale line) (effective-scale line))
