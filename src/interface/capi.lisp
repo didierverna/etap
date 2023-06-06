@@ -274,7 +274,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			      :foreground :orange
 			      :scale-thickness nil)
 	      :when (member :overshrunk/stretched-boxes clues)
-		:if (< (scale pinned-line) -1)
+		:if (< (effective-scale pinned-line) -1)
 		  :do (gp:draw-rectangle pane
 			  (+ (width paragraph) 5)
 			  (- y (height pinned-line))
@@ -282,7 +282,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :blue
 			:scale-thickness nil :filled t)
-		:else :if (> (scale pinned-line) 1)
+		:else :if (> (effective-scale pinned-line) 1)
 			:do (gp:draw-rectangle pane
 				(+ (width paragraph) 5)
 				(- y (height pinned-line))
@@ -358,7 +358,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			   (pinned-lines paragraph)))))
       (if line
 	(display-tooltip pane
-	  :text (format nil "Line scale: ~F." (coerce (scale line) 'float)))
+	  ;; (format nil "Line scale: ~F." (coerce (scale line) 'float)))
+	  :text (line-properties line))
 	(display-tooltip pane)))))
 
 ;; Interface

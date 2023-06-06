@@ -97,10 +97,20 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 ;; =====
 
 (defclass line ()
-  ((pinned-objects :initarg :pinned-objects :accessor pinned-objects
+  ((lineup :initarg :lineup :reader lineup
+	   :documentation "The corresponding lineup.")
+   (start-idx :initarg :start-idx :reader start-idx
+	      :documentation "This line's start index in LINEUP.")
+   (stop-idx :initarg :stop-idx :reader stop-idx
+	     :documentation "This line's stop index in LINEUP.")
+   (effective-scale :initform 0 :initarg :effective-scale
+		    :reader effective-scale
+		    :documentation "The line's effective scale.
+The effective scale is used to pin the line's objects. It may be different
+from the scale computed by the algorithm in use (depending on the algorithm
+itself, and on the Overstretch and Overshrink disposition options).")
+   (pinned-objects :reader pinned-objects
 		   :documentation "The list of pinned objects.")
-   (scale :initarg :scale :reader scale
-	  :documentation "The line's scale factor.")
    (hyphenated :initarg :hyphenated :reader hyphenated
 	       :documentation "Whether the line is hyphenated.
 Possible values are nil, :explicit, or :implicit."))
@@ -110,6 +120,7 @@ hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
 
 
+;; #### FIXME: probably rename this to EFFECTIVE-WIDTH.
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
   "Return LINE's width."
   (+ (x object) (width object)))
@@ -128,50 +139,43 @@ origin. A line also remembers its scale factor."))
 	:for elt := (lineup-aref lineup i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
-;; #### FIXME: we normally support infinite elasticity throughout the code
-;; (leading to scalings of 0). However, there's currently only one situation
-;; in which this occurs: the infinitely stretchable glue that the KP algorithm
-;; appends at the end of the lineup. The function below works correctly in
-;; that case because indeed, a final line would return to its normal spacing
-;; (scaling = 0). On the other hand, if / when we start to support multiple
-;; occurrences of infinite elasticity within the same line, we will need to
-;; write things differently, because the actual shrinking / stretching needs
-;; to be spread equally over all infinitely elastic glues (hence, we still
-;; need to keep the target width around).
-(defun make-line
-    (lineup start stop
-     &optional (scale 0)
-     &aux (hyphenated
-	   (when (hyphenation-point-p (aref lineup (1- stop)))
-	     (if (explicitp (aref lineup (1- stop))) :explicit :implicit))))
-  "Make a possibly SCALEd line from LINEUP chunk between START and STOP."
+(defmethod initialize-instance :after ((line line) &key &aux scale)
+  "Pin LINE's objects."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
-  (unless (numberp scale) (setq scale 0))
-  (make-instance 'line
-    :pinned-objects
-    (loop :with x := 0
-	  :for elt :in (flatten-lineup lineup start stop)
-	  :if (eq elt :explicit-hyphenation-clue)
-	    :collect (pin-hyphenation-clue x)
-	  :else :if (eq elt :hyphenation-clue)
-	    :collect (pin-hyphenation-clue x nil)
-	  :else :if (typep elt 'tfm:character-metrics)
-	    :collect (pin-character elt :x x)
-	    :and :do (incf x (width elt))
-	  :else :if (kernp elt)
-	    :do (incf x (width elt))
-	  :else :if (gluep elt)
-	    :do (incf x (width elt))
-	    :and :unless (zerop scale)
-		   :do (incf x (if (> scale 0)
-				 (* scale (stretch elt))
-				 (* scale (shrink elt)))))
-    :scale scale
-    :hyphenated hyphenated))
+  (setq scale (if (numberp (effective-scale line)) (effective-scale line) 0))
+  (setf (slot-value line 'pinned-objects)
+	(loop :with x := 0
+	      :for elt :in (flatten-lineup
+			    (lineup line) (start-idx line) (stop-idx line))
+	      :if (eq elt :explicit-hyphenation-clue)
+		:collect (pin-hyphenation-clue x)
+	      :else :if (eq elt :hyphenation-clue)
+		      :collect (pin-hyphenation-clue x nil)
+	      :else :if (typep elt 'tfm:character-metrics)
+		      :collect (pin-character elt :x x)
+		      :and :do (incf x (width elt))
+	      :else :if (kernp elt)
+		      :do (incf x (width elt))
+	      :else :if (gluep elt)
+		      :do (incf x (width elt))
+		      :and :unless (zerop scale)
+			     :do (incf x (if (> scale 0)
+					   (* scale (stretch elt))
+					   (* scale (shrink elt))))))
+  (setf (slot-value line 'hyphenated)
+	(when (hyphenation-point-p (aref (lineup line) (1- (stop-idx line))))
+	  (if (explicitp (aref (lineup line) (1- (stop-idx line))))
+	    :explicit
+	    :implicit))))
 
+(defgeneric line-properties (line)
+  (:documentation "Return a string describing LINE's properties.")
+  (:method (line)
+    "Advertise LINE's width. This is the default method."
+    (format nil "Line width: ~Spt." (coerce (width line) 'float))))
 
 ;; #### FIXME: this interface is broken because of the hardwired limits on
 ;; scaling. They're ok for many algorithms, but TeX has its own tolerance
@@ -182,14 +186,14 @@ origin. A line also remembers its scale factor."))
 ;; we're over the font's recommendations, and indicators for when we override
 ;; the algorithm's decision.
 
-(defun effective-scale (scale overshrink overstretch)
+#+()(defun effective-scale (scale overshrink overstretch)
   "Return effective SCALE, normally limited to [-1,+1].
 Those limitations may be ignored if OVERSHRINK or OVERSTRETCH."
   (cond ((<< scale 0) (if overshrink scale (mmaaxx scale -1)))
 	((== scale 0) 0)
 	((>> scale 0) (if overstretch scale (mmiinn scale 1)))))
 
-(defun make-scaled-line (lineup start stop scale overshrink overstretch)
+#+()(defun make-scaled-line (lineup start stop scale overshrink overstretch)
   "Make a SCALEd line from LINEUP chunk between START and STOP.
 See `effective-scale' for more information on how SCALE is handled."
   (make-line lineup start stop (effective-scale scale overshrink overstretch)))

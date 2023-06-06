@@ -306,4 +306,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	:for boundary := (funcall get-line-boundary
 			   lineup start width fallback
 			   width-offset avoid-hyphens prefer-overfulls)
-	:collect (make-line lineup start (stop-idx boundary))))
+	:collect (make-instance 'line
+		   :lineup lineup
+		   :start-idx start :stop-idx (stop-idx boundary))))
