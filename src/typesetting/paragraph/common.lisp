@@ -14,10 +14,10 @@
 (defparameter *disposition-options-tooltips*
   '(:disposition-option-overstretch
     "In Justified disposition, stretch as needed,
-ignoring the font's inter-word spacing recommendation."
+ignoring the algorithm's decision."
     :disposition-option-overshrink
     "In Justified disposition, shrink as needed,
-ignoring the font's inter-word spacing recommendation."))
+ignoring the algorithm's decision."))
 
 (defun disposition-type (disposition)
   "Return DISPOSITION type."
