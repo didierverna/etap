@@ -65,6 +65,8 @@
 ;; Best/Justified version, and provide a choice? See for instance some ideas
 ;; in the Fixed algorithm's comment section.
 
+;; #### TODO: add a tolerance parameter.
+
 
 (in-package :etap)
 
