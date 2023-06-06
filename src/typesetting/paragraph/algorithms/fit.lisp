@@ -153,7 +153,10 @@ for equally good solutions."))
 
 (defclass fit-weighted-boundary (fit-boundary)
   ((weight :documentation "This boundary's weight."
-	   :initarg :weight :accessor weight))
+	   :initarg :weight :accessor weight)
+   (possibilities
+    :documentation "The number of possibilities for ending this line."
+    :initarg :possibilities :reader possibilities))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 
@@ -232,11 +235,13 @@ This function returns three values:
 	     ;; at most one boundary with a penalty of -∞ (because of the way
 	     ;; we collect boundaries). This means that we can end up with at
 	     ;; most one infinitely negative weight below.
-	     (mapc (lambda (fit)
-		     (change-class fit 'fit-weighted-boundary
-		       :weight (++ (scale-badness (scale fit))
-				   (penalty (item fit)))))
-	       fits)
+	     (let ((possibilities (length fits)))
+	       (mapc (lambda (fit)
+		       (change-class fit 'fit-weighted-boundary
+			 :weight (++ (scale-badness (scale fit))
+				     (penalty (item fit)))
+			 :possibilities possibilities))
+		 fits))
 	     ;; Note the use of << and EQL here, because we can have (at most)
 	     ;; one infinitely negative weight.
 	     (setq fits (stable-sort fits #'<< :key #'weight))
@@ -270,7 +275,10 @@ This function returns three values:
 
 (defclass fit-line (line)
   ((weight :initarg :weight :reader weight
-	   :documentation "This line's weight."))
+	   :documentation "This line's weight.")
+   (possibilities
+    :documentation "The number of possibilities for ending this line."
+    :initarg :possibilities :reader possibilities))
   (:documentation "The Fit line class.
 This class keeps track of the line's weight, as computed in the best /
 justified disposition. Note that unfit lines are still represented by the base
@@ -278,7 +286,9 @@ LINE class."))
 
 (defmethod line-properties strnlcat ((line fit-line))
   "Return a string advertising LINE's weight."
-  (format nil "Weight: ~S" (print (coerce (weight line) 'float))))
+  (format nil "Weight: ~S, out of ~S possible solutions."
+    (coerce (weight line) 'float)
+    (possibilities line)))
 
 (defgeneric fit-make-line
     (lineup start boundary disposition variant &key &allow-other-keys)
@@ -344,7 +354,9 @@ LINE class."))
     (etypecase boundary
       (fit-weighted-boundary
        (setq line-class 'fit-line)
-       (setq line-initargs `(,@line-initargs :weight ,(weight boundary))))
+       (setq line-initargs `(,@line-initargs
+			     :weight ,(weight boundary)
+			     :possibilities ,(possibilities boundary))))
       (fit-boundary
        (setq line-class 'line)))
     (if (last-boundary-p boundary)
