@@ -126,7 +126,12 @@ Note the S appended to NAME in the choices variable name."
     (lineup disposition algorithm &key &allow-other-keys)
   (:documentation
    "Prepare LINEUP for DISPOSITION in an ALGORITHM-specific way.
-Return a possibly modified lineup.")
+Primary methods must return a possibly modified lineup.")
+  (:method :around (lineup disposition algorithm &key)
+    "Only proceed when LINEUP is not null, and finally convert it to an array."
+    (when lineup
+      (setq lineup (call-next-method))
+      (make-array (length lineup) :initial-contents lineup)))
   (:method (lineup disposition algorithm &key)
     "Return LINEUP as-is. This is the default method."
     lineup))

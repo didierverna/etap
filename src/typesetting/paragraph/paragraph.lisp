@@ -109,11 +109,9 @@ defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
 	  (apply #'make-lineup
 	    (select-keys keys :context :text :font :hyphenation-rules
 			      :features :kerning :ligatures :hyphenation))))
-  (when lineup
-    (setq lineup (apply #'prepare-lineup
-		   lineup disposition (algorithm-type algorithm)
-		   (algorithm-options algorithm)))
-    (setq lineup (make-array (length lineup) :initial-contents lineup)))
+  (setq lineup (apply #'prepare-lineup
+		 lineup disposition (algorithm-type algorithm)
+		 (algorithm-options algorithm)))
   (make-instance 'paragraph
     :width width
     :pinned-lines (pin-lines
