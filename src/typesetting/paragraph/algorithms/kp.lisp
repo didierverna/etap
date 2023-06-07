@@ -302,12 +302,18 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					 width emergency-stretch)
 			   scale))))
 	   (when (<== badness threshold)
-	     (let ((fitness (scale-fitness-class scale))
-		   (demerits (local-demerits badness (penalty (item boundary))
-					     line-penalty))
-		   (total-demerits (kp-node-total-demerits node)))
+	     (let* ((fitness (scale-fitness-class scale))
+		    (demerits (local-demerits badness (penalty (item boundary))
+					      line-penalty))
+		    (total-demerits (++ (kp-node-total-demerits node)
+					demerits)))
+	       ;; #### FIXME: for now, all contextual penalties affect the
+	       ;; total demerits only below. This is to remain consistent with
+	       ;; the graph implementation, and is due to a limitation in the
+	       ;; layouts design. See the related comment in the layouts
+	       ;; section of graph.lisp.
 	       (when (> (abs (- fitness previous-fitness)) 1)
-		 (setq demerits (++ demerits adjacent-demerits)))
+		 (setq total-demerits (++ total-demerits adjacent-demerits)))
 	       ;; #### NOTE: according to #859, TeX doesn't consider the
 	       ;; admittedly very rare and weird case where a paragraph would
 	       ;; end with an explicit hyphen. As stipulated in #829, for the
@@ -322,10 +328,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	       ;; ladder.
 	       (when (discretionaryp (item previous-boundary))
 		 (if (last-boundary-p boundary)
-		   (setq demerits (++ demerits final-hyphen-demerits))
+		   (setq total-demerits
+			 (++ total-demerits final-hyphen-demerits))
 		   (when (discretionaryp (item boundary))
-		     (setq demerits (++ demerits double-hyphen-demerits)))))
-	       (setq total-demerits (++ total-demerits demerits))
+		     (setq total-demerits
+			   (++ total-demerits double-hyphen-demerits)))))
 	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
 		      (previous (find new-key new-nodes
 				  :test #'equal :key #'car)))
