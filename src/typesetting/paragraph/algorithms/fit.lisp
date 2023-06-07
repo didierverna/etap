@@ -287,7 +287,7 @@ LINE class."))
 (defmethod line-properties strnlcat ((line fit-line))
   "Return a string advertising LINE's weight."
   (format nil "Weight: ~S, out of ~S possible solutions."
-    (if (numberp (weight line)) (coerce (weight line) 'float) (weight line))
+    (ffllooaatt (weight line))
     (possibilities line)))
 
 (defgeneric fit-make-line

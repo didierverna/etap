@@ -100,3 +100,9 @@
 (defun aabbss (x)
   "Infinity handling ABS."
   (if (numberp x) (abs x) +∞))
+
+(defun ffllooaatt (inumber &optional prototype)
+  "Infinity handling FLOAT."
+  (if (numberp inumber)
+    (if prototype (float inumber prototype) (float inumber))
+    inumber))
