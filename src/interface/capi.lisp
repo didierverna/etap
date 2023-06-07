@@ -357,9 +357,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				  (<= y (+ (y line) (depth line)))))
 			   (pinned-lines paragraph)))))
       (if line
-	(display-tooltip pane
-	  ;; (format nil "Line scale: ~F." (coerce (scale line) 'float)))
-	  :text (line-properties (line line)))
+	(display-tooltip pane :text (line-properties (line line)))
 	(display-tooltip pane)))))
 
 ;; Interface
