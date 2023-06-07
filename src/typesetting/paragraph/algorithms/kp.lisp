@@ -141,14 +141,18 @@
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
-	  :collect (make-scaled-line lineup start stop (scale edge)
-				     ;; #### NOTE: the overstretch option is
-				     ;; always T because TeX has its own
-				     ;; tolerance settings which are not
-				     ;; necessarily 1.
-				     overshrink t)
+	  ;; #### FIXME: in order to properly handle the overstretch option, I
+	  ;; need to know the final tolerance (threshold value) here.
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop
+		     :scale (scale edge)
+		     :effective-scale
+		     (if (<== (scale edge) 0)
+		       (if overshrink (scale edge) (mmaaxx (scale edge) -1))
+		       (scale edge)))
 	:else
-	  :collect (make-line lineup start stop)))
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop)))
 
 (defun kp-next-boundaries
     (lineup start width
@@ -433,13 +437,20 @@ through the algorithm in the TeX jargon).
 	    :for start := (start-idx (kp-node-boundary beg))
 	    :for stop := (stop-idx (kp-node-boundary end))
 	    :do (push (if justified
-			(make-scaled-line lineup start stop (kp-node-scale end)
-					  ;; #### NOTE: the overstretch option
-					  ;; is always T because TeX has its
-					  ;; own tolerance settings which are
-					  ;; not necessarily 1.
-					  overshrink t)
-			(make-line lineup start stop))
+			;; #### FIXME: in order to properly handle the
+			;; overstretch option, I need to know the final
+			;; tolerance (threshold value) here.
+			(make-instance 'line
+			  :lineup lineup :start-idx start :stop-idx stop
+			  :scale (kp-node-scale end)
+			  :effective-scale
+			  (if (<== (kp-node-scale end) 0)
+			    (if overshrink
+			      (kp-node-scale end)
+			      (mmaaxx (kp-node-scale end) -1))
+			    (kp-node-scale end)))
+			(make-instance 'line
+			  :lineup lineup :start-idx start :stop-idx stop))
 		      lines)
 	    :finally (return lines)))))
 
