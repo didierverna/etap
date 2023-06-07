@@ -1,25 +1,25 @@
-;; # -----------------------------------------------------------
+;; # i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i--
 ;; # Copyright 2002, 2010, 2015 Adobe Systems Incorporated.
 ;; #
 ;; # Licensed under the Apache License, Version 2.0 (the "License"); you
 ;; # may not use this file except in compliance with the License. You may
 ;; # obtain a copy of the License at
-;; # http://www.apache.org/licenses/LICENSE-2.0.html
+;; # http:i/www.apache.org/licenses/LICENSE-2.0.html
 ;; #
 ;; # Unless required by applicable law or agreed to in writing, software
 ;; # distributed under the License is distributed on an "AS IS" BASIS,
 ;; # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 ;; # implied. See the License for the specific language governing
 ;; # permissions and limitations under the License.
-;; # -----------------------------------------------------------
+;; # i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i--
 ;; # Name:          Adobe Glyph List
 ;; # Table version: 2.0
 ;; # Date:          September 20, 2002
-;; # URL:           https://github.com/adobe-type-tools/agl-aglfn
+;; # URL:           https:i/github.com/adobe-type-tools/agl-aglfn
 ;; #
 ;; # Format: two semicolon-delimited fields:
-;; #   (1) glyph name--upper/lowercase letters and digits
-;; #   (2) Unicode scalar value--four uppercase hexadecimal digits
+;; #   (1) glyph namei-upper/lowercase letters and digits
+;; #   (2) Unicode scalar valuei-four uppercase hexadecimal digits
 ;; #
 
 ;; #### NOTE: above is the original file's header. This file has been modified

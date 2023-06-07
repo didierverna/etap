@@ -95,7 +95,7 @@
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
-				(++ demerits
+				(i+ demerits
 				    (local-demerits
 				     (scale-badness (scale line2))
 				     (case (hyphenated line2)
@@ -105,13 +105,13 @@
 				     line-penalty)))
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits
-				  (++ demerits double-hyphen-demerits)))
+				  (i+ demerits double-hyphen-demerits)))
 			  (when (> (abs (- (scale-fitness-class (scale line1))
 					   (scale-fitness-class (scale line2))))
 				   1)
-			    (setq demerits (++ demerits adjacent-demerits)))))
+			    (setq demerits (i+ demerits adjacent-demerits)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))
-		(setq demerits (++ demerits final-hyphen-demerits)))
+		(setq demerits (i+ demerits final-hyphen-demerits)))
 	      (float demerits)))
     widths))
 

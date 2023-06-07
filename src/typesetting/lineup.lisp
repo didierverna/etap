@@ -12,9 +12,9 @@
 (in-package :etap)
 
 
-;; =================
+;; i=i=i=i=i=i=i=i==
 ;; General Utilities
-;; =================
+;; i=i=i=i=i=i=i=i==
 
 ;; For the interface.
 
@@ -59,13 +59,13 @@
 
 
 
-;; ===================
+;; i=i=i=i=i=i=i=i=i==
 ;; Lineup Constituents
-;; ===================
+;; i=i=i=i=i=i=i=i=i==
 
-;; -----
+;; i-i--
 ;; Kerns
-;; -----
+;; i-i--
 
 (defclass kern ()
   ((width :initarg :width :reader width :documentation "The kern's width."))
@@ -81,9 +81,9 @@ Kerns represent inter-letter horizontal spacing."))
   (make-instance 'kern :width width))
 
 
-;; ------------
+;; i-i-i-i-i-i-
 ;; Break points
-;; ------------
+;; i-i-i-i-i-i-
 
 ;; #### FIXME: there is a confusion around the meaning of infinitely negative
 ;; penalties (perhaps in TeX as well). Infinitely negative penalties mean both
@@ -189,7 +189,7 @@ Glues represent breakable, elastic space."))
   (assert (and (rationalp (width glue)) (>= (width glue) 0)))
   (assert (and (rationalp (shrink glue)) (>= (shrink glue) 0)))
   (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
-	      (== (stretch glue) +∞))))
+	      (i= (stretch glue) +∞))))
 
 (defun gluep (object)
   "Return T if OBJECT is a glue."
@@ -208,9 +208,9 @@ Glues represent breakable, elastic space."))
 
 
 
-;; ===============
+;; i=i=i=i=i=i=i==
 ;; Lineup Creation
-;; ===============
+;; i=i=i=i=i=i=i==
 
 ;; #### WARNING: in the code below, the lineup is still a list.
 
@@ -227,9 +227,9 @@ Glues represent breakable, elastic space."))
 ;; that every time we want to poll the size of various lineup chunks. This
 ;; could be rather expensive (although I haven't tried it).
 
-;; -------
+;; i-i-i--
 ;; Kerning
-;; -------
+;; i-i-i--
 
 (defun kerning (elt1 elt2)
   "Return kerning information for lineup elements ELT1 and ELT2, or NIL."
@@ -279,9 +279,9 @@ Glues represent breakable, elastic space."))
 	:when kern :collect kern))
 
 
-;; --------------------
+;; i-i-i-i-i-i-i-i-i-i-
 ;; Ligatures processing
-;; --------------------
+;; i-i-i-i-i-i-i-i-i-i-
 
 (defun ligature (elt1 elt2)
   "Return a ligature for lineup ELT1 and ELT2, or NIL."
@@ -381,9 +381,9 @@ to the new lineup, and the unprocessed new remainder."
 	:append done))
 
 
-;; ---------------
+;; i-i-i-i-i-i-i--
 ;; Word processing
-;; ---------------
+;; i-i-i-i-i-i-i--
 
 (defun get-character (char font)
   "Get CHAR in FONT. Replace CHAR by a question mark if not found."
@@ -436,9 +436,9 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 	 (map 'list (lambda (char) (get-character char font)) word))))
 
 
-;; --------------
+;; i-i-i-i-i-i-i-
 ;; Lineup slicing
-;; --------------
+;; i-i-i-i-i-i-i-
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
   "The list of blank characters.")
@@ -486,9 +486,9 @@ inner consecutive blanks are replaced with a single interword glue."
 	  :and :do (incf i)))
 
 
-;; ------------------
+;; i-i-i-i-i-i-i-i-i-
 ;; Lineup computation
-;; ------------------
+;; i-i-i-i-i-i-i-i-i-
 
 (defun make-lineup
     (&key (context *context*)
@@ -524,15 +524,15 @@ defaulted from FEATURES."
 
 
 
-;; ===================
+;; i=i=i=i=i=i=i=i=i==
 ;; Lineup Manipulation
-;; ===================
+;; i=i=i=i=i=i=i=i=i==
 
 ;; #### WARNING: in the code below, the lineup has become an array.
 
-;; ---------
+;; i-i-i-i--
 ;; Utilities
-;; ---------
+;; i-i-i-i--
 
 (defun lineup-aref (lineup i start stop &aux (element (aref lineup i)))
   "Return LINEUP element at position I, between START and STOP boundaries.
@@ -552,9 +552,9 @@ If element is a discretionary, return the appropriate pre/no/post break part."
     element))
 
 
-;; -------------
+;; i-i-i-i-i-i--
 ;; Lineup widths
-;; -------------
+;; i-i-i-i-i-i--
 
 (defun lineup-width (lineup start stop)
   "Compute LINEUP's width between START and STOP.
@@ -571,9 +571,9 @@ stretch and shrink amounts."
 	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
-	  :do (setq stretch (++ stretch (stretch element))
+	  :do (setq stretch (i+ stretch (stretch element))
 		    shrink (+ shrink (shrink element)))
-	:finally (return (values width (++ width stretch) (- width shrink)
+	:finally (return (values width (i+ width stretch) (- width shrink)
 				 stretch shrink))))
 
 (defun lineup-max-width (lineup start stop)
@@ -589,9 +589,9 @@ stretch and shrink amounts."
     min))
 
 
-;; -------------
+;; i-i-i-i-i-i--
 ;; Lineup scales
-;; -------------
+;; i-i-i-i-i-i--
 
 (defun scaling (width target stretch shrink)
   "Return the amount of scaling required to reach TARGET from WIDTH.
@@ -599,8 +599,8 @@ The amount in question is 0 if WIDTH is equal to TARGET.
 Otherwise, it's a possibly infinite stretching (positive) or shrinking
 (negative) ratio relative to the elasticity provided by STRETCH and SHRINK."
   (cond ((= width target) 0)
-	((< width target) (// (- target width) stretch))
-	((< target width) (// (- target width) shrink))))
+	((< width target) (i/ (- target width) stretch))
+	((< target width) (i/ (- target width) shrink))))
 
 (defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
@@ -609,13 +609,13 @@ See `scaling' for more information."
   (multiple-value-bind (width max min stretch shrink)
       (lineup-width lineup start stop)
     (declare (ignore max min))
-    (when extra (setq stretch (++ stretch extra)))
+    (when extra (setq stretch (i+ stretch extra)))
     (scaling width target stretch shrink)))
 
 
-;; -----------------
+;; i-i-i-i-i-i-i-i--
 ;; Lineup boundaries
-;; -----------------
+;; i-i-i-i-i-i-i-i--
 
 (defclass boundary ()
   ((item

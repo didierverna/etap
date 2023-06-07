@@ -35,9 +35,9 @@
 (in-package :etap)
 
 
-;; ==========
+;; i=i=i=i=i=
 ;; Boundaries
-;; ==========
+;; i=i=i=i=i=
 
 (defclass barnett-boundary (fixed-boundary)
   ((scale :documentation "This boundary's required scaling."
@@ -52,9 +52,9 @@
 
 
 
-;; =========
+;; i=i=i=i==
 ;; Algorithm
-;; =========
+;; i=i=i=i==
 
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
@@ -76,9 +76,9 @@
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
-	       ((and overword (>== (scale overword) -1)) overword)
+	       ((and overword (i>= (scale overword) -1)) overword)
 	       ;; A word underfull that fits.
-	       ((and underword (<== (scale underword) 1)) underword)
+	       ((and underword (i<= (scale underword) 1)) underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
@@ -86,16 +86,16 @@
 	       ;; definition.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :when (>== (scale hyphen) -1) :do (return hyphen)
+		      :when (i>= (scale hyphen) -1) :do (return hyphen)
 			:finally (return (or underword overword))))
 	       (t
 		(or underword overword))))))
 
 
 
-;; ===========
+;; i=i=i=i=i==
 ;; Entry Point
-;; ===========
+;; i=i=i=i=i==
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we
@@ -115,11 +115,11 @@
 	:for scale := (scale boundary)
 	:if (and justified (last-boundary-p boundary))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (<< scale 0)
+	  :collect (if (i< scale 0)
 		     (make-instance 'line
 		       :lineup lineup :start-idx start :stop-idx stop
 		       :scale scale
-		       :effective-scale (if overshrink scale (mmaaxx scale -1)))
+		       :effective-scale (if overshrink scale (imax scale -1)))
 		     (make-instance 'line
 		       :lineup lineup :start-idx start :stop-idx stop))
 	:else :if justified
@@ -129,8 +129,8 @@
 		     :lineup lineup :start-idx start :stop-idx stop
 		     :scale scale
 		     :effective-scale
-		     (cond ((>== scale 0) scale)
-			   (t (if overshrink scale (mmaaxx scale -1)))))
+		     (cond ((i>= scale 0) scale)
+			   (t (if overshrink scale (imax scale -1)))))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-instance 'line

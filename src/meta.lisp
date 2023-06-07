@@ -6,7 +6,7 @@
 (defpackage :etap
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
-  (:shadow :++ ://
+  (:shadow :i+ :i/
    ;; CAPI exports these and it sucks.
    :item :layout)
   (:export

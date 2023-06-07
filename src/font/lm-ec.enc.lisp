@@ -2,8 +2,8 @@
 ;; %  the GUST Font License. See the MANIFEST-Latin-Modern.txt and
 ;; %  README-Latin-Modern.txt files for the details. For the most recent
 ;; %  version of this license see
-;; %  http://www.gust.org.pl/fonts/licenses/GUST-FONT-LICENSE.txt or
-;; %  http://tug.org/fonts/licenses/GUST-FONT-LICENSE.txt
+;; %  http:i/www.gust.org.pl/fonts/licenses/GUST-FONT-LICENSE.txt or
+;; %  http:i/tug.org/fonts/licenses/GUST-FONT-LICENSE.txt
 
 ;; #### NOTE: above is the original file's header. This file has been modified
 ;; to provide the LM EC encoding as a Lisp array.

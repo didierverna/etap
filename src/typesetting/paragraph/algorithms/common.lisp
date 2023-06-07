@@ -1,8 +1,8 @@
 (in-package :etap)
 
-;; =========================
+;; i=i=i=i=i=i=i=i=i=i=i=i==
 ;; Parametrization Utilities
-;; =========================
+;; i=i=i=i=i=i=i=i=i=i=i=i==
 
 ;; For easy exchange with the interface and manipulation as function keyword
 ;; parameters.
@@ -61,9 +61,9 @@ Note the S appended to NAME in the choices variable name."
 
 
 
-;; ====================
+;; i=i=i=i=i=i=i=i=i=i=
 ;; Quality measurements
-;; ====================
+;; i=i=i=i=i=i=i=i=i=i=
 
 ;; #### NOTE: according to #108, TeX clamps badness values to 10000 which is
 ;; an approximation of 2^13, and called "infinitely bad", but there's in fact
@@ -110,15 +110,15 @@ Note the S appended to NAME in the choices variable name."
 ;; track of whether we're stretching or shrinking.
 
 (defun scale-badness (scale)
-  (if (or (<< scale -1) (== scale +∞))
+  (if (or (i< scale -1) (i= scale +∞))
     +∞
     (* 100 (expt (abs scale) 3))))
 
 
 
-;; ============
+;; i=i=i=i=i=i=
 ;; Entry Points
-;; ============
+;; i=i=i=i=i=i=
 
 ;; #### WARNING: the DISPOSITION argument is currently unused, but will be
 ;; when we update the KP algorithm to handle ragged dispositions properly.

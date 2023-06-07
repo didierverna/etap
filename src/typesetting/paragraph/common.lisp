@@ -29,9 +29,9 @@ ignoring the algorithm's decision."))
 
 
 
-;; ==============
+;; i=i=i=i=i=i=i=
 ;; Pinned Objects
-;; ==============
+;; i=i=i=i=i=i=i=
 
 (defclass pinned-character (pinned)
   ((character-metrics :initarg :character-metrics :accessor character-metrics
@@ -92,9 +92,9 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 
 
 
-;; =====
+;; i=i==
 ;; Lines
-;; =====
+;; i=i==
 
 (defclass line ()
   ((lineup :initarg :lineup :reader lineup
@@ -196,6 +196,6 @@ origin. A line also remembers its scale factor."))
     "Advertise LINE's width. This is the default method."
     (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
       (float (width line))
-      (ffllooaatt (scale line))
-      (/== (scale line) (effective-scale line))
-      (ffllooaatt (effective-scale line)))))
+      (ifloat (scale line))
+      (i/= (scale line) (effective-scale line))
+      (ifloat (effective-scale line)))))

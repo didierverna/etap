@@ -71,9 +71,9 @@
 (in-package :etap)
 
 
-;; =============
+;; i=i=i=i=i=i==
 ;; Specification
-;; =============
+;; i=i=i=i=i=i==
 
 (defparameter *fit-variants*
   '(:first :best :last))
@@ -131,9 +131,9 @@ for equally good solutions."))
 
 
 
-;; ==========
+;; i=i=i=i=i=
 ;; Boundaries
-;; ==========
+;; i=i=i=i=i=
 
 (defclass fit-boundary (fixed-boundary)
   ((max-width :documentation "This boundary's maximum line width."
@@ -161,9 +161,9 @@ for equally good solutions."))
 
 
 
-;; =========
+;; i=i=i=i==
 ;; Algorithm
-;; =========
+;; i=i=i=i==
 
 ;; This function collects boundaries between the last underfull (included) and
 ;; the first overfull (included), regardless of their hyphenation status.
@@ -184,9 +184,9 @@ This function returns three values:
 	  :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 			       :start start :width width)
 	:while continue
-	:do (when (<< (penalty (item boundary)) +∞)
+	:do (when (i< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((<< (max-width boundary) width)
+	      (cond ((i< (max-width boundary) width)
 		     (setq underfull boundary))
 		    ((> (min-width boundary) width)
 		     (setq overfull boundary continue nil))
@@ -238,13 +238,13 @@ This function returns three values:
 	     (let ((possibilities (length fits)))
 	       (mapc (lambda (fit)
 		       (change-class fit 'fit-weighted-boundary
-			 :weight (++ (scale-badness (scale fit))
+			 :weight (i+ (scale-badness (scale fit))
 				     (penalty (item fit)))
 			 :possibilities possibilities))
 		 fits))
-	     ;; Note the use of << and EQL here, because we can have (at most)
+	     ;; Note the use of i< and EQL here, because we can have (at most)
 	     ;; one infinitely negative weight.
-	     (setq fits (stable-sort fits #'<< :key #'weight))
+	     (setq fits (stable-sort fits #'i< :key #'weight))
 	     (setq fits (retain (weight (first fits)) fits
 			  :test #'eql :key #'weight))
 	     (when (cdr fits)
@@ -287,7 +287,7 @@ LINE class."))
 (defmethod line-properties strnlcat ((line fit-line))
   "Return a string advertising LINE's weight."
   (format nil "Weight: ~A, out of ~A possible solutions."
-    (ffllooaatt (weight line))
+    (ifloat (weight line))
     (possibilities line)))
 
 (defgeneric fit-make-line
@@ -313,7 +313,7 @@ LINE class."))
 		;; still be underfull (possibly not even elastic), so we can
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
-		(if (>> scale 0) scale 0)))))
+		(if (i> scale 0) scale 0)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
 		   :scale scale))
   (:method (lineup start boundary disposition (variant (eql :best)) &key)
@@ -339,7 +339,7 @@ LINE class."))
 		    ;;   so we can deshrink up to that.
 		    ;; - Finally, a scale < -1 means that the line cannot fit
 		    ;;   at all, so we must stay at our original -1.
-		    (if (>== scale 0) 0 (mmaaxx scale -1)))))
+		    (if (i>= scale 0) 0 (imax scale -1)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
 		   :scale scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
@@ -367,37 +367,37 @@ LINE class."))
 	(:first
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	 ;; much as possible, without overstretching.
-	 (cond ((<< scale 0)
-		(setq scale (mmaaxx scale -1))
+	 (cond ((i< scale 0)
+		(setq scale (imax scale -1))
 		(unless overshrink (setq effective-scale scale)))
-	       ((>> scale 0)
-		(setq scale (mmiinn scale 1) effective-scale scale))))
+	       ((i> scale 0)
+		(setq scale (imin scale 1) effective-scale scale))))
 	(:best
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	 ;; normal spacing.
-	 (cond ((<< scale 0)
-		(setq scale (mmaaxx scale -1))
+	 (cond ((i< scale 0)
+		(setq scale (imax scale -1))
 		(unless overshrink (setq effective-scale scale)))
 	       (t (setq scale 0 effective-scale 0))))
 	(:last
 	 ;; Shrink as much as possible.
 	 (setq scale -1)
-	 (unless (and (<< effective-scale 0) overshrink)
+	 (unless (and (i< effective-scale 0) overshrink)
 	   (setq effective-scale -1))))
-      (cond ((<< scale 0)
-	     (setq scale (mmaaxx scale -1))
+      (cond ((i< scale 0)
+	     (setq scale (imax scale -1))
 	     (unless overshrink (setq effective-scale scale)))
-	    ((>> scale 0)
-	     (setq scale (mmiinn scale 1))
+	    ((i> scale 0)
+	     (setq scale (imin scale 1))
 	     (unless overstretch (setq effective-scale scale)))))
     (apply #'make-instance line-class
 	   :scale scale :effective-scale effective-scale line-initargs)))
 
 
 
-;; ============
+;; i=i=i=i=i=i=
 ;; Entry Points
-;; ============
+;; i=i=i=i=i=i=
 
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."

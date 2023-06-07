@@ -18,22 +18,22 @@
 (in-package :etap)
 
 
-;; =============
+;; i=i=i=i=i=i==
 ;; Specification
-;; =============
+;; i=i=i=i=i=i==
 
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
 
 
-;; ====================
+;; i=i=i=i=i=i=i=i=i=i=
 ;; Graph Specialization
-;; ====================
+;; i=i=i=i=i=i=i=i=i=i=
 
-;; -----
+;; i-i--
 ;; Edges
-;; -----
+;; i-i--
 
 ;; #### NOTE: we handle the weights below with extended arithmetic, but this
 ;; is in fact not necessary because they're only used with actual solutions
@@ -58,19 +58,19 @@ The weight is computed according to the discriminating function."
   (multiple-value-bind (natural max min stretch shrink)
       (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
-	  (cond ((<< max width) :underfull)
+	  (cond ((i< max width) :underfull)
 		((> min width) :overfull)
 		(t :fit)))
     (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
     (setf (slot-value edge 'weight)
 	  (ecase discriminating-function
 	    (:minimize-distance (abs (- width natural)))
-	    (:minimize-scaling (aabbss (scale edge)))))))
+	    (:minimize-scaling (iabs (scale edge)))))))
 
 
-;; -------
+;; i-i-i--
 ;; Layouts
-;; -------
+;; i-i-i--
 
 (defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
@@ -96,13 +96,13 @@ The weight is computed according to the discriminating function."
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
     (:overfull (incf (overfulls layout))))
-  (setf (weight layout) (++ (weight layout) (weight edge))))
+  (setf (weight layout) (i+ (weight layout) (weight edge))))
 
 
 
-;; =========
+;; i=i=i=i==
 ;; Algorithm
-;; =========
+;; i=i=i=i==
 
 (defclass duncan-line (line)
   ((weight :initarg :weight :reader weight
@@ -112,7 +112,7 @@ This class keeps track of the line's weight."))
 
 (defmethod line-properties strnlcat ((line duncan-line))
   "Return a string advertising LINE's weight."
-  (format nil "Weight: ~A." (ffllooaatt (weight line))))
+  (format nil "Weight: ~A." (ifloat (weight line))))
 
 (defun duncan-make-lines
     (lineup disposition layout
@@ -128,13 +128,13 @@ This class keeps track of the line's weight."))
 	:for scale = (scale edge)
 	:if (and justified (last-boundary-p (boundary (destination edge))))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (<< scale 0)
+	  :collect (if (i< scale 0)
 		     ;; #### FIXME: this probably shouldn't be duncan lines
 		     ;; anymore.
 		     (make-instance 'duncan-line
 		       :lineup lineup :start-idx start :stop-idx stop
 		       :scale scale
-		       :effective-scale (if overshrink scale (mmaaxx scale -1))
+		       :effective-scale (if overshrink scale (imax scale -1))
 		       :weight (weight edge))
 		     (make-instance 'duncan-line
 		       :lineup lineup :start-idx start :stop-idx stop
@@ -145,11 +145,11 @@ This class keeps track of the line's weight."))
 		     :lineup lineup :start-idx start :stop-idx stop
 		     :scale scale
 		     :effective-scale
-		     (cond ((<< scale 0)
-			    (if overshrink scale (mmaaxx scale -1)))
-			   ((== scale 0) 0)
-			   ((>> scale 0)
-			    (if overstretch scale (mmiinn scale 1))))
+		     (cond ((i< scale 0)
+			    (if overshrink scale (imax scale -1)))
+			   ((i= scale 0) 0)
+			   ((i> scale 0)
+			    (if overstretch scale (imin scale 1))))
 		     :weight (weight edge))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
