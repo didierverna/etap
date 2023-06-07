@@ -1,4 +1,4 @@
-;; # i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i--
+;; # -----------------------------------------------------------
 ;; # Copyright 2002, 2010, 2015 Adobe Systems Incorporated.
 ;; #
 ;; # Licensed under the Apache License, Version 2.0 (the "License"); you
@@ -11,7 +11,7 @@
 ;; # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 ;; # implied. See the License for the specific language governing
 ;; # permissions and limitations under the License.
-;; # i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i-i--
+;; # -----------------------------------------------------------
 ;; # Name:          Adobe Glyph List
 ;; # Table version: 2.0
 ;; # Date:          September 20, 2002

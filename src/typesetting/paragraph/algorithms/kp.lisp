@@ -4,9 +4,9 @@
 
 (in-package :etap)
 
-;; i=i=i=i=i=i==
+;; =============
 ;; Specification
-;; i=i=i=i=i=i==
+;; =============
 
 (defparameter *kp-variants*
   '(:graph :dynamic))
@@ -37,9 +37,9 @@
 
 
 
-;; i=i=i=i==
+;; =========
 ;; Utilities
-;; i=i=i=i==
+;; =========
 
 (defun scale-fitness-class (scale)
   (cond ((i< scale -1/2) 3)
@@ -77,13 +77,13 @@
 
 
 
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 ;; Graph Implementation
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 
-;; i-i--
+;; -----
 ;; Edges
-;; i-i--
+;; -----
 
 (defclass kp-edge (edge)
   ((scale :accessor scale)
@@ -113,9 +113,9 @@
 			line-penalty)))
 
 
-;; i-i-i--
+;; -------
 ;; Layouts
-;; i-i-i--
+;; -------
 
 (defclass kp-layout (layout)
   ((size :accessor size)
@@ -147,9 +147,9 @@
       (setf (demerits layout) (i+ final-hyphen-demerits (demerits layout))))))
 
 
-;; i-i-i-i--
+;; ---------
 ;; Algorithm
-;; i-i-i-i--
+;; ---------
 
 (defun kp-make-layout-lines
     (lineup disposition layout
@@ -252,9 +252,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 
 
-;; i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=
+;; ==================================
 ;; Dynamic Programming Implementation
-;; i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=i=
+;; ==================================
 
 (defstruct (kp-node (:constructor kp-make-node))
   boundary scale fitness-class badness demerits total-demerits previous)
@@ -513,9 +513,9 @@ through the algorithm in the TeX jargon).
 
 
 
-;; i=i=i=i=i=i=
+;; ============
 ;; Entry Points
-;; i=i=i=i=i=i=
+;; ============
 
 (defmacro calibrate-kp (name &optional infinity)
   "Calibrate NAMEd Knuth-Plass variable."

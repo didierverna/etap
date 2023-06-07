@@ -1,8 +1,8 @@
 (in-package :etap)
 
-;; i=i=i=i==
+;; =========
 ;; Utilities
-;; i=i=i=i==
+;; =========
 
 (defun update (interface &aux (context (context interface)))
   "Update INTERFACE.
@@ -16,9 +16,9 @@ This recreates the typeset paragraph and invalidates the GUI's view."
     (nsubstitute #\Space #\- (string-capitalize title))))
 
 
-;; i-i-i--
+;; -------
 ;; Sliders
-;; i-i-i--
+;; -------
 
 (defmacro define-slider-callback
     (name &aux (name (string name))
@@ -47,9 +47,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     `(list ,key (range-slug-start (,accessor ,interface)))))
 
 
-;; i-i-i-
+;; ------
 ;; Radios
-;; i-i-i-
+;; ------
 
 (defmacro radio-selection (prefix key interface)
   "Return (:KEY (CHOICE-SELECTED-ITEM (PREFIX-KEY INTERFACE)))."
@@ -59,13 +59,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 
 
-;; i=i=i=i=i=i=i=i==
+;; =================
 ;; Interface Actions
-;; i=i=i=i=i=i=i=i==
+;; =================
 
-;; i-i-i-i-i-
+;; ----------
 ;; Algorithms
-;; i-i-i-i-i-
+;; ----------
 
 ;; Fixed
 (defun set-fixed-algorithm (value interface)
@@ -843,9 +843,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
       `(:visible-min-height ,(cadr size) :visible-max-height t))))
 
 
-;; i=i=i=i=i==
+;; ===========
 ;; Entry Point
-;; i=i=i=i=i==
+;; ===========
 
 (defun run (&optional (context *context*))
   "Run ETAP's GUI for CONTEXT (the global context by default)."

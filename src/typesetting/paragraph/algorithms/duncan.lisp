@@ -18,22 +18,22 @@
 (in-package :etap)
 
 
-;; i=i=i=i=i=i==
+;; =============
 ;; Specification
-;; i=i=i=i=i=i==
+;; =============
 
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
 
 
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 ;; Graph Specialization
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 
-;; i-i--
+;; -----
 ;; Edges
-;; i-i--
+;; -----
 
 ;; #### NOTE: we handle the weights below with extended arithmetic, but this
 ;; is in fact not necessary because they're only used with actual solutions
@@ -68,9 +68,9 @@ The weight is computed according to the discriminating function."
 	    (:minimize-scaling (iabs (scale edge)))))))
 
 
-;; i-i-i--
+;; -------
 ;; Layouts
-;; i-i-i--
+;; -------
 
 (defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
@@ -100,9 +100,9 @@ The weight is computed according to the discriminating function."
 
 
 
-;; i=i=i=i==
+;; =========
 ;; Algorithm
-;; i=i=i=i==
+;; =========
 
 (defclass duncan-line (line)
   ((weight :initarg :weight :reader weight

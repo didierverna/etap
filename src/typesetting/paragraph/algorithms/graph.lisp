@@ -18,13 +18,13 @@
 (in-package :etap)
 
 
-;; i=i=i=
+;; ======
 ;; Graphs
-;; i=i=i=
+;; ======
 
-;; i-i-i-i-i-i-i--
+;; ---------------
 ;; Data Structures
-;; i-i-i-i-i-i-i--
+;; ---------------
 
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
@@ -55,9 +55,9 @@ next possible break positions."))
   (hyphenation-point-p (item (boundary (destination edge)))))
 
 
-;; i-i-i-i-i-i-i-i-i-
+;; ------------------
 ;; Graph construction
-;; i-i-i-i-i-i-i-i-i-
+;; ------------------
 
 ;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
 ;; instead of just a Boolean, for keeping more than 1 *full.
@@ -165,9 +165,9 @@ second value."
 
 
 
-;; i=i=i==
+;; =======
 ;; Layouts
-;; i=i=i==
+;; =======
 
 ;; #### FIXME: it is not powerful enough to use graph edges when creating
 ;; layouts. An edge can be used in multiple graph paths, so it cannot store

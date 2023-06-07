@@ -1,8 +1,8 @@
 (in-package :etap)
 
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 ;; Extended Arithmetics
-;; i=i=i=i=i=i=i=i=i=i=
+;; ====================
 
 ;; Arithmetics with a notion of infinity.
 

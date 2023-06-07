@@ -11,9 +11,9 @@
 
 
 
-;; i=i=i=i=i=i=
+;; ============
 ;; Pinned lines
-;; i=i=i=i=i=i=
+;; ============
 
 (defclass pinned-line (pinned)
   ((line :initarg :line :accessor line))
@@ -58,9 +58,9 @@ The line's 2D position is relative to the paragraph it belongs to."))
 
 
 
-;; i=i=i=i=i=
+;; ==========
 ;; Paragraphs
-;; i=i=i=i=i=
+;; ==========
 
 (defclass paragraph ()
   ((width :initarg :width :accessor width

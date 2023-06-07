@@ -29,9 +29,9 @@ ignoring the algorithm's decision."))
 
 
 
-;; i=i=i=i=i=i=i=
+;; ==============
 ;; Pinned Objects
-;; i=i=i=i=i=i=i=
+;; ==============
 
 (defclass pinned-character (pinned)
   ((character-metrics :initarg :character-metrics :accessor character-metrics
@@ -92,9 +92,9 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 
 
 
-;; i=i==
+;; =====
 ;; Lines
-;; i=i==
+;; =====
 
 (defclass line ()
   ((lineup :initarg :lineup :reader lineup

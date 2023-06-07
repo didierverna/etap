@@ -56,9 +56,9 @@
 (in-package :etap)
 
 
-;; i=i=i=i=i=i==
+;; =============
 ;; Specification
-;; i=i=i=i=i=i==
+;; =============
 
 (defparameter *fixed-fallbacks*
   '(:underfull :anyfull :overfull))
@@ -96,9 +96,9 @@ the underfull one."))
 
 
 
-;; i=i=i=i=i=
+;; ==========
 ;; Boundaries
-;; i=i=i=i=i=
+;; ==========
 
 ;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
 ;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
@@ -138,9 +138,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 
-;; i=i=i=i==
+;; =========
 ;; Algorithm
-;; i=i=i=i==
+;; =========
 
 ;; #### NOTE: the WIDTH below already takes the width offset into account.
 ;; Also, it is safe to use regular (numerical) arithmetic here because we only
@@ -280,9 +280,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 
-;; i=i=i=i=i==
+;; ===========
 ;; Entry Point
-;; i=i=i=i=i==
+;; ===========
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
