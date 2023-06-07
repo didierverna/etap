@@ -108,6 +108,16 @@ The weight is computed according to the discriminating function."
 ;; Algorithm
 ;; =========
 
+(defclass duncan-line (line)
+  ((weight :initarg :weight :reader weight
+	   :documentation "This line's weight."))
+  (:documentation "The Duncan line class.
+This class keeps track of the line's weight."))
+
+(defmethod line-properties strnlcat ((line duncan-line))
+  "Return a string advertising LINE's weight."
+  (format nil "Weight: ~S." (ffllooaatt (weight line))))
+
 (defun duncan-make-lines
     (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
@@ -123,15 +133,32 @@ The weight is computed according to the discriminating function."
 	:if (and justified (last-boundary-p (boundary (destination edge))))
 	  ;; Justified last line: maybe shrink it but don't stretch it.
 	  :collect (if (<< scale 0)
-		     (make-scaled-line lineup start stop scale overshrink nil)
-		     (make-line lineup start stop))
+		     ;; #### FIXME: this probably shouldn't be duncan lines
+		     ;; anymore.
+		     (make-instance 'duncan-line
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :scale scale
+		       :effective-scale (if overshrink scale (mmaaxx scale -1))
+		       :weight (weight edge))
+		     (make-instance 'duncan-line
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :weight (weight edge)))
 	:else :if justified
 	  ;; Justified regular line: make it fit.
-	  :collect (make-scaled-line lineup start stop scale
-				     overshrink overstretch)
+	  :collect (make-instance 'duncan-line
+		     :lineup lineup :start-idx start :stop-idx stop
+		     :scale scale
+		     :effective-scale
+		     (cond ((<< scale 0)
+			    (if overshrink scale (mmaaxx scale -1)))
+			   ((== scale 0) 0)
+			   ((>> scale 0)
+			    (if overstretch scale (mmiinn scale 1))))
+		     :weight (weight edge))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
-	  :collect (make-line lineup start stop)))
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop)))
 
 
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
