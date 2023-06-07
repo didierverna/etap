@@ -260,7 +260,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; ==================================
 
 (defstruct (kp-node (:constructor kp-make-node))
-  boundary scale demerits previous)
+  boundary scale fitness-class badness demerits total-demerits previous)
 
 ;; The active nodes hash table is accessed by
 ;; key = (boundary line-number fitness-class)
@@ -304,7 +304,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	   (when (<== badness threshold)
 	     (let ((fitness (scale-fitness-class scale))
 		   (demerits (local-demerits badness (penalty (item boundary))
-					     line-penalty)))
+					     line-penalty))
+		   (total-demerits (kp-node-total-demerits node)))
 	       (when (> (abs (- fitness previous-fitness)) 1)
 		 (setq demerits (++ demerits adjacent-demerits)))
 	       ;; #### NOTE: according to #859, TeX doesn't consider the
@@ -324,7 +325,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		   (setq demerits (++ demerits final-hyphen-demerits))
 		   (when (discretionaryp (item boundary))
 		     (setq demerits (++ demerits double-hyphen-demerits)))))
-	       (setq demerits (++ demerits (kp-node-demerits node)))
+	       (setq total-demerits (++ total-demerits demerits))
 	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
 		      (previous (find new-key new-nodes
 				  :test #'equal :key #'car)))
@@ -336,37 +337,48 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		   ;; other hand, we're in fact not doing exactly the same
 		   ;; thing because we're using MAPHASH and the order of the
 		   ;; nodes in the hash table is not deterministic.
-		   (when (<== demerits (kp-node-demerits (cdr previous)))
+		   (when (<== total-demerits
+			      (kp-node-total-demerits (cdr previous)))
 		     (setf (kp-node-scale (cdr previous)) scale
+			   (kp-node-badness (cdr previous)) badness
 			   (kp-node-demerits (cdr previous)) demerits
+			   (kp-node-total-demerits (cdr previous))
+			   total-demerits
 			   (kp-node-previous (cdr previous)) node))
 		   (push (cons new-key
 			       (kp-make-node :boundary boundary
 					     :scale scale
+					     :fitness-class fitness
+					     :badness badness
 					     :demerits demerits
+					     :total-demerits total-demerits
 					     :previous node))
 			 new-nodes))))))))
      nodes)
     (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
       (setq new-nodes
 	    (list
-	     (let ((scale (lineup-scale lineup
-					(start-idx
-					 (key-boundary
-					  (car last-deactivated-node)))
-					(stop-idx boundary)
-					width)))
+	     (let* ((scale (lineup-scale lineup
+					 (start-idx
+					  (key-boundary
+					   (car last-deactivated-node)))
+					 (stop-idx boundary)
+					 width))
+		    (fitness-class (scale-fitness-class scale)))
 	       (cons (make-key boundary
 			       (1+ (key-line (car last-deactivated-node)))
-			       (scale-fitness-class scale))
+			       fitness-class)
 		     (kp-make-node :boundary boundary
 				   :scale scale
+				   :fitness-class fitness-class
 				   ;; #### NOTE: in this situation, TeX sets
 				   ;; the local demerits to 0 (#855) by
 				   ;; checking the artificial_demerits flag.
 				   ;; So we just re-use the previous total.
-				   :demerits (kp-node-demerits
-					      (cdr last-deactivated-node))
+				   :badness 0
+				   :demerits 0
+				   :total-demerits (kp-node-total-demerits
+						    (cdr last-deactivated-node))
 				   :previous (cdr last-deactivated-node)))))))
     (mapc (lambda (new-node)
 	    (setf (gethash (car new-node) nodes) (cdr new-node)))
@@ -387,19 +399,32 @@ through the algorithm in the TeX jargon).
   ;; #### WARNING: the root node / boundary are fake because they don't really
   ;; represent a line ending, but there are some requirements on them in order
   ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
-  ;; line. The fake root boundary has:
+  ;; line.
+  ;;
+  ;; The fake root boundary has:
   ;; - a null ITEM (making DISCRETIONARYP return NIL), essentially telling
   ;;   that we don't have previous hyphenation, so no double hyphen demerits.
   ;; - a START-IDX of 0, which is correct.
-  ;; - a (previous) line number of 0, which is correct.
+  ;;
+  ;; The fake root key is a list of:
+  ;; - the fake root boundary,
+  ;; - a (previous) line number of 0,
   ;; - a fitness class of 2 (decent). TeX computes adjacent demerits even for
   ;;   the first line which doesn't really have a previous line. This has the
   ;;   effect of negatively weighting very loose first lines. See
   ;;   https://tug.org/pipermail/texhax/2023-May/026091.html
+  ;;
+  ;; The fake root node has:
+  ;; - the fake root boundary, unused because we use the key to get it,
+  ;; - a fitness class of 2 (see above), here for consistency but unused
+  ;;   because we use the key to get it,
+  ;; - an initial total demerits of 0.
+  ;; The other slots (scale, badness, and demerits are not initialized).
   (let ((root-boundary (make-instance 'boundary :item nil :start-idx 0))
 	(nodes (make-hash-table :test #'equal)))
-    (setf (gethash (make-key root-boundary 0 -1) nodes)
-	  (kp-make-node :boundary root-boundary :demerits 0))
+    (setf (gethash (make-key root-boundary 0 2) nodes)
+	  (kp-make-node :boundary root-boundary :fitness-class 2
+			:total-demerits 0))
     (loop :for boundary := (next-boundary lineup 0)
 	    :then (next-boundary lineup (stop-idx boundary))
 	  :while boundary
@@ -430,13 +455,13 @@ through the algorithm in the TeX jargon).
 		   (kp-create-nodes lineup width t tolerance
 		     line-penalty adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits emergency-stretch))))
-    (let ((best (loop :with demerits := +∞ :with best :with last
+    (let ((best (loop :with total-demerits := +∞ :with best :with last
 		      :for node :being :the :hash-values :in nodes
 			:using (hash-key key)
 		      :do (setq last (cons (key-line key) node))
-		      :when (<< (kp-node-demerits node) demerits)
+		      :when (<< (kp-node-total-demerits node) total-demerits)
 			:do (setq best (cons (key-line key) node)
-				  demerits (kp-node-demerits node))
+				  total-demerits (kp-node-total-demerits node))
 		      :finally (return (or best last)))))
       (if (zerop looseness)
 	(setq best (cdr best))
@@ -451,8 +476,8 @@ through the algorithm in the TeX jargon).
 				     delta (abs (- ideal-size (key-line key)))))
 			      ((and (= (abs (- ideal-size (key-line key)))
 				       delta)
-				    (< (kp-node-demerits node)
-				       (kp-node-demerits closer)))
+				    (< (kp-node-total-demerits node)
+				       (kp-node-total-demerits closer)))
 			       (setq closer node)))
 		    :finally (return closer))))
       (loop :with lines
@@ -465,7 +490,7 @@ through the algorithm in the TeX jargon).
 			;; #### FIXME: in order to properly handle the
 			;; overstretch option, I need to know the final
 			;; tolerance (threshold value) here.
-			(make-instance 'line
+			(make-instance 'kp-line
 			  :lineup lineup :start-idx start :stop-idx stop
 			  :scale (kp-node-scale end)
 			  :effective-scale
@@ -473,7 +498,10 @@ through the algorithm in the TeX jargon).
 			    (if overshrink
 			      (kp-node-scale end)
 			      (mmaaxx (kp-node-scale end) -1))
-			    (kp-node-scale end)))
+			    (kp-node-scale end))
+			  :fitness-class (kp-node-fitness-class end)
+			  :badness (kp-node-badness end)
+			  :demerits (kp-node-demerits end))
 			(make-instance 'line
 			  :lineup lineup :start-idx start :stop-idx stop))
 		      lines)
