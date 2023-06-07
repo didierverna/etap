@@ -199,24 +199,3 @@ origin. A line also remembers its scale factor."))
       (ffllooaatt (scale line))
       (/== (scale line) (effective-scale line))
       (ffllooaatt (effective-scale line)))))
-
-;; #### FIXME: this interface is broken because of the hardwired limits on
-;; scaling. They're ok for many algorithms, but TeX has its own tolerance
-;; which can accept some overstretch, and so those lines shouldn't be
-;; considered as overstretched. In fact, we need to keep track of each
-;; algorithm's decision, and the over* options should override that. Also,
-;; we'd need two different sets of visual indicators: indicators for when
-;; we're over the font's recommendations, and indicators for when we override
-;; the algorithm's decision.
-
-#+()(defun effective-scale (scale overshrink overstretch)
-  "Return effective SCALE, normally limited to [-1,+1].
-Those limitations may be ignored if OVERSHRINK or OVERSTRETCH."
-  (cond ((<< scale 0) (if overshrink scale (mmaaxx scale -1)))
-	((== scale 0) 0)
-	((>> scale 0) (if overstretch scale (mmiinn scale 1)))))
-
-#+()(defun make-scaled-line (lineup start stop scale overshrink overstretch)
-  "Make a SCALEd line from LINEUP chunk between START and STOP.
-See `effective-scale' for more information on how SCALE is handled."
-  (make-line lineup start stop (effective-scale scale overshrink overstretch)))
