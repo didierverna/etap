@@ -47,6 +47,9 @@
 	((<= -1/2 scale 1/2) 2)
 	(t 1)))
 
+(defun fitness-class-name (fitness-class)
+  (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
+
 (defun local-demerits (badness penalty line-penalty)
   (cond ((and (numberp penalty) (<= 0 penalty))
 	 (++ (^^ (++ line-penalty badness) 2) (expt penalty 2)))
@@ -54,6 +57,23 @@
 	 (++ (^^ (++ line-penalty badness) 2) (- (expt penalty 2))))
 	(t ;; -∞
 	 (^^ (++ line-penalty badness) 2))))
+
+
+(defclass kp-line (line)
+  ((fitness-class :initarg :fitness-class :reader fitness-class
+		  :documentation "This line's fitness class.")
+   (badness :initarg :badness :reader badness
+	    :documentation "This line's badness.")
+   (demerits :initarg :demerits :reader demerits
+	     :documentation "This line's local demerits."))
+  (:documentation "The Knuth-Plass line class."))
+
+(defmethod line-properties strnlcat ((line kp-line))
+  "Return a string advertising LINE's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
+    (fitness-class-name (fitness-class line))
+    (ffllooaatt (badness line))
+    (ffllooaatt (demerits line))))
 
 
 
@@ -69,6 +89,7 @@
   ((hyphenp :accessor hyphenp)
    (scale :accessor scale)
    (fitness-class :accessor fitness-class)
+   (badness :accessor badness)
    ;; #### NOTE: these are only line-local demerits.
    (demerits :accessor demerits)))
 
@@ -88,8 +109,9 @@
 	(hyphenation-point-p (item (boundary (destination edge)))))
   (setf (scale edge) (lineup-scale lineup start stop width))
   (setf (fitness-class edge) (scale-fitness-class (scale edge)))
+  (setf (badness edge) (scale-badness (scale edge)))
   (setf (demerits edge)
-	(local-demerits (scale-badness (scale edge))
+	(local-demerits (badness edge)
 			(penalty (item (boundary (destination edge))))
 			line-penalty)))
 
@@ -143,13 +165,16 @@
 	:if justified
 	  ;; #### FIXME: in order to properly handle the overstretch option, I
 	  ;; need to know the final tolerance (threshold value) here.
-	  :collect (make-instance 'line
+	  :collect (make-instance 'kp-line
 		     :lineup lineup :start-idx start :stop-idx stop
 		     :scale (scale edge)
 		     :effective-scale
 		     (if (<== (scale edge) 0)
 		       (if overshrink (scale edge) (mmaaxx (scale edge) -1))
-		       (scale edge)))
+		       (scale edge))
+		     :fitness-class (fitness-class edge)
+		     :badness (badness edge)
+		     :demerits (demerits edge))
 	:else
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
