@@ -180,7 +180,7 @@ origin. A line also remembers its scale factor."))
 
 (defun strnlcat (&rest strings)
   "Concatenate STRINGS, inserting newlines in between."
-  (with-output-to-string (stream)
+  (with-output-to-string (stream nil :element-type 'character)
     (loop :for remainder :on strings
 	  :do (princ (car remainder) stream)
 	  :when (cdr remainder) :do (terpri stream))))
