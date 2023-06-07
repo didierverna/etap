@@ -165,6 +165,17 @@ second value."
 ;; Layouts
 ;; =======
 
+;; #### FIXME: it is not powerful enough to use graph edges when creating
+;; layouts. An edge can be used in multiple graph paths, so it cannot store
+;; path-specific information. In a layout however, an edge is "frozen" to a
+;; particular path.
+
+;; In the KP algorithm for example, edges can only contain local demerits,
+;; including line penalties but no adjacent, double, or final hyphen demerits.
+;; Not even KP-POSTPOCESS-LAYOUT can handle those, as the edges are still
+;; shared. As a result, the graph code creating kp lines can only advertise
+;; local demerits, without the aforementioned contextual penalties.
+
 (defclass layout ()
   ((edges :documentation "The list of edges from one break to the next."
 	  :accessor edges))
