@@ -86,8 +86,7 @@
 ;; -----
 
 (defclass kp-edge (edge)
-  ((hyphenp :accessor hyphenp)
-   (scale :accessor scale)
+  ((scale :accessor scale)
    (fitness-class :accessor fitness-class)
    (badness :accessor badness)
    ;; #### NOTE: these are only line-local demerits.
@@ -105,8 +104,6 @@
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf (hyphenp edge)
-	(hyphenation-point-p (item (boundary (destination edge)))))
   (setf (scale edge) (lineup-scale lineup start stop width))
   (setf (fitness-class edge) (scale-fitness-class (scale edge)))
   (setf (badness edge) (scale-badness (scale edge)))

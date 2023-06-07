@@ -40,9 +40,7 @@
 ;; (hence, for which the scaling would be numerical).
 
 (defclass duncan-edge (edge)
-  ((hyphenp :documentation "Whether this edge is hyphenated."
-	    :reader hyphenp)
-   (fitness :documentation "This edge's fitness status.
+  ((fitness :documentation "This edge's fitness status.
 Possible values are :underfull, :fit, and :overfull."
 	    :reader fitness)
    (scale :documentation "This edge's scale."
@@ -57,8 +55,6 @@ The weight is computed according to the discriminating function."
      &key lineup start width
 	  (discriminating-function (car *duncan-discriminating-functions*)))
   "Initialize Duncan EDGE's properties."
-  (setf (slot-value edge 'hyphenp)
-	(hyphenation-point-p (item (boundary (destination edge)))))
   (multiple-value-bind (natural max min stretch shrink)
       (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)

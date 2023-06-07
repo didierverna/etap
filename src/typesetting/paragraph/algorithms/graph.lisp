@@ -50,6 +50,10 @@ next possible break positions."))
   "Make a node at BOUNDARY, optionally followed by EDGES."
   (make-instance 'node :boundary boundary :edges edges))
 
+(defun hyphenp (edge)
+  "Return T if EDGE's destination boundary is hyphenated."
+  (hyphenation-point-p (item (boundary (destination edge)))))
+
 
 ;; ------------------
 ;; Graph construction
