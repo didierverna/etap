@@ -286,7 +286,7 @@ LINE class."))
 
 (defmethod line-properties strnlcat ((line fit-line))
   "Return a string advertising LINE's weight."
-  (format nil "Weight: ~S, out of ~S possible solutions."
+  (format nil "Weight: ~A, out of ~A possible solutions."
     (ffllooaatt (weight line))
     (possibilities line)))
 

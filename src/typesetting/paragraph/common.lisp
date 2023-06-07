@@ -194,7 +194,7 @@ origin. A line also remembers its scale factor."))
   (:method-combination strnlcat :most-specific-last)
   (:method strnlcat ((line line))
     "Advertise LINE's width. This is the default method."
-    (format nil "Width: ~Spt.~%Scale: ~S~:[~; (effective: ~S)~]"
+    (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
       (float (width line))
       (ffllooaatt (scale line))
       (/== (scale line) (effective-scale line))

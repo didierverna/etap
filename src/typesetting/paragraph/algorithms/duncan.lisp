@@ -116,7 +116,7 @@ This class keeps track of the line's weight."))
 
 (defmethod line-properties strnlcat ((line duncan-line))
   "Return a string advertising LINE's weight."
-  (format nil "Weight: ~S." (ffllooaatt (weight line))))
+  (format nil "Weight: ~A." (ffllooaatt (weight line))))
 
 (defun duncan-make-lines
     (lineup disposition layout
