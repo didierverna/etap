@@ -79,6 +79,8 @@
 			      (scale-badness (scale (car lines)))
 			      (penalty (car lines))
 			      line-penalty)))
+	      (when (= (scale-fitness-class (scale (car lines))) 0)
+		(setf demerits (i+ demerits adjacent-demerits)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
