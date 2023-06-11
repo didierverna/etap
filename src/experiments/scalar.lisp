@@ -131,6 +131,6 @@ width2 scalar1 scalar2 ...
 			widths (cadr algorithm)	(cddr algorithm)))
 	     algorithms)))
     (apply #'mapc (lambda (width &rest values)
-		    (format t "~S~{ ~S~}~%" width values))
+		    (format t "~A~{ ~A~}~%" width values))
 	   widths values))
   (values))
