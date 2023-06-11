@@ -60,23 +60,13 @@
 		       length))))
     widths))
 
-;; #### FIXME: the way we make lines currently implies that all lineup /
-;; boundary information is lost. As a consequence, we can only handle global
-;; options here. For example, there's no way to track specific penalties that
-;; would be different from the global value (this currently doesn't happen
-;; except for the last glue in KP, but it is unbreakable).
-;; In general there are two solutions to this problem: either we change our
-;; line representation to keep track of the lineup elements, or we enrich the
-;; line class with what we need.
 (defun collect-demerits
     (lineup widths algorithm
      &rest options
-     &key hyphen-penalty explicit-hyphen-penalty line-penalty
+     &key line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      &allow-other-keys)
   "Collect TeX's demerits evaluation per paragraph WIDTHS."
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
@@ -87,10 +77,7 @@
 		   (length (length lines))
 		   (demerits (local-demerits
 			      (scale-badness (scale (car lines)))
-			      (case (hyphenated (car lines))
-				(:explicit explicit-hyphen-penalty)
-				(:implicit hyphen-penalty)
-				(nil 0))
+			      (penalty (car lines))
 			      line-penalty)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
@@ -98,10 +85,7 @@
 				(i+ demerits
 				    (local-demerits
 				     (scale-badness (scale line2))
-				     (case (hyphenated line2)
-				       (:explicit explicit-hyphen-penalty)
-				       (:implicit hyphen-penalty)
-				       (nil 0))
+				     (penalty line2)
 				     line-penalty)))
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits

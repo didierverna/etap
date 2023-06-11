@@ -128,6 +128,11 @@ Possible values are nil, :explicit, or :implicit."
   (when (hyphenation-point-p element)
     (if (explicitp element) :explicit :implicit)))
 
+(defmethod penalty
+    (line &aux (element (aref (lineup line) (1- (stop-idx line)))))
+  "Return LINE's penalty."
+  (if (break-point-p element) (penalty element) 0))
+
 ;; #### FIXME: probably rename this to EFFECTIVE-WIDTH.
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
   "Return LINE's width."

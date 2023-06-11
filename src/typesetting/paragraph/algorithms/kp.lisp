@@ -19,6 +19,9 @@
   "Define a NAMEd Knuth-Plass caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber kp ,name ,min ,default ,max))
 
+;; #### TODO: even though we don't use it much yet, already store break-point
+;; penalties locally, which will allow us to modify individual values. We
+;; could extend KP by doing the same with line penalties.
 (define-kp-caliber line-penalty 0 10 100)
 (define-kp-caliber hyphen-penalty -10000 50 10000)
 (define-kp-caliber explicit-hyphen-penalty -10000 50 10000)
