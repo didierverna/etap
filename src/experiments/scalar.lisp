@@ -66,7 +66,9 @@
      &key line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      &allow-other-keys)
-  "Collect TeX's demerits evaluation per paragraph WIDTHS."
+  "Collect TeX's demerits evaluation per paragraph WIDTHS.
+Inifinite demerits are collected as \"NaN\", in order for subsequent plotting
+to be able to handle that gracefully."
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
@@ -98,7 +100,7 @@
 			    (setq demerits (i+ demerits adjacent-demerits)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))
 		(setq demerits (i+ demerits final-hyphen-demerits)))
-	      (float demerits)))
+	      (if (numberp demerits) (float demerits) "NaN")))
     widths))
 
 (defun scalar-statistics
