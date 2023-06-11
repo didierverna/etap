@@ -96,7 +96,7 @@
     ((edge kp-edge)
      &key lineup start width line-penalty
      &aux (stop (stop-idx (boundary (destination edge)))))
-  ;; #### WARNING: it is possible to get a rigid line here (scale = NIL), not
+  ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
   ;; in a rigid underfull. This probably doesn't happen in TeX with its
