@@ -115,15 +115,18 @@ It may be different from the scale computed by the algorithm in use, depending
 on the algorithm itself, and on the Overstretch and Overshrink disposition
 options).")
    (pinned-objects :reader pinned-objects
-		   :documentation "The list of pinned objects.")
-   (hyphenated :initarg :hyphenated :reader hyphenated
-	       :documentation "Whether the line is hyphenated.
-Possible values are nil, :explicit, or :implicit."))
+		   :documentation "The list of pinned objects."))
   (:documentation "The LINE class.
 A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
 
+(defun hyphenated
+    (line &aux (element (aref (lineup line) (1- (stop-idx line)))))
+  "Whether LINE is hyphenated.
+Possible values are nil, :explicit, or :implicit."
+  (when (hyphenation-point-p element)
+    (if (explicitp element) :explicit :implicit)))
 
 ;; #### FIXME: probably rename this to EFFECTIVE-WIDTH.
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
@@ -171,12 +174,7 @@ origin. A line also remembers its scale factor."))
 		      :and :unless (zerop scale)
 			     :do (incf x (if (> scale 0)
 					   (* scale (stretch elt))
-					   (* scale (shrink elt))))))
-  (setf (slot-value line 'hyphenated)
-	(when (hyphenation-point-p (aref (lineup line) (1- (stop-idx line))))
-	  (if (explicitp (aref (lineup line) (1- (stop-idx line))))
-	    :explicit
-	    :implicit))))
+					   (* scale (shrink elt)))))))
 
 (defun strnlcat (&rest strings)
   "Concatenate STRINGS, inserting newlines in between."
