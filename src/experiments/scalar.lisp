@@ -137,10 +137,15 @@ width2 scalar1 scalar2 ...
 			 :to *paragraph-max-width*
 		       :collect width))
 	 (*context* *experiments-context*)
-	 (values (mapcar (lambda (algorithm)
-			   (apply collect (make-lineup) widths (cadr algorithm)
-				  (cddr algorithm)))
-		   algorithms)))
+	 (values
+	   (mapcar
+	       (lambda (algorithm)
+		 (apply collect (apply #'prepare-lineup
+				  (make-lineup)
+				  (disposition-type (disposition *context*))
+				  (cadr algorithm) (cddr algorithm))
+			widths (cadr algorithm)	(cddr algorithm)))
+	     algorithms)))
     (apply #'mapc (lambda (width &rest values)
 		    (format t "~S~{ ~S~}~%" width values))
 	   widths values))
