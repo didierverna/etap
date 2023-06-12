@@ -22,9 +22,9 @@
 ;;    fit", which is a form of Last Fit (maybe putting a bit less in would
 ;;    have given a result closer to the normal spacing).
 ;; 3. Finally, the last sentence seems to suggest that when no solution is
-;;    found, this algorithm falls back to an underfull line, but overstretches
-;;    it to reach the paragraph's width. That's why the "Overstretch" option
-;;    has no effect (it's always on).
+;;    found, this algorithm falls back to an underfull line, but stretches it
+;;    to reach the paragraph's width. In other words, it uses a stretch
+;;    tolerance of +∞, which is why the "Overstretch" option has no effect.
 
 ;; #### FIXME: I don't know if Barnett is restricted to the Justified
 ;; disposition, or if it does something for the ragged ones. Currently, I'm
