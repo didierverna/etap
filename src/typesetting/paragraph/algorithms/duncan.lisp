@@ -116,8 +116,7 @@ This class keeps track of the line's weight."))
 
 (defun duncan-make-lines
     (lineup disposition layout
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  (overstretch
+     &aux (overstretch
 	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
@@ -126,36 +125,25 @@ This class keeps track of the line's weight."))
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:for scale = (scale edge)
-	:if (and justified (last-boundary-p (boundary (destination edge))))
-	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (i< scale 0)
-		     ;; #### FIXME: this probably shouldn't be duncan lines
-		     ;; anymore.
+	:if (eq (disposition-type disposition) :justified)
+	  :collect (multiple-value-bind (theoretical effective)
+		       (if (last-boundary-p (boundary (destination edge)))
+			 ;; Justified last line: maybe shrink it but don't
+			 ;; stretch it.
+			 (actual-scales scale
+			   :overshrink overshrink :stretch-tolerance 0)
+			 ;; Justified regular line: make it fit.
+			 (actual-scales scale
+			   :overshrink overshrink :overstretch overstretch))
 		     (make-instance 'duncan-line
 		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale scale
-		       :effective-scale (if overshrink scale (imax scale -1))
-		       :weight (weight edge))
-		     (make-instance 'duncan-line
-		       :lineup lineup :start-idx start :stop-idx stop
+		       :scale theoretical
+		       :effective-scale effective
 		       :weight (weight edge)))
-	:else :if justified
-	  ;; Justified regular line: make it fit.
-	  :collect (make-instance 'duncan-line
-		     :lineup lineup :start-idx start :stop-idx stop
-		     :scale scale
-		     :effective-scale
-		     (cond ((i< scale 0)
-			    (if overshrink scale (imax scale -1)))
-			   ((i= scale 0) 0)
-			   ((i> scale 0)
-			    (if overstretch scale (imin scale 1))))
-		     :weight (weight edge))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
-
 
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
 ;; preventive fulls, that is, we don't return *full boundaries if there is at
