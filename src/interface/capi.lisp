@@ -266,32 +266,56 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			       (eq (disposition-type (disposition context))
 				   :justified)
 			       (< (width pinned-line) (width paragraph)))
-			:do (gp:draw-rectangle pane
-				(+ (width paragraph) 5)
-				(- y (height pinned-line))
-				5
-				(+ (height pinned-line) (depth pinned-line))
-			      :foreground :orange
-			      :scale-thickness nil)
-	      ;; #### FIXME: we need to review this to take each algorithm's
-	      ;; tolerance into account.
-	      :when (member :overshrunk/stretched-boxes clues)
-		:if (i< (effective-scale pinned-line) -1)
 		  :do (gp:draw-rectangle pane
 			  (+ (width paragraph) 5)
 			  (- y (height pinned-line))
 			  5
 			  (+ (height pinned-line) (depth pinned-line))
-			:foreground :blue
-			:scale-thickness nil :filled t)
-		:else :if (i> (effective-scale pinned-line) 1)
-			:do (gp:draw-rectangle pane
-				(+ (width paragraph) 5)
+			:foreground :orange
+			:scale-thickness nil :filled nil)
+	      ;; #### FIXME: we need to review this to take each algorithm's
+	      ;; tolerance into account.
+	      :when (member :overshrunk/stretched-boxes clues)
+		:if (i< (effective-scale pinned-line) (scale pinned-line))
+		  :do (gp:draw-polygon pane
+			  (list (+ (width paragraph) 5)
 				(- y (height pinned-line))
-				5
-				(+ (height pinned-line) (depth pinned-line))
-			      :foreground :blue
-			      :scale-thickness nil)
+				(+ (width paragraph) 11)
+				(- y (height pinned-line))
+				(+ (width paragraph) 8)
+				(+ y (depth pinned-line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled t :closed t)
+		:else :if (i< (scale pinned-line) -1)
+		  :do (gp:draw-polygon pane
+			  (list (+ (width paragraph) 5)
+				(- y (height pinned-line))
+				(+ (width paragraph) 11)
+				(- y (height pinned-line))
+				(+ (width paragraph) 8)
+				(+ y (depth pinned-line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled nil :closed t)
+		:else :if (i> (effective-scale pinned-line) (scale pinned-line))
+		  :do (gp:draw-polygon pane
+			  (list (+ (width paragraph) 5)
+				(+ y (depth pinned-line))
+				(+ (width paragraph) 11)
+				(+ y (depth pinned-line))
+				(+ (width paragraph) 8)
+				(- y (height pinned-line)))
+			:foreground :blue
+			:scale-thickness nil :filled t :closed t)
+		:else :if (i> (scale pinned-line) 1)
+		  :do (gp:draw-polygon pane
+			  (list (+ (width paragraph) 5)
+				(+ y (depth pinned-line))
+				(+ (width paragraph) 11)
+				(+ y (depth pinned-line))
+				(+ (width paragraph) 8)
+				(- y (height pinned-line)))
+			:foreground :blue
+			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
 		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
 		      :foreground :purple
