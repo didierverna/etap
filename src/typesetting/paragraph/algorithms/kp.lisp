@@ -162,16 +162,18 @@
 	:if justified
 	  ;; #### FIXME: in order to properly handle the overstretch option, I
 	  ;; need to know the final tolerance (threshold value) here.
-	  :collect (make-instance 'kp-line
-		     :lineup lineup :start-idx start :stop-idx stop
-		     :scale (scale edge)
-		     :effective-scale
-		     (if (i<= (scale edge) 0)
-		       (if overshrink (scale edge) (imax (scale edge) -1))
-		       (scale edge))
-		     :fitness-class (fitness-class edge)
-		     :badness (badness edge)
-		     :demerits (demerits edge))
+	  :collect (let* ((scale (scale edge))
+			  (effective-scale scale))
+		     (when (i< scale 0)
+		       (setq scale (imax scale -1))
+		       (unless overshrink (setq effective-scale scale)))
+		     (make-instance 'kp-line
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :scale scale
+		       :effective-scale effective-scale
+		       :fitness-class (fitness-class edge)
+		       :badness (badness edge)
+		       :demerits (demerits edge)))
 	:else
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
@@ -494,18 +496,18 @@ through the algorithm in the TeX jargon).
 			;; #### FIXME: in order to properly handle the
 			;; overstretch option, I need to know the final
 			;; tolerance (threshold value) here.
-			(make-instance 'kp-line
-			  :lineup lineup :start-idx start :stop-idx stop
-			  :scale (kp-node-scale end)
-			  :effective-scale
-			  (if (i<= (kp-node-scale end) 0)
-			    (if overshrink
-			      (kp-node-scale end)
-			      (imax (kp-node-scale end) -1))
-			    (kp-node-scale end))
-			  :fitness-class (kp-node-fitness-class end)
-			  :badness (kp-node-badness end)
-			  :demerits (kp-node-demerits end))
+			(let* ((scale (kp-node-scale end))
+			       (effective-scale scale))
+			  (when (i< scale 0)
+			    (setq scale (imax scale -1))
+			    (unless overshrink (setq effective-scale scale)))
+			  (make-instance 'kp-line
+			    :lineup lineup :start-idx start :stop-idx stop
+			    :scale scale
+			    :effective-scale effective-scale
+			    :fitness-class (kp-node-fitness-class end)
+			    :badness (kp-node-badness end)
+			    :demerits (kp-node-demerits end)))
 			(make-instance 'line
 			  :lineup lineup :start-idx start :stop-idx stop))
 		      lines)
