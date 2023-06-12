@@ -367,11 +367,9 @@ LINE class."))
 	(:first
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	 ;; much as possible, without overstretching.
-	 (cond ((i< scale 0)
-		(setq scale (imax scale -1))
-		(unless overshrink (setq effective-scale scale)))
-	       ((i> scale 0)
-		(setq scale (imin scale 1) effective-scale scale))))
+	 (multiple-value-bind (theoretical effective)
+	     (actual-scales scale :overshrink overshrink)
+	   (setq scale theoretical effective-scale effective)))
 	(:best
 	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	 ;; normal spacing.
@@ -384,12 +382,9 @@ LINE class."))
 	 (setq scale -1)
 	 (unless (and (i< effective-scale 0) overshrink)
 	   (setq effective-scale -1))))
-      (cond ((i< scale 0)
-	     (setq scale (imax scale -1))
-	     (unless overshrink (setq effective-scale scale)))
-	    ((i> scale 0)
-	     (setq scale (imin scale 1))
-	     (unless overstretch (setq effective-scale scale)))))
+      (multiple-value-bind (theoretical effective)
+	  (actual-scales scale :overshrink overshrink :overstretch overstretch)
+	(setq scale theoretical effective-scale effective)))
     (apply #'make-instance line-class
 	   :scale scale :effective-scale effective-scale line-initargs)))
 
