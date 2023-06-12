@@ -104,8 +104,7 @@
 (defmethod make-lines
     (lineup disposition width (algorithm (eql :barnett))
      &key
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  (overshrink
+     &aux (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP with the Barnett algorithm."
   (loop :for start := 0 :then (start-idx boundary)
@@ -113,24 +112,21 @@
 	:for boundary := (barnett-line-boundary lineup start width)
 	:for stop := (stop-idx boundary)
 	:for scale := (scale boundary)
-	:if (and justified (last-boundary-p boundary))
-	  ;; Justified last line: maybe shrink it but don't stretch it.
-	  :collect (if (i< scale 0)
+	;; Justified line
+	:if (eq (disposition-type disposition) :justified)
+	  :collect (multiple-value-bind (theoretical effective)
+		       (if (last-boundary-p boundary)
+			 ;; Justified last line: maybe shrink it but don't
+			 ;; stretch it.
+			 (actual-scales scale :overshrink overshrink
+					      :stretch-tolerance 0)
+			 ;; Justified regular line: always stretch as needed,
+			 ;; and maybe overshrink.
+			 (actual-scales scale :overshrink overshrink
+					      :stretch-tolerance +∞))
 		     (make-instance 'line
 		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale scale
-		       :effective-scale (if overshrink scale (imax scale -1)))
-		     (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop))
-	:else :if justified
-	  ;; Justified regular line: make it always overstreched, and maybe
-	  ;; overshrunk.
-	  :collect (make-instance 'line
-		     :lineup lineup :start-idx start :stop-idx stop
-		     :scale scale
-		     :effective-scale
-		     (cond ((i>= scale 0) scale)
-			   (t (if overshrink scale (imax scale -1)))))
+		       :scale theoretical :effective-scale effective))
 	:else
 	  ;; Other dispositions: just switch back to normal spacing.
 	  :collect (make-instance 'line
