@@ -346,7 +346,6 @@ LINE class."))
 	    &key overstretch overshrink
 	    &aux (stop (stop-idx boundary))
 		 (scale (scale boundary))
-		 (effective-scale scale)
 		 (line-initargs
 		  `(:lineup ,lineup :start-idx ,start :stop-idx ,stop))
 		 line-class)
@@ -359,34 +358,27 @@ LINE class."))
 			     :possibilities ,(possibilities boundary))))
       (fit-boundary
        (setq line-class 'line)))
-    (if (last-boundary-p boundary)
-      ;; The last line, which almost never fits exactly, needs a special
-      ;; treatment. Without paragraph-wide considerations, we want its scaling
-      ;; to be close to the general effect of the selected variant.
-      (ecase variant
-	(:first
-	 ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
-	 ;; much as possible, without overstretching.
-	 (multiple-value-bind (theoretical effective)
-	     (actual-scales scale :overshrink overshrink)
-	   (setq scale theoretical effective-scale effective)))
-	(:best
-	 ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
-	 ;; normal spacing.
-	 (cond ((i< scale 0)
-		(setq scale (imax scale -1))
-		(unless overshrink (setq effective-scale scale)))
-	       (t (setq scale 0 effective-scale 0))))
-	(:last
-	 ;; Shrink as much as possible.
-	 (setq scale -1)
-	 (unless (and (i< effective-scale 0) overshrink)
-	   (setq effective-scale -1))))
-      (multiple-value-bind (theoretical effective)
-	  (actual-scales scale :overshrink overshrink :overstretch overstretch)
-	(setq scale theoretical effective-scale effective)))
-    (apply #'make-instance line-class
-	   :scale scale :effective-scale effective-scale line-initargs)))
+    (multiple-value-bind (theoretical effective)
+	(if (last-boundary-p boundary)
+	  ;; The last line, which almost never fits exactly, needs a special
+	  ;; treatment. Without paragraph-wide considerations, we want its
+	  ;; scaling to be close to the general effect of the selected
+	  ;; variant.
+	  (ecase variant
+	    (:first
+	     ;; If the line needs to be shrunk, shrink it. Otherwise, stretch
+	     ;; as much as possible, without overstretching.
+	     (actual-scales scale :overshrink overshrink))
+	    (:best
+	     ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
+	     ;; normal spacing.
+	     (actual-scales scale :overshrink overshrink :stretch-tolerance 0))
+	    (:last
+	     ;; Shrink as much as possible.
+	     (actual-scales -1 :overshrink overshrink)))
+	  (actual-scales scale :overshrink overshrink :overstretch overstretch))
+      (apply #'make-instance line-class
+	     :scale theoretical :effective-scale effective line-initargs))))
 
 
 
