@@ -484,17 +484,16 @@ through the algorithm in the TeX jargon).
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition))))
-	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition)))))
+	  (threshold pre-tolerance))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
-  (let ((nodes (or (when (i<= 0 pre-tolerance)
-		     (kp-create-nodes lineup width nil pre-tolerance
+  (let ((nodes (or (when (i<= 0 threshold)
+		     (kp-create-nodes lineup width nil threshold
 		       line-penalty adjacent-demerits double-hyphen-demerits
 		       final-hyphen-demerits))
-		   (kp-create-nodes lineup width t tolerance
+		   (kp-create-nodes lineup width t (setq threshold tolerance)
 		     line-penalty adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits (zerop emergency-stretch))
-		   (kp-create-nodes lineup width t tolerance
+		   (kp-create-nodes lineup width t threshold
 		     line-penalty adjacent-demerits double-hyphen-demerits
 		     final-hyphen-demerits emergency-stretch))))
     (let ((best (loop :with total-demerits := +∞ :with best :with last
@@ -523,24 +522,30 @@ through the algorithm in the TeX jargon).
 			       (setq closer node)))
 		    :finally (return closer))))
       (loop :with lines
+	    :with stretch-tolerance := (stretch-tolerance threshold)
 	    :for end := best :then (kp-node-previous end)
 	    :for beg := (kp-node-previous end)
 	    :while beg
 	    :for start := (start-idx (kp-node-boundary beg))
 	    :for stop := (stop-idx (kp-node-boundary end))
 	    :do (push (if justified
-			;; #### FIXME: in order to properly handle the
-			;; overstretch option, I need to know the final
-			;; tolerance (threshold value) here.
+			;; #### NOTE: I think that the Knuth-Plass algorithm
+			;; cannot produce elastic underfulls (in case of an
+			;; impossible layout, it falls back to overfull
+			;; boxes). This means that the overstretch option has
+			;; no effect, but it allows for a nice trick: we can
+			;; indicate lines exceeding the tolerance thanks to an
+			;; emergency stretch as overstretched, regardless of
+			;; the option. This is done by setting the
+			;; overstretched parameter to T and not counting
+			;; emergency stretch in the stretch-tolerance one.
 			(multiple-value-bind (theoretical effective)
 			    (actual-scales (kp-node-scale end)
-			      :stretch-tolerance +∞
-			      :overshrink overshrink
-			      :overstretch overstretch)
+			      :stretch-tolerance stretch-tolerance
+			      :overshrink overshrink :overstretch t)
 			  (make-instance 'kp-line
 			    :lineup lineup :start-idx start :stop-idx stop
-			    :scale theoretical
-			    :effective-scale effective
+			    :scale theoretical :effective-scale effective
 			    :fitness-class (kp-node-fitness-class end)
 			    :badness (kp-node-badness end)
 			    :demerits (kp-node-demerits end)))
