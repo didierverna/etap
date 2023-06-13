@@ -214,3 +214,18 @@ A layout represents one path from the root to the leaf node of a graph."))
 LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
 form (CLASS-NAME INITARGS...)."
   (%layouts graph layout-class layout-initargs))
+
+
+
+;; =======================
+;; Layout Based Paragraphs
+;; =======================
+
+(defclass layouts-paragraph (paragraph)
+  ((layouts-number :initarg :layouts-number :reader layouts-number
+		   :documentation "The number of initial layouts."))
+  (:documentation "The LAYOUTS-PARAGRAPH class."))
+
+(defmethod paragraph-properties strnlcat ((paragraph layouts-paragraph))
+  "Advertise layouts based PARAGRAPH's number of initial layouts."
+  (format nil "From ~A layout~:P." (layouts-number paragraph)))

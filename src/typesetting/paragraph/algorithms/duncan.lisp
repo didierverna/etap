@@ -190,8 +190,9 @@ This class keeps track of the line's weight."))
 		   (and (misfit l1) (misfit l2)
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
-      (make-instance 'paragraph
+      (make-instance 'layouts-paragraph
 	:width width
 	:disposition disposition
+	:layouts-number (length layouts)
 	:lines (duncan-make-lines lineup disposition
 				  (car (sort layouts #'better)))))))
