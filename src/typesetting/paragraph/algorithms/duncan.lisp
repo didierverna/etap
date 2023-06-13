@@ -25,6 +25,15 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+(defclass duncan-paragraph (layouts-paragraph)
+  ((weight :initarg :weight :reader weight
+	   :documentation "This paragraph's weight."))
+  (:documentation "The DUNCAN-PARAGRAPH class."))
+
+(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
+  "Advertise Duncan PARAGRAPH's weight."
+  (format nil "Weight: ~A." (float (weight paragraph))))
+
 
 
 ;; ====================
@@ -190,9 +199,10 @@ This class keeps track of the line's weight."))
 		   (and (misfit l1) (misfit l2)
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
-      (make-instance 'layouts-paragraph
+      (setq layouts (sort layouts #'better))
+      (make-instance 'duncan-paragraph
 	:width width
 	:disposition disposition
 	:layouts-number (length layouts)
-	:lines (duncan-make-lines lineup disposition
-				  (car (sort layouts #'better)))))))
+	:weight (weight (first layouts))
+	:lines (duncan-make-lines lineup disposition (first layouts))))))
