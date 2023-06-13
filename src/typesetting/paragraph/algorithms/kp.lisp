@@ -94,16 +94,18 @@ line ends, and also include the LINE-PENALTY parameter."
 ;; -----
 
 (defclass kp-edge (edge)
-  ((scale :accessor scale)
-   (fitness-class :accessor fitness-class)
-   (badness :accessor badness)
-   ;; #### NOTE: these are only line-local demerits.
-   (demerits :accessor demerits)))
+  ((scale :accessor scale :documentation "This edge's scale.")
+   (fitness-class :accessor fitness-class
+		  :documentation "This edge's fitness class.")
+   (badness :accessor badness :documentation "This edge's badness.")
+   (demerits :accessor demerits :documentation "This edge's local demerits."))
+  (:documentation "The KP-EDGE class."))
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
      &key lineup start width line-penalty
      &aux (stop (stop-idx (boundary (destination edge)))))
+  "Initialize EDGE's scale, fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
