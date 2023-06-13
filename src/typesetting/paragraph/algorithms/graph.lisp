@@ -207,11 +207,9 @@ A layout represents one path from the root to the leaf node of a graph."))
 			     layout-initargs))))
       (edges graph))))
 
-(defun layouts
-    (graph
-     &optional (layout-type 'layout)
-     &aux (layout-initargs (when (consp layout-type) (cdr layout-type)))
-	  (layout-class (if (consp layout-type) (car layout-type) layout-type)))
+(defun layouts (graph &optional (layout-type 'layout)
+		      &aux (layout-class (car-or-symbol layout-type))
+			   (layout-initargs (cdr-or-nil layout-type)))
   "Return GRAPH's layouts of LAYOUT-TYPE.
 LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
 form (CLASS-NAME INITARGS...)."
