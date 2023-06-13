@@ -273,8 +273,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
-	      ;; #### FIXME: we need to review this to take each algorithm's
-	      ;; tolerance into account.
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if (i< (effective-scale pinned-line) (scale pinned-line))
 		  :do (gp:draw-polygon pane
