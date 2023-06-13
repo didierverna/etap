@@ -42,15 +42,23 @@
 ;; =========
 
 (defun scale-fitness-class (scale)
+  "Return SCALE's fitness class.
+This is an integer ranging from 0 (very loose) to 3 (tight)."
   (cond ((i< scale -1/2) 3)
 	((i< 1 scale) 0)
 	((<= -1/2 scale 1/2) 2)
 	(t 1)))
 
 (defun fitness-class-name (fitness-class)
+  "Return FITNESS-CLASS's name (a string)."
   (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
 
 (defun local-demerits (badness penalty line-penalty)
+  "Return a line's local demerits.
+Local demerits do not account for contextual information such as hyphens
+adjacency or fitness class difference (that's what they are called \"local\").
+They are computed from the line scale's BADNESS, a possible PENALTY where the
+line ends, and also include the LINE-PENALTY parameter."
   (cond ((and (numberp penalty) (<= 0 penalty))
 	 (i+ (i^ (i+ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
