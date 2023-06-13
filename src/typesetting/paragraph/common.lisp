@@ -27,23 +27,6 @@ ignoring the algorithm's decision."))
   "Return DISPOSITION options."
   (cdr-or-nil disposition))
 
-(defun actual-scales (scale &key (shrink-tolerance -1) (stretch-tolerance 1)
-				 (overshrink nil) (overstretch nil))
-  "Compute the actual scales for a line, based on required SCALE.
-This function returns two values.
-- The theoretical scale computed by the algorithm in use. This value depends
-  on the algorithm s SHRINK / STRETCH-TOLERANCE (-1 / 1 by default).
-- The effective scale, used to pin the line's objects. This value further
-  depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
-  (let ((theoretical-scale scale) (effective-scale scale))
-    (cond ((i< scale 0)
-	   (setq theoretical-scale (imax theoretical-scale shrink-tolerance))
-	   (unless overshrink (setq effective-scale theoretical-scale)))
-	  ((i> scale 0)
-	   (setq theoretical-scale (imin theoretical-scale stretch-tolerance))
-	   (unless overstretch (setq effective-scale theoretical-scale))))
-    (values theoretical-scale effective-scale)))
-
 
 
 ;; ==============
