@@ -374,17 +374,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (paragraph (paragraph interface))
 	  (pinned-lines (pinned-lines paragraph)))
   "Display the properties of the paragraph, or the line clicked on."
-  (when pinned-lines
-    (setq x (/ (- x 20) zoom)
-	  y (- (/ (- y 20) zoom) (height (first (pinned-lines paragraph)))))
-    (let ((line (when (and (>= x 0) (<= x (width paragraph)))
-		  (find-if (lambda (line)
-			     (and (>= y (- (y line) (height line)))
-				  (<= y (+ (y line) (depth line)))))
-			   (pinned-lines paragraph)))))
-      (if line
-	(display-tooltip pane :text (line-properties (line line)))
-	(display-tooltip pane)))))
+  (when (member :properties-tooltips (choice-selected-items (clues interface)))
+    (when pinned-lines
+      (setq x (/ (- x 20) zoom)
+	    y (- (/ (- y 20) zoom) (height (first (pinned-lines paragraph)))))
+      (let ((line (when (and (>= x 0) (<= x (width paragraph)))
+		    (find-if (lambda (line)
+			       (and (>= y (- (y line) (height line)))
+				    (<= y (+ (y line) (depth line)))))
+			     (pinned-lines paragraph)))))
+	(if line
+	  (display-tooltip pane :text (line-properties (line line)))
+	  (display-tooltip pane))))))
 
 ;; Interface
 (define-interface etap ()
@@ -678,7 +679,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :visible-max-height nil
      :items '(:characters :hyphenation-points
 	      :paragraph-box :line-boxes :character-boxes :baselines
-	      :over/underfull-boxes :overshrunk/stretched-boxes)
+	      :over/underfull-boxes :overshrunk/stretched-boxes
+	      :properties-tooltips)
      :selected-items '(:characters)
      :print-function 'title-capitalize
      :selection-callback 'set-clues
