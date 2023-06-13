@@ -174,6 +174,7 @@ such as hyphen adjacency and fitness class differences between lines."
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
+  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
