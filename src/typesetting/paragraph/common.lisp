@@ -184,17 +184,6 @@ Possible values are nil, :explicit, or :implicit."
 					   (* scale (stretch elt))
 					   (* scale (shrink elt)))))))
 
-(defun strnlcat (&rest strings)
-  "Concatenate STRINGS, inserting newlines in between."
-  (with-output-to-string (stream nil :element-type 'character)
-    (loop :for remainder :on strings
-	  :do (princ (car remainder) stream)
-	  :when (cdr remainder) :do (terpri stream))))
-
-(define-method-combination strnlcat
-  :documentation "The STRNLCAT method combination."
-  :operator strnlcat :identity-with-one-argument t)
-
 (defgeneric line-properties (line)
   (:documentation "Return a string describing LINE's properties.")
   (:method-combination strnlcat :most-specific-last)

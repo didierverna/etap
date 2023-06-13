@@ -59,3 +59,14 @@ items satisfying PRE-TEST are considered."
   (etypecase object
     (cons (cdr object))
     (symbol nil)))
+
+(defun strnlcat (&rest strings)
+  "Concatenate STRINGS, inserting newlines in between."
+  (with-output-to-string (stream nil :element-type 'character)
+    (loop :for remainder :on strings
+	  :do (princ (car remainder) stream)
+	  :when (cdr remainder) :do (terpri stream))))
+
+(define-method-combination strnlcat
+  :documentation "The STRNLCAT method combination."
+  :operator strnlcat :identity-with-one-argument t)
