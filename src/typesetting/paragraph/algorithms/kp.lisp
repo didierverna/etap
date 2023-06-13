@@ -128,7 +128,9 @@ line ends, and also include the LINE-PENALTY parameter."
 ;; -------
 
 (defclass kp-layout (layout)
-  ((size :accessor size
+  ((threshold :initarg :threshold :reader threshold
+	      :documentation "This layout's badness threshold.")
+   (size :accessor size
 	 :documentation "This layout's size (i.e. the number of lines).")
    (demerits :accessor demerits
 	     :documentation "This layout's total demerits."))
@@ -172,22 +174,31 @@ such as hyphen adjacency and fitness class differences between lines."
 (defun kp-make-layout-lines
     (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
+	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
+	  ;; elastic underfulls (in case of an impossible layout, it falls
+	  ;; back to overfull boxes). This means that the overstretch option
+	  ;; has no effect, but it allows for a nice trick: we can indicate
+	  ;; lines exceeding the tolerance thanks to an emergency stretch as
+	  ;; overstretched, regardless of the option. This is done by setting
+	  ;; the overstretched parameter to T and not counting emergency
+	  ;; stretch in the stretch-tolerance one.
+	  ;; #### WARNING: my logic is to establish scaling tolerances,
+	  ;; whereas TeX uses badness tolerances. Hence I need to convert back
+	  ;; from a float to a ratio here, which is not very nice.
+	  (stretch-tolerance
+	   (rationalize (expt (/ (threshold layout) 100) 1/3)))
 	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition))))
-	  (overstretch
-	   (cadr (member :overstretch (disposition-options disposition)))))
+	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
 	:for stop := (stop-idx (boundary (destination edge)))
 	:if justified
-	  ;; #### FIXME: in order to properly handle the overstretch option, I
-	  ;; need to know the final tolerance (threshold value) here.
 	  :collect (multiple-value-bind (theoretical effective)
 		       (actual-scales (scale edge)
-			 :stretch-tolerance +∞
+			 :stretch-tolerance stretch-tolerance
 			 :overshrink overshrink
-			 :overstretch overstretch)
+			 :overstretch t)
 		     (make-instance 'kp-line
 		       :lineup lineup :start-idx start :stop-idx stop
 		       :scale theoretical
@@ -233,24 +244,25 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun kp-graph-make-lines
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-     pre-tolerance tolerance emergency-stretch looseness)
+     pre-tolerance tolerance emergency-stretch looseness
+     &aux threshold)
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
   (let* ((graph (or (when (i<= 0 pre-tolerance)
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
-			:threshold pre-tolerance))
+			:threshold (setq threshold pre-tolerance)))
 		    (make-graph lineup width
 		      :edge-type `(kp-edge :line-penalty ,line-penalty)
 		      :next-boundaries #'kp-next-boundaries
-		      :hyphenate t :threshold tolerance
+		      :hyphenate t :threshold (setq threshold tolerance)
 		      :final (zerop emergency-stretch))
 		    (make-graph lineup width
 		      :edge-type `(kp-edge :line-penalty ,line-penalty)
 		      :next-boundaries #'kp-next-boundaries
-		      :hyphenate t :threshold tolerance
+		      :hyphenate t :threshold threshold
 		      :final emergency-stretch)))
-	 (layouts (layouts graph 'kp-layout)))
+	 (layouts (layouts graph `(kp-layout :threshold ,threshold))))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
 	      adjacent-demerits double-hyphen-demerits
