@@ -128,19 +128,27 @@ line ends, and also include the LINE-PENALTY parameter."
 ;; -------
 
 (defclass kp-layout (layout)
-  ((size :accessor size)
-   (demerits :accessor demerits)))
+  ((size :accessor size
+	 :documentation "This layout's size (i.e. the number of lines).")
+   (demerits :accessor demerits
+	     :documentation "This layout's total demerits."))
+  (:documentation "The KP-LAYOUT class."))
 
 (defmethod initialize-instance :after ((layout kp-layout)  &key edge)
-  (setf (size layout) 1
-	(demerits layout) (demerits edge)))
+  "Initialize LAYOUT's size to 1 and demerits to its last EDGE's."
+  (setf (size layout) 1 (demerits layout) (demerits edge)))
 
 (defmethod push-edge :after (edge (layout kp-layout))
+  "Increase LAYOUT size by 1 and demerits with EDGE's."
   (incf (size layout))
   (setf (demerits layout) (i+ (demerits layout) (demerits edge))))
 
 (defun kp-postprocess-layout
     (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+  "Finish computing LAYOUT's total demerits.
+When this function is called, LAYOUT's demerits contain only the sum of each
+line's local ones. This function handles the remaining contextual information,
+such as hyphen adjacency and fitness class differences between lines."
   ;; See warning in KP-CREATE-NODES about that.
   (when (= (fitness-class (first (edges layout))) 0)
     (setf (demerits layout) (i+ (demerits layout) adjacent-demerits)))
