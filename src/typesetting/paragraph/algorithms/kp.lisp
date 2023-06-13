@@ -470,7 +470,9 @@ through the algorithm in the TeX jargon).
      pre-tolerance tolerance emergency-stretch looseness
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
+	   (cadr (member :overshrink (disposition-options disposition))))
+	  (overstretch
+	   (cadr (member :overstretch (disposition-options disposition)))))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
   (let ((nodes (or (when (i<= 0 pre-tolerance)
 		     (kp-create-nodes lineup width nil pre-tolerance
@@ -517,15 +519,15 @@ through the algorithm in the TeX jargon).
 			;; #### FIXME: in order to properly handle the
 			;; overstretch option, I need to know the final
 			;; tolerance (threshold value) here.
-			(let* ((scale (kp-node-scale end))
-			       (effective-scale scale))
-			  (when (i< scale 0)
-			    (setq scale (imax scale -1))
-			    (unless overshrink (setq effective-scale scale)))
+			(multiple-value-bind (theoretical effective)
+			    (actual-scales (kp-node-scale end)
+			      :stretch-tolerance +∞
+			      :overshrink overshrink
+			      :overstretch overstretch)
 			  (make-instance 'kp-line
 			    :lineup lineup :start-idx start :stop-idx stop
-			    :scale scale
-			    :effective-scale effective-scale
+			    :scale theoretical
+			    :effective-scale effective
 			    :fitness-class (kp-node-fitness-class end)
 			    :badness (kp-node-badness end)
 			    :demerits (kp-node-demerits end)))
