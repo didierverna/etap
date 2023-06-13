@@ -194,3 +194,30 @@ Possible values are nil, :explicit, or :implicit."
       (ifloat (scale line))
       (i/= (scale line) (effective-scale line))
       (ifloat (effective-scale line)))))
+
+
+
+;; ==========
+;; Paragraphs
+;; ==========
+
+(defclass paragraph ()
+  ((width :initarg :width :accessor width
+	  :documentation "The paragraph's width.")
+   (disposition :initarg :disposition :reader disposition
+		:documentation "The paragraph's disposition.")
+   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines
+		 :documentation "The paragraph's pinned lines."))
+  (:documentation "The PARAGRAPH class."))
+
+(defgeneric paragraph-properties (paragraph)
+  (:documentation "Return a string describing PARAGRAPH's properties.")
+  (:method-combination strnlcat :most-specific-last)
+  (:method strnlcat ((paragraph paragraph))
+    "Advertise PARAGRAPH's vertical dimensions and line number.
+This is the default method."
+    (format nil "~A line~:P.~%Vertical size: ~Apt (height: ~Apt, depth: ~Apt)."
+      (length (pinned-lines paragraph))
+      (float (+ (height paragraph) (depth paragraph)))
+      (float (height paragraph))
+      (float (depth paragraph)))))

@@ -60,15 +60,6 @@ Possible values are nil, :explicit, or :implicit."
 ;; Paragraphs
 ;; ==========
 
-(defclass paragraph ()
-  ((width :initarg :width :accessor width
-	  :documentation "The paragraph's width.")
-   (disposition :initarg :disposition :reader disposition
-		:documentation "The paragraph's disposition.")
-   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines
-		 :documentation "The paragraph's pinned lines."))
-  (:documentation "The PARAGRAPH class."))
-
 (defmethod initialize-instance :after
     ((paragraph paragraph)
      &key lines
