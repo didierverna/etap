@@ -196,12 +196,23 @@ A layout represents one path from the root to the leaf node of a graph."))
     "Perform the pushing."
     (push edge (edges layout))))
 
-(defun layouts (graph &optional (layout-type 'layout))
-  "Return GRAPH's layouts of LAYOUT-TYPE."
+(defun %layouts (graph layout-class layout-initargs)
+  "Return GRAPH's layouts of LAYOUT-CLASS initialized with LAYOUT-INITARGS."
   (when graph
     (mapcan (lambda (edge)
 	      (if (edges (destination edge))
 		(mapc (lambda (layout) (push-edge edge layout))
-		  (layouts (destination edge) layout-type))
-		(list (make-instance layout-type :edge edge))))
+		  (%layouts (destination edge) layout-class layout-initargs))
+		(list (apply #'make-instance layout-class :edge edge
+			     layout-initargs))))
       (edges graph))))
+
+(defun layouts
+    (graph
+     &optional (layout-type 'layout)
+     &aux (layout-initargs (when (consp layout-type) (cdr layout-type)))
+	  (layout-class (if (consp layout-type) (car layout-type) layout-type)))
+  "Return GRAPH's layouts of LAYOUT-TYPE.
+LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
+form (CLASS-NAME INITARGS...)."
+  (%layouts graph layout-class layout-initargs))
