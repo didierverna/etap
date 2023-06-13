@@ -173,7 +173,9 @@ such as hyphen adjacency and fitness class differences between lines."
     (lineup disposition layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
+	   (cadr (member :overshrink (disposition-options disposition))))
+	  (overstretch
+	   (cadr (member :overstretch (disposition-options disposition)))))
   "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
   (loop :for edge :in (edges layout)
 	:and start := 0 :then (start-idx (boundary (destination edge)))
@@ -181,15 +183,15 @@ such as hyphen adjacency and fitness class differences between lines."
 	:if justified
 	  ;; #### FIXME: in order to properly handle the overstretch option, I
 	  ;; need to know the final tolerance (threshold value) here.
-	  :collect (let* ((scale (scale edge))
-			  (effective-scale scale))
-		     (when (i< scale 0)
-		       (setq scale (imax scale -1))
-		       (unless overshrink (setq effective-scale scale)))
+	  :collect (multiple-value-bind (theoretical effective)
+		       (actual-scales (scale edge)
+			 :stretch-tolerance +∞
+			 :overshrink overshrink
+			 :overstretch overstretch)
 		     (make-instance 'kp-line
 		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale scale
-		       :effective-scale effective-scale
+		       :scale theoretical
+		       :effective-scale effective
 		       :fitness-class (fitness-class edge)
 		       :badness (badness edge)
 		       :demerits (demerits edge)))
