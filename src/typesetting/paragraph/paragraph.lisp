@@ -40,21 +40,19 @@ The line's 2D position is relative to the paragraph it belongs to."))
   "Return pinned LINE's effective scale factor."
   (effective-scale (line line)))
 
+(defmethod hyphenated ((line pinned-line))
+  "Whether pinned LINE is hyphenated.
+Possible values are nil, :explicit, or :implicit."
+  (hyphenated (line line)))
+
+(defmethod penalty ((line pinned-line))
+  "Return pinned LINE's penalty."
+  (penalty (line line)))
+
 (defun pin-line (line &rest initargs &key x y)
   "Pin LINE at position (X, Y)."
   (declare (ignore x y))
   (apply #'make-instance 'pinned-line :line line initargs))
-
-(defun pin-lines (lines disposition width baselineskip)
-  "Pin LINES in DISPOSITION for paragraph WIDTH."
-  (loop :for line :in lines
-	:for x := (case disposition
-		    ((:flush-left :justified) 0)
-		    (:centered (/ (- width (width line)) 2))
-		    (:flush-right (- width (width line))))
-	;; #### TODO: nothing fancy about interline spacing yet.
-	:for y := 0 :then (+ y baselineskip)
-	:collect (pin-line line :x x :y y)))
 
 
 
@@ -65,9 +63,39 @@ The line's 2D position is relative to the paragraph it belongs to."))
 (defclass paragraph ()
   ((width :initarg :width :accessor width
 	  :documentation "The paragraph's width.")
+   (disposition :initarg :disposition :reader disposition
+		:documentation "The paragraph's disposition.")
    (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines
 		 :documentation "The paragraph's pinned lines."))
   (:documentation "The PARAGRAPH class."))
+
+(defmethod initialize-instance :after
+    ((paragraph paragraph)
+     &key lines
+     &aux (width (width paragraph))
+	  (disposition (disposition-type (disposition paragraph)))
+	  ;; #### TODO: this is gross but it works for now (we use a single
+	  ;; font). 1.2 (expressed in ratio to avoid going all floats) is what
+	  ;; TeX uses with the Computer Modern fonts. But we should get the
+	  ;; appropriate value somewhere (it's up to the font designers, but
+	  ;; it's not in the TFM format for example).
+	  (baselineskip
+	   (* 12/10
+	      (tfm:design-size
+	       (tfm:font
+		(character-metrics
+		 (find-if #'pinned-character-p
+			  (pinned-objects (first lines)))))))))
+  "Pin LINES in PARAGRAPH."
+  (setf (slot-value paragraph 'pinned-lines)
+	(loop :for line :in lines
+	      :for x := (case disposition
+			  ((:flush-left :justified) 0)
+			  (:centered (/ (- width (width line)) 2))
+			  (:flush-right (- width (width line))))
+	      ;; #### TODO: nothing fancy about interline spacing yet.
+	      :for y := 0 :then (+ y baselineskip)
+	      :collect (pin-line line :x x :y y))))
 
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.
@@ -103,7 +131,7 @@ Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
 corresponding global variable, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
 :fixed, and WIDTH to 284pt."
-  (declare (ignore text hyphenation-rules kerning ligatures hyphenation))
+  (declare (ignore text font hyphenation-rules kerning ligatures hyphenation))
   (unless lineupp
     (setq lineup
 	  (apply #'make-lineup
@@ -112,17 +140,6 @@ defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
   (setq lineup (apply #'prepare-lineup
 		 lineup disposition (algorithm-type algorithm)
 		 (algorithm-options algorithm)))
-  (make-instance 'paragraph
-    :width width
-    :pinned-lines (pin-lines
-		   (apply #'make-lines
-		     lineup disposition width (algorithm-type algorithm)
-		     (algorithm-options algorithm))
-		   (disposition-type disposition)
-		   width
-		   ;; #### TODO: 1.2 (expressed in ratio to avoid going all
-		   ;; floats) is what TeX uses with the Computer Modern fonts.
-		   ;; But we should get the appropriate value somewhere (it's
-		   ;; up to the font designers, but it's not in the TFM format
-		   ;; for example).
-		   (* 12/10 (tfm:design-size font)))))
+  (apply #'typeset-lineup
+    lineup disposition width (algorithm-type algorithm)
+    (algorithm-options algorithm)))

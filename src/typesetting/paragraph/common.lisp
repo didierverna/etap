@@ -138,15 +138,18 @@ A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
 
-(defun hyphenated
-    (line &aux (element (aref (lineup line) (1- (stop-idx line)))))
-  "Whether LINE is hyphenated.
+(defgeneric hyphenated (object)
+  (:documentation "Whether OBJECT is hyphenated.
+Possible values are nil, :explicit, or :implicit.")
+  (:method
+      ((line line) &aux (element (aref (lineup line) (1- (stop-idx line)))))
+    "Whether LINE is hyphenated.
 Possible values are nil, :explicit, or :implicit."
-  (when (hyphenation-point-p element)
-    (if (explicitp element) :explicit :implicit)))
+    (when (hyphenation-point-p element)
+      (if (explicitp element) :explicit :implicit))))
 
 (defmethod penalty
-    (line &aux (element (aref (lineup line) (1- (stop-idx line)))))
+    ((line line) &aux (element (aref (lineup line) (1- (stop-idx line)))))
   "Return LINE's penalty."
   (if (break-point-p element) (penalty element) 0))
 

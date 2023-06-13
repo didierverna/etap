@@ -292,7 +292,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Calibrate NAMEd Fixed variable."
   `(calibrate fixed ,name ,infinity))
 
-(defmethod make-lines
+(defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :fixed))
      &key fallback width-offset avoid-hyphens prefer-overfulls
      &aux (get-line-boundary (if (eq (disposition-type disposition) :justified)
@@ -301,11 +301,14 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Typeset LINEUP with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (loop :for start := 0 :then (start-idx boundary)
-	:while start
-	:for boundary := (funcall get-line-boundary
-			   lineup start width fallback
-			   width-offset avoid-hyphens prefer-overfulls)
-	:collect (make-instance 'line
-		   :lineup lineup
-		   :start-idx start :stop-idx (stop-idx boundary))))
+  (make-instance 'paragraph
+    :width width
+    :disposition disposition
+    :lines (loop :for start := 0 :then (start-idx boundary)
+		 :while start
+		 :for boundary := (funcall get-line-boundary
+				    lineup start width fallback
+				    width-offset avoid-hyphens prefer-overfulls)
+		 :collect (make-instance 'line
+			    :lineup lineup
+			    :start-idx start :stop-idx (stop-idx boundary)))))

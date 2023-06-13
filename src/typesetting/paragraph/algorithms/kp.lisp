@@ -583,7 +583,7 @@ through the algorithm in the TeX jargon).
   (endpush (make-glue :stretch +∞ :penalty +∞) lineup)
   lineup)
 
-(defmethod make-lines
+(defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :knuth-plass))
      &key variant line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -598,12 +598,15 @@ through the algorithm in the TeX jargon).
   (calibrate-kp tolerance :positive)
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
-  (ecase variant
-    (:graph
-     (kp-graph-make-lines lineup disposition width line-penalty
-       adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-       pre-tolerance tolerance emergency-stretch looseness))
-    (:dynamic
-     (kp-dynamic-make-lines lineup disposition width line-penalty
-       adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-       pre-tolerance tolerance emergency-stretch looseness))))
+  (make-instance 'paragraph
+    :width width
+    :disposition disposition
+    :lines (ecase variant
+	     (:graph
+	      (kp-graph-make-lines lineup disposition width line-penalty
+		adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+		pre-tolerance tolerance emergency-stretch looseness))
+	     (:dynamic
+	      (kp-dynamic-make-lines lineup disposition width line-penalty
+		adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+		pre-tolerance tolerance emergency-stretch looseness)))))

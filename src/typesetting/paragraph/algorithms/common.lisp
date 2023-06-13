@@ -136,7 +136,7 @@ Primary methods must return a possibly modified lineup.")
     "Return LINEUP as-is. This is the default method."
     lineup))
 
-(defgeneric make-lines
+(defgeneric typeset-lineup
     (lineup disposition width algorithm &key &allow-other-keys)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")

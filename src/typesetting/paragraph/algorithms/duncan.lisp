@@ -153,7 +153,7 @@ This class keeps track of the line's weight."))
 ;; possible that by making a line arbitrarily underfull instead of fit, we
 ;; reduce the number of subsequent *fulls. I hope that if it's possible, it
 ;; would only affect very rare cases. But this should be experimented.
-(defmethod make-lines
+(defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   "Typeset LINEUP with the Duncan algorithm."
@@ -190,4 +190,8 @@ This class keeps track of the line's weight."))
 		   (and (misfit l1) (misfit l2)
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
-      (duncan-make-lines lineup disposition (car (sort layouts #'better))))))
+      (make-instance 'paragraph
+	:width width
+	:disposition disposition
+	:lines (duncan-make-lines lineup disposition
+				  (car (sort layouts #'better)))))))

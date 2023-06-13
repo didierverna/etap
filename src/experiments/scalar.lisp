@@ -16,8 +16,9 @@
   "Collect ALGORITHM's number of under/full lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (loop :with fulls := 0
-		  :for lines :on (apply #'make-lines lineup :justified width
-					algorithm options)
+		  :for lines :on (pinned-lines
+				  (apply #'typeset-lineup lineup
+					 :justified width algorithm options))
 		  :for w := (width (car lines))
 		  :when (or (> w width)
 			    ;; Do not count an underfull last line.
@@ -29,8 +30,9 @@
 (defun collect-hyphenation (lineup widths algorithm &rest options)
   "Collect ALGORITHM's number of hyphenated lines per paragraph WIDTHS."
   (mapcar (lambda (width)
-	    (reduce #'+ (apply #'make-lines lineup :justified width
-			       algorithm options)
+	    (reduce #'+ (pinned-lines
+			 (apply #'typeset-lineup lineup :justified width
+				algorithm options))
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
 
@@ -39,8 +41,9 @@
   (mapcar (lambda (width)
 	    (let ((scales
 		    (mapcar #'scale
-		      (apply #'make-lines lineup :justified width
-			     algorithm options))))
+		      (pinned-lines
+		       (apply #'typeset-lineup lineup :justified width
+			      algorithm options)))))
 	      (float (/ (reduce #'+ scales) (length scales)))))
     widths))
 
@@ -49,8 +52,9 @@
   (mapcar (lambda (width)
 	    (let* ((scales
 		     (mapcar #'scale
-		       (apply #'make-lines lineup :justified width
-			      algorithm options)))
+		       (pinned-lines
+			(apply #'typeset-lineup lineup :justified width
+			       algorithm options))))
 		   (length (length scales))
 		   (mean (float (/ (reduce #'+ scales) length))))
 	      (sqrt (/ (reduce #'+
@@ -74,8 +78,9 @@ to be able to handle that gracefully."
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
   (mapcar (lambda (width)
-	    (let* ((lines (apply #'make-lines lineup :justified width
-				 algorithm options))
+	    (let* ((lines (pinned-lines
+			   (apply #'typeset-lineup lineup :justified width
+				  algorithm options)))
 		   (length (length lines))
 		   (demerits (local-demerits
 			      (scale-badness (scale (car lines)))

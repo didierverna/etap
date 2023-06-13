@@ -408,7 +408,7 @@ LINE class."))
     lineup)
   lineup)
 
-(defmethod make-lines
+(defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :fit))
      &key variant fallback
 	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
@@ -434,11 +434,14 @@ LINE class."))
   (default-fit fallback)
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
-  (loop :for start := 0 :then (start-idx boundary)
-	:while start
-	:for boundary := (funcall get-line-boundary start)
-	:collect (apply #'fit-make-line lineup start boundary
-			(disposition-type disposition) variant
-			:width width
-			:relax relax
-			(disposition-options disposition))))
+  (make-instance 'paragraph
+    :width width
+    :disposition disposition
+    :lines (loop :for start := 0 :then (start-idx boundary)
+		 :while start
+		 :for boundary := (funcall get-line-boundary start)
+		 :collect (apply #'fit-make-line lineup start boundary
+				 (disposition-type disposition) variant
+				 :width width
+				 :relax relax
+				 (disposition-options disposition)))))
