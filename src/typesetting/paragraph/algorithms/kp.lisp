@@ -41,6 +41,13 @@
 ;; Utilities
 ;; =========
 
+;; #### WARNING: the logic is ACTUAL-SCALES is to establish scaling
+;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
+;; back (from a float to a ratio), which is not very nice.
+(defun stretch-tolerance (badness)
+  "Return the stretch tolerance corresponding to BADNESS."
+  (rationalize (expt (/ badness 100) 1/3)))
+
 (defun scale-fitness-class (scale)
   "Return SCALE's fitness class.
 This is an integer ranging from 0 (very loose) to 3 (tight)."
@@ -182,11 +189,7 @@ such as hyphen adjacency and fitness class differences between lines."
 	  ;; overstretched, regardless of the option. This is done by setting
 	  ;; the overstretched parameter to T and not counting emergency
 	  ;; stretch in the stretch-tolerance one.
-	  ;; #### WARNING: my logic is to establish scaling tolerances,
-	  ;; whereas TeX uses badness tolerances. Hence I need to convert back
-	  ;; from a float to a ratio here, which is not very nice.
-	  (stretch-tolerance
-	   (rationalize (expt (/ (threshold layout) 100) 1/3)))
+	  (stretch-tolerance (stretch-tolerance (threshold layout)))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
@@ -197,12 +200,10 @@ such as hyphen adjacency and fitness class differences between lines."
 	  :collect (multiple-value-bind (theoretical effective)
 		       (actual-scales (scale edge)
 			 :stretch-tolerance stretch-tolerance
-			 :overshrink overshrink
-			 :overstretch t)
+			 :overshrink overshrink :overstretch t)
 		     (make-instance 'kp-line
 		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale theoretical
-		       :effective-scale effective
+		       :scale theoretical :effective-scale effective
 		       :fitness-class (fitness-class edge)
 		       :badness (badness edge)
 		       :demerits (demerits edge)))
@@ -245,13 +246,13 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
-     &aux threshold)
+     &aux (threshold pre-tolerance))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
-  (let* ((graph (or (when (i<= 0 pre-tolerance)
+  (let* ((graph (or (when (i<= 0 threshold)
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
-			:threshold (setq threshold pre-tolerance)))
+			:threshold threshold))
 		    (make-graph lineup width
 		      :edge-type `(kp-edge :line-penalty ,line-penalty)
 		      :next-boundaries #'kp-next-boundaries
