@@ -259,7 +259,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 (defclass kp-graph-paragraph (kp-paragraph-mixin layouts-paragraph)
   ()
-  (:documentation "The DUNCAN-PARAGRAPH class."))
+  (:documentation "The KP-GRAPH-PARAGRAPH class."))
 
 (defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
