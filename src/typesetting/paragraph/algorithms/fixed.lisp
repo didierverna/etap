@@ -278,20 +278,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		     (+ width width-offset) prefer-overfulls
 		     fallback))))))
 
-
-
-;; ===========
-;; Entry Point
-;; ===========
-
-(defmacro default-fixed (name)
-  "Default Fixed NAMEd variable."
-  `(default fixed ,name))
-
-(defmacro calibrate-fixed (name &optional infinity)
-  "Calibrate NAMEd Fixed variable."
-  `(calibrate fixed ,name ,infinity))
-
 (defun fixed-make-lines
     (lineup disposition width
      fallback width-offset avoid-hyphens prefer-overfulls
@@ -307,6 +293,20 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	:collect (make-instance 'line
 		   :lineup lineup
 		   :start-idx start :stop-idx (stop-idx boundary))))
+
+
+
+;; ===========
+;; Entry Point
+;; ===========
+
+(defmacro default-fixed (name)
+  "Default Fixed NAMEd variable."
+  `(default fixed ,name))
+
+(defmacro calibrate-fixed (name &optional infinity)
+  "Calibrate NAMEd Fixed variable."
+  `(calibrate fixed ,name ,infinity))
 
 (defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :fixed))
