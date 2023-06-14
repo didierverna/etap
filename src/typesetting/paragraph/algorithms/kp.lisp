@@ -257,9 +257,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				 (list overfull)
 				 (list emergency-boundary)))))))
 
-(defmethod paragraph-properties strnlcat ((paragraph kp-graph-paragraph))
-  "Advertise Duncan PARAGRAPH's weight."
-  #+()(format nil "Weight: ~A." (float (weight paragraph))))
+(defclass kp-graph-paragraph (kp-paragraph-mixin layouts-paragraph)
+  ()
+  (:documentation "The DUNCAN-PARAGRAPH class."))
 
 (defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
