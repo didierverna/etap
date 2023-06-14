@@ -279,9 +279,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 
-;; =================
-;; Lines Computation
-;; =================
+;; =====
+;; Lines
+;; =====
 
 (defun fixed-make-lines
     (lineup disposition width

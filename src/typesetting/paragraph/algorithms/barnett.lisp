@@ -51,10 +51,9 @@
 	(scaling natural-width width stretch shrink)))
 
 
-
-;; =========
-;; Algorithm
-;; =========
+;; ---------------
+;; Boundary lookup
+;; ---------------
 
 (defun barnett-line-boundary (lineup start width)
   "Return the Barnett algorithm's view of the end of line boundary."
@@ -93,9 +92,9 @@
 
 
 
-;; ===========
-;; Entry Point
-;; ===========
+;; =====
+;; Lines
+;; =====
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we
