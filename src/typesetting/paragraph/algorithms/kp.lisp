@@ -91,6 +91,21 @@ line ends, and also include the LINE-PENALTY parameter."
     (ifloat (demerits line))))
 
 
+(defclass kp-paragraph-mixin ()
+  ((pass :initarg :pass :reader pass
+	 :documentation "Which of the 3 passes produced this paragraph.")
+   (demerits :initarg :demerits :reader demerits
+	     :documentation "This paragraph's total demerits."))
+  (:documentation "The KP-PARAGRAPH-MIXIN class.
+This class is mixed in both the graph and dynamic paragraph classes."))
+
+(defmethod paragraph-properties strnlcat ((mixin kp-paragraph-mixin))
+  "Advertise TeX's algorithm pass number and total demerits."
+  (format nil "Pass: ~A.~%Demerits: ~A."
+    (pass mixin)
+    (ifloat (demerits mixin))))
+
+
 
 ;; ====================
 ;; Graph Implementation
@@ -242,27 +257,33 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				 (list overfull)
 				 (list emergency-boundary)))))))
 
+(defmethod paragraph-properties strnlcat ((paragraph kp-graph-paragraph))
+  "Advertise Duncan PARAGRAPH's weight."
+  #+()(format nil "Weight: ~A." (float (weight paragraph))))
+
 (defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
-     &aux (threshold pre-tolerance))
+     &aux (threshold pre-tolerance) (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
   (let* ((graph (or (when (i<= 0 threshold)
 		      (make-graph lineup width
 			:edge-type `(kp-edge :line-penalty ,line-penalty)
 			:next-boundaries #'kp-next-boundaries
 			:threshold threshold))
-		    (make-graph lineup width
-		      :edge-type `(kp-edge :line-penalty ,line-penalty)
-		      :next-boundaries #'kp-next-boundaries
-		      :hyphenate t :threshold (setq threshold tolerance)
-		      :final (zerop emergency-stretch))
-		    (make-graph lineup width
-		      :edge-type `(kp-edge :line-penalty ,line-penalty)
-		      :next-boundaries #'kp-next-boundaries
-		      :hyphenate t :threshold threshold
-		      :final emergency-stretch)))
+		    (prog1 (make-graph lineup width
+			     :edge-type `(kp-edge :line-penalty ,line-penalty)
+			     :next-boundaries #'kp-next-boundaries
+			     :hyphenate t :threshold (setq threshold tolerance)
+			     :final (zerop emergency-stretch))
+		      (incf pass))
+		    (prog1 (make-graph lineup width
+			     :edge-type `(kp-edge :line-penalty ,line-penalty)
+			     :next-boundaries #'kp-next-boundaries
+			     :hyphenate t :threshold threshold
+			     :final emergency-stretch)
+		      (incf pass))))
 	 (layouts (layouts graph `(kp-layout :threshold ,threshold))))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
@@ -276,9 +297,12 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			:key #'size))))
-    (make-instance 'paragraph
+    (make-instance 'kp-graph-paragraph
       :width width
       :disposition disposition
+      :layouts-number (length layouts)
+      :pass pass
+      :demerits (demerits (car layouts))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
       ;; could instead check for multiple such layouts and take the last one.
