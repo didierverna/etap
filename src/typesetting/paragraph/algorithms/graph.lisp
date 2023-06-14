@@ -222,14 +222,14 @@ form (CLASS-NAME INITARGS...)."
 ;; =======================
 
 (defclass layouts-paragraph (paragraph)
-  ((layouts-number :reader layouts-number
+  ((layouts-number :initarg :layouts-number :reader layouts-number
 		   :documentation "The number of initial layouts."))
   (:documentation "The LAYOUTS-PARAGRAPH class."))
 
-(defmethod initialize-instance :after
-    ((paragraph layouts-paragraph) &key layouts)
-  "Initialize layouts based PARAGRAPH's number of initial layouts."
-  (setf (slot-value paragraph 'layouts-number) (length layouts)))
+(defmethod initialize-instance :around
+    ((paragraph layouts-paragraph) &rest keys &key layouts)
+  "Compute the :layouts-number initialization argument."
+  (apply #'call-next-method paragraph :layouts-number (length layouts) keys))
 
 (defmethod paragraph-properties strnlcat ((paragraph layouts-paragraph))
   "Advertise layouts based PARAGRAPH's number of initial layouts."

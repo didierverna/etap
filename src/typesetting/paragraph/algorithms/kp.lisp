@@ -261,6 +261,12 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   ()
   (:documentation "The KP-GRAPH-PARAGRAPH class."))
 
+(defmethod initialize-instance :around
+    ((paragraph kp-graph-paragraph) &rest keys &key layouts)
+  "Compute the :demerits initialization argument."
+  (apply #'call-next-method paragraph :demerits (demerits (first layouts))
+	 keys))
+
 (defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -302,7 +308,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       :disposition disposition
       :layouts layouts
       :pass pass
-      :demerits (demerits (car layouts))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
       ;; could instead check for multiple such layouts and take the last one.

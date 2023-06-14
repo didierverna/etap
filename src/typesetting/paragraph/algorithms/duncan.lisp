@@ -25,15 +25,6 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
-(defclass duncan-paragraph (layouts-paragraph)
-  ((weight :initarg :weight :reader weight
-	   :documentation "This paragraph's weight."))
-  (:documentation "The DUNCAN-PARAGRAPH class."))
-
-(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
-  "Advertise Duncan PARAGRAPH's weight."
-  (format nil "Weight: ~A." (float (weight paragraph))))
-
 
 
 ;; ====================
@@ -154,6 +145,20 @@ This class keeps track of the line's weight."))
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
 
+(defclass duncan-paragraph (layouts-paragraph)
+  ((weight :initarg :weight :reader weight
+	   :documentation "This paragraph's weight."))
+  (:documentation "The DUNCAN-PARAGRAPH class."))
+
+(defmethod initialize-instance :around
+    ((paragraph duncan-paragraph) &rest keys &key layouts)
+  "Compute the :weight initialization argument."
+  (apply #'call-next-method paragraph :weight (weight (first layouts)) keys))
+
+(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
+  "Advertise Duncan PARAGRAPH's weight."
+  (format nil "Weight: ~A." (float (weight paragraph))))
+
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
 ;; preventive fulls, that is, we don't return *full boundaries if there is at
 ;; least one fit boundary. Experience shows that including preventive fulls
@@ -204,5 +209,4 @@ This class keeps track of the line's weight."))
 	:width width
 	:disposition disposition
 	:layouts layouts
-	:weight (weight (first layouts))
 	:lines (duncan-make-lines lineup disposition (first layouts))))))
