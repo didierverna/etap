@@ -74,6 +74,10 @@ line ends, and also include the LINE-PENALTY parameter."
 	 (i^ (i+ line-penalty badness) 2))))
 
 
+;; -------------------
+;; Line specialization
+;; -------------------
+
 (defclass kp-line (line)
   ((fitness-class :initarg :fitness-class :reader fitness-class
 		  :documentation "This line's fitness class.")
@@ -91,6 +95,10 @@ line ends, and also include the LINE-PENALTY parameter."
     (ifloat (demerits line))))
 
 
+;; ------------------------
+;; Paragraph specialization
+;; ------------------------
+
 (defclass kp-paragraph-mixin ()
   ((pass :initarg :pass :reader pass
 	 :documentation "Which of the 3 passes produced this paragraph.")
@@ -107,9 +115,9 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 
 
 
-;; ====================
-;; Graph Implementation
-;; ====================
+;; =============
+;; Graph Variant
+;; =============
 
 ;; -----
 ;; Edges
@@ -189,42 +197,9 @@ such as hyphen adjacency and fitness class differences between lines."
       (setf (demerits layout) (i+ final-hyphen-demerits (demerits layout))))))
 
 
-;; ---------
-;; Algorithm
-;; ---------
-
-(defun kp-make-layout-lines
-    (lineup disposition layout
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
-	  ;; elastic underfulls (in case of an impossible layout, it falls
-	  ;; back to overfull boxes). This means that the overstretch option
-	  ;; has no effect, but it allows for a nice trick: we can indicate
-	  ;; lines exceeding the tolerance thanks to an emergency stretch as
-	  ;; overstretched, regardless of the option. This is done by setting
-	  ;; the overstretched parameter to T and not counting emergency
-	  ;; stretch in the stretch-tolerance one.
-	  (stretch-tolerance (stretch-tolerance (threshold layout)))
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
-  (loop :for edge :in (edges layout)
-	:and start := 0 :then (start-idx (boundary (destination edge)))
-	:for stop := (stop-idx (boundary (destination edge)))
-	:if justified
-	  :collect (multiple-value-bind (theoretical effective)
-		       (actual-scales (scale edge)
-			 :stretch-tolerance stretch-tolerance
-			 :overshrink overshrink :overstretch t)
-		     (make-instance 'kp-line
-		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale theoretical :effective-scale effective
-		       :fitness-class (fitness-class edge)
-		       :badness (badness edge)
-		       :demerits (demerits edge)))
-	:else
-	  :collect (make-instance 'line
-		     :lineup lineup :start-idx start :stop-idx stop)))
+;; ---------------
+;; Boundary lookup
+;; ---------------
 
 (defun kp-next-boundaries
     (lineup start width
@@ -257,6 +232,49 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				 (list overfull)
 				 (list emergency-boundary)))))))
 
+
+;; -----------------
+;; Lines computation
+;; -----------------
+
+(defun kp-graph-make-lines
+    (lineup disposition layout
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
+	  ;; elastic underfulls (in case of an impossible layout, it falls
+	  ;; back to overfull boxes). This means that the overstretch option
+	  ;; has no effect, but it allows for a nice trick: we can indicate
+	  ;; lines exceeding the tolerance thanks to an emergency stretch as
+	  ;; overstretched, regardless of the option. This is done by setting
+	  ;; the overstretched parameter to T and not counting emergency
+	  ;; stretch in the stretch-tolerance one.
+	  (stretch-tolerance (stretch-tolerance (threshold layout)))
+	  (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
+  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
+  (loop :for edge :in (edges layout)
+	:and start := 0 :then (start-idx (boundary (destination edge)))
+	:for stop := (stop-idx (boundary (destination edge)))
+	:if justified
+	  :collect (multiple-value-bind (theoretical effective)
+		       (actual-scales (scale edge)
+			 :stretch-tolerance stretch-tolerance
+			 :overshrink overshrink :overstretch t)
+		     (make-instance 'kp-line
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :scale theoretical :effective-scale effective
+		       :fitness-class (fitness-class edge)
+		       :badness (badness edge)
+		       :demerits (demerits edge)))
+	:else
+	  :collect (make-instance 'line
+		     :lineup lineup :start-idx start :stop-idx stop)))
+
+
+;; --------------------
+;; Graph specialization
+;; --------------------
+
 (defclass kp-graph-paragraph (kp-paragraph-mixin layouts-paragraph)
   ()
   (:documentation "The KP-GRAPH-PARAGRAPH class."))
@@ -266,6 +284,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   "Compute the :demerits initialization argument."
   (apply #'call-next-method paragraph :demerits (demerits (first layouts))
 	 keys))
+
+
+;; -----------
+;; Entry point
+;; -----------
 
 (defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
@@ -316,13 +339,13 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; either, so there's no rush. It's still important to keep that in mind
       ;; however, because that explains while we may end up with different
       ;; solutions between the graph and the dynamic versions.
-      :lines (kp-make-layout-lines lineup disposition (car layouts)))))
+      :lines (kp-graph-make-lines lineup disposition (first layouts)))))
 
 
 
-;; ==================================
-;; Dynamic Programming Implementation
-;; ==================================
+;; ===============
+;; Dynamic Variant
+;; ===============
 
 (defstruct (kp-node (:constructor kp-make-node))
   boundary scale fitness-class badness demerits total-demerits previous)
@@ -333,6 +356,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun key-boundary (key) (first key))
 (defun key-line (key) (second key))
 (defun key-fitness (key) (third key))
+
+
+;; ---------------
+;; Boundary lookup
+;; ---------------
 
 (defun kp-try-boundary (boundary nodes
 			lineup width threshold line-penalty
@@ -509,6 +537,57 @@ through the algorithm in the TeX jargon).
 		  final-hyphen-demerits final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
+
+;; -----------------
+;; Lines computation
+;; -----------------
+
+(defun kp-dynamic-make-lines
+    (lineup disposition node threshold
+     &aux (justified (eq (disposition-type disposition) :justified))
+	  (overshrink
+	   (cadr (member :overshrink (disposition-options disposition)))))
+  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass dynamic NODE."
+  (loop :with lines
+	:with stretch-tolerance := (stretch-tolerance threshold)
+	:for end := node :then (kp-node-previous end)
+	:for beg := (kp-node-previous end)
+	:while beg
+	:for start := (start-idx (kp-node-boundary beg))
+	:for stop := (stop-idx (kp-node-boundary end))
+	:do (push (if justified
+		    ;; #### NOTE: I think that the Knuth-Plass algorithm
+		    ;; cannot produce elastic underfulls (in case of an
+		    ;; impossible layout, it falls back to overfull boxes).
+		    ;; This means that the overstretch option has no effect,
+		    ;; but it allows for a nice trick: we can indicate lines
+		    ;; exceeding the tolerance thanks to an emergency stretch
+		    ;; as overstretched, regardless of the option. This is
+		    ;; done by setting the overstretched parameter to T and
+		    ;; not counting emergency stretch in the stretch-tolerance
+		    ;; one.
+		    (multiple-value-bind (theoretical effective)
+			(actual-scales (kp-node-scale end)
+			  :stretch-tolerance stretch-tolerance
+			  :overshrink overshrink :overstretch t)
+		      (make-instance 'kp-line
+			:lineup lineup
+			:start-idx start :stop-idx stop
+			:scale theoretical
+			:effective-scale effective
+			:fitness-class (kp-node-fitness-class end)
+			:badness (kp-node-badness end)
+			:demerits (kp-node-demerits end)))
+		    (make-instance 'line
+		      :lineup lineup :start-idx start :stop-idx stop))
+		  lines)
+	:finally (return lines)))
+
+
+;; ------------------------
+;; Paragraph specialization
+;; ------------------------
+
 (defclass kp-dynamic-paragraph (kp-paragraph-mixin paragraph)
   ((nodes-number :initarg :nodes-number :reader nodes-number
 		 :documentation "The number of remaining active nodes."))
@@ -519,14 +598,16 @@ through the algorithm in the TeX jargon).
   (format nil "From ~A remaining active node~:P."
     (nodes-number paragraph)))
 
+
+;; -----------
+;; Entry point
+;; -----------
+
 (defun kp-dynamic-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition))))
-	  (threshold pre-tolerance)
+     &aux (threshold pre-tolerance)
 	  (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
   (let* ((nodes (or (when (i<= 0 threshold)
@@ -574,43 +655,7 @@ through the algorithm in the TeX jargon).
       :pass pass
       :demerits (kp-node-total-demerits best)
       :nodes-number (hash-table-count nodes)
-      :lines (loop :with lines
-		   :with stretch-tolerance := (stretch-tolerance threshold)
-		   :for end := best :then (kp-node-previous end)
-		   :for beg := (kp-node-previous end)
-		   :while beg
-		   :for start := (start-idx (kp-node-boundary beg))
-		   :for stop := (stop-idx (kp-node-boundary end))
-		   :do (push (if justified
-			       ;; #### NOTE: I think that the Knuth-Plass
-			       ;; algorithm cannot produce elastic underfulls
-			       ;; (in case of an impossible layout, it falls
-			       ;; back to overfull boxes). This means that the
-			       ;; overstretch option has no effect, but it
-			       ;; allows for a nice trick: we can indicate
-			       ;; lines exceeding the tolerance thanks to an
-			       ;; emergency stretch as overstretched,
-			       ;; regardless of the option. This is done by
-			       ;; setting the overstretched parameter to T and
-			       ;; not counting emergency stretch in the
-			       ;; stretch-tolerance one.
-			       (multiple-value-bind (theoretical effective)
-				   (actual-scales (kp-node-scale end)
-				     :stretch-tolerance stretch-tolerance
-				     :overshrink overshrink :overstretch t)
-				 (make-instance 'kp-line
-				   :lineup lineup
-				   :start-idx start :stop-idx stop
-				   :scale theoretical
-				   :effective-scale effective
-				   :fitness-class (kp-node-fitness-class end)
-				   :badness (kp-node-badness end)
-				   :demerits (kp-node-demerits end)))
-			       (make-instance 'line
-				 :lineup lineup
-				 :start-idx start :stop-idx stop))
-			     lines)
-		   :finally (return lines)))))
+      :lines (kp-dynamic-make-lines lineup disposition best threshold))))
 
 
 
