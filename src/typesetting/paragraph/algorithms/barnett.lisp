@@ -130,6 +130,12 @@
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
 
+
+
+;; ===========
+;; Entry Point
+;; ===========
+
 (defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :barnett)) &key)
   "Typeset LINEUP with the Barnett algorithm."
