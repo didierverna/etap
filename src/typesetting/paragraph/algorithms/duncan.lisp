@@ -203,6 +203,6 @@ This class keeps track of the line's weight."))
       (make-instance 'duncan-paragraph
 	:width width
 	:disposition disposition
-	:layouts-number (length layouts)
+	:layouts layouts
 	:weight (weight (first layouts))
 	:lines (duncan-make-lines lineup disposition (first layouts))))))

@@ -300,7 +300,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (make-instance 'kp-graph-paragraph
       :width width
       :disposition disposition
-      :layouts-number (length layouts)
+      :layouts layouts
       :pass pass
       :demerits (demerits (car layouts))
       ;; #### WARNING: by choosing the first layout here, we're doing the
