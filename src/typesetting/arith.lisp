@@ -49,16 +49,7 @@
 	((numberp x) y)
 	((numberp y) x)
 	((eq x y) x)
-	;; #### FIXME: I think it's wrong to do it like that, and here. This
-	;; rationale is specific to the KP algorithm, so we should perform the
-	;; check in there rather than in a raw arithmetic function.
-	;; #### WARNING: we consider that -∞ + +∞ = +∞. The rationale is that
-	;; this situation would occur when calculating badness +
-	;; hyphen-penalty on an hyphen-overfull, with hyphen penalties of -∞.
-	;; But we always consider overfulls as infinitely bad. Note that this
-	;; means that mandatory but not overfull hyphen breaks need to be
-	;; handled first.
-	(t +∞)))
+	(t (error "Can't compute -∞ + +∞."))))
 
 (defun i- (x y)
   "Infinity handling -."
@@ -67,8 +58,7 @@
 	((numberp y) x)
 	((and (eq x +∞) (eq y -∞)) +∞)
 	((and (eq x -∞) (eq y +∞)) -∞)
-	;; #### FIXME: same design decision as above, but bad.
-	(t +∞)))
+	(t (error "Can't compute ∞ - ∞."))))
 
 (defun i/ (x y) ;; I still know what you're gonna say...
   "Infinity handling /."
