@@ -228,9 +228,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		     (setq emergency-boundary boundary))))
 	:finally (return (or boundaries
 			     (when final
-			       (if overfull
-				 (list overfull)
-				 (list emergency-boundary)))))))
+			       (list (or overfull emergency-boundary)))))))
 
 
 ;; -----------------
