@@ -242,7 +242,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				 (list overfull)
 				 (list emergency-boundary)))))))
 
-(defun kp-graph-make-lines
+(defun kp-graph-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
@@ -276,15 +276,18 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			:key #'size))))
-    ;; #### WARNING: by choosing the first layout here, we're doing the
-    ;; opposite of what TeX does in case of total demerits equality. We could
-    ;; instead check for multiple such layouts and take the last one. On the
-    ;; other hand, while we're using a hash table in the dynamic programming
-    ;; implementation, we're not doing exactly what TeX does either, so
-    ;; there's no rush. It's still important to keep that in mind however,
-    ;; because that explains while we may end up with different solutions
-    ;; between the graph and the dynamic versions.
-    (kp-make-layout-lines lineup disposition (car layouts))))
+    (make-instance 'paragraph
+      :width width
+      :disposition disposition
+      ;; #### WARNING: by choosing the first layout here, we're doing the
+      ;; opposite of what TeX does in case of total demerits equality. We
+      ;; could instead check for multiple such layouts and take the last one.
+      ;; On the other hand, while we're using a hash table in the dynamic
+      ;; programming implementation, we're not doing exactly what TeX does
+      ;; either, so there's no rush. It's still important to keep that in mind
+      ;; however, because that explains while we may end up with different
+      ;; solutions between the graph and the dynamic versions.
+      :lines (kp-make-layout-lines lineup disposition (car layouts)))))
 
 
 
@@ -477,7 +480,7 @@ through the algorithm in the TeX jargon).
 		  final-hyphen-demerits final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
-(defun kp-dynamic-make-lines
+(defun kp-dynamic-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
@@ -521,38 +524,43 @@ through the algorithm in the TeX jargon).
 				       (kp-node-total-demerits closer)))
 			       (setq closer node)))
 		    :finally (return closer))))
-      (loop :with lines
-	    :with stretch-tolerance := (stretch-tolerance threshold)
-	    :for end := best :then (kp-node-previous end)
-	    :for beg := (kp-node-previous end)
-	    :while beg
-	    :for start := (start-idx (kp-node-boundary beg))
-	    :for stop := (stop-idx (kp-node-boundary end))
-	    :do (push (if justified
-			;; #### NOTE: I think that the Knuth-Plass algorithm
-			;; cannot produce elastic underfulls (in case of an
-			;; impossible layout, it falls back to overfull
-			;; boxes). This means that the overstretch option has
-			;; no effect, but it allows for a nice trick: we can
-			;; indicate lines exceeding the tolerance thanks to an
-			;; emergency stretch as overstretched, regardless of
-			;; the option. This is done by setting the
-			;; overstretched parameter to T and not counting
-			;; emergency stretch in the stretch-tolerance one.
-			(multiple-value-bind (theoretical effective)
-			    (actual-scales (kp-node-scale end)
-			      :stretch-tolerance stretch-tolerance
-			      :overshrink overshrink :overstretch t)
-			  (make-instance 'kp-line
-			    :lineup lineup :start-idx start :stop-idx stop
-			    :scale theoretical :effective-scale effective
-			    :fitness-class (kp-node-fitness-class end)
-			    :badness (kp-node-badness end)
-			    :demerits (kp-node-demerits end)))
-			(make-instance 'line
-			  :lineup lineup :start-idx start :stop-idx stop))
-		      lines)
-	    :finally (return lines)))))
+  (make-instance 'paragraph
+    :width width
+    :disposition disposition
+    :lines (loop :with lines
+		 :with stretch-tolerance := (stretch-tolerance threshold)
+		 :for end := best :then (kp-node-previous end)
+		 :for beg := (kp-node-previous end)
+		 :while beg
+		 :for start := (start-idx (kp-node-boundary beg))
+		 :for stop := (stop-idx (kp-node-boundary end))
+		 :do (push (if justified
+			     ;; #### NOTE: I think that the Knuth-Plass
+			     ;; algorithm cannot produce elastic underfulls
+			     ;; (in case of an impossible layout, it falls
+			     ;; back to overfull boxes). This means that the
+			     ;; overstretch option has no effect, but it
+			     ;; allows for a nice trick: we can indicate lines
+			     ;; exceeding the tolerance thanks to an emergency
+			     ;; stretch as overstretched, regardless of the
+			     ;; option. This is done by setting the
+			     ;; overstretched parameter to T and not counting
+			     ;; emergency stretch in the stretch-tolerance
+			     ;; one.
+			     (multiple-value-bind (theoretical effective)
+				 (actual-scales (kp-node-scale end)
+				   :stretch-tolerance stretch-tolerance
+				   :overshrink overshrink :overstretch t)
+			       (make-instance 'kp-line
+				 :lineup lineup :start-idx start :stop-idx stop
+				 :scale theoretical :effective-scale effective
+				 :fitness-class (kp-node-fitness-class end)
+				 :badness (kp-node-badness end)
+				 :demerits (kp-node-demerits end)))
+			     (make-instance 'line
+			       :lineup lineup :start-idx start :stop-idx stop))
+			   lines)
+		 :finally (return lines))))))
 
 
 
@@ -598,15 +606,9 @@ through the algorithm in the TeX jargon).
   (calibrate-kp tolerance :positive)
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
-  (make-instance 'paragraph
-    :width width
-    :disposition disposition
-    :lines (ecase variant
-	     (:graph
-	      (kp-graph-make-lines lineup disposition width line-penalty
-		adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-		pre-tolerance tolerance emergency-stretch looseness))
-	     (:dynamic
-	      (kp-dynamic-make-lines lineup disposition width line-penalty
-		adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-		pre-tolerance tolerance emergency-stretch looseness)))))
+  (funcall (ecase variant
+	     (:graph #'kp-graph-typeset-lineup)
+	     (:dynamic #'kp-dynamic-typeset-lineup))
+    lineup disposition width line-penalty
+    adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+    pre-tolerance tolerance emergency-stretch looseness))
