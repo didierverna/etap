@@ -408,11 +408,10 @@ LINE class."))
     lineup)
   lineup)
 
-(defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :fit))
-     &key variant fallback
-	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-	  discriminating-function
+(defun fit-make-lines
+    (lineup disposition width variant fallback
+     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
+     discriminating-function
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
@@ -424,11 +423,27 @@ LINE class."))
 		 :avoid-hyphens avoid-hyphens
 		 :prefer-overfulls prefer-overfulls))
 	     (lambda (start)
-	       (fixed-ragged-line-boundary
-		lineup start width
-		fallback  width-offset avoid-hyphens prefer-overfulls
-		(ecase variant
-		  (:first :max) (:best :natural) (:last :min)))))))
+	       (fixed-ragged-line-boundary lineup start width
+		 fallback width-offset avoid-hyphens prefer-overfulls
+		 (ecase variant
+		   (:first :max)
+		   (:best :natural)
+		   (:last :min)))))))
+  "Make fit lines from LINEUP for a DISPOSITION paragraph of WIDTH."
+  (loop :for start := 0 :then (start-idx boundary)
+	:while start
+	:for boundary := (funcall get-line-boundary start)
+	:collect (apply #'fit-make-line lineup start boundary
+			(disposition-type disposition) variant
+			:width width
+			:relax relax
+			(disposition-options disposition))))
+
+(defmethod typeset-lineup
+    (lineup disposition width (algorithm (eql :fit))
+     &key variant fallback
+	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
+	  discriminating-function)
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
   (default-fit fallback)
@@ -437,11 +452,7 @@ LINE class."))
   (make-instance 'paragraph
     :width width
     :disposition disposition
-    :lines (loop :for start := 0 :then (start-idx boundary)
-		 :while start
-		 :for boundary := (funcall get-line-boundary start)
-		 :collect (apply #'fit-make-line lineup start boundary
-				 (disposition-type disposition) variant
-				 :width width
-				 :relax relax
-				 (disposition-options disposition)))))
+    :lines (fit-make-lines lineup disposition width
+	     variant fallback
+	     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
+	     discriminating-function)))
