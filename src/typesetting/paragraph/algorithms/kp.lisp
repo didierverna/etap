@@ -504,6 +504,16 @@ through the algorithm in the TeX jargon).
 		  final-hyphen-demerits final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
+(defclass kp-dynamic-paragraph (kp-paragraph-mixin paragraph)
+  ((nodes-number :initarg :nodes-number :reader nodes-number
+		 :documentation "The number of remaining active nodes."))
+  (:documentation "The KP-DYNAMIC-PARAGRAPH class."))
+
+(defmethod paragraph-properties strnlcat ((paragraph kp-dynamic-paragraph))
+  "Advertise the number of remaining active nodes."
+  (format nil "From ~A remaining active node~:P."
+    (nodes-number paragraph)))
+
 (defun kp-dynamic-typeset-lineup
     (lineup disposition width line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
@@ -511,80 +521,91 @@ through the algorithm in the TeX jargon).
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition))))
-	  (threshold pre-tolerance))
+	  (threshold pre-tolerance)
+	  (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
-  (let ((nodes (or (when (i<= 0 threshold)
-		     (kp-create-nodes lineup width nil threshold
-		       line-penalty adjacent-demerits double-hyphen-demerits
-		       final-hyphen-demerits))
-		   (kp-create-nodes lineup width t (setq threshold tolerance)
-		     line-penalty adjacent-demerits double-hyphen-demerits
-		     final-hyphen-demerits (zerop emergency-stretch))
-		   (kp-create-nodes lineup width t threshold
-		     line-penalty adjacent-demerits double-hyphen-demerits
-		     final-hyphen-demerits emergency-stretch))))
-    (let ((best (loop :with total-demerits := +∞ :with best :with last
-		      :for node :being :the :hash-values :in nodes
-			:using (hash-key key)
-		      :do (setq last (cons (key-line key) node))
-		      :when (i< (kp-node-total-demerits node) total-demerits)
-			:do (setq best (cons (key-line key) node)
-				  total-demerits (kp-node-total-demerits node))
-		      :finally (return (or best last)))))
-      (if (zerop looseness)
-	(setq best (cdr best))
-	(setq best
-	      (loop :with ideal-size := (+ (car best) looseness)
-		    :with closer := (cdr best)
-		    :with delta := (abs looseness)
-		    :for node :being :the :hash-values :in nodes
-		      :using (hash-key key)
-		    :do (cond ((< (abs (- ideal-size (key-line key))) delta)
-			       (setq closer node
-				     delta (abs (- ideal-size (key-line key)))))
-			      ((and (= (abs (- ideal-size (key-line key)))
-				       delta)
-				    (< (kp-node-total-demerits node)
-				       (kp-node-total-demerits closer)))
-			       (setq closer node)))
-		    :finally (return closer))))
-  (make-instance 'paragraph
-    :width width
-    :disposition disposition
-    :lines (loop :with lines
-		 :with stretch-tolerance := (stretch-tolerance threshold)
-		 :for end := best :then (kp-node-previous end)
-		 :for beg := (kp-node-previous end)
-		 :while beg
-		 :for start := (start-idx (kp-node-boundary beg))
-		 :for stop := (stop-idx (kp-node-boundary end))
-		 :do (push (if justified
-			     ;; #### NOTE: I think that the Knuth-Plass
-			     ;; algorithm cannot produce elastic underfulls
-			     ;; (in case of an impossible layout, it falls
-			     ;; back to overfull boxes). This means that the
-			     ;; overstretch option has no effect, but it
-			     ;; allows for a nice trick: we can indicate lines
-			     ;; exceeding the tolerance thanks to an emergency
-			     ;; stretch as overstretched, regardless of the
-			     ;; option. This is done by setting the
-			     ;; overstretched parameter to T and not counting
-			     ;; emergency stretch in the stretch-tolerance
-			     ;; one.
-			     (multiple-value-bind (theoretical effective)
-				 (actual-scales (kp-node-scale end)
-				   :stretch-tolerance stretch-tolerance
-				   :overshrink overshrink :overstretch t)
-			       (make-instance 'kp-line
-				 :lineup lineup :start-idx start :stop-idx stop
-				 :scale theoretical :effective-scale effective
-				 :fitness-class (kp-node-fitness-class end)
-				 :badness (kp-node-badness end)
-				 :demerits (kp-node-demerits end)))
-			     (make-instance 'line
-			       :lineup lineup :start-idx start :stop-idx stop))
-			   lines)
-		 :finally (return lines))))))
+  (let* ((nodes (or (when (i<= 0 threshold)
+		      (kp-create-nodes lineup width nil threshold
+			line-penalty adjacent-demerits double-hyphen-demerits
+			final-hyphen-demerits))
+		    (prog1 (kp-create-nodes lineup width t
+			     (setq threshold tolerance) line-penalty
+			     adjacent-demerits double-hyphen-demerits
+			     final-hyphen-demerits (zerop emergency-stretch))
+		      (incf pass))
+		    (prog1 (kp-create-nodes lineup width t
+			     threshold line-penalty
+			     adjacent-demerits double-hyphen-demerits
+			     final-hyphen-demerits emergency-stretch)
+		      (incf pass))))
+	 (best (loop :with total-demerits := +∞ :with best :with last
+		     :for node :being :the :hash-values :in nodes
+		       :using (hash-key key)
+		     :do (setq last (cons (key-line key) node))
+		     :when (i< (kp-node-total-demerits node) total-demerits)
+		       :do (setq best (cons (key-line key) node)
+				 total-demerits (kp-node-total-demerits node))
+		     :finally (return (or best last)))))
+    (if (zerop looseness)
+      (setq best (cdr best))
+      (setq best
+	    (loop :with ideal-size := (+ (car best) looseness)
+		  :with closer := (cdr best)
+		  :with delta := (abs looseness)
+		  :for node :being :the :hash-values :in nodes
+		    :using (hash-key key)
+		  :do (cond ((< (abs (- ideal-size (key-line key))) delta)
+			     (setq closer node
+				   delta (abs (- ideal-size (key-line key)))))
+			    ((and (= (abs (- ideal-size (key-line key)))
+				     delta)
+				  (< (kp-node-total-demerits node)
+				     (kp-node-total-demerits closer)))
+			     (setq closer node)))
+		  :finally (return closer))))
+    (make-instance 'kp-dynamic-paragraph
+      :width width
+      :disposition disposition
+      :pass pass
+      :demerits (kp-node-total-demerits best)
+      :nodes-number (hash-table-count nodes)
+      :lines (loop :with lines
+		   :with stretch-tolerance := (stretch-tolerance threshold)
+		   :for end := best :then (kp-node-previous end)
+		   :for beg := (kp-node-previous end)
+		   :while beg
+		   :for start := (start-idx (kp-node-boundary beg))
+		   :for stop := (stop-idx (kp-node-boundary end))
+		   :do (push (if justified
+			       ;; #### NOTE: I think that the Knuth-Plass
+			       ;; algorithm cannot produce elastic underfulls
+			       ;; (in case of an impossible layout, it falls
+			       ;; back to overfull boxes). This means that the
+			       ;; overstretch option has no effect, but it
+			       ;; allows for a nice trick: we can indicate
+			       ;; lines exceeding the tolerance thanks to an
+			       ;; emergency stretch as overstretched,
+			       ;; regardless of the option. This is done by
+			       ;; setting the overstretched parameter to T and
+			       ;; not counting emergency stretch in the
+			       ;; stretch-tolerance one.
+			       (multiple-value-bind (theoretical effective)
+				   (actual-scales (kp-node-scale end)
+				     :stretch-tolerance stretch-tolerance
+				     :overshrink overshrink :overstretch t)
+				 (make-instance 'kp-line
+				   :lineup lineup
+				   :start-idx start :stop-idx stop
+				   :scale theoretical
+				   :effective-scale effective
+				   :fitness-class (kp-node-fitness-class end)
+				   :badness (kp-node-badness end)
+				   :demerits (kp-node-demerits end)))
+			       (make-instance 'line
+				 :lineup lineup
+				 :start-idx start :stop-idx stop))
+			     lines)
+		   :finally (return lines)))))
 
 
 
