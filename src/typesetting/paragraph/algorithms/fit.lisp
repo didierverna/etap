@@ -160,10 +160,9 @@ for equally good solutions."))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 
-
-;; =========
-;; Algorithm
-;; =========
+;; ---------------
+;; Boundary lookup
+;; ---------------
 
 ;; This function collects boundaries between the last underfull (included) and
 ;; the first overfull (included), regardless of their hyphenation status.
@@ -273,6 +272,11 @@ This function returns three values:
 	      avoid-hyphens))))))
 
 
+
+;; =====
+;; Lines
+;; =====
+
 (defclass fit-line (line)
   ((weight :initarg :weight :reader weight
 	   :documentation "This line's weight.")
@@ -289,6 +293,11 @@ LINE class."))
   (format nil "Weight: ~A, out of ~A possible solutions."
     (ifloat (weight line))
     (possibilities line)))
+
+
+;; -----------------
+;; Lines computation
+;; -----------------
 
 (defgeneric fit-make-line
     (lineup start boundary disposition variant &key &allow-other-keys)
