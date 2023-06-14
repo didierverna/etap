@@ -126,7 +126,6 @@ for equally good solutions."))
 
 (define-fit-caliber hyphen-penalty -1000 50 1000)
 (define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
-;; #### FIXME: the -50pt value below is somewhat arbitrary.
 (define-fit-caliber width-offset -50 0 0)
 
 

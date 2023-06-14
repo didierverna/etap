@@ -91,7 +91,6 @@ the underfull one."))
   "Define a NAMEd Fixed caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber fixed ,name ,min ,default ,max))
 
-;; #### FIXME: the -50pt value below is somewhat arbitrary.
 (define-fixed-caliber width-offset -50 0 0)
 
 

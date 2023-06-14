@@ -85,7 +85,7 @@ Kerns represent inter-letter horizontal spacing."))
 ;; Break points
 ;; ------------
 
-;; #### FIXME: there is a confusion around the meaning of infinitely negative
+;; #### TODO: there is a confusion around the meaning of infinitely negative
 ;; penalties (perhaps in TeX as well). Infinitely negative penalties mean both
 ;; "force the break", and "prefer this one over the others when there are
 ;; several fit solutions to choose from". But these are two different things.
