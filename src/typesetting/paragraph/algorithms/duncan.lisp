@@ -100,9 +100,9 @@ The weight is computed according to the discriminating function."
 
 
 
-;; =========
-;; Algorithm
-;; =========
+;; =====
+;; Lines
+;; =====
 
 (defclass duncan-line (line)
   ((weight :initarg :weight :reader weight
@@ -113,6 +113,11 @@ This class keeps track of the line's weight."))
 (defmethod line-properties strnlcat ((line duncan-line))
   "Return a string advertising LINE's weight."
   (format nil "Weight: ~A." (ifloat (weight line))))
+
+
+;; -----------------
+;; Lines computation
+;; -----------------
 
 (defun duncan-make-lines
     (lineup disposition layout
@@ -145,6 +150,12 @@ This class keeps track of the line's weight."))
 	  :collect (make-instance 'line
 		     :lineup lineup :start-idx start :stop-idx stop)))
 
+
+
+;; ========================
+;; Paragraph Specialization
+;; ========================
+
 (defclass duncan-paragraph (layouts-paragraph)
   ((weight :initarg :weight :reader weight
 	   :documentation "This paragraph's weight."))
@@ -158,6 +169,12 @@ This class keeps track of the line's weight."))
 (defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
   "Advertise Duncan PARAGRAPH's weight."
   (format nil "Weight: ~A." (float (weight paragraph))))
+
+
+
+;; ===========
+;; Entry Point
+;; ===========
 
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
 ;; preventive fulls, that is, we don't return *full boundaries if there is at
