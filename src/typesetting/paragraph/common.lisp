@@ -216,8 +216,8 @@ Possible values are nil, :explicit, or :implicit."
   (:method strnlcat ((paragraph paragraph))
     "Advertise PARAGRAPH's vertical dimensions and line number.
 This is the default method."
-    (format nil "~A line~:P.~%Vertical size: ~Apt (height: ~Apt, depth: ~Apt)."
-      (length (pinned-lines paragraph))
+    (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~%~A line~:P."
       (float (+ (height paragraph) (depth paragraph)))
       (float (height paragraph))
-      (float (depth paragraph)))))
+      (float (depth paragraph))
+      (length (pinned-lines paragraph)))))
