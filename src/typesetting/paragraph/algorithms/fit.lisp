@@ -380,34 +380,6 @@ LINE class."))
       (apply #'make-instance line-class
 	     :scale theoretical :effective-scale effective line-initargs))))
 
-
-
-;; ============
-;; Entry Points
-;; ============
-
-(defmacro calibrate-fit (name &optional infinity)
-  "Calibrate NAMEd Fit variable."
-  `(calibrate fit ,name ,infinity))
-
-(defmacro default-fit (name)
-  "Default Fit NAMEd variable."
-  `(default fit ,name))
-
-(defmethod prepare-lineup (lineup disposition (algorithm (eql :fit))
-			   &key hyphen-penalty explicit-hyphen-penalty)
-  "Apply hyphen penalties to the lineup."
-  (calibrate-fit hyphen-penalty t)
-  (calibrate-fit explicit-hyphen-penalty t)
-  (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
-	    (setf (penalty item)
-		  (if (explicitp item)
-		    explicit-hyphen-penalty
-		    hyphen-penalty))))
-    lineup)
-  lineup)
-
 (defun fit-make-lines
     (lineup disposition width variant fallback
      width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
@@ -438,6 +410,34 @@ LINE class."))
 			:width width
 			:relax relax
 			(disposition-options disposition))))
+
+
+
+;; ============
+;; Entry Points
+;; ============
+
+(defmacro calibrate-fit (name &optional infinity)
+  "Calibrate NAMEd Fit variable."
+  `(calibrate fit ,name ,infinity))
+
+(defmacro default-fit (name)
+  "Default Fit NAMEd variable."
+  `(default fit ,name))
+
+(defmethod prepare-lineup (lineup disposition (algorithm (eql :fit))
+			   &key hyphen-penalty explicit-hyphen-penalty)
+  "Apply hyphen penalties to the lineup."
+  (calibrate-fit hyphen-penalty t)
+  (calibrate-fit explicit-hyphen-penalty t)
+  (mapc (lambda (item)
+	  (when (hyphenation-point-p item)
+	    (setf (penalty item)
+		  (if (explicitp item)
+		    explicit-hyphen-penalty
+		    hyphen-penalty))))
+    lineup)
+  lineup)
 
 (defmethod typeset-lineup
     (lineup disposition width (algorithm (eql :fit))

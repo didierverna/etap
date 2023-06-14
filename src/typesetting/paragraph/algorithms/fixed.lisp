@@ -137,10 +137,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  (:max max-width))))
 
 
-
-;; =========
-;; Algorithm
-;; =========
+;; ---------------
+;; Boundary lookup
+;; ---------------
 
 ;; #### NOTE: the WIDTH below already takes the width offset into account.
 ;; Also, it is safe to use regular (numerical) arithmetic here because we only
@@ -277,6 +276,12 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		     underfull overfull
 		     (+ width width-offset) prefer-overfulls
 		     fallback))))))
+
+
+
+;; =================
+;; Lines Computation
+;; =================
 
 (defun fixed-make-lines
     (lineup disposition width
