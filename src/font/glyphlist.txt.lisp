@@ -15,11 +15,11 @@
 ;; # Name:          Adobe Glyph List
 ;; # Table version: 2.0
 ;; # Date:          September 20, 2002
-;; # URL:           https:i/github.com/adobe-type-tools/agl-aglfn
+;; # URL:           https://github.com/adobe-type-tools/agl-aglfn
 ;; #
 ;; # Format: two semicolon-delimited fields:
-;; #   (1) glyph namei-upper/lowercase letters and digits
-;; #   (2) Unicode scalar valuei-four uppercase hexadecimal digits
+;; #   (1) glyph name--upper/lowercase letters and digits
+;; #   (2) Unicode scalar value--four uppercase hexadecimal digits
 ;; #
 
 ;; #### NOTE: above is the original file's header. This file has been modified
