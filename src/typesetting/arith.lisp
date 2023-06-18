@@ -70,7 +70,7 @@
 	((zerop y) (if (>= x 0) +∞ -∞))
 	(t (/ x y))))
 
-(defun i^ (base power)
+(defun $^ (base power)
   "Infinity handling (BASE only) expt."
   (cond ((eq base +∞) (if (zerop power) 1 +∞))
 	((numberp base) (expt base power))

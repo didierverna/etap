@@ -67,11 +67,11 @@ adjacency or fitness class difference (that's what they are called \"local\").
 They are computed from the line scale's BADNESS, a possible PENALTY where the
 line ends, and also include the LINE-PENALTY parameter."
   (cond ((and (numberp penalty) (<= 0 penalty))
-	 ($+ (i^ ($+ line-penalty badness) 2) (expt penalty 2)))
+	 ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
-	 ($+ (i^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
+	 ($+ ($^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
 	(t ;; -∞
-	 (i^ ($+ line-penalty badness) 2))))
+	 ($^ ($+ line-penalty badness) 2))))
 
 
 ;; -------------------
