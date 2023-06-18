@@ -79,7 +79,7 @@ The possible endings are listed in reverse order (from last to first)."
 	:for (nil max min)
 	  := (multiple-value-list
 	      (lineup-width lineup start (stop-idx boundary)))
-	:do (cond ((i< max width)
+	:do (cond (($< max width)
 		   (if (and (last-boundary-p boundary) (not strict))
 		     (push boundary fits)
 		     (setq underfull boundary)))

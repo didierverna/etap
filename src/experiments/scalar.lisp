@@ -87,24 +87,24 @@ to be able to handle that gracefully."
 			      (penalty (car lines))
 			      line-penalty)))
 	      (when (= (scale-fitness-class (scale (car lines))) 0)
-		(setf demerits (i+ demerits adjacent-demerits)))
+		(setf demerits ($+ demerits adjacent-demerits)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
-				(i+ demerits
+				($+ demerits
 				    (local-demerits
 				     (scale-badness (scale line2))
 				     (penalty line2)
 				     line-penalty)))
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits
-				  (i+ demerits double-hyphen-demerits)))
+				  ($+ demerits double-hyphen-demerits)))
 			  (when (> (abs (- (scale-fitness-class (scale line1))
 					   (scale-fitness-class (scale line2))))
 				   1)
-			    (setq demerits (i+ demerits adjacent-demerits)))))
+			    (setq demerits ($+ demerits adjacent-demerits)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))
-		(setq demerits (i+ demerits final-hyphen-demerits)))
+		(setq demerits ($+ demerits final-hyphen-demerits)))
 	      (if (numberp demerits) (float demerits) "NaN")))
     widths))
 

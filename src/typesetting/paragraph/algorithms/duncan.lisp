@@ -60,7 +60,7 @@ The weight is computed according to the discriminating function."
       (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
 	  ;; #### NOTE: an underfull last line is actually a fit.
-	  (cond ((i< max width) (if last-line-p :fit :underfull))
+	  (cond (($< max width) (if last-line-p :fit :underfull))
 		((> min width) :overfull)
 		(t :fit)))
     (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
@@ -78,7 +78,7 @@ The weight is computed according to the discriminating function."
 	    0
 	    (ecase discriminating-function
 	      (:minimize-distance (abs (- width natural)))
-	      (:minimize-scaling (iabs (scale edge))))))))
+	      (:minimize-scaling ($abs (scale edge))))))))
 
 
 ;; -------
@@ -109,7 +109,7 @@ The weight is computed according to the discriminating function."
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
     (:overfull (incf (overfulls layout))))
-  (setf (weight layout) (i+ (weight layout) (weight edge))))
+  (setf (weight layout) ($+ (weight layout) (weight edge))))
 
 
 
@@ -126,7 +126,7 @@ This class keeps track of the line's weight."))
 
 (defmethod line-properties strnlcat ((line duncan-line))
   "Return a string advertising LINE's weight."
-  (format nil "Weight: ~A." (ifloat (weight line))))
+  (format nil "Weight: ~A." ($float (weight line))))
 
 
 ;; -----------------

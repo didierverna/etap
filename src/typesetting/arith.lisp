@@ -13,37 +13,37 @@
 (defconstant -∞ '-∞ "The - infinity value.")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  ;; This is to prevent the OR macro expansion in i<= to trigger an undefined
+  ;; This is to prevent the OR macro expansion in $<= to trigger an undefined
   ;; function warning.
-  (setf (symbol-function 'i=) #'eql))
+  (setf (symbol-function '$=) #'eql))
 
-(defun i< (x y)
+(defun $< (x y)
   "Infinity handling <."
   (cond ((eql x y) nil)
 	((or (eq x -∞) (eq y +∞)) t)
 	((and (numberp x) (numberp y)) (< x y))
 	(t nil)))
 
-(defun i<= (x y)
+(defun $<= (x y)
   "Infinity handling <=."
-  (or (i= x y) (i< x y)))
+  (or ($= x y) ($< x y)))
 
-(defun i> (x y)
+(defun $> (x y)
   "Infinity handling >."
   (cond ((eql x y) nil)
 	((or (eq x +∞) (eq y -∞)) t)
 	((and (numberp x) (numberp y)) (> x y))
 	(t nil)))
 
-(defun i>= (x y)
+(defun $>= (x y)
   "Infinity handling >=."
-  (or (i= x y) (i> x y)))
+  (or ($= x y) ($> x y)))
 
-(defun i/= (x y)
+(defun $/= (x y)
   "Infinity handling /=."
-  (not (i= x y)))
+  (not ($= x y)))
 
-(defun i+ (x y)
+(defun $+ (x y)
   "Infinity handling +."
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)
@@ -51,7 +51,7 @@
 	((eq x y) x)
 	(t (error "Can't compute -∞ + +∞."))))
 
-(defun i- (x y)
+(defun $- (x y)
   "Infinity handling -."
   (cond ((and (numberp x) (numberp y)) (- x y))
 	((numberp x) (if (eq y +∞) -∞ +∞))
@@ -60,7 +60,7 @@
 	((and (eq x -∞) (eq y +∞)) -∞)
 	(t (error "Can't compute ∞ - ∞."))))
 
-(defun i/ (x y) ;; I still know what you're gonna say...
+(defun $/ (x y)
   "Infinity handling /."
   (cond ((and (not (numberp x)) (not (numberp y)))
 	 (error "Don't know how to divide ∞ by ∞."))
@@ -70,7 +70,7 @@
 	((zerop y) (if (>= x 0) +∞ -∞))
 	(t (/ x y))))
 
-(defun i^ (base power)
+(defun $^ (base power)
   "Infinity handling (BASE only) expt."
   (cond ((eq base +∞) (if (zerop power) 1 +∞))
 	((numberp base) (expt base power))
@@ -79,19 +79,19 @@
 	       ((evenp power) +∞)
 	       (t -∞)))))
 
-(defun imax (x y)
+(defun $max (x y)
   "Infinity handling MAX."
-  (if (i>= x y) x y))
+  (if ($>= x y) x y))
 
-(defun imin (x y)
+(defun $min (x y)
   "Infinity handling MIN."
-  (if (i<= x y) x y))
+  (if ($<= x y) x y))
 
-(defun iabs (x)
+(defun $abs (x)
   "Infinity handling ABS."
   (if (numberp x) (abs x) +∞))
 
-(defun ifloat (inumber &optional prototype)
+(defun $float (inumber &optional prototype)
   "Infinity handling FLOAT."
   (if (numberp inumber)
     (if prototype (float inumber prototype) (float inumber))

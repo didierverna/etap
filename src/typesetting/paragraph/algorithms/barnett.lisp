@@ -75,9 +75,9 @@
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
-	       ((and overword (i>= (scale overword) -1)) overword)
+	       ((and overword ($>= (scale overword) -1)) overword)
 	       ;; A word underfull that fits.
-	       ((and underword (i<= (scale underword) 1)) underword)
+	       ((and underword ($<= (scale underword) 1)) underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
@@ -85,7 +85,7 @@
 	       ;; definition.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :when (i>= (scale hyphen) -1) :do (return hyphen)
+		      :when ($>= (scale hyphen) -1) :do (return hyphen)
 			:finally (return (or underword overword))))
 	       (t
 		(or underword overword))))))

@@ -186,9 +186,9 @@ This function returns three values:
 	  :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 			       :start start :width width)
 	:while continue
-	:do (when (i< (penalty (item boundary)) +∞)
+	:do (when ($< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((i< (max-width boundary) width)
+	      (cond (($< (max-width boundary) width)
 		     (setq underfull boundary))
 		    ((> (min-width boundary) width)
 		     (setq overfull boundary continue nil))
@@ -240,13 +240,13 @@ This function returns three values:
 	     (let ((possibilities (length fits)))
 	       (mapc (lambda (fit)
 		       (change-class fit 'fit-weighted-boundary
-			 :weight (i+ (scale-badness (scale fit))
+			 :weight ($+ (scale-badness (scale fit))
 				     (penalty (item fit)))
 			 :possibilities possibilities))
 		 fits))
-	     ;; Note the use of i< and EQL here, because we can have (at most)
+	     ;; Note the use of $< and EQL here, because we can have (at most)
 	     ;; one infinitely negative weight.
-	     (setq fits (stable-sort fits #'i< :key #'weight))
+	     (setq fits (stable-sort fits #'$< :key #'weight))
 	     (setq fits (retain (weight (first fits)) fits
 			  :test #'eql :key #'weight))
 	     (when (cdr fits)
@@ -296,7 +296,7 @@ LINE class."))
 (defmethod line-properties strnlcat ((line fit-line))
   "Return a string advertising LINE's weight."
   (format nil "Weight: ~A, out of ~A possible solutions."
-    (ifloat (weight line))
+    ($float (weight line))
     (possibilities line)))
 
 
@@ -327,7 +327,7 @@ LINE class."))
 		;; still be underfull (possibly not even elastic), so we can
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
-		(if (i> scale 0) scale 0)))))
+		(if ($> scale 0) scale 0)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
 		   :scale scale))
   (:method (lineup start boundary disposition (variant (eql :best)) &key)
@@ -353,7 +353,7 @@ LINE class."))
 		    ;;   so we can deshrink up to that.
 		    ;; - Finally, a scale < -1 means that the line cannot fit
 		    ;;   at all, so we must stay at our original -1.
-		    (if (i>= scale 0) 0 (imax scale -1)))))
+		    (if ($>= scale 0) 0 ($max scale -1)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
 		   :scale scale))
   (:method (lineup start boundary (disposition (eql :justified)) variant
