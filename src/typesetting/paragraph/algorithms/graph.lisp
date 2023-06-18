@@ -28,7 +28,8 @@
 
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
-		:initarg :destination :reader destination))
+		:initarg :destination
+		:reader destination))
   ;; This is necessary to allow the code below to pass :lineup, :start, and
   ;; :width along, even though this base class doesn't actually use them.
   (:default-initargs :allow-other-keys t)
@@ -39,9 +40,11 @@ this class to add specific properties to their edges."))
 
 (defclass node ()
   ((boundary :documentation "This node's boundary."
-	     :initarg :boundary :reader boundary)
+	     :initarg :boundary
+	     :reader boundary)
    (edges :documentation "The edges from this node to other nodes."
-	  :initarg :edges :reader edges))
+	  :initarg :edges
+	  :reader edges))
   (:documentation "The NODE class.
 A node represents a boundary at which a paragraph is broken, and links to the
 next possible break positions."))
@@ -222,8 +225,9 @@ form (CLASS-NAME INITARGS...)."
 ;; =======================
 
 (defclass layouts-paragraph (paragraph)
-  ((layouts-number :initarg :layouts-number :reader layouts-number
-		   :documentation "The number of initial layouts."))
+  ((layouts-number :documentation "The number of initial layouts."
+		   :initarg :layouts-number
+		   :reader layouts-number))
   (:documentation "The LAYOUTS-PARAGRAPH class."))
 
 (defmethod initialize-instance :around
