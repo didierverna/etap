@@ -198,7 +198,7 @@ Possible values are nil, :explicit, or :implicit."
     (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
       (float (width line))
       (ifloat (scale line))
-      (i/= (scale line) (effective-scale line))
+      ($/= (scale line) (effective-scale line))
       (ifloat (effective-scale line)))))
 
 

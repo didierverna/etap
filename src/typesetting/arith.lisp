@@ -39,7 +39,7 @@
   "Infinity handling >=."
   (or (i= x y) ($> x y)))
 
-(defun i/= (x y)
+(defun $/= (x y)
   "Infinity handling /=."
   (not (i= x y)))
 
