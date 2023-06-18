@@ -118,8 +118,9 @@ The weight is computed according to the discriminating function."
 ;; =====
 
 (defclass duncan-line (line)
-  ((weight :initarg :weight :reader weight
-	   :documentation "This line's weight."))
+  ((weight :documentation "This line's weight."
+	   :initarg :weight
+	   :reader weight))
   (:documentation "The Duncan line class.
 This class keeps track of the line's weight."))
 
@@ -170,8 +171,9 @@ This class keeps track of the line's weight."))
 ;; ========================
 
 (defclass duncan-paragraph (layouts-paragraph)
-  ((weight :initarg :weight :reader weight
-	   :documentation "This paragraph's weight."))
+  ((weight :documentation "This paragraph's weight."
+	   :initarg :weight
+	   :reader weight))
   (:documentation "The DUNCAN-PARAGRAPH class."))
 
 (defmethod initialize-instance :around
