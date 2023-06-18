@@ -34,8 +34,9 @@ ignoring the algorithm's decision."))
 ;; ==============
 
 (defclass pinned-character (pinned)
-  ((character-metrics :initarg :character-metrics :accessor character-metrics
-		      :documentation "The pinned character."))
+  ((character-metrics :documentation "The pinned character."
+		      :initarg :character-metrics
+		      :reader character-metrics))
   (:documentation "The PINNED-CHARACTER class.
 The character's 2D position is relative to the line it belongs to."))
 
@@ -63,10 +64,10 @@ The character's 2D position is relative to the line it belongs to."))
 
 
 (defclass pinned-hyphenation-clue (pinned)
-  ((explicitp
-    :initform t :initarg :explicit :reader explicitp
-    :documentation
-    "Whether this hyphenation clue comes from an explicit hyphen."))
+  ((explicitp :documentation
+	      "Whether this hyphenation clue comes from an explicit hyphen."
+	      :initform t :initarg
+	      :explicit :reader explicitp))
   (:documentation "The PINNED-HYPHENATION-CLUE class.
 The hyphenation clue's 2D position is relative to the line it belongs to."))
 
@@ -97,25 +98,31 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
 ;; =====
 
 (defclass line ()
-  ((lineup :initarg :lineup :reader lineup
-	   :documentation "The corresponding lineup.")
-   (start-idx :initarg :start-idx :reader start-idx
-	      :documentation "This line's start index in LINEUP.")
-   (stop-idx :initarg :stop-idx :reader stop-idx
-	     :documentation "This line's stop index in LINEUP.")
-   (scale :initform 0 :initarg :scale :reader scale
-	  :documentation "The line'scale, as computed by the algorithm.
+  ((lineup :documentation "The corresponding lineup."
+	   :initarg :lineup
+	   :reader lineup)
+   (start-idx :documentation "This line's start index in LINEUP."
+	      :initarg :start-idx
+	      :reader start-idx)
+   (stop-idx :documentation "This line's stop index in LINEUP."
+	     :initarg :stop-idx
+	     :reader stop-idx)
+   (scale :documentation "The line'scale, as computed by the algorithm.
 It may be different from the effective scale used to pin the objects,
 depending on the algorithm itself, and on the Overstretch and Overshrink
-disposition options).")
+disposition options)."
+	  :initform 0
+	  :initarg :scale
+	  :reader scale)
    (effective-scale
-    :initarg :effective-scale :reader effective-scale
     :documentation "The line's effective scale, used for pinning the objects.
 It may be different from the scale computed by the algorithm in use, depending
 on the algorithm itself, and on the Overstretch and Overshrink disposition
-options).")
-   (pinned-objects :reader pinned-objects
-		   :documentation "The list of pinned objects."))
+options)."
+    :initarg :effective-scale
+    :reader effective-scale)
+   (pinned-objects :documentation "The list of pinned objects."
+		   :reader pinned-objects))
   (:documentation "The LINE class.
 A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
@@ -201,12 +208,16 @@ Possible values are nil, :explicit, or :implicit."
 ;; ==========
 
 (defclass paragraph ()
-  ((width :initarg :width :accessor width
-	  :documentation "The paragraph's width.")
-   (disposition :initarg :disposition :reader disposition
-		:documentation "The paragraph's disposition.")
-   (pinned-lines :initform nil :initarg :pinned-lines :accessor pinned-lines
-		 :documentation "The paragraph's pinned lines."))
+  ((width :documentation "The paragraph's width."
+	  :initarg :width
+	  :reader width)
+   (disposition :documentation "The paragraph's disposition."
+		:initarg :disposition
+		:reader disposition)
+   (pinned-lines :documentation "The paragraph's pinned lines."
+		 :initform nil
+		 :initarg :pinned-lines
+		 :reader pinned-lines))
   (:documentation "The PARAGRAPH class."))
 
 (defgeneric paragraph-properties (paragraph)
