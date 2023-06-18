@@ -78,7 +78,7 @@ The weight is computed according to the discriminating function."
 	    0
 	    (ecase discriminating-function
 	      (:minimize-distance (abs (- width natural)))
-	      (:minimize-scaling (iabs (scale edge))))))))
+	      (:minimize-scaling ($abs (scale edge))))))))
 
 
 ;; -------

@@ -87,7 +87,7 @@
   "Infinity handling MIN."
   (if ($<= x y) x y))
 
-(defun iabs (x)
+(defun $abs (x)
   "Infinity handling ABS."
   (if (numberp x) (abs x) +∞))
 
