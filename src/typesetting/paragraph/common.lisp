@@ -197,9 +197,9 @@ Possible values are nil, :explicit, or :implicit."
     "Advertise LINE's width. This is the default method."
     (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
       (float (width line))
-      (ifloat (scale line))
+      ($float (scale line))
       ($/= (scale line) (effective-scale line))
-      (ifloat (effective-scale line)))))
+      ($float (effective-scale line)))))
 
 
 

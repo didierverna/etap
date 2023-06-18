@@ -94,8 +94,8 @@ line ends, and also include the LINE-PENALTY parameter."
   "Return a string advertising LINE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
     (fitness-class-name (fitness-class line))
-    (ifloat (badness line))
-    (ifloat (demerits line))))
+    ($float (badness line))
+    ($float (demerits line))))
 
 
 ;; ------------------------
@@ -115,7 +115,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
   "Advertise TeX's algorithm pass number and total demerits."
   (format nil "Pass: ~A.~%Demerits: ~A."
     (pass mixin)
-    (ifloat (demerits mixin))))
+    ($float (demerits mixin))))
 
 
 

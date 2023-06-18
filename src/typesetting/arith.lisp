@@ -91,7 +91,7 @@
   "Infinity handling ABS."
   (if (numberp x) (abs x) +∞))
 
-(defun ifloat (inumber &optional prototype)
+(defun $float (inumber &optional prototype)
   "Infinity handling FLOAT."
   (if (numberp inumber)
     (if prototype (float inumber prototype) (float inumber))
