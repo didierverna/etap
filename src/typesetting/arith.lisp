@@ -60,7 +60,7 @@
 	((and (eq x -∞) (eq y +∞)) -∞)
 	(t (error "Can't compute ∞ - ∞."))))
 
-(defun i/ (x y)
+(defun $/ (x y)
   "Infinity handling /."
   (cond ((and (not (numberp x)) (not (numberp y)))
 	 (error "Don't know how to divide ∞ by ∞."))

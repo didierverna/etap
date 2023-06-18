@@ -599,8 +599,8 @@ The amount in question is 0 if WIDTH is equal to TARGET.
 Otherwise, it's a possibly infinite stretching (positive) or shrinking
 (negative) ratio relative to the elasticity provided by STRETCH and SHRINK."
   (cond ((= width target) 0)
-	((< width target) (i/ (- target width) stretch))
-	((< target width) (i/ (- target width) shrink))))
+	((< width target) ($/ (- target width) stretch))
+	((< target width) ($/ (- target width) shrink))))
 
 (defun lineup-scale (lineup start stop target &optional extra)
   "Return the amount of scaling required for LINEUP chunk between START and
