@@ -232,7 +232,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
 		       (unless hyphenp (setq underword boundary)))
-		      ((i= (width boundary) width) (setq fit boundary))
+		      (($= (width boundary) width) (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
 		       ;; closest to WIDTH.

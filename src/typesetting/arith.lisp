@@ -15,7 +15,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   ;; This is to prevent the OR macro expansion in $<= to trigger an undefined
   ;; function warning.
-  (setf (symbol-function 'i=) #'eql))
+  (setf (symbol-function '$=) #'eql))
 
 (defun $< (x y)
   "Infinity handling <."
@@ -26,7 +26,7 @@
 
 (defun $<= (x y)
   "Infinity handling <=."
-  (or (i= x y) ($< x y)))
+  (or ($= x y) ($< x y)))
 
 (defun $> (x y)
   "Infinity handling >."
@@ -37,11 +37,11 @@
 
 (defun $>= (x y)
   "Infinity handling >=."
-  (or (i= x y) ($> x y)))
+  (or ($= x y) ($> x y)))
 
 (defun $/= (x y)
   "Infinity handling /=."
-  (not (i= x y)))
+  (not ($= x y)))
 
 (defun $+ (x y)
   "Infinity handling +."

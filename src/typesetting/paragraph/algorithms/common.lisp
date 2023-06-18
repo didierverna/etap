@@ -110,7 +110,7 @@ Note the S appended to NAME in the choices variable name."
 ;; track of whether we're stretching or shrinking.
 
 (defun scale-badness (scale)
-  (if (or ($< scale -1) (i= scale +∞))
+  (if (or ($< scale -1) ($= scale +∞))
     +∞
     (* 100 (expt (abs scale) 3))))
 

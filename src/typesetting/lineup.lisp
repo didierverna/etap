@@ -189,7 +189,7 @@ Glues represent breakable, elastic space."))
   (assert (and (rationalp (width glue)) (>= (width glue) 0)))
   (assert (and (rationalp (shrink glue)) (>= (shrink glue) 0)))
   (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
-	      (i= (stretch glue) +∞))))
+	      ($= (stretch glue) +∞))))
 
 (defun gluep (object)
   "Return T if OBJECT is a glue."
