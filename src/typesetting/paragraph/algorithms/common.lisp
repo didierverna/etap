@@ -133,7 +133,7 @@ This function returns two values.
 	   (setq theoretical-scale ($max theoretical-scale shrink-tolerance))
 	   (unless overshrink (setq effective-scale theoretical-scale)))
 	  (($> scale 0)
-	   (setq theoretical-scale (imin theoretical-scale stretch-tolerance))
+	   (setq theoretical-scale ($min theoretical-scale stretch-tolerance))
 	   (unless overstretch (setq effective-scale theoretical-scale))))
     (values theoretical-scale effective-scale)))
 

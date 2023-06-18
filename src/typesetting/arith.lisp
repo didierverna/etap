@@ -83,7 +83,7 @@
   "Infinity handling MAX."
   (if ($>= x y) x y))
 
-(defun imin (x y)
+(defun $min (x y)
   "Infinity handling MIN."
   (if ($<= x y) x y))
 
