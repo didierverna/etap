@@ -1,26 +1,34 @@
 (in-package :etap)
 
 (defclass context ()
-  ((font :initform *font* :initarg :font :accessor font
-	 :documentation "The TFM font.")
-   (hyphenation-rules :initform *hyphenation-rules*
+  ((font :documentation "The TFM font."
+	 :initform *font*
+	 :initarg :font
+	 :accessor font)
+   (hyphenation-rules :documentation "The hyphenation rules."
+		      :initform *hyphenation-rules*
 		      :initarg :hyphenation-rules
-		      :accessor hyphenation-rules
-		      :documentation "The hyphenation rules.")
-   (algorithm :initform :fixed :initarg :algorithm :accessor algorithm
-	      :documentation "The typesetting algorithm.")
-   (disposition :initform :flush-left :initarg :disposition
-		:accessor disposition
-		:documentation "The paragraph's disposition.")
-   (features :initform (list) :initarg :features
-	     :accessor features
-	     :documentation "The features.")
-   (paragraph-width :initform 284 ;; 284.52756pt = 10cm
+		      :accessor hyphenation-rules)
+   (algorithm :documentation "The typesetting algorithm."
+	      :initform :fixed
+	      :initarg :algorithm
+	      :accessor algorithm)
+   (disposition :documentation "The paragraph's disposition."
+		:initform :flush-left
+		:initarg :disposition
+		:accessor disposition)
+   (features :documentation "The features."
+	     :initform (list)
+	     :initarg :features
+	     :accessor features)
+   (paragraph-width :documentation "The requested paragraph width in points."
+		    :initform 284 ;; 284.52756pt = 10cm
 		    :initarg :paragraph-width
-		    :accessor paragraph-width
-		    :documentation "The requested paragraph width in points.")
-   (text :initform *text* :initarg :text :accessor text
-	 :documentation "The paragraph text."))
+		    :accessor paragraph-width)
+   (text :documentation "The paragraph text."
+	 :initform *text*
+	 :initarg :text
+	 :accessor text))
   (:documentation "The CONTEXT class.
 A context object stores the requested parameters for one experiment."))
 
