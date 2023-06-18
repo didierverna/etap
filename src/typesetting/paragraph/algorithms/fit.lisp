@@ -136,9 +136,11 @@ for equally good solutions."))
 
 (defclass fit-boundary (fixed-boundary)
   ((max-width :documentation "This boundary's maximum line width."
-	      :initarg :max-width :reader max-width)
+	      :initarg :max-width
+	      :reader max-width)
    (min-width :documentation "This boundary's minimum line width."
-	      :initarg :min-width :reader min-width)
+	      :initarg :min-width
+	      :reader min-width)
    (scale :documentation "This boundary's required scaling."
 	  :reader scale))
   (:documentation "The FIT-BOUNDARY class."))
@@ -152,10 +154,12 @@ for equally good solutions."))
 
 (defclass fit-weighted-boundary (fit-boundary)
   ((weight :documentation "This boundary's weight."
-	   :initarg :weight :accessor weight)
+	   :initarg :weight
+	   :accessor weight)
    (possibilities
     :documentation "The number of possibilities for ending this line."
-    :initarg :possibilities :reader possibilities))
+    :initarg :possibilities
+    :reader possibilities))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 
@@ -277,11 +281,13 @@ This function returns three values:
 ;; =====
 
 (defclass fit-line (line)
-  ((weight :initarg :weight :reader weight
-	   :documentation "This line's weight.")
+  ((weight :documentation "This line's weight."
+	   :initarg :weight
+	   :reader weight)
    (possibilities
     :documentation "The number of possibilities for ending this line."
-    :initarg :possibilities :reader possibilities))
+    :initarg :possibilities
+    :reader possibilities))
   (:documentation "The Fit line class.
 This class keeps track of the line's weight, as computed in the best /
 justified disposition. Note that unfit lines are still represented by the base

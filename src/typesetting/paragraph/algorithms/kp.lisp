@@ -79,12 +79,15 @@ line ends, and also include the LINE-PENALTY parameter."
 ;; -------------------
 
 (defclass kp-line (line)
-  ((fitness-class :initarg :fitness-class :reader fitness-class
-		  :documentation "This line's fitness class.")
-   (badness :initarg :badness :reader badness
-	    :documentation "This line's badness.")
-   (demerits :initarg :demerits :reader demerits
-	     :documentation "This line's local demerits."))
+  ((fitness-class :documentation "This line's fitness class."
+		  :initarg :fitness-class
+		  :reader fitness-class)
+   (badness :documentation "This line's badness."
+	    :initarg :badness
+	    :reader badness)
+   (demerits :documentation "This line's local demerits."
+	     :initarg :demerits
+	     :reader demerits))
   (:documentation "The Knuth-Plass line class."))
 
 (defmethod line-properties strnlcat ((line kp-line))
@@ -100,10 +103,11 @@ line ends, and also include the LINE-PENALTY parameter."
 ;; ------------------------
 
 (defclass kp-paragraph-mixin ()
-  ((pass :initarg :pass :reader pass
-	 :documentation "Which of the 3 passes produced this paragraph.")
-   (demerits :initarg :demerits :reader demerits
-	     :documentation "This paragraph's total demerits."))
+  ((pass :documentation "Which of the 3 passes produced this paragraph."
+	 :initarg :pass :reader pass)
+   (demerits :documentation "This paragraph's total demerits."
+	     :initarg :demerits
+	     :reader demerits))
   (:documentation "The KP-PARAGRAPH-MIXIN class.
 This class is mixed in both the graph and dynamic paragraph classes."))
 
@@ -124,11 +128,14 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 ;; -----
 
 (defclass kp-edge (edge)
-  ((scale :accessor scale :documentation "This edge's scale.")
-   (fitness-class :accessor fitness-class
-		  :documentation "This edge's fitness class.")
-   (badness :accessor badness :documentation "This edge's badness.")
-   (demerits :accessor demerits :documentation "This edge's local demerits."))
+  ((scale :documentation "This edge's scale."
+	  :reader scale)
+   (fitness-class :documentation "This edge's fitness class."
+		  :reader fitness-class)
+   (badness :documentation "This edge's badness."
+	    :reader badness)
+   (demerits :documentation "This edge's local demerits."
+	     :reader demerits))
   (:documentation "The KP-EDGE class."))
 
 (defmethod initialize-instance :after
@@ -144,10 +151,10 @@ This class is mixed in both the graph and dynamic paragraph classes."))
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf (scale edge) (lineup-scale lineup start stop width))
-  (setf (fitness-class edge) (scale-fitness-class (scale edge)))
-  (setf (badness edge) (scale-badness (scale edge)))
-  (setf (demerits edge)
+  (setf (slot-value edge 'scale) (lineup-scale lineup start stop width))
+  (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
+  (setf (slot-value edge 'badness) (scale-badness (scale edge)))
+  (setf (slot-value edge 'demerits)
 	(local-demerits (badness edge)
 			(penalty (item (boundary (destination edge))))
 			line-penalty)))
@@ -158,12 +165,13 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 ;; -------
 
 (defclass kp-layout (layout)
-  ((threshold :initarg :threshold :reader threshold
-	      :documentation "This layout's badness threshold.")
-   (size :accessor size
-	 :documentation "This layout's size (i.e. the number of lines).")
-   (demerits :accessor demerits
-	     :documentation "This layout's total demerits."))
+  ((threshold :documentation "This layout's badness threshold."
+	      :initarg :threshold
+	      :reader threshold)
+   (size :documentation "This layout's size (i.e. the number of lines)."
+	 :accessor size)
+   (demerits :documentation "This layout's total demerits."
+	     :accessor demerits))
   (:documentation "The KP-LAYOUT class."))
 
 (defmethod initialize-instance :after ((layout kp-layout)  &key edge)
@@ -587,8 +595,9 @@ through the algorithm in the TeX jargon).
 ;; ------------------------
 
 (defclass kp-dynamic-paragraph (kp-paragraph-mixin paragraph)
-  ((nodes-number :initarg :nodes-number :reader nodes-number
-		 :documentation "The number of remaining active nodes."))
+  ((nodes-number :documentation "The number of remaining active nodes."
+		 :initarg :nodes-number
+		 :reader nodes-number))
   (:documentation "The KP-DYNAMIC-PARAGRAPH class."))
 
 (defmethod paragraph-properties strnlcat ((paragraph kp-dynamic-paragraph))
