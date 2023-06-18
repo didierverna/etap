@@ -60,7 +60,7 @@ The weight is computed according to the discriminating function."
       (lineup-width lineup start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
 	  ;; #### NOTE: an underfull last line is actually a fit.
-	  (cond ((i< max width) (if last-line-p :fit :underfull))
+	  (cond (($< max width) (if last-line-p :fit :underfull))
 		((> min width) :overfull)
 		(t :fit)))
     (setf (slot-value edge 'scale) (scaling natural width stretch shrink))

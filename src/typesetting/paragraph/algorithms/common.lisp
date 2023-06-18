@@ -110,7 +110,7 @@ Note the S appended to NAME in the choices variable name."
 ;; track of whether we're stretching or shrinking.
 
 (defun scale-badness (scale)
-  (if (or (i< scale -1) (i= scale +∞))
+  (if (or ($< scale -1) (i= scale +∞))
     +∞
     (* 100 (expt (abs scale) 3))))
 
@@ -129,7 +129,7 @@ This function returns two values.
 - The effective scale, used to pin the line's objects. This value further
   depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
   (let ((theoretical-scale scale) (effective-scale scale))
-    (cond ((i< scale 0)
+    (cond (($< scale 0)
 	   (setq theoretical-scale (imax theoretical-scale shrink-tolerance))
 	   (unless overshrink (setq effective-scale theoretical-scale)))
 	  ((i> scale 0)

@@ -13,20 +13,20 @@
 (defconstant -∞ '-∞ "The - infinity value.")
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  ;; This is to prevent the OR macro expansion in i<= to trigger an undefined
+  ;; This is to prevent the OR macro expansion in $<= to trigger an undefined
   ;; function warning.
   (setf (symbol-function 'i=) #'eql))
 
-(defun i< (x y)
+(defun $< (x y)
   "Infinity handling <."
   (cond ((eql x y) nil)
 	((or (eq x -∞) (eq y +∞)) t)
 	((and (numberp x) (numberp y)) (< x y))
 	(t nil)))
 
-(defun i<= (x y)
+(defun $<= (x y)
   "Infinity handling <=."
-  (or (i= x y) (i< x y)))
+  (or (i= x y) ($< x y)))
 
 (defun i> (x y)
   "Infinity handling >."
@@ -85,7 +85,7 @@
 
 (defun imin (x y)
   "Infinity handling MIN."
-  (if (i<= x y) x y))
+  (if ($<= x y) x y))
 
 (defun iabs (x)
   "Infinity handling ABS."

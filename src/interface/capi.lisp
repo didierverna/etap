@@ -274,7 +274,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			:foreground :orange
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
-		:if (i< (effective-scale pinned-line) (scale pinned-line))
+		:if ($< (effective-scale pinned-line) (scale pinned-line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(- y (height pinned-line))
@@ -284,7 +284,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				(+ y (depth pinned-line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled t :closed t)
-		:else :if (i< (scale pinned-line) -1)
+		:else :if ($< (scale pinned-line) -1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(- y (height pinned-line))

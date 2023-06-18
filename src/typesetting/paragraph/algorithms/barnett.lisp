@@ -77,7 +77,7 @@
 	       ;; A word overfull that fits.
 	       ((and overword (i>= (scale overword) -1)) overword)
 	       ;; A word underfull that fits.
-	       ((and underword (i<= (scale underword) 1)) underword)
+	       ((and underword ($<= (scale underword) 1)) underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed

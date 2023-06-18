@@ -186,9 +186,9 @@ This function returns three values:
 	  :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
 			       :start start :width width)
 	:while continue
-	:do (when (i< (penalty (item boundary)) +∞)
+	:do (when ($< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((i< (max-width boundary) width)
+	      (cond (($< (max-width boundary) width)
 		     (setq underfull boundary))
 		    ((> (min-width boundary) width)
 		     (setq overfull boundary continue nil))
@@ -244,9 +244,9 @@ This function returns three values:
 				     (penalty (item fit)))
 			 :possibilities possibilities))
 		 fits))
-	     ;; Note the use of i< and EQL here, because we can have (at most)
+	     ;; Note the use of $< and EQL here, because we can have (at most)
 	     ;; one infinitely negative weight.
-	     (setq fits (stable-sort fits #'i< :key #'weight))
+	     (setq fits (stable-sort fits #'$< :key #'weight))
 	     (setq fits (retain (weight (first fits)) fits
 			  :test #'eql :key #'weight))
 	     (when (cdr fits)

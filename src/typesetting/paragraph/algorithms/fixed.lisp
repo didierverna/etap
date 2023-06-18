@@ -224,10 +224,10 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
 			       :start start :width-kind width-kind)
 	:while continue
-	:do (when (i< (penalty (item boundary)) +∞)
+	:do (when ($< (penalty (item boundary)) +∞)
 	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
 	      (let ((hyphenp (hyphenation-point-p (item boundary))))
-		(cond ((i< (width boundary) width)
+		(cond (($< (width boundary) width)
 		       ;; Track the last underfulls because they're the
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
