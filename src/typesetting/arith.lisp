@@ -79,7 +79,7 @@
 	       ((evenp power) +∞)
 	       (t -∞)))))
 
-(defun imax (x y)
+(defun $max (x y)
   "Infinity handling MAX."
   (if ($>= x y) x y))
 

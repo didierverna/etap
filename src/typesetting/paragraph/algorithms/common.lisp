@@ -130,7 +130,7 @@ This function returns two values.
   depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
   (let ((theoretical-scale scale) (effective-scale scale))
     (cond (($< scale 0)
-	   (setq theoretical-scale (imax theoretical-scale shrink-tolerance))
+	   (setq theoretical-scale ($max theoretical-scale shrink-tolerance))
 	   (unless overshrink (setq effective-scale theoretical-scale)))
 	  (($> scale 0)
 	   (setq theoretical-scale (imin theoretical-scale stretch-tolerance))
