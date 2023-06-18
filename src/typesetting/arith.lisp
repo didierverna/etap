@@ -28,16 +28,16 @@
   "Infinity handling <=."
   (or (i= x y) ($< x y)))
 
-(defun i> (x y)
+(defun $> (x y)
   "Infinity handling >."
   (cond ((eql x y) nil)
 	((or (eq x +∞) (eq y -∞)) t)
 	((and (numberp x) (numberp y)) (> x y))
 	(t nil)))
 
-(defun i>= (x y)
+(defun $>= (x y)
   "Infinity handling >=."
-  (or (i= x y) (i> x y)))
+  (or (i= x y) ($> x y)))
 
 (defun i/= (x y)
   "Infinity handling /=."
@@ -81,7 +81,7 @@
 
 (defun imax (x y)
   "Infinity handling MAX."
-  (if (i>= x y) x y))
+  (if ($>= x y) x y))
 
 (defun imin (x y)
   "Infinity handling MIN."

@@ -294,7 +294,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				(+ y (depth pinned-line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled nil :closed t)
-		:else :if (i> (effective-scale pinned-line) (scale pinned-line))
+		:else :if ($> (effective-scale pinned-line) (scale pinned-line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(+ y (depth pinned-line))
@@ -304,7 +304,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				(- y (height pinned-line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
-		:else :if (i> (scale pinned-line) 1)
+		:else :if ($> (scale pinned-line) 1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(+ y (depth pinned-line))

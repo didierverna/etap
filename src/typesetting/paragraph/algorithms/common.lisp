@@ -132,7 +132,7 @@ This function returns two values.
     (cond (($< scale 0)
 	   (setq theoretical-scale (imax theoretical-scale shrink-tolerance))
 	   (unless overshrink (setq effective-scale theoretical-scale)))
-	  ((i> scale 0)
+	  (($> scale 0)
 	   (setq theoretical-scale (imin theoretical-scale stretch-tolerance))
 	   (unless overstretch (setq effective-scale theoretical-scale))))
     (values theoretical-scale effective-scale)))
