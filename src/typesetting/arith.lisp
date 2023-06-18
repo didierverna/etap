@@ -51,7 +51,7 @@
 	((eq x y) x)
 	(t (error "Can't compute -∞ + +∞."))))
 
-(defun i- (x y)
+(defun $- (x y)
   "Infinity handling -."
   (cond ((and (numberp x) (numberp y)) (- x y))
 	((numberp x) (if (eq y +∞) -∞ +∞))
