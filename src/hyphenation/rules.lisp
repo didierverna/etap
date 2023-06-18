@@ -1,16 +1,16 @@
 (in-package :etap)
 
 (defclass hyphenation-rules ()
-  ((patterns
-    :initform (make-hash-table :test #'equal) :accessor patterns
-    :documentation "The hyphenation patterns.
-This is a hash table mapping radicals (strings) with a list of elements of the
-form (INDEX . WEIGTH).")
-   (exceptions
-    :initform (make-hash-table :test #'equal) :accessor exceptions
-    :documentation "The hyphenation exceptions.
-This is a hash table mapping words (strings) with a list of hyphenation point
-indexes."))
+  ((patterns :documentation "The hyphenation patterns.
+This is a hash table mapping radicals (strings) to a list of elements of the
+form (INDEX . WEIGTH)."
+	     :initform (make-hash-table :test #'equal)
+	     :reader patterns)
+   (exceptions :documentation "The hyphenation exceptions.
+This is a hash table mapping words (strings) to a list of hyphenation point
+indexes."
+	       :initform (make-hash-table :test #'equal)
+	       :reader exceptions))
   (:documentation "The HYPHENATION-RULES class."))
 
 (defun hyphenation-rules-p (object)
