@@ -43,7 +43,7 @@
   "Infinity handling /=."
   (not (i= x y)))
 
-(defun i+ (x y)
+(defun $+ (x y)
   "Infinity handling +."
   (cond ((and (numberp x) (numberp y)) (+ x y))
 	((numberp x) y)

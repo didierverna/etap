@@ -109,7 +109,7 @@ The weight is computed according to the discriminating function."
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
     (:overfull (incf (overfulls layout))))
-  (setf (weight layout) (i+ (weight layout) (weight edge))))
+  (setf (weight layout) ($+ (weight layout) (weight edge))))
 
 
 

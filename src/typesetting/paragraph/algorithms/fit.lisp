@@ -240,7 +240,7 @@ This function returns three values:
 	     (let ((possibilities (length fits)))
 	       (mapc (lambda (fit)
 		       (change-class fit 'fit-weighted-boundary
-			 :weight (i+ (scale-badness (scale fit))
+			 :weight ($+ (scale-badness (scale fit))
 				     (penalty (item fit)))
 			 :possibilities possibilities))
 		 fits))

@@ -67,11 +67,11 @@ adjacency or fitness class difference (that's what they are called \"local\").
 They are computed from the line scale's BADNESS, a possible PENALTY where the
 line ends, and also include the LINE-PENALTY parameter."
   (cond ((and (numberp penalty) (<= 0 penalty))
-	 (i+ (i^ (i+ line-penalty badness) 2) (expt penalty 2)))
+	 ($+ (i^ ($+ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
-	 (i+ (i^ (i+ line-penalty badness) 2) (- (expt penalty 2))))
+	 ($+ (i^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
 	(t ;; -∞
-	 (i^ (i+ line-penalty badness) 2))))
+	 (i^ ($+ line-penalty badness) 2))))
 
 
 ;; -------------------
@@ -181,7 +181,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 (defmethod push-edge :after (edge (layout kp-layout))
   "Increase LAYOUT size by 1 and demerits with EDGE's."
   (incf (size layout))
-  (setf (demerits layout) (i+ (demerits layout) (demerits edge))))
+  (setf (demerits layout) ($+ (demerits layout) (demerits edge))))
 
 (defun kp-postprocess-layout
     (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
@@ -191,18 +191,18 @@ line's local ones. This function handles the remaining contextual information,
 such as hyphen adjacency and fitness class differences between lines."
   ;; See warning in KP-CREATE-NODES about that.
   (when (= (fitness-class (first (edges layout))) 0)
-    (setf (demerits layout) (i+ (demerits layout) adjacent-demerits)))
+    (setf (demerits layout) ($+ (demerits layout) adjacent-demerits)))
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
 	  :when (and (hyphenp edge1) (hyphenp edge2))
 	    :do (setf (demerits layout)
-		      (i+ (demerits layout) double-hyphen-demerits))
+		      ($+ (demerits layout) double-hyphen-demerits))
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
-		      (i+ (demerits layout) adjacent-demerits)))
+		      ($+ (demerits layout) adjacent-demerits)))
     (when (hyphenp (nth (- (size layout) 2) (edges layout)))
-      (setf (demerits layout) (i+ final-hyphen-demerits (demerits layout))))))
+      (setf (demerits layout) ($+ final-hyphen-demerits (demerits layout))))))
 
 
 ;; ---------------
@@ -404,7 +404,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	     (let* ((fitness (scale-fitness-class scale))
 		    (demerits (local-demerits badness (penalty (item boundary))
 					      line-penalty))
-		    (total-demerits (i+ (kp-node-total-demerits node)
+		    (total-demerits ($+ (kp-node-total-demerits node)
 					demerits)))
 	       ;; #### FIXME: for now, all contextual penalties affect the
 	       ;; total demerits only below. This is to remain consistent with
@@ -412,7 +412,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	       ;; layouts design. See the related comment in the layouts
 	       ;; section of graph.lisp.
 	       (when (> (abs (- fitness previous-fitness)) 1)
-		 (setq total-demerits (i+ total-demerits adjacent-demerits)))
+		 (setq total-demerits ($+ total-demerits adjacent-demerits)))
 	       ;; #### NOTE: according to #859, TeX doesn't consider the
 	       ;; admittedly very rare and weird case where a paragraph would
 	       ;; end with an explicit hyphen. As stipulated in #829, for the
@@ -428,10 +428,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	       (when (discretionaryp (item previous-boundary))
 		 (if (last-boundary-p boundary)
 		   (setq total-demerits
-			 (i+ total-demerits final-hyphen-demerits))
+			 ($+ total-demerits final-hyphen-demerits))
 		   (when (discretionaryp (item boundary))
 		     (setq total-demerits
-			   (i+ total-demerits double-hyphen-demerits)))))
+			   ($+ total-demerits double-hyphen-demerits)))))
 	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
 		      (previous (find new-key new-nodes
 				  :test #'equal :key #'car)))

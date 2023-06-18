@@ -571,9 +571,9 @@ stretch and shrink amounts."
 	:for element := (lineup-aref lineup i start stop)
 	:do (incf width (width element))
 	:when (gluep element)
-	  :do (setq stretch (i+ stretch (stretch element))
+	  :do (setq stretch ($+ stretch (stretch element))
 		    shrink (+ shrink (shrink element)))
-	:finally (return (values width (i+ width stretch) (- width shrink)
+	:finally (return (values width ($+ width stretch) (- width shrink)
 				 stretch shrink))))
 
 (defun lineup-max-width (lineup start stop)
@@ -609,7 +609,7 @@ See `scaling' for more information."
   (multiple-value-bind (width max min stretch shrink)
       (lineup-width lineup start stop)
     (declare (ignore max min))
-    (when extra (setq stretch (i+ stretch extra)))
+    (when extra (setq stretch ($+ stretch extra)))
     (scaling width target stretch shrink)))
 
 
