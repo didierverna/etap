@@ -14,6 +14,18 @@
 	:finally (return count)))
 
 (defun graph-sizes ()
+  "Collect and print the solutions graphs sizes per paragraph width.
+Numbers are collected for every paragraph width from *PARAGRAPH-MIN-WIDTH*
+to *PARAGRAPH-MAX-WIDTH*, and for each of the four categories below:
+- no fulls (so maybe no solution at all),
+- fallback fulls (last underfull and first overfull if no line fit is found),
+- preventive fulls (systematic last underfull and first overfull).
+
+The output, suitable to Gnuplot, is of the following form:
+Width Fulls/None Fulls/Fallback Fulls/Preventive
+width1 no-fulls-size-1 fallback-fulls-size-1 preventive-fulls-size-1
+width2 no-fulls-size-2 fallback-fulls-size-2 preventive-fulls-size-2
+..."
   (let* ((*context* *experiments-context*)
 	 (lineup (make-lineup)))
     (setq lineup (make-array (length lineup) :initial-contents lineup))
