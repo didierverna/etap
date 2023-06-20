@@ -67,7 +67,7 @@
 (defun collect-demerits
     (lineup widths algorithm
      &rest options
-     &key line-penalty
+     &key line-penalty hyphen-penalty explicit-hyphen-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      &allow-other-keys)
   "Collect TeX's demerits evaluation per paragraph WIDTHS.
@@ -77,6 +77,17 @@ to be able to handle that gracefully."
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
+  ;; #### WARNING: PREPARE-LINEUP won't have set the hyphen penalties in most
+  ;; algorithms. We need to do it here. Note that the lineup is an array now.
+  (calibrate-kp hyphen-penalty t)
+  (calibrate-kp explicit-hyphen-penalty t)
+  (loop :for i :from 0 :upto (1- (length lineup))
+	:for item := (aref lineup i)
+	:when (hyphenation-point-p item)
+	  :do (setf (penalty item)
+		    (if (explicitp item)
+		      explicit-hyphen-penalty
+		      hyphen-penalty)))
   (mapcar (lambda (width)
 	    (let* ((lines (pinned-lines
 			   (apply #'typeset-lineup lineup :justified width
