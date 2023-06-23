@@ -289,14 +289,15 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 			       #'fixed-justified-line-boundary
 			       #'fixed-ragged-line-boundary)))
   "Make fixed lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (loop :for start := 0 :then (start-idx boundary)
-	:while start
-	:for boundary := (funcall get-line-boundary
-			   lineup start width fallback
-			   width-offset avoid-hyphens prefer-overfulls)
-	:collect (make-instance 'line
-		   :lineup lineup
-		   :start-idx start :stop-idx (stop-idx boundary))))
+  (when lineup
+    (loop :for start := 0 :then (start-idx boundary)
+	  :while start
+	  :for boundary := (funcall get-line-boundary
+			     lineup start width fallback
+			     width-offset avoid-hyphens prefer-overfulls)
+	  :collect (make-instance 'line
+		     :lineup lineup
+		     :start-idx start :stop-idx (stop-idx boundary)))))
 
 
 
