@@ -140,29 +140,30 @@ This class keeps track of the line's weight."))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP as a DISPOSITION paragraph with Duncan LAYOUT."
-  (loop :for edge :in (edges layout)
-	:and start := 0 :then (start-idx (boundary (destination edge)))
-	:for stop := (stop-idx (boundary (destination edge)))
-	:for scale = (scale edge)
-	:if (eq (disposition-type disposition) :justified)
-	  :collect (multiple-value-bind (theoretical effective)
-		       (if (last-boundary-p (boundary (destination edge)))
-			 ;; Justified last line: maybe shrink it but don't
-			 ;; stretch it.
-			 (actual-scales scale
-			   :overshrink overshrink :stretch-tolerance 0)
-			 ;; Justified regular line: make it fit.
-			 (actual-scales scale
-			   :overshrink overshrink :overstretch overstretch))
-		     (make-instance 'duncan-line
-		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale theoretical
-		       :effective-scale effective
-		       :weight (weight edge)))
-	:else
-	  ;; Other dispositions: just switch back to normal spacing.
-	  :collect (make-instance 'line
-		     :lineup lineup :start-idx start :stop-idx stop)))
+  (when layout
+    (loop :for edge :in (edges layout)
+	  :and start := 0 :then (start-idx (boundary (destination edge)))
+	  :for stop := (stop-idx (boundary (destination edge)))
+	  :for scale = (scale edge)
+	  :if (eq (disposition-type disposition) :justified)
+	    :collect (multiple-value-bind (theoretical effective)
+			 (if (last-boundary-p (boundary (destination edge)))
+			   ;; Justified last line: maybe shrink it but don't
+			   ;; stretch it.
+			   (actual-scales scale
+			     :overshrink overshrink :stretch-tolerance 0)
+			   ;; Justified regular line: make it fit.
+			   (actual-scales scale
+			     :overshrink overshrink :overstretch overstretch))
+		       (make-instance 'duncan-line
+			 :lineup lineup :start-idx start :stop-idx stop
+			 :scale theoretical
+			 :effective-scale effective
+			 :weight (weight edge)))
+	  :else
+	    ;; Other dispositions: just switch back to normal spacing.
+	    :collect (make-instance 'line
+		       :lineup lineup :start-idx start :stop-idx stop))))
 
 
 
@@ -179,7 +180,9 @@ This class keeps track of the line's weight."))
 (defmethod initialize-instance :around
     ((paragraph duncan-paragraph) &rest keys &key layouts)
   "Compute the :weight initialization argument."
-  (apply #'call-next-method paragraph :weight (weight (first layouts)) keys))
+  (apply #'call-next-method paragraph
+	 :weight (if layouts (weight (first layouts)) 0)
+	 keys))
 
 (defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
   "Advertise Duncan PARAGRAPH's weight."
