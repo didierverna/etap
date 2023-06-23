@@ -94,16 +94,18 @@ Possible values are nil, :explicit, or :implicit."
 
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.
-This is in fact the height of the first line, since we consider that the
-paragraph's baseline is the first line's baseline. Not to be confused with the
-height of the whole paragraph."
-  (height (first (pinned-lines paragraph))))
+This is in fact the height of the first line (or 0), since we consider that
+the paragraph's baseline is the first line's baseline. Not to be confused with
+the height of the whole paragraph."
+  (if (pinned-lines paragraph)
+      (height (first (pinned-lines paragraph)))
+      0))
 
 (defmethod depth
     ((paragraph paragraph) &aux (last (car (last (pinned-lines paragraph)))))
   "Return paragraph's depth.
 We consider that the paragraph's baseline is the first line's baseline."
-  (+ (y last) (depth last)))
+  (if last (+ (y last) (depth last)) 0))
 
 (defun make-paragraph
     (&rest keys
