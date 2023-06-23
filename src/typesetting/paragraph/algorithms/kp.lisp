@@ -626,52 +626,60 @@ through the algorithm in the TeX jargon).
      &aux (threshold pre-tolerance)
 	  (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
-  (let* ((nodes (or (when ($<= 0 threshold)
-		      (kp-create-nodes lineup width nil threshold
-			line-penalty adjacent-demerits double-hyphen-demerits
-			final-hyphen-demerits))
-		    (prog1 (kp-create-nodes lineup width t
-			     (setq threshold tolerance) line-penalty
-			     adjacent-demerits double-hyphen-demerits
-			     final-hyphen-demerits (zerop emergency-stretch))
-		      (incf pass))
-		    (prog1 (kp-create-nodes lineup width t
-			     threshold line-penalty
-			     adjacent-demerits double-hyphen-demerits
-			     final-hyphen-demerits emergency-stretch)
-		      (incf pass))))
-	 (best (loop :with total-demerits := +∞ :with best :with last
-		     :for node :being :the :hash-values :in nodes
-		       :using (hash-key key)
-		     :do (setq last (cons (key-line key) node))
-		     :when ($< (kp-node-total-demerits node) total-demerits)
-		       :do (setq best (cons (key-line key) node)
-				 total-demerits (kp-node-total-demerits node))
-		     :finally (return (or best last)))))
-    (if (zerop looseness)
-      (setq best (cdr best))
-      (setq best
-	    (loop :with ideal-size := (+ (car best) looseness)
-		  :with closer := (cdr best)
-		  :with delta := (abs looseness)
-		  :for node :being :the :hash-values :in nodes
-		    :using (hash-key key)
-		  :do (cond ((< (abs (- ideal-size (key-line key))) delta)
-			     (setq closer node
-				   delta (abs (- ideal-size (key-line key)))))
-			    ((and (= (abs (- ideal-size (key-line key)))
-				     delta)
-				  (< (kp-node-total-demerits node)
-				     (kp-node-total-demerits closer)))
-			     (setq closer node)))
-		  :finally (return closer))))
+  (if lineup
+    (let* ((nodes (or (when ($<= 0 threshold)
+			(kp-create-nodes lineup width nil threshold
+			  line-penalty adjacent-demerits double-hyphen-demerits
+			  final-hyphen-demerits))
+		      (prog1 (kp-create-nodes lineup width t
+			       (setq threshold tolerance) line-penalty
+			       adjacent-demerits double-hyphen-demerits
+			       final-hyphen-demerits (zerop emergency-stretch))
+			(incf pass))
+		      (prog1 (kp-create-nodes lineup width t
+			       threshold line-penalty
+			       adjacent-demerits double-hyphen-demerits
+			       final-hyphen-demerits emergency-stretch)
+			(incf pass))))
+	   (best (loop :with total-demerits := +∞ :with best :with last
+		       :for node :being :the :hash-values :in nodes
+			 :using (hash-key key)
+		       :do (setq last (cons (key-line key) node))
+		       :when ($< (kp-node-total-demerits node) total-demerits)
+			 :do (setq best (cons (key-line key) node)
+				   total-demerits (kp-node-total-demerits node))
+		       :finally (return (or best last)))))
+      (if (zerop looseness)
+	(setq best (cdr best))
+	(setq best
+	      (loop :with ideal-size := (+ (car best) looseness)
+		    :with closer := (cdr best)
+		    :with delta := (abs looseness)
+		    :for node :being :the :hash-values :in nodes
+		      :using (hash-key key)
+		    :do (cond ((< (abs (- ideal-size (key-line key))) delta)
+			       (setq closer node
+				     delta (abs (- ideal-size (key-line key)))))
+			      ((and (= (abs (- ideal-size (key-line key)))
+				       delta)
+				    (< (kp-node-total-demerits node)
+				       (kp-node-total-demerits closer)))
+			       (setq closer node)))
+		    :finally (return closer))))
+      (make-instance 'kp-dynamic-paragraph
+	:width width
+	:disposition disposition
+	:pass pass
+	:demerits (kp-node-total-demerits best)
+	:nodes-number (hash-table-count nodes)
+	:lines (kp-dynamic-make-lines lineup disposition best threshold)))
     (make-instance 'kp-dynamic-paragraph
       :width width
       :disposition disposition
-      :pass pass
-      :demerits (kp-node-total-demerits best)
-      :nodes-number (hash-table-count nodes)
-      :lines (kp-dynamic-make-lines lineup disposition best threshold))))
+      :pass 1
+      :demerits 0
+      :nodes-number 0
+      :lines nil)))
 
 
 
