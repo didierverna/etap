@@ -462,7 +462,7 @@ Currently, this means alphabetic or a dash."
 Return a list of characters from FONT, interword glues, and discretionaries if
 HYPHENATION-RULES is non-NIL. STRING is initially trimmed from blanks, and
 inner consecutive blanks are replaced with a single interword glue."
-  (loop :with string := (string-trim *blanks* text)
+  (loop :with string := (string-trim *blanks* (or text ""))
 	:with length := (length string)
 	:with i := 0
 	:while (< i length)
