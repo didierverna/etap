@@ -228,18 +228,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (clues (choice-selected-items (clues interface))))
   "Render PANE's paragraph."
   (declare (ignore x y width height))
-  (when (pinned-lines paragraph)
-    (set-horizontal-scroll-parameters pane
-      :max-range (+ (* (width paragraph) zoom) 40))
-    (set-vertical-scroll-parameters pane
-      :max-range (+ (* (+ (height paragraph) (depth paragraph)) zoom) 40))
-    (gp:with-graphics-translation (pane 20 20)
-      (gp:with-graphics-scale (pane zoom zoom)
-	(when (member :paragraph-box clues)
-	  (gp:draw-rectangle pane
-	      0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
-	    :foreground :red
-	    :scale-thickness nil))
+  (set-horizontal-scroll-parameters pane
+    :max-range (+ (* (width paragraph) zoom) 40))
+  (set-vertical-scroll-parameters pane
+    :max-range (+ (* (+ (height paragraph) (depth paragraph)) zoom) 40))
+  (gp:with-graphics-translation (pane 20 20)
+    (gp:with-graphics-scale (pane zoom zoom)
+      (when (member :paragraph-box clues)
+	(gp:draw-rectangle pane
+	    0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
+	  :foreground :red
+	  :scale-thickness nil))
+      (when (pinned-lines paragraph)
 	(loop :with par-y := (height (first (pinned-lines paragraph)))
 	      :for pinned-lines :on (pinned-lines paragraph)
 	      :for pinned-line := (car pinned-lines)
