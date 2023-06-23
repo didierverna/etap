@@ -219,6 +219,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
 
+(defun reset-source-text (data interface)
+  "Reset the source text."
+  (declare (ignore data))
+  (setf (editor-pane-text (text interface)) *text*)
+  (setf (text (context interface)) (editor-pane-text (text interface)))
+  (update interface))
+
 (defun render-paragraph
     (pane x y width height
      &aux (interface (top-level-interface pane))
@@ -685,8 +692,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-clues
      :retract-callback 'set-clues
      :reader clues)
+   (source-text-button push-button
+     :text "Source text" :callback #'reset-source-text)
    (text editor-pane
-     :title "Source text" :title-position :frame
      :visible-min-width '(character 80)
      ;;:visible-max-width '(character 80)
      :visible-min-height '(character 10)
@@ -712,7 +720,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
-   (settings-2 column-layout '(algorithms text)
+   (settings-2 column-layout '(algorithms source-text-button text)
      :reader settings-2)
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
