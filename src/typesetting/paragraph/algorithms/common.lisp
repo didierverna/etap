@@ -162,7 +162,4 @@ Primary methods must return a possibly modified lineup.")
 (defgeneric typeset-lineup
     (lineup disposition width algorithm &key &allow-other-keys)
   (:documentation
-   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.")
-  (:method :around (lineup disposition width algorithm &key &allow-other-keys)
-    "Only proceed when LINEUP is not null."
-    (when lineup (call-next-method))))
+   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))
