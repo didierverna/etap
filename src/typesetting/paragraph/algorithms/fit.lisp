@@ -416,14 +416,15 @@ LINE class."))
 		   (:best :natural)
 		   (:last :min)))))))
   "Make fit lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (loop :for start := 0 :then (start-idx boundary)
-	:while start
-	:for boundary := (funcall get-line-boundary start)
-	:collect (apply #'fit-make-line lineup start boundary
-			(disposition-type disposition) variant
-			:width width
-			:relax relax
-			(disposition-options disposition))))
+  (when lineup
+    (loop :for start := 0 :then (start-idx boundary)
+	  :while start
+	  :for boundary := (funcall get-line-boundary start)
+	  :collect (apply #'fit-make-line lineup start boundary
+			  (disposition-type disposition) variant
+			  :width width
+			  :relax relax
+			  (disposition-options disposition)))))
 
 
 
