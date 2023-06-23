@@ -144,13 +144,16 @@ This function memoizes previously computed sub-graphs into HASH table."
 	  (edge-options (when (consp edge-type) (cdr edge-type)))
 	  (edge-type (if (consp edge-type) (car edge-type) edge-type))
 	  (options (remove-keys keys :edge-type :next-boundaries))
-	  (nodes (loop :for next-boundary
-			 :in (apply next-boundaries lineup 0 width options)
-		       :when (apply #'make-subgraph
-			       lineup width next-boundary
-			       edge-type edge-options next-boundaries hash
-			       options)
-			 :collect :it)))
+	  ;; #### NOTE: we protect against empty lineups here because not
+	  ;; every NEXT-BOUNDARIES function might do so.
+	  (nodes (when lineup
+		   (loop :for next-boundary
+			   :in (apply next-boundaries lineup 0 width options)
+			 :when (apply #'make-subgraph
+				 lineup width next-boundary
+				 edge-type edge-options next-boundaries hash
+				 options)
+			   :collect :it))))
   "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the graph's root node, and the nodes hash table as a

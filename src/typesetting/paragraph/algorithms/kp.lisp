@@ -254,27 +254,29 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  ;; overstretched, regardless of the option. This is done by setting
 	  ;; the overstretched parameter to T and not counting emergency
 	  ;; stretch in the stretch-tolerance one.
-	  (stretch-tolerance (stretch-tolerance (threshold layout)))
+	  stretch-tolerance
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
-  (loop :for edge :in (edges layout)
-	:and start := 0 :then (start-idx (boundary (destination edge)))
-	:for stop := (stop-idx (boundary (destination edge)))
-	:if justified
-	  :collect (multiple-value-bind (theoretical effective)
-		       (actual-scales (scale edge)
-			 :stretch-tolerance stretch-tolerance
-			 :overshrink overshrink :overstretch t)
-		     (make-instance 'kp-line
-		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale theoretical :effective-scale effective
-		       :fitness-class (fitness-class edge)
-		       :badness (badness edge)
-		       :demerits (demerits edge)))
-	:else
-	  :collect (make-instance 'line
-		     :lineup lineup :start-idx start :stop-idx stop)))
+  (when layout
+    (setq stretch-tolerance (stretch-tolerance (threshold layout)))
+    (loop :for edge :in (edges layout)
+	  :and start := 0 :then (start-idx (boundary (destination edge)))
+	  :for stop := (stop-idx (boundary (destination edge)))
+	  :if justified
+	    :collect (multiple-value-bind (theoretical effective)
+			 (actual-scales (scale edge)
+			   :stretch-tolerance stretch-tolerance
+			   :overshrink overshrink :overstretch t)
+		       (make-instance 'kp-line
+			 :lineup lineup :start-idx start :stop-idx stop
+			 :scale theoretical :effective-scale effective
+			 :fitness-class (fitness-class edge)
+			 :badness (badness edge)
+			 :demerits (demerits edge)))
+	  :else
+	    :collect (make-instance 'line
+		       :lineup lineup :start-idx start :stop-idx stop))))
 
 
 ;; --------------------
@@ -288,7 +290,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defmethod initialize-instance :around
     ((paragraph kp-graph-paragraph) &rest keys &key layouts)
   "Compute the :demerits initialization argument."
-  (apply #'call-next-method paragraph :demerits (demerits (first layouts))
+  (apply #'call-next-method paragraph
+	 :demerits (if layouts (demerits (first layouts)) 0)
 	 keys))
 
 
@@ -302,23 +305,29 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
      pre-tolerance tolerance emergency-stretch looseness
      &aux (threshold pre-tolerance) (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
-  (let* ((graph (or (when ($<= 0 threshold)
-		      (make-graph lineup width
-			:edge-type `(kp-edge :line-penalty ,line-penalty)
-			:next-boundaries #'kp-next-boundaries
-			:threshold threshold))
-		    (prog1 (make-graph lineup width
-			     :edge-type `(kp-edge :line-penalty ,line-penalty)
-			     :next-boundaries #'kp-next-boundaries
-			     :hyphenate t :threshold (setq threshold tolerance)
-			     :final (zerop emergency-stretch))
-		      (incf pass))
-		    (prog1 (make-graph lineup width
-			     :edge-type `(kp-edge :line-penalty ,line-penalty)
-			     :next-boundaries #'kp-next-boundaries
-			     :hyphenate t :threshold threshold
-			     :final emergency-stretch)
-		      (incf pass))))
+  (let* ((graph (when lineup
+		  ;; #### NOTE: we guard against a null lineup here in order
+		  ;; to avoid running the 3 passes. It's not the same to not
+		  ;; have lines, and to not have a solution in a particular
+		  ;; pass.
+		  (or (when ($<= 0 threshold)
+			(make-graph lineup width
+			  :edge-type `(kp-edge :line-penalty ,line-penalty)
+			  :next-boundaries #'kp-next-boundaries
+			  :threshold threshold))
+		      (prog1 (make-graph lineup width
+			       :edge-type `(kp-edge :line-penalty ,line-penalty)
+			       :next-boundaries #'kp-next-boundaries
+			       :hyphenate t
+			       :threshold (setq threshold tolerance)
+			       :final (zerop emergency-stretch))
+			(incf pass))
+		      (prog1 (make-graph lineup width
+			       :edge-type `(kp-edge :line-penalty ,line-penalty)
+			       :next-boundaries #'kp-next-boundaries
+			       :hyphenate t :threshold threshold
+			       :final emergency-stretch)
+			(incf pass)))))
 	 (layouts (layouts graph `(kp-layout :threshold ,threshold))))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
@@ -326,7 +335,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	      final-hyphen-demerits))
       layouts)
     (setq layouts (sort layouts #'$< :key #'demerits))
-    (unless (zerop looseness)
+    (unless (or (zerop looseness) (null layouts))
       (let ((ideal-size (+ (size (car layouts)) looseness)))
 	(setq layouts (sort layouts (lambda (size1 size2)
 				      (< (abs (- size1 ideal-size))
@@ -690,7 +699,7 @@ through the algorithm in the TeX jargon).
 		    explicit-hyphen-penalty
 		    hyphen-penalty))))
     lineup)
-  (endpush (make-glue :stretch +∞ :penalty +∞) lineup)
+  (when lineup (endpush (make-glue :stretch +∞ :penalty +∞) lineup))
   lineup)
 
 (defmethod typeset-lineup
