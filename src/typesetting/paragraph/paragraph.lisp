@@ -73,12 +73,14 @@ Possible values are nil, :explicit, or :implicit."
 	  ;; appropriate value somewhere (it's up to the font designers, but
 	  ;; it's not in the TFM format for example).
 	  (baselineskip
-	   (* 12/10
-	      (tfm:design-size
-	       (tfm:font
-		(character-metrics
-		 (find-if #'pinned-character-p
-			  (pinned-objects (first lines)))))))))
+	   (if lines
+	       (* 12/10
+		  (tfm:design-size
+		   (tfm:font
+		    (character-metrics
+		     (find-if #'pinned-character-p
+			      (pinned-objects (first lines)))))))
+	       0)))
   "Pin LINES in PARAGRAPH."
   (setf (slot-value paragraph 'pinned-lines)
 	(loop :for line :in lines
