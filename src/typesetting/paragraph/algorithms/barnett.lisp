@@ -105,30 +105,31 @@
      &aux (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Make Barnett lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (loop :for start := 0 :then (start-idx boundary)
-	:while start
-	:for boundary := (barnett-line-boundary lineup start width)
-	:for stop := (stop-idx boundary)
-	:for scale := (scale boundary)
-	;; Justified line
-	:if (eq (disposition-type disposition) :justified)
-	  :collect (multiple-value-bind (theoretical effective)
-		       (if (last-boundary-p boundary)
-			 ;; Justified last line: maybe shrink it but don't
-			 ;; stretch it.
-			 (actual-scales scale
-			   :overshrink overshrink :stretch-tolerance 0)
-			 ;; Justified regular line: always stretch as needed,
-			 ;; and maybe overshrink.
-			 (actual-scales scale
-			   :overshrink overshrink :stretch-tolerance +∞))
-		     (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop
-		       :scale theoretical :effective-scale effective))
-	:else
-	  ;; Other dispositions: just switch back to normal spacing.
-	  :collect (make-instance 'line
-		     :lineup lineup :start-idx start :stop-idx stop)))
+  (when lineup
+    (loop :for start := 0 :then (start-idx boundary)
+	  :while start
+	  :for boundary := (barnett-line-boundary lineup start width)
+	  :for stop := (stop-idx boundary)
+	  :for scale := (scale boundary)
+	  ;; Justified line
+	  :if (eq (disposition-type disposition) :justified)
+	    :collect (multiple-value-bind (theoretical effective)
+			 (if (last-boundary-p boundary)
+			   ;; Justified last line: maybe shrink it but don't
+			   ;; stretch it.
+			   (actual-scales scale
+			     :overshrink overshrink :stretch-tolerance 0)
+			   ;; Justified regular line: always stretch as
+			   ;; needed, and maybe overshrink.
+			   (actual-scales scale
+			     :overshrink overshrink :stretch-tolerance +∞))
+		       (make-instance 'line
+			 :lineup lineup :start-idx start :stop-idx stop
+			 :scale theoretical :effective-scale effective))
+	  :else
+	    ;; Other dispositions: just switch back to normal spacing.
+	    :collect (make-instance 'line
+		       :lineup lineup :start-idx start :stop-idx stop))))
 
 
 
