@@ -693,7 +693,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :retract-callback 'set-clues
      :reader clues)
    (source-text-button push-button
-     :text "Source text" :callback #'reset-source-text)
+     :text "Source text (reset)" :callback #'reset-source-text)
    (text editor-pane
      :visible-min-width '(character 80)
      ;;:visible-max-width '(character 80)
