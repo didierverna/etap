@@ -880,6 +880,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 ;; Entry Point
 ;; ===========
 
+(defvar *rivers-image*
+  (gp:read-external-image
+   (asdf:system-relative-pathname :etap "share/interface/images/rivers"
+				  :type "jpg")))
+
 (defun run (&optional (context *context*))
   "Run ETAP's GUI for CONTEXT (the global context by default)."
-  (display (make-instance 'etap :context context :help-callback 'show-help)))
+  (display (make-instance 'etap :context context :help-callback 'show-help
+			  :toolbar-items
+			  (list (make-instance 'toolbar-button
+				  :image *rivers-image*
+				  :text "Rivers Detection"
+				  :name :rivers-detection)))))
