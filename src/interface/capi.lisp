@@ -219,17 +219,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
 
-(defun set-rivers-detection (value interface)
-  "Toggle rivers detection and (de)activate the rivers angle slider."
-  (setf (simple-pane-enabled (rivers-angle interface))
-	(button-selected value)))
-
-(defun set-rivers-angle
-    (pane value status &aux (interface (top-level-interface pane)))
-  "Set the rivers detection angle threshold to VALUE in PANE's context."
-  (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value)))
-
 (defun reset-source-text (data interface)
   "Reset the source text."
   (declare (ignore data))
@@ -703,21 +692,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-clues
      :retract-callback 'set-clues
      :reader clues)
-   (rivers-detection check-button
-     :text "Detect rivers"
-     :selection-callback 'set-rivers-detection
-     :retract-callback 'set-rivers-detection
-     :callback-type :item-interface)
-   (rivers-angle slider
-     :title "Rivers angle: 0°"
-     :orientation :horizontal
-     :start 0
-     :end 45
-     :slug-start 0
-     :tick-frequency 0
-     :enabled nil
-     :callback 'set-rivers-angle
-     :reader rivers-angle)
    (source-text-button push-button
      :text "Source text (reset)" :callback #'reset-source-text)
    (text editor-pane
@@ -745,10 +719,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :reader settings-1)
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
-   (options-2 column-layout '(clues rivers))
-   (rivers column-layout '(rivers-detection rivers-angle)
-     :title "Rivers Detection"
-     :title-position :frame)
+   (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms source-text-button text)
      :reader settings-2)
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
