@@ -4,7 +4,8 @@ demonstration of typesetting algorithms. It currently focuses on
 paragraph formatting. ETAP is written in Common Lisp.
 
 Before trying it out, please make sure that you have the [[https://www.gust.org.pl/projects/e-foundry/latin-modern][Latin Modern]]
-fonts installed on you machine.
+(10pt) font installed on you machine. The OTF version will do just
+fine, and can be downloaded from [[https://www.gust.org.pl/projects/e-foundry/latin-modern/download][here]].
 
 * For Lispers
 ** Dependencies
