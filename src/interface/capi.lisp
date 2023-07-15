@@ -397,6 +397,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph))
+  (:menus
+   (tools-menu "Tools" (:rivers-detection) :print-function 'title-capitalize))
+  (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
      :title "Algorithms"
