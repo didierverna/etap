@@ -371,7 +371,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      (typecase key
        (symbol (cadr (member key *tooltips*)))))))
 
-
+;; Properties
 (defun display-properties
     (pane x y
      &aux (interface (top-level-interface pane))
@@ -393,12 +393,59 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (display-tooltip pane :text (line-properties (line line)))
 	  (display-tooltip pane))))))
 
+;; Rivers detection
+(defun set-rivers-detection (value interface)
+  "Toggle rivers detection and (de)activate the rivers angle slider."
+  (setf (simple-pane-enabled (rivers-angle interface))
+	(button-selected value)))
+
+(defun set-rivers-angle
+    (pane value status &aux (interface (top-level-interface pane)))
+  "Set the rivers detection angle threshold to VALUE in PANE's context."
+  (declare (ignore status))
+  (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value)))
+
+(define-interface rivers-detection ()
+  ()
+  (:panes
+   (rivers-detection check-button
+     :text "Detect rivers"
+     :selection-callback 'set-rivers-detection
+     :retract-callback 'set-rivers-detection
+     :callback-type :item-interface)
+   (rivers-angle slider
+     :title "Rivers angle: 0°"
+     :orientation :horizontal
+     :visible-min-width 250
+     :visible-max-width 250
+     :start 0
+     :end 45
+     :slug-start 0
+     :tick-frequency 0
+     :enabled nil
+     :callback 'set-rivers-angle
+     :reader rivers-angle))
+  (:layouts
+   (main column-layout '(rivers-detection rivers-angle)))
+  (:default-initargs :title "Rivers Detection"))
+
+;; Menus
+(defun tools-menu-callback (data interface)
+  ;; #### NOTE: currently don't care about DATA, as we only have one menu
+  ;; #### item.
+  (declare (ignore data))
+  (display (rivers-interface interface)))
+
 ;; Interface
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
-   (paragraph :accessor paragraph))
+   (paragraph :accessor paragraph)
+   (rivers-interface :initform (make-instance 'rivers-detection)
+		     :reader rivers-interface))
   (:menus
-   (tools-menu "Tools" (:rivers-detection) :print-function 'title-capitalize))
+   (tools-menu "Tools" (:rivers-detection)
+     :print-function 'title-capitalize
+     :callback 'tools-menu-callback))
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
