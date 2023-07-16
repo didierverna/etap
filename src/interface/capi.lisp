@@ -4,15 +4,22 @@
 ;; Utilities
 ;; =========
 
-(defun update (interface
-	       &aux (context (context interface))
-		    (paragraph (make-paragraph :context context)))
-  "Update INTERFACE.
-This recreates the typeset paragraph and invalidates the GUI's view."
-  (setf (paragraph interface) paragraph)
+(defun remake-rivers (interface)
+  "Remake INTERFACE's rivers."
   (setf (rivers interface)
 	(when (button-selected (rivers-detection (rivers-interface interface)))
-	  #+()(detect-rivers paragraph)))
+	  #+()(detect-rivers (paragraph interface)))))
+
+(defun remake-paragraph (interface)
+  "Remake INTERFACE's paragaph."
+  (setf (paragraph interface) (make-paragraph :context (context interface))))
+
+(defun update (interface)
+  "Update INTERFACE.
+This remakes INTERFACE's paragraph and everything that depends on it,
+and invalidates the view."
+  (remake-paragraph interface)
+  (remake-rivers interface)
   (gp:invalidate-rectangle (view interface)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -231,14 +238,14 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (setf (text (context interface)) (editor-pane-text (text interface)))
   (update interface))
 
-(defun render-paragraph
+(defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (context (context interface))
 	  (paragraph (paragraph interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
-  "Render PANE's paragraph."
+  "Render PANE's view, including paragraph, clues, etc."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters pane
     :max-range (+ (* (width paragraph) zoom) 40))
@@ -405,8 +412,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (main-interface (main-interface interface)))
   "Toggle rivers detection and (de)activate the rivers angle slider."
   (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
-  (setf (rivers main-interface)
-	(when detectionp #+()(detect-rivers (paragraph main-interface))))
+  (remake-rivers main-interface)
   (gp:invalidate-rectangle (view main-interface)))
 
 (defun set-rivers-angle
@@ -415,8 +421,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Set the rivers detection angle threshold to VALUE in PANE's context."
   (declare (ignore status))
   (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value))
-  (setf (rivers main-interface) #+()(detect-rivers (paragraph main-interface))
-	nil)
+  (remake-rivers main-interface)
   (gp:invalidate-rectangle (view main-interface)))
 
 (define-interface rivers-detection ()
@@ -776,7 +781,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
-     :display-callback 'render-paragraph
+     :display-callback 'render-view
      :reader view
 	 ;;:input-model '(((:button-1 :press) display-properties))))
      :input-model '((:motion display-properties))))
