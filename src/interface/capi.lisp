@@ -4,10 +4,15 @@
 ;; Utilities
 ;; =========
 
-(defun update (interface &aux (context (context interface)))
+(defun update (interface
+	       &aux (context (context interface))
+		    (paragraph (make-paragraph :context context)))
   "Update INTERFACE.
 This recreates the typeset paragraph and invalidates the GUI's view."
-  (setf (paragraph interface) (make-paragraph :context context))
+  (setf (paragraph interface) paragraph)
+  (setf (rivers interface)
+	(when (button-selected (rivers-detection (rivers-interface interface)))
+	  #+()(detect-rivers paragraph)))
   (gp:invalidate-rectangle (view interface)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -394,25 +399,35 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (display-tooltip pane))))))
 
 ;; Rivers detection
-(defun set-rivers-detection (value interface)
+(defun set-rivers-detection
+    (value interface
+     &aux (detectionp (button-selected value))
+	  (main-interface (main-interface interface)))
   "Toggle rivers detection and (de)activate the rivers angle slider."
-  (setf (simple-pane-enabled (rivers-angle interface))
-	(button-selected value)))
+  (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
+  (setf (rivers main-interface)
+	(when detectionp #+()(detect-rivers (paragraph main-interface))))
+  (gp:invalidate-rectangle (view main-interface)))
 
 (defun set-rivers-angle
-    (pane value status &aux (interface (top-level-interface pane)))
+    (pane value status
+     &aux (main-interface (main-interface (top-level-interface pane))))
   "Set the rivers detection angle threshold to VALUE in PANE's context."
   (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value)))
+  (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value))
+  (setf (rivers main-interface) #+()(detect-rivers (paragraph main-interface))
+	nil)
+  (gp:invalidate-rectangle (view main-interface)))
 
 (define-interface rivers-detection ()
-  ()
+  ((main-interface :reader main-interface))
   (:panes
    (rivers-detection check-button
      :text "Detect rivers"
      :selection-callback 'set-rivers-detection
      :retract-callback 'set-rivers-detection
-     :callback-type :item-interface)
+     :callback-type :item-interface
+     :reader rivers-detection)
    (rivers-angle slider
      :title "Rivers angle: 0°"
      :orientation :horizontal
@@ -440,6 +455,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
+   (rivers :documentation "The paragraph's detected rivers."
+	   :initform nil
+	   :accessor rivers)
    (rivers-interface :initform (make-instance 'rivers-detection)
 		     :reader rivers-interface))
   (:menus
@@ -814,6 +832,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
   "Prepare ETAP GUI for display."
+  (setf (slot-value (rivers-interface etap) 'main-interface) etap)
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
