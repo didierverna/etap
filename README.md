@@ -1,17 +1,14 @@
 ETAP is a platofrm designed to ease experimentation with and demonstration of
 typesetting algorithms. It currently focuses on paragraph formatting. ETAP is
-written in Common Lisp.
-
-Before trying it out, please make sure that you have the [Latin
-Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern) (10pt) font
-installed on you machine. The OTF version will do just fine, and can be
-downloaded from
+written in Common Lisp. Before trying it out, please make sure that you have
+the [Latin Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern)
+(10pt) font installed on you machine. The OTF version will do just fine, and
+can be downloaded from
 [here](https://www.gust.org.pl/projects/e-foundry/latin-modern/download).
 
 ![ETAP](share/screenshots/etap.png "The ETAP Interface")
 
-
-# For Lispers
+# Instructions for Lispers
 ## Dependencies
 - [TFM](https://github.com/didierverna/tfm) (my TeX Font Metrics library),
   also available in Quicklisp.
@@ -24,7 +21,7 @@ gladly accept new GUIs, such as */McClim, ECL/EQL, /etc./
 (etap:run)
 ```
 
-# For non-Lispers
+# Instructions for non-Lispers
 The following instructions should help you set up a Common Lisp environment
 and run ETAP on your machine.
 
