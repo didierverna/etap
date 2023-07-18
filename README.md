@@ -14,8 +14,8 @@ downloaded from
 - [TFM](https://github.com/didierverna/tfm) (my TeX Font Metrics library),
   also available in Quicklisp.
 ## Portability
-	The core is portable but there's only a Lispworks/CAPI GUI for now. I'll
-	gladly accept new GUIs, such as */McClim, ECL/EQL, /etc./
+The core is portable but there's only a Lispworks/CAPI GUI for now. I'll
+gladly accept new GUIs, such as */McClim, ECL/EQL, /etc./
 ## Quickstart
 ```lisp
 (asdf:load-system :etap)
