@@ -1,6 +1,3 @@
-![ETAP](share/screenshots/etap.png "The ETAP Interface")
-
-# For everyone
 ETAP is a platofrm designed to ease experimentation with and demonstration of
 typesetting algorithms. It currently focuses on paragraph formatting. ETAP is
 written in Common Lisp.
@@ -10,6 +7,9 @@ Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern) (10pt) font
 installed on you machine. The OTF version will do just fine, and can be
 downloaded from
 [here](https://www.gust.org.pl/projects/e-foundry/latin-modern/download).
+
+![ETAP](share/screenshots/etap.png "The ETAP Interface")
+
 
 # For Lispers
 ## Dependencies
