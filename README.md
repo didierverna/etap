@@ -1,3 +1,5 @@
+![ETAP](share/screenshots/etap.png "The ETAP Interface")
+
 # For everyone
 ETAP is a platofrm designed to ease experimentation with and demonstration of
 typesetting algorithms. It currently focuses on paragraph formatting. ETAP is
