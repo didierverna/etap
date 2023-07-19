@@ -160,6 +160,7 @@ Primary methods must return a possibly modified lineup.")
     lineup))
 
 (defgeneric typeset-lineup
-    (lineup disposition width algorithm &key &allow-other-keys)
+    (lineup disposition width beds algorithm &key &allow-other-keys)
   (:documentation
-   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM."))
+   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.
+Also maybe include river BEDS."))

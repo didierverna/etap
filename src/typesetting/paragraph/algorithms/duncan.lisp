@@ -134,7 +134,7 @@ This class keeps track of the line's weight."))
 ;; -----------------
 
 (defun duncan-make-lines
-    (lineup disposition layout
+    (lineup disposition beds layout
      &aux (overstretch
 	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
@@ -157,13 +157,15 @@ This class keeps track of the line's weight."))
 			     :overshrink overshrink :overstretch overstretch))
 		       (make-instance 'duncan-line
 			 :lineup lineup :start-idx start :stop-idx stop
+			 :beds beds
 			 :scale theoretical
 			 :effective-scale effective
 			 :weight (weight edge)))
 	  :else
 	    ;; Other dispositions: just switch back to normal spacing.
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop))))
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :beds beds))))
 
 
 
@@ -203,7 +205,7 @@ This class keeps track of the line's weight."))
 ;; reduce the number of subsequent *fulls. I hope that if it's possible, it
 ;; would only affect very rare cases. But this should be experimented.
 (defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :duncan))
+    (lineup disposition width beds (algorithm (eql :duncan))
      &rest options &key discriminating-function)
   "Typeset LINEUP with the Duncan algorithm."
   (declare (ignore discriminating-function))
@@ -244,4 +246,4 @@ This class keeps track of the line's weight."))
 	:width width
 	:disposition disposition
 	:layouts layouts
-	:lines (duncan-make-lines lineup disposition (first layouts))))))
+	:lines (duncan-make-lines lineup disposition beds (first layouts))))))

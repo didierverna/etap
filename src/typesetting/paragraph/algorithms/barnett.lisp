@@ -101,7 +101,7 @@
 ;; can get are when there is no elasticity, so this option should have no
 ;; effect.
 (defun barnett-make-lines
-    (lineup disposition width
+    (lineup disposition width beds
      &aux (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
   "Make Barnett lines from LINEUP for a DISPOSITION paragraph of WIDTH."
@@ -125,11 +125,13 @@
 			     :overshrink overshrink :stretch-tolerance +∞))
 		       (make-instance 'line
 			 :lineup lineup :start-idx start :stop-idx stop
+			 :beds beds
 			 :scale theoretical :effective-scale effective))
 	  :else
 	    ;; Other dispositions: just switch back to normal spacing.
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop))))
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :beds beds))))
 
 
 
@@ -138,9 +140,9 @@
 ;; ===========
 
 (defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :barnett)) &key)
+    (lineup disposition width beds (algorithm (eql :barnett)) &key)
   "Typeset LINEUP with the Barnett algorithm."
   (make-instance 'paragraph
     :width width
     :disposition disposition
-    :lines (barnett-make-lines lineup disposition width)))
+    :lines (barnett-make-lines lineup disposition width beds)))

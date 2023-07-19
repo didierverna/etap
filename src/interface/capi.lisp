@@ -365,7 +365,11 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				       :filled t
 				       :foreground (if (explicitp object)
 						     :blue
-						     :orange))))))
+						     :orange))))
+				  ((bedp object)
+				   (when (member :river-beds clues)
+				     (gp:draw-circle pane (+ x (x object)) y 1
+				      :filled t :foreground :red)))))
 		      (pinned-objects (line pinned-line))))))))
 
 
@@ -412,8 +416,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (main-interface (main-interface interface)))
   "Toggle rivers detection and (de)activate the rivers angle slider."
   (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
-  (remake-rivers main-interface)
-  (gp:invalidate-rectangle (view main-interface)))
+  (setf (beds (context main-interface)) detectionp)
+  (update main-interface))
 
 (defun set-rivers-angle
     (pane value status
@@ -759,7 +763,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :items '(:characters :hyphenation-points
 	      :paragraph-box :line-boxes :character-boxes :baselines
 	      :over/underfull-boxes :overshrunk/stretched-boxes
-	      :properties-tooltips)
+	      :properties-tooltips :river-beds)
      :selected-items '(:characters)
      :print-function 'title-capitalize
      :selection-callback 'set-clues

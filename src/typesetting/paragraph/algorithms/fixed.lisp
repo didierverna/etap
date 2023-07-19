@@ -283,7 +283,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; =====
 
 (defun fixed-make-lines
-    (lineup disposition width
+    (lineup disposition width beds
      fallback width-offset avoid-hyphens prefer-overfulls
      &aux (get-line-boundary (if (eq disposition :justified)
 			       #'fixed-justified-line-boundary
@@ -297,7 +297,8 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 			     width-offset avoid-hyphens prefer-overfulls)
 	  :collect (make-instance 'line
 		     :lineup lineup
-		     :start-idx start :stop-idx (stop-idx boundary)))))
+		     :start-idx start :stop-idx (stop-idx boundary)
+		     :beds beds))))
 
 
 
@@ -314,7 +315,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   `(calibrate fixed ,name ,infinity))
 
 (defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :fixed))
+    (lineup disposition width beds (algorithm (eql :fixed))
      &key fallback width-offset avoid-hyphens prefer-overfulls)
   "Typeset LINEUP with the Fixed algorithm."
   (default-fixed fallback)
@@ -323,5 +324,5 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     :width width
     :disposition disposition
     :lines (fixed-make-lines
-	    lineup (disposition-type disposition) width
+	    lineup (disposition-type disposition) width beds
 	    fallback width-offset avoid-hyphens prefer-overfulls)))

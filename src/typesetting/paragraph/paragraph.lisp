@@ -118,6 +118,7 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation))
+	  (beds (when context (beds context)))
 	  (lineup nil lineupp)
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
@@ -138,5 +139,5 @@ defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
 		 lineup disposition (algorithm-type algorithm)
 		 (algorithm-options algorithm)))
   (apply #'typeset-lineup
-    lineup disposition width (algorithm-type algorithm)
+    lineup disposition width beds (algorithm-type algorithm)
     (algorithm-options algorithm)))

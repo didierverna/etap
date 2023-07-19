@@ -92,6 +92,29 @@ The hyphenation clue's 2D position is relative to the line it belongs to."))
   (make-instance 'pinned-hyphenation-clue :x x :explicit explicit))
 
 
+(defclass bed (pinned)
+  ((width :documentation "The river bed's width"
+	  :initarg :width :reader width))
+  (:documentation "The river BED class.
+River beds stand in the middle of glue space."))
+
+(defun bedp (object)
+  "Return T if OBJECT is a river bed."
+  (typep object 'bed))
+
+(defmethod height ((bed bed))
+  "Return river BED's height (0)."
+  0)
+
+(defmethod depth ((bed bed))
+  "Return river BED's depth (0)."
+  0)
+
+(defun make-bed (x width)
+  "Make a river bed of WIDTH centered at X."
+  (make-instance 'bed :x x :width width))
+
+
 
 ;; =====
 ;; Lines
@@ -161,8 +184,9 @@ Possible values are nil, :explicit, or :implicit."
 	:for elt := (lineup-aref lineup i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
-(defmethod initialize-instance :after ((line line) &key &aux scale)
-  "Possibly initialize the LINE's effective scale, and pin its objects."
+(defmethod initialize-instance :after ((line line) &key beds &aux scale)
+  "Possibly initialize the LINE's effective scale, and pin its objects.
+Maybe also include river BEDS."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
@@ -171,7 +195,7 @@ Possible values are nil, :explicit, or :implicit."
     (setf (slot-value line 'effective-scale) (scale line)))
   (setq scale (if (numberp (effective-scale line)) (effective-scale line) 0))
   (setf (slot-value line 'pinned-objects)
-	(loop :with x := 0
+	(loop :with x := 0 :with w
 	      :for elt :in (flatten-lineup
 			    (lineup line) (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
@@ -184,11 +208,14 @@ Possible values are nil, :explicit, or :implicit."
 	      :else :if (kernp elt)
 		      :do (incf x (width elt))
 	      :else :if (gluep elt)
-		      :do (incf x (width elt))
-		      :and :unless (zerop scale)
-			     :do (incf x (if (> scale 0)
-					   (* scale (stretch elt))
-					   (* scale (shrink elt)))))))
+		:do (setq w (width elt))
+		:and :unless (zerop scale)
+		       :do (incf w (if (> scale 0)
+				     (* scale (stretch elt))
+				     (* scale (shrink elt))))
+		     :end
+		:and :when beds :collect (make-bed (+ x (/ w 2)) w) :end
+		:and :do (incf x w))))
 
 (defgeneric line-properties (line)
   (:documentation "Return a string describing LINE's properties.")

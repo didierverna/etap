@@ -244,7 +244,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; -----------------
 
 (defun kp-graph-make-lines
-    (lineup disposition layout
+    (lineup disposition beds layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
 	  ;; elastic underfulls (in case of an impossible layout, it falls
@@ -270,13 +270,15 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			   :overshrink overshrink :overstretch t)
 		       (make-instance 'kp-line
 			 :lineup lineup :start-idx start :stop-idx stop
+			 :beds beds
 			 :scale theoretical :effective-scale effective
 			 :fitness-class (fitness-class edge)
 			 :badness (badness edge)
 			 :demerits (demerits edge)))
 	  :else
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop))))
+		       :lineup lineup :start-idx start :stop-idx stop
+		       :beds beds))))
 
 
 ;; --------------------
@@ -300,7 +302,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; -----------
 
 (defun kp-graph-typeset-lineup
-    (lineup disposition width line-penalty
+    (lineup disposition width beds line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
      &aux (threshold pre-tolerance) (pass 1))
@@ -354,7 +356,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; either, so there's no rush. It's still important to keep that in mind
       ;; however, because that explains while we may end up with different
       ;; solutions between the graph and the dynamic versions.
-      :lines (kp-graph-make-lines lineup disposition (first layouts)))))
+      :lines (kp-graph-make-lines lineup disposition beds (first layouts)))))
 
 
 
@@ -558,7 +560,7 @@ through the algorithm in the TeX jargon).
 ;; -----------------
 
 (defun kp-dynamic-make-lines
-    (lineup disposition node threshold
+    (lineup disposition beds node threshold
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
@@ -588,13 +590,15 @@ through the algorithm in the TeX jargon).
 		      (make-instance 'kp-line
 			:lineup lineup
 			:start-idx start :stop-idx stop
+			:beds beds
 			:scale theoretical
 			:effective-scale effective
 			:fitness-class (kp-node-fitness-class end)
 			:badness (kp-node-badness end)
 			:demerits (kp-node-demerits end)))
 		    (make-instance 'line
-		      :lineup lineup :start-idx start :stop-idx stop))
+		      :lineup lineup :start-idx start :stop-idx stop
+		      :beds beds))
 		  lines)
 	:finally (return lines)))
 
@@ -620,7 +624,7 @@ through the algorithm in the TeX jargon).
 ;; -----------
 
 (defun kp-dynamic-typeset-lineup
-    (lineup disposition width line-penalty
+    (lineup disposition width beds line-penalty
      adjacent-demerits double-hyphen-demerits final-hyphen-demerits
      pre-tolerance tolerance emergency-stretch looseness
      &aux (threshold pre-tolerance)
@@ -672,7 +676,7 @@ through the algorithm in the TeX jargon).
 	:pass pass
 	:demerits (kp-node-total-demerits best)
 	:nodes-number (hash-table-count nodes)
-	:lines (kp-dynamic-make-lines lineup disposition best threshold)))
+	:lines (kp-dynamic-make-lines lineup disposition beds best threshold)))
     (make-instance 'kp-dynamic-paragraph
       :width width
       :disposition disposition
@@ -711,7 +715,7 @@ through the algorithm in the TeX jargon).
   lineup)
 
 (defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :knuth-plass))
+    (lineup disposition width beds (algorithm (eql :knuth-plass))
      &key variant line-penalty
 	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
 	  pre-tolerance tolerance emergency-stretch looseness)
@@ -728,6 +732,6 @@ through the algorithm in the TeX jargon).
   (funcall (ecase variant
 	     (:graph #'kp-graph-typeset-lineup)
 	     (:dynamic #'kp-dynamic-typeset-lineup))
-    lineup disposition width line-penalty
+    lineup disposition width beds line-penalty
     adjacent-demerits double-hyphen-demerits final-hyphen-demerits
     pre-tolerance tolerance emergency-stretch looseness))

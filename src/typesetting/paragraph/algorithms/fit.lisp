@@ -305,10 +305,10 @@ LINE class."))
 ;; -----------------
 
 (defgeneric fit-make-line
-    (lineup start boundary disposition variant &key &allow-other-keys)
+    (lineup start boundary disposition beds variant &key &allow-other-keys)
   (:documentation
    "Make a Fit line from LINEUP chunk between START and BOUNDARY.")
-  (:method (lineup start boundary disposition (variant (eql :first))
+  (:method (lineup start boundary disposition beds (variant (eql :first))
 	    &key width relax
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are stretched as much as possible.
@@ -329,12 +329,12 @@ LINE class."))
 		;; Otherwise, we can destretch completely.
 		(if ($> scale 0) scale 0)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
-		   :scale scale))
-  (:method (lineup start boundary disposition (variant (eql :best)) &key)
+		   :beds beds :scale scale))
+  (:method (lineup start boundary disposition beds (variant (eql :best)) &key)
     "Make a best-fit ragged line from LINEUP chunk between START and BOUNDARY."
     (make-instance 'line
-      :lineup lineup :start-idx start :stop-idx (stop-idx boundary)))
-  (:method (lineup start boundary disposition (variant (eql :last))
+      :lineup lineup :start-idx start :stop-idx (stop-idx boundary) :beds beds))
+  (:method (lineup start boundary disposition beds (variant (eql :last))
 	    &key width relax
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are shrunk as much as possible.
@@ -355,13 +355,14 @@ LINE class."))
 		    ;;   at all, so we must stay at our original -1.
 		    (if ($>= scale 0) 0 ($max scale -1)))))
     (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
-		   :scale scale))
-  (:method (lineup start boundary (disposition (eql :justified)) variant
+		   :beds beds :scale scale))
+  (:method (lineup start boundary (disposition (eql :justified)) beds variant
 	    &key overstretch overshrink
 	    &aux (stop (stop-idx boundary))
 		 (scale (scale boundary))
 		 (line-initargs
-		  `(:lineup ,lineup :start-idx ,start :stop-idx ,stop))
+		  `(:lineup ,lineup :start-idx ,start :stop-idx ,stop
+		    :beds ,beds))
 		 line-class)
     "Make an any-fit justified line from LINEUP chunk between START and STOP."
     (etypecase boundary
@@ -395,7 +396,7 @@ LINE class."))
 	     :scale theoretical :effective-scale effective line-initargs))))
 
 (defun fit-make-lines
-    (lineup disposition width variant fallback
+    (lineup disposition width beds variant fallback
      width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
      discriminating-function
      &aux (get-line-boundary
@@ -421,7 +422,7 @@ LINE class."))
 	  :while start
 	  :for boundary := (funcall get-line-boundary start)
 	  :collect (apply #'fit-make-line lineup start boundary
-			  (disposition-type disposition) variant
+			  (disposition-type disposition) beds variant
 			  :width width
 			  :relax relax
 			  (disposition-options disposition)))))
@@ -455,7 +456,7 @@ LINE class."))
   lineup)
 
 (defmethod typeset-lineup
-    (lineup disposition width (algorithm (eql :fit))
+    (lineup disposition width beds (algorithm (eql :fit))
      &key variant fallback
 	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
 	  discriminating-function)
@@ -467,7 +468,7 @@ LINE class."))
   (make-instance 'paragraph
     :width width
     :disposition disposition
-    :lines (fit-make-lines lineup disposition width
+    :lines (fit-make-lines lineup disposition width beds
 	     variant fallback
 	     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
 	     discriminating-function)))

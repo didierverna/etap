@@ -21,6 +21,8 @@
 	     :initform (list)
 	     :initarg :features
 	     :accessor features)
+   (beds :documentation "Whether to record river beds."
+	 :initform nil :initarg :beds :accessor beds)
    (paragraph-width :documentation "The requested paragraph width in points."
 		    :initform 284 ;; 284.52756pt = 10cm
 		    :initarg :paragraph-width
