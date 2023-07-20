@@ -79,27 +79,20 @@ Hyphenation clues are positioned at Y = 0."))
   (make-instance 'hyphenation-clue :board board :x x :explicit explicit))
 
 
+;; Always pinned, so no "pinned" prefix.
 (defclass bed (pinned)
   ((width :documentation "The river bed's width"
 	  :initarg :width :reader width))
   (:documentation "The river BED class.
-River beds stand in the middle of glue space."))
+River beds stand in the middle of glue space and are positioned at Y = 0."))
 
 (defun bedp (object)
   "Return T if OBJECT is a river bed."
   (typep object 'bed))
 
-(defmethod height ((bed bed))
-  "Return river BED's height (0)."
-  0)
-
-(defmethod depth ((bed bed))
-  "Return river BED's depth (0)."
-  0)
-
-(defun make-bed (x width)
+(defun make-bed (board x width)
   "Make a river bed of WIDTH centered at X."
-  (make-instance 'bed :x x :width width))
+  (make-instance 'bed :board board :x x :width width))
 
 
 
@@ -201,7 +194,7 @@ Maybe also include river BEDS."
 				     (* scale (stretch elt))
 				     (* scale (shrink elt))))
 		     :end
-		:and :when beds :collect (make-bed (+ x (/ w 2)) w) :end
+		:and :when beds :collect (make-bed line (+ x (/ w 2)) w) :end
 		:and :do (incf x w))))
 
 (defgeneric line-properties (line)
