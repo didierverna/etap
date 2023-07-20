@@ -27,16 +27,8 @@
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
-  (:method ((clue (eql :hyphenation-clue)))
-    "Return 0 (hyphenation clues don't eat horizontal space)."
-    0)
-  (:method ((clue (eql :explicit-hyphenation-clue)))
-    "Return 0 (hyphenation clues don't eat horizontal space)."
-    0)
-  ;; #### NOTE: NIL in the lineup can occur in several situations, for
-  ;; instance as the (empty) no-break or post-break of a hyphenation point.
-  (:method ((null (eql nil)))
-    "Return 0 (nothingness doesn't eat horizontal space)."
+  (:method (object)
+    "Return 0 by default."
     0)
   (:method ((list list))
     "Return the sum of the widths of all elements in LIST."
@@ -47,12 +39,18 @@
 
 (defgeneric height (object)
   (:documentation "Return OBJECT's height.")
+  (:method (object)
+    "Return 0 by default."
+    0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's height."
     (tfm:height character)))
 
 (defgeneric depth (object)
   (:documentation "Return OBJECT's depth.")
+  (:method (object)
+    "Return 0 by default."
+    0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's depth."
     (tfm:depth character)))

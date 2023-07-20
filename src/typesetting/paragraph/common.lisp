@@ -74,18 +74,6 @@ Hyphenation clues are positioned at Y = 0."))
   "Return T if OBJECT is a hyphenation clue."
   (typep object 'hyphenation-clue))
 
-(defmethod width ((clue hyphenation-clue))
-  "Return hyphenation clue's width (0)."
-  0)
-
-(defmethod height ((clue hyphenation-clue))
-  "Return hyphenation clue's height (0)."
-  0)
-
-(defmethod depth ((clue hyphenation-clue))
-  "Return hyphenation clue's depth (0)."
-  0)
-
 (defun make-hyphenation-clue (board x &optional (explicit t))
   "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
   (make-instance 'hyphenation-clue :board board :x x :explicit explicit))
