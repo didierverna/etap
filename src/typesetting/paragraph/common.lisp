@@ -55,11 +55,10 @@ ignoring the algorithm's decision."))
   "Return pinned CHARACTER's depth."
   (depth (character-metrics character)))
 
-(defun pin-character (character &rest initargs &key x y)
-  "Pin CHARACTER at position (X, Y)."
-  (declare (ignore x y))
-  (apply #'make-instance 'pinned-character
-    :character-metrics character initargs))
+(defun pin-character (character board x &optional (y 0))
+  "Pin CHARACTER on BOARD at position (X, Y)."
+  (make-instance 'pinned-character
+    :character-metrics character :board board :x x :y y))
 
 
 ;; Always pinned, so no "pinned" prefix.
@@ -87,9 +86,9 @@ Hyphenation clues are positioned at Y = 0."))
   "Return hyphenation clue's depth (0)."
   0)
 
-(defun make-hyphenation-clue (x &optional (explicit t))
+(defun make-hyphenation-clue (board x &optional (explicit t))
   "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
-  (make-instance 'hyphenation-clue :x x :explicit explicit))
+  (make-instance 'hyphenation-clue :board board :x x :explicit explicit))
 
 
 
@@ -175,11 +174,11 @@ Possible values are nil, :explicit, or :implicit."
 	      :for elt :in (flatten-lineup
 			    (lineup line) (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
-		:collect (make-hyphenation-clue x)
+		:collect (make-hyphenation-clue line x)
 	      :else :if (eq elt :hyphenation-clue)
-		      :collect (make-hyphenation-clue x nil)
+		      :collect (make-hyphenation-clue line x nil)
 	      :else :if (typep elt 'tfm:character-metrics)
-		      :collect (pin-character elt :x x)
+		      :collect (pin-character elt line x)
 		      :and :do (incf x (width elt))
 	      :else :if (kernp elt)
 		      :do (incf x (width elt))
