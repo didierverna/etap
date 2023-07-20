@@ -52,7 +52,18 @@ Possible values are nil, :explicit, or :implicit."
 
 (defun pin-line (line board x y)
   "Pin LINE on BOARD at position (X, Y)."
-  (make-instance 'pinned-line :line line :board board :x x :y y))
+  (let ((pinned-line
+	  (make-instance 'pinned-line :line line :board board :x x :y y)))
+    ;; #### FIXME: gross hack alert. Pinned objects have their line as the
+    ;; board. But a line is not a pinned object, so it has no 2D coordinates,
+    ;; and there is no back pointer from a line to a pinned line. For rivers
+    ;; detection, I'm thus changing the beds boards to their pinned line for
+    ;; now. Of course, this is completely broken.
+    (mapc (lambda (object)
+	    (when (bedp object)
+	      (setf (slot-value object 'board) pinned-line)))
+      (pinned-objects line))
+    pinned-line))
 
 
 

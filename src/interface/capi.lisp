@@ -4,11 +4,15 @@
 ;; Utilities
 ;; =========
 
-(defun remake-rivers (interface)
+(defun remake-rivers
+    (interface &aux (rivers-interface (rivers-interface interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
 	(when (button-selected (rivers-detection (rivers-interface interface)))
-	  #+()(detect-rivers (paragraph interface)))))
+	  (detect-rivers
+	   (paragraph interface)
+	   (range-slug-start (rivers-mouth-angle rivers-interface))
+	   (range-slug-start (rivers-bed-angle rivers-interface))))))
 
 (defun remake-paragraph (interface)
   "Remake INTERFACE's paragaph."
@@ -243,6 +247,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (context (context interface))
 	  (paragraph (paragraph interface))
+	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   "Render PANE's view, including paragraph, clues, etc."
@@ -370,7 +375,20 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				   (when (member :river-beds clues)
 				     (gp:draw-circle pane (+ x (x object)) y 1
 				      :filled t :foreground :red)))))
-		      (pinned-objects (line pinned-line))))))))
+		      (pinned-objects (line pinned-line))))
+	;; #### FIXME: see PIN-LINE comment about the beds boards.
+	(when rivers
+	  (let ((par-y (height (first (pinned-lines paragraph)))))
+	    (maphash (lambda (bed beds)
+		       (mapc (lambda (bed2)
+			       (gp:draw-line pane
+				   (+ (x (board bed)) (x bed))
+				   (+ par-y (y (board bed)) (y bed))
+				   (+ (x (board bed2)) (x bed2))
+				   (+ par-y (y (board bed2)) (y bed2))
+				 :foreground :red :scale-thickness nil))
+			 beds))
+		     rivers)))))))
 
 
 ;; Tooltips
@@ -414,17 +432,27 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (value interface
      &aux (detectionp (button-selected value))
 	  (main-interface (main-interface interface)))
-  "Toggle rivers detection and (de)activate the rivers angle slider."
-  (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
+  "Toggle rivers detection."
+  (setf (simple-pane-enabled (rivers-mouth-angle interface)) detectionp)
+  (setf (simple-pane-enabled (rivers-bed-angle interface)) detectionp)
   (setf (beds (context main-interface)) detectionp)
   (update main-interface))
 
-(defun set-rivers-angle
+(defun set-rivers-mouth-angle
     (pane value status
      &aux (main-interface (main-interface (top-level-interface pane))))
-  "Set the rivers detection angle threshold to VALUE in PANE's context."
+  "Set the rivers mouth detection angle threshold to VALUE in PANE's context."
   (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Rivers angle: ~D°" value))
+  (setf (titled-object-title pane) (format nil "Mouth angle: ~D°" value))
+  (remake-rivers main-interface)
+  (gp:invalidate-rectangle (view main-interface)))
+
+(defun set-rivers-bed-angle
+    (pane value status
+     &aux (main-interface (main-interface (top-level-interface pane))))
+  "Set the rivers bed detection angle threshold to VALUE in PANE's context."
+  (declare (ignore status))
+  (setf (titled-object-title pane) (format nil "Bed angle: ~D°" value))
   (remake-rivers main-interface)
   (gp:invalidate-rectangle (view main-interface)))
 
@@ -437,8 +465,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :retract-callback 'set-rivers-detection
      :callback-type :item-interface
      :reader rivers-detection)
-   (rivers-angle slider
-     :title "Rivers angle: 0°"
+   (rivers-mouth-angle slider
+     :title "Mouth angle: 0°"
      :orientation :horizontal
      :visible-min-width 250
      :visible-max-width 250
@@ -447,10 +475,23 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :slug-start 0
      :tick-frequency 0
      :enabled nil
-     :callback 'set-rivers-angle
-     :reader rivers-angle))
+     :callback 'set-rivers-mouth-angle
+     :reader rivers-mouth-angle)
+   (rivers-bed-angle slider
+     :title "Bed angle: 0°"
+     :orientation :horizontal
+     :visible-min-width 250
+     :visible-max-width 250
+     :start 0
+     :end 45
+     :slug-start 0
+     :tick-frequency 0
+     :enabled nil
+     :callback 'set-rivers-bed-angle
+     :reader rivers-bed-angle))
   (:layouts
-   (main column-layout '(rivers-detection rivers-angle)))
+   (main column-layout
+     '(rivers-detection rivers-mouth-angle rivers-bed-angle)))
   (:default-initargs
    :title "Rivers Detection"
    :window-styles '(:always-on-top t :toolbox t)))

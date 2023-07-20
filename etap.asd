@@ -45,7 +45,8 @@
 			   (:file "graph" :depends-on ("fit"))
 			   (:file "duncan" :depends-on  ("graph"))
 			   (:file "kp" :depends-on  ("graph"))))
-		 (:file "paragraph")))))
+		 (:file "paragraph")
+		 (:file "rivers")))))
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))
