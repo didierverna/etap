@@ -451,14 +451,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :reader rivers-angle))
   (:layouts
    (main column-layout '(rivers-detection rivers-angle)))
-  (:default-initargs :title "Rivers Detection"))
+  (:default-initargs
+   :title "Rivers Detection"
+   :window-styles '(:always-on-top t :toolbox t)))
 
 ;; Menus
 (defun tools-menu-callback (data interface)
   ;; #### NOTE: currently don't care about DATA, as we only have one menu
   ;; #### item.
   (declare (ignore data))
-  (display (rivers-interface interface)))
+  (display (rivers-interface interface) :owner interface))
 
 ;; Interface
 (define-interface etap ()
@@ -960,4 +962,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 (defun run (&optional (context *context*))
   "Run ETAP's GUI for CONTEXT (the global context by default)."
-  (display (make-instance 'etap :context context :help-callback 'show-help)))
+  (display (make-instance 'etap
+	     :context context
+	     :help-callback 'show-help
+	     :destroy-callback (lambda (interface)
+				 (destroy (rivers-interface interface))))))
