@@ -37,8 +37,7 @@ ignoring the algorithm's decision."))
   ((character-metrics :documentation "The pinned character."
 		      :initarg :character-metrics
 		      :reader character-metrics))
-  (:documentation "The PINNED-CHARACTER class.
-The character's 2D position is relative to the line it belongs to."))
+  (:documentation "The PINNED-CHARACTER class."))
 
 (defun pinned-character-p (object)
   "Return T if OBJECT is a pinned character."
@@ -56,40 +55,28 @@ The character's 2D position is relative to the line it belongs to."))
   "Return pinned CHARACTER's depth."
   (depth (character-metrics character)))
 
-(defun pin-character (character &rest initargs &key x y)
-  "Pin CHARACTER at position (X, Y)."
-  (declare (ignore x y))
-  (apply #'make-instance 'pinned-character
-    :character-metrics character initargs))
+(defun pin-character (character board x &optional (y 0))
+  "Pin CHARACTER on BOARD at position (X, Y)."
+  (make-instance 'pinned-character
+    :character-metrics character :board board :x x :y y))
 
 
-(defclass pinned-hyphenation-clue (pinned)
+;; Always pinned, so no "pinned" prefix.
+(defclass hyphenation-clue (pinned)
   ((explicitp :documentation
 	      "Whether this hyphenation clue comes from an explicit hyphen."
 	      :initform t :initarg
 	      :explicit :reader explicitp))
-  (:documentation "The PINNED-HYPHENATION-CLUE class.
-The hyphenation clue's 2D position is relative to the line it belongs to."))
+  (:documentation "The HYPHENATION-CLUE class.
+Hyphenation clues are positioned at Y = 0."))
 
-(defun pinned-hyphenation-clue-p (object)
-  "Return T if OBJECT is a pinned hyphenation clue."
-  (typep object 'pinned-hyphenation-clue))
+(defun hyphenation-clue-p (object)
+  "Return T if OBJECT is a hyphenation clue."
+  (typep object 'hyphenation-clue))
 
-(defmethod width ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's width (0)."
-  0)
-
-(defmethod height ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's height (0)."
-  0)
-
-(defmethod depth ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's depth (0)."
-  0)
-
-(defun pin-hyphenation-clue (x &optional (explicit t))
+(defun make-hyphenation-clue (board x &optional (explicit t))
   "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
-  (make-instance 'pinned-hyphenation-clue :x x :explicit explicit))
+  (make-instance 'hyphenation-clue :board board :x x :explicit explicit))
 
 
 (defclass bed (pinned)
@@ -199,11 +186,11 @@ Maybe also include river BEDS."
 	      :for elt :in (flatten-lineup
 			    (lineup line) (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
-		:collect (pin-hyphenation-clue x)
+		:collect (make-hyphenation-clue line x)
 	      :else :if (eq elt :hyphenation-clue)
-		      :collect (pin-hyphenation-clue x nil)
+		      :collect (make-hyphenation-clue line x nil)
 	      :else :if (typep elt 'tfm:character-metrics)
-		      :collect (pin-character elt :x x)
+		      :collect (pin-character elt line x)
 		      :and :do (incf x (width elt))
 	      :else :if (kernp elt)
 		      :do (incf x (width elt))

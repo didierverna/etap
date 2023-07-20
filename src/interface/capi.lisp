@@ -356,7 +356,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 						(character-metrics object)))
 					 (+ x (x object))
 					 y)))
-				  ((pinned-hyphenation-clue-p object)
+				  ((hyphenation-clue-p object)
 				   (when (member :hyphenation-points clues)
 				     (gp:draw-polygon pane
 				       (list (+ x (x object)) y

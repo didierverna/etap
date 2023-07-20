@@ -19,8 +19,7 @@
   ((line :documentation "The corresponding line."
 	 :initarg :line
 	 :reader line))
-  (:documentation "The PINNED-LINE class.
-The line's 2D position is relative to the paragraph it belongs to."))
+  (:documentation "The PINNED-LINE class."))
 
 (defmethod width ((line pinned-line))
   "Return pinned LINE's width."
@@ -51,10 +50,9 @@ Possible values are nil, :explicit, or :implicit."
   "Return pinned LINE's penalty."
   (penalty (line line)))
 
-(defun pin-line (line &rest initargs &key x y)
-  "Pin LINE at position (X, Y)."
-  (declare (ignore x y))
-  (apply #'make-instance 'pinned-line :line line initargs))
+(defun pin-line (line board x y)
+  "Pin LINE on BOARD at position (X, Y)."
+  (make-instance 'pinned-line :line line :board board :x x :y y))
 
 
 
@@ -90,7 +88,7 @@ Possible values are nil, :explicit, or :implicit."
 			  (:flush-right (- width (width line))))
 	      ;; #### TODO: nothing fancy about interline spacing yet.
 	      :for y := 0 :then (+ y baselineskip)
-	      :collect (pin-line line :x x :y y))))
+	      :collect (pin-line line paragraph x y))))
 
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.
