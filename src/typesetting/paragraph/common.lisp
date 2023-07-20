@@ -63,33 +63,34 @@ The character's 2D position is relative to the line it belongs to."))
     :character-metrics character initargs))
 
 
-(defclass pinned-hyphenation-clue (pinned)
+;; Always pinned, so no "pinned" prefix.
+(defclass hyphenation-clue (pinned)
   ((explicitp :documentation
 	      "Whether this hyphenation clue comes from an explicit hyphen."
 	      :initform t :initarg
 	      :explicit :reader explicitp))
-  (:documentation "The PINNED-HYPHENATION-CLUE class.
-The hyphenation clue's 2D position is relative to the line it belongs to."))
+  (:documentation "The HYPHENATION-CLUE class.
+Hyphenation clues are positioned at Y = 0."))
 
-(defun pinned-hyphenation-clue-p (object)
-  "Return T if OBJECT is a pinned hyphenation clue."
-  (typep object 'pinned-hyphenation-clue))
+(defun hyphenation-clue-p (object)
+  "Return T if OBJECT is a hyphenation clue."
+  (typep object 'hyphenation-clue))
 
-(defmethod width ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's width (0)."
+(defmethod width ((clue hyphenation-clue))
+  "Return hyphenation clue's width (0)."
   0)
 
-(defmethod height ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's height (0)."
+(defmethod height ((clue hyphenation-clue))
+  "Return hyphenation clue's height (0)."
   0)
 
-(defmethod depth ((clue pinned-hyphenation-clue))
-  "Return pinned hyphenation clue's depth (0)."
+(defmethod depth ((clue hyphenation-clue))
+  "Return hyphenation clue's depth (0)."
   0)
 
-(defun pin-hyphenation-clue (x &optional (explicit t))
+(defun make-hyphenation-clue (x &optional (explicit t))
   "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
-  (make-instance 'pinned-hyphenation-clue :x x :explicit explicit))
+  (make-instance 'hyphenation-clue :x x :explicit explicit))
 
 
 
@@ -175,9 +176,9 @@ Possible values are nil, :explicit, or :implicit."
 	      :for elt :in (flatten-lineup
 			    (lineup line) (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
-		:collect (pin-hyphenation-clue x)
+		:collect (make-hyphenation-clue x)
 	      :else :if (eq elt :hyphenation-clue)
-		      :collect (pin-hyphenation-clue x nil)
+		      :collect (make-hyphenation-clue x nil)
 	      :else :if (typep elt 'tfm:character-metrics)
 		      :collect (pin-character elt :x x)
 		      :and :do (incf x (width elt))
