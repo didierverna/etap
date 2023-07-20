@@ -37,8 +37,7 @@ ignoring the algorithm's decision."))
   ((character-metrics :documentation "The pinned character."
 		      :initarg :character-metrics
 		      :reader character-metrics))
-  (:documentation "The PINNED-CHARACTER class.
-The character's 2D position is relative to the line it belongs to."))
+  (:documentation "The PINNED-CHARACTER class."))
 
 (defun pinned-character-p (object)
   "Return T if OBJECT is a pinned character."

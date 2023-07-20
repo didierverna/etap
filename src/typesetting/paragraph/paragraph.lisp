@@ -19,8 +19,7 @@
   ((line :documentation "The corresponding line."
 	 :initarg :line
 	 :reader line))
-  (:documentation "The PINNED-LINE class.
-The line's 2D position is relative to the paragraph it belongs to."))
+  (:documentation "The PINNED-LINE class."))
 
 (defmethod width ((line pinned-line))
   "Return pinned LINE's width."
