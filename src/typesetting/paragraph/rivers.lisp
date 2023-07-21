@@ -25,70 +25,53 @@ that is, vector (0, 1)."
 ;; ==========
 
 (defclass arm ()
-  ((source :documentation "This river arm's source bed."
-	   :initarg :source :reader source)
+  ((mouth :documentation "This river arm's mouth (the bed it leads to)."
+	  :initarg :mouth :reader mouth)
    (orientation :documentation "This river arm's orientation."
 		:reader orientation))
-  (:documentation "The river ARM class. River arms are relative a mouth bed."))
+  (:documentation "The river ARM class.
+River arms are relative a source bed."))
 
-(defmethod initialize-instance :after ((arm arm) &key mouth)
+(defmethod initialize-instance :after
+    ((arm arm) &key source &aux (mouth (mouth arm)))
   "Compute ARM's orientation relative to the downward vertical direction.
-ARM goes from MOUTH to its source."
+ARM goes from SOURCE to its mouth."
   (setf (slot-value arm 'orientation)
-	(angle (- (+ (x (board mouth)) (x mouth))
-		  (+ (x (board (source arm))) (x (source arm))))
-	       (- (+ (y (board mouth)) (y mouth))
-		  (+ (y (board (source arm))) (y (source arm)))))))
+	(angle (- (+ (x (board mouth))  (x mouth))
+		  (+ (x (board source)) (x source)))
+	       (- (+ (y (board mouth))  (y mouth))
+		  (+ (y (board source)) (y source))))))
 
-(defun make-arm (mouth source)
-  "Mkae a river arm from MOUTH to SOURCE."
-  (make-instance 'arm :mouth mouth :source source))
+(defun make-arm (source mouth)
+  "Mkae a river arm from SOURCE to MOUTH."
+  (make-instance 'arm :source source :mouth mouth))
 
-(defun arms (mouth line &aux (mouth-x (+ (x (board mouth)) (x mouth))))
-  "Return a list of at most three river arms from MOUTH to the previous LINE.
-Arms are only considered from MOUTH to three possible source beds in LINE:
-the closest to MOUTH's left, one directly above it, and the closest to MOUTH's
-right, all of these X-wise."
-  (mapcar (lambda (bed) (make-arm mouth bed))
-    (loop :with left :with above
+(defun arms (source line &aux (source-x (+ (x (board source)) (x source))))
+  "Return a list of at most three river arms from SOURCE bed to the next LINE.
+Arms are only considered from SOURCE bed to three possible mouth beds in LINE:
+the closest to SOURCE's left, one directly below it, and the closest to
+SOURCE's right, all of these X-wise."
+  (mapcar (lambda (mouth) (make-arm source mouth))
+    (loop :with left :with below
 	  :for bed :in (remove-if-not #'bedp (pinned-objects (line line)))
 	  :for bed-x := (+ (x (board bed)) (x bed))
-	  :if (< bed-x mouth-x) :do (setq left (list bed))
-	    :else :if (= bed-x mouth-x) :do (setq above (list bed))
-		    :else :do (return (append left above (list bed)))
-	  :finally (return (append left above)))))
+	  :if (< bed-x source-x) :do (setq left (list bed))
+	  :else :if (= bed-x source-x) :do (setq below (list bed))
+	  :else :do (return (append left below (list bed)))
+	  :finally (return (append left below)))))
 
-(defun detect-rivers
-    (paragraph mouth-angle bed-angle &aux (hash (make-hash-table)))
-  "Detect rivers in PARAGRAPH.
-- MOUTH-ANGLE is the river's initial direction angle threshold,
-  relative to the downward vertical direction, in absolute value.
-- BED-ANGLE is the river's continuing direction angle threshold, relative to
-  the previous one, in absolute value.
-
-The return value is a hash table mapping mouths (beds) to a list of arms."
-  ;; A river arm is a list of the form ((orientation...) . mouth).
+(defun detect-rivers (paragraph angle &aux (hash (make-hash-table)))
+  "Detect rivers of at most ANGLE threshold in PARAGRAPH.
+The return value is a hash table mapping source beds to a list of arms."
   (loop :for line1 :in (pinned-lines paragraph)
 	:for line2 :in (cdr (pinned-lines paragraph))
-	:for mouths := (remove-if-not #'bedp (pinned-objects (line line2)))
-	:when mouths
-	  :do (mapc
-		  (lambda (mouth &aux (arms (arms mouth line1)))
-		    (mapc
-			(lambda
-			    (arm &aux (confluents (gethash (source arm) hash)))
-			  (when (or (and confluents
-					 (some (lambda (confluent)
-						 (<= (abs (- (orientation arm)
-							     (orientation
-							      confluent)))
-						     bed-angle))
-					       confluents))
-				    (and (not confluents)
-					 (<= (abs (orientation arm))
-					     mouth-angle)))
-			    (setf (gethash mouth hash)
-				  (append (gethash mouth hash) (list arm)))))
-		      arms))
-		mouths))
+	:for sources := (remove-if-not #'bedp (pinned-objects (line line1)))
+	:when sources
+	  :do (mapc (lambda (source &aux (arms (arms source line2)))
+		      (setq arms (remove-if (lambda (orientation)
+					      (> orientation angle))
+				     arms
+				   :key #'orientation))
+		      (setf (gethash source hash) arms))
+		sources))
   hash)
