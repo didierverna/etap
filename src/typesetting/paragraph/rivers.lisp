@@ -15,21 +15,18 @@ that is, vector (0, 1)."
   (setq dx (/ dx magnitude) dy (/ dy magnitude))
   (* 180 (/ (acos (scalar-product 0 1 dx dy)) pi)))
 
-(defun arms (bed beds &aux (bed-x (+ (x (board bed)) (x bed))))
-  "Return BED's river arms from next line's BEDS.
-There might be at most three next beds constituting a river arm:
-the closest to BED's left, one directly below it, and the closest to BED's
-right X-wise."
-  (loop :with left :with below :with right
-	;; #### TODO: there is of course a more efficient way of computing all
-	;; river arms from one line to the next, than traversing BEDS multiple
-	;; times like this. For now, we don't care much.
-	:for bed2 :in beds
-	:for bed2-x := (+ (x (board bed2)) (x bed2))
-	:if (< bed2-x bed-x) :do (setq left (list bed2))
-	:else :if (= bed2-x bed-x) :do (setq below (list bed2))
-	:else :do (return (append left below (list bed2)))
-	:finally (return (append left below))))
+(defun sources (mouth beds &aux (mouth-x (+ (x (board mouth)) (x mouth))))
+  "Return the river sources going from the previous line's BEDS to MOUTH.
+There might be at most three beds constituting a river source to MOUTH: the
+closest to MOUTH's left, one directly above it, and the closest to MOUTH's
+right, all of these X-wise."
+  (loop :with left :with above :with right
+	:for bed :in beds
+	:for bed-x := (+ (x (board bed)) (x bed))
+	:if (< bed-x mouth-x) :do (setq left (list bed))
+	  :else :if (= bed-x mouth-x) :do (setq above (list bed))
+		  :else :do (return (append left above (list bed)))
+	:finally (return (append left above))))
 
 (defun detect-rivers
     (paragraph mouth-angle bed-angle &aux (hash (make-hash-table)))
@@ -41,25 +38,31 @@ right X-wise."
 
 The return value is a hash table in which each key is a river bed, and each
 value is a list of other rivers beds connected to the key by a river arm."
+  ;; A river arm is a list of the form ((orientation...) . mouth).
   (loop :for line1 :in (pinned-lines paragraph)
 	:for line2 :in (cdr (pinned-lines paragraph))
 	:for beds1 := (remove-if-not #'bedp (pinned-objects (line line1)))
 	:for beds2 := (remove-if-not #'bedp (pinned-objects (line line2)))
-	;; Silly visualization pre-test.
-	:when beds1
-	  :do (mapc (lambda (bed1)
-		      (setf (gethash bed1 hash)
-			    (remove-if (lambda (arm)
-					 (let ((dx (- (+ (x (board arm))
-							 (x arm))
-						      (+ (x (board bed1))
-							 (x bed1))))
-					       (dy (- (+ (y (board arm))
-							 (y arm))
-						      (+ (y (board bed1))
-							 (y bed1)))))
-					   (> (abs (orientation dx dy))
-					      mouth-angle)))
-				(arms bed1 beds2))))
-		beds1))
+	:when beds2
+	  :do (mapc (lambda (mouth)
+		      (let ((arms (mapcar
+				      (lambda (source)
+					(cons source
+					      (orientation
+					       (- (+ (x (board mouth))
+						     (x mouth))
+						  (+ (x (board source))
+						     (x source)))
+					       (- (+ (y (board mouth))
+						     (y mouth))
+						  (+ (y (board source))
+						     (y source))))))
+				    (sources mouth beds1))))
+			;; Silly visualization pre-test.
+			(setq arms (remove-if
+				       (lambda (arm)
+					 (> (abs (cdr arm)) mouth-angle))
+				       arms))
+			(setf (gethash mouth hash) (mapcar #'car arms))))
+		beds2))
   hash)
