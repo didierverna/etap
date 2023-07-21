@@ -176,8 +176,10 @@ Maybe also include river BEDS."
   (setq scale (if (numberp (effective-scale line)) (effective-scale line) 0))
   (setf (slot-value line 'pinned-objects)
 	(loop :with x := 0 :with w
-	      :for elt :in (flatten-lineup
-			    (lineup line) (start-idx line) (stop-idx line))
+	      :with lineup := (lineup line)
+	      :with last-elt := (aref lineup (1- (length lineup)))
+	      :for elt
+		:in (flatten-lineup lineup (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
 		:collect (make-hyphenation-clue line x)
 	      :else :if (eq elt :hyphenation-clue)
@@ -194,7 +196,9 @@ Maybe also include river BEDS."
 				     (* scale (stretch elt))
 				     (* scale (shrink elt))))
 		     :end
-		:and :when beds :collect (make-bed line (+ x (/ w 2)) w) :end
+		:and :when (and beds (not (eq elt last-elt)))
+		       ;; do not count a final glue as a river bed.
+		       :collect (make-bed line (+ x (/ w 2)) w) :end
 		:and :do (incf x w))))
 
 (defgeneric line-properties (line)
