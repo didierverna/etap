@@ -379,15 +379,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when rivers
 	  (let ((par-y (height (first (pinned-lines paragraph)))))
-	    (maphash (lambda (bed beds)
-		       (mapc (lambda (bed2)
+	    (maphash (lambda (mouth sources)
+		       (mapc (lambda (source)
 			       (gp:draw-line pane
-				   (+ (x (board bed)) (x bed))
-				   (+ par-y (y (board bed)) (y bed))
-				   (+ (x (board bed2)) (x bed2))
-				   (+ par-y (y (board bed2)) (y bed2))
+				   (+ (x (board mouth)) (x mouth))
+				   (+ par-y (y (board mouth)) (y mouth))
+				   (+ (x (board source)) (x source))
+				   (+ par-y (y (board source)) (y source))
 				 :foreground :red :scale-thickness nil))
-			 beds))
+			 sources))
 		     rivers)))))))
 
 
