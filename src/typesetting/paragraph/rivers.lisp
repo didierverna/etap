@@ -1,5 +1,19 @@
 (in-package :etap)
 
+(defun magnitude (dx dy)
+  "Return the magnitude of vector (dx, dy)."
+  (sqrt (+ (* dx dx) (* dy dy))))
+
+(defun scalar-product (dx1 dy1 dx2 dy2)
+  "Return the scalar product of vectors (dx1 dy1) and (dx2 dy2)."
+  (+ (* dx1 dx2) (* dy1 dy2)))
+
+(defun orientation (dx dy &aux (magnitude (magnitude dx dy)))
+  "Return the orientation of vector (dx, dy) in degrees.
+The orientation is relative to the downward vertical direction,
+that is, vector (0, 1)."
+  (setq dx (/ dx magnitude) dy (/ dy magnitude))
+  (* 180 (/ (acos (scalar-product 0 1 dx dy)) pi)))
 
 (defun arms (bed beds &aux (bed-x (+ (x (board bed)) (x bed))))
   "Return BED's river arms from next line's BEDS.
@@ -34,6 +48,18 @@ value is a list of other rivers beds connected to the key by a river arm."
 	;; Silly visualization pre-test.
 	:when beds1
 	  :do (mapc (lambda (bed1)
-		      (setf (gethash bed1 hash) (arms bed1 beds2)))
+		      (setf (gethash bed1 hash)
+			    (remove-if (lambda (arm)
+					 (let ((dx (- (+ (x (board arm))
+							 (x arm))
+						      (+ (x (board bed1))
+							 (x bed1))))
+					       (dy (- (+ (y (board arm))
+							 (y arm))
+						      (+ (y (board bed1))
+							 (y bed1)))))
+					   (> (abs (orientation dx dy))
+					      mouth-angle)))
+				(arms bed1 beds2))))
 		beds1))
   hash)
