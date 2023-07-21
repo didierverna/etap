@@ -1,6 +1,21 @@
 (in-package :etap)
 
 
+(defun arms (bed beds &aux (bed-x (+ (x (board bed)) (x bed))))
+  "Return BED's river arms from next line's BEDS.
+There might be at most three next beds constituting a river arm:
+the closest to BED's left, one directly below it, and the closest to BED's
+right X-wise."
+  (loop :with left :with below :with right
+	;; #### TODO: there is of course a more efficient way of computing all
+	;; river arms from one line to the next, than traversing BEDS multiple
+	;; times like this. For now, we don't care much.
+	:for bed2 :in beds
+	:for bed2-x := (+ (x (board bed2)) (x bed2))
+	:if (< bed2-x bed-x) :do (setq left (list bed2))
+	:else :if (= bed2-x bed-x) :do (setq below (list bed2))
+	:else :do (return (append left below (list bed2)))
+	:finally (return (append left below))))
 
 (defun detect-rivers
     (paragraph mouth-angle bed-angle &aux (hash (make-hash-table)))
@@ -18,5 +33,7 @@ value is a list of other rivers beds connected to the key by a river arm."
 	:for beds2 := (remove-if-not #'bedp (pinned-objects (line line2)))
 	;; Silly visualization pre-test.
 	:when beds1
-	  :do (mapc (lambda (bed1) (setf (gethash bed1 hash) beds2)) beds1))
+	  :do (mapc (lambda (bed1)
+		      (setf (gethash bed1 hash) (arms bed1 beds2)))
+		beds1))
   hash)
