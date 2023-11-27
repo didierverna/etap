@@ -474,6 +474,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    :window-styles '(:always-on-top t :toolbox t)))
 
 ;; Menus
+(defun language-menu-callback (data interface)
+  (setf (hyphenation-rules (context interface))
+	(load-hyphenation-rules
+	 (case data (:english "en-us") (:français "fr"))))
+  (update interface))
+
 (defun tools-menu-callback (data interface)
   ;; #### NOTE: currently don't care about DATA, as we only have one menu
   ;; #### item.
@@ -490,6 +496,11 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (rivers-interface :initform (make-instance 'rivers-detection)
 		     :reader rivers-interface))
   (:menus
+   (language-menu nil ;; Ignore popup menu's title
+     ((:component (:english :français)
+       :interaction :single-selection
+       :print-function 'title-capitalize))
+    :callback 'language-menu-callback)
    (tools-menu "Tools" (:rivers-detection)
      :print-function 'title-capitalize
      :callback 'tools-menu-callback))
@@ -791,6 +802,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :reader clues)
    (source-text-button push-button
      :text "Source text (reset)" :callback #'reset-source-text)
+   (language-button popup-menu-button :text "Language" :menu language-menu)
    (text editor-pane
      :visible-min-width '(character 80)
      ;;:visible-max-width '(character 80)
@@ -817,8 +829,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
-   (settings-2 column-layout '(algorithms source-text-button text)
+   (settings-2 column-layout '(algorithms text-options text)
      :reader settings-2)
+   (text-options row-layout '(source-text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
      '(fixed-width-offset)
