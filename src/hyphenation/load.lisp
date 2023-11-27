@@ -53,12 +53,14 @@ respectively."
   (with-open-file
       (stream (asdf:system-relative-pathname :etap
 	          (concatenate 'string "share/hyphenation/" language ".hyp")
-		:type "txt"))
-    (loop :for line := (read-line stream nil)
-	  :while line
-	  :do (multiple-value-bind (word pattern)
-		  (parse-hyphenation-exception line)
-		(setf (hyphenation-exception word rules) pattern))))
+		:type "txt")
+       :if-does-not-exist nil)
+    (when (streamp stream)
+      (loop :for line := (read-line stream nil)
+	    :while line
+	    :do (multiple-value-bind (word pattern)
+		    (parse-hyphenation-exception line)
+		  (setf (hyphenation-exception word rules) pattern)))))
   rules)
 
 (defparameter *hyphenation-rules* (load-hyphenation-rules "en-us")
