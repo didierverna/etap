@@ -234,13 +234,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
 
-(defun reset-source-text (data interface)
-  "Reset the source text."
-  (declare (ignore data))
-  (setf (editor-pane-text (text interface)) *text*)
-  (setf (text (context interface)) (editor-pane-text (text interface)))
-  (update interface))
-
 (defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
@@ -474,17 +467,25 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    :window-styles '(:always-on-top t :toolbox t)))
 
 ;; Menus
+(defun tools-menu-callback (data interface)
+  ;; #### NOTE: currently don't care about DATA, as we only have one menu
+  ;; #### item.
+  (declare (ignore data))
+  (display (rivers-interface interface) :owner interface))
+
+(defun text-menu-callback (data interface)
+  "Reset the source text." ;; Currently what the only button does.
+  (declare (ignore data))
+  (setf (editor-pane-text (text interface)) *text*)
+  (setf (text (context interface)) (editor-pane-text (text interface)))
+  (update interface))
+
 (defun language-menu-callback (data interface)
   (setf (hyphenation-rules (context interface))
 	(load-hyphenation-rules
 	 (case data (:english "en-us") (:français "fr"))))
   (update interface))
 
-(defun tools-menu-callback (data interface)
-  ;; #### NOTE: currently don't care about DATA, as we only have one menu
-  ;; #### item.
-  (declare (ignore data))
-  (display (rivers-interface interface) :owner interface))
 
 ;; Interface
 (define-interface etap ()
@@ -496,14 +497,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (rivers-interface :initform (make-instance 'rivers-detection)
 		     :reader rivers-interface))
   (:menus
+   (tools-menu "Tools" (:rivers-detection)
+     :print-function 'title-capitalize
+     :callback 'tools-menu-callback)
+   (text-menu nil ;; Ignore popup menu's title
+    (:reset)
+    :print-function 'title-capitalize
+    :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
      ((:component (:english :français)
        :interaction :single-selection
        :print-function 'title-capitalize))
-    :callback 'language-menu-callback)
-   (tools-menu "Tools" (:rivers-detection)
-     :print-function 'title-capitalize
-     :callback 'tools-menu-callback))
+    :callback 'language-menu-callback))
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
@@ -800,8 +805,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :selection-callback 'set-clues
      :retract-callback 'set-clues
      :reader clues)
-   (source-text-button push-button
-     :text "Source text (reset)" :callback #'reset-source-text)
+   (text-button popup-menu-button :text "Source text" :menu text-menu)
    (language-button popup-menu-button :text "Language" :menu language-menu)
    (text editor-pane
      :visible-min-width '(character 80)
@@ -831,7 +835,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text-options text)
      :reader settings-2)
-   (text-options row-layout '(source-text-button language-button))
+   (text-options row-layout '(text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
      '(fixed-width-offset)
