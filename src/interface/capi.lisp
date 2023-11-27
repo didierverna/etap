@@ -875,6 +875,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Set PANE's choice selection from CHOICES in OPTIONS."
   (setf (choice-selection pane) (collect-options-indices options choices)))
 
+;; #### FIXME: this function is out of date. In particular, it won't honor
+;; non-default hyphenation rules stored in the context. But to fix that, I'd
+;; need to extend that code with declarative associations between languages
+;; and rules. Everything is currently hard-wired.
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
   "Prepare ETAP GUI for display."
