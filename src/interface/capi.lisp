@@ -476,8 +476,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defun text-menu-callback (data interface)
   "Reset the source text." ;; Currently what the only button does.
   (declare (ignore data))
+  ;; #### FIXME: see comment on top of INTERFACE-DISPLAY. This whole text +
+  ;; language thing needs to be abstracted away.
   (setf (editor-pane-text (text interface)) *text*)
   (setf (text (context interface)) (editor-pane-text (text interface)))
+  (setf (choice-selection (language-menu-component interface)) 0) ;; Yuck!
+  (setf (hyphenation-rules (context interface)) *hyphenation-rules*)
   (update interface))
 
 (defun language-menu-callback (data interface)
@@ -504,11 +508,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (:reset)
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
+   (language-menu-component :component (:english :français)
+     :interaction :single-selection
+     :print-function 'title-capitalize
+     :reader language-menu-component)
    (language-menu nil ;; Ignore popup menu's title
-     ((:component (:english :français)
-       :interaction :single-selection
-       :print-function 'title-capitalize))
-    :callback 'language-menu-callback))
+     (language-menu-component)
+     :callback 'language-menu-callback))
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
