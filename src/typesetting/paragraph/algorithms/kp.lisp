@@ -44,9 +44,13 @@
 ;; #### WARNING: the logic is ACTUAL-SCALES is to establish scaling
 ;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
 ;; back (from a float to a ratio), which is not very nice.
-(defun stretch-tolerance (badness)
-  "Return the stretch tolerance corresponding to BADNESS."
-  (rationalize (expt (/ badness 100) 1/3)))
+(defun stretch-tolerance (badness-tolerance)
+  "Return the stretch tolerance corresponding to BADNESS-TOLERANCE."
+  ;; #### NOTE: we don't get a negative pre-tolerance here because pass 1
+  ;; would be skipped. So we only need to handle the $>= 0 case.
+  (if ($= badness-tolerance +∞)
+    +∞
+    (rationalize (expt (/ badness-tolerance 100) 1/3))))
 
 (defun scale-fitness-class (scale)
   "Return SCALE's fitness class.
