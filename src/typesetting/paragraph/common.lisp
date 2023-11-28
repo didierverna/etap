@@ -225,6 +225,19 @@ Maybe also include river BEDS."
    (disposition :documentation "The paragraph's disposition."
 		:initarg :disposition
 		:reader disposition)
+   (lineup :documentation "The paragraph's lineup."
+	   :initform nil :initarg :lineup
+	   :reader lineup)
+   ;; #### FIXME: the two properties below belong to the lineup rather than to
+   ;; the paragraph itself. The lineup should in fact be an object rather than
+   ;; just an array, now.
+   (break-points-number :documentation "The number of break points."
+			:initform 0
+			:reader break-points-number)
+   (theoretical-solutions-number
+    :documentation "The number of theoretical break solutions (2^n)."
+    :initform 1
+    :reader theoretical-solutions-number)
    (pinned-lines :documentation "The paragraph's pinned lines."
 		 :initform nil
 		 :initarg :pinned-lines
@@ -237,8 +250,12 @@ Maybe also include river BEDS."
   (:method strnlcat ((paragraph paragraph))
     "Advertise PARAGRAPH's vertical dimensions and line number.
 This is the default method."
-    (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~%~A line~:P."
+    (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~@
+		 ~A line~:P.~@
+		 ~A breakpoints, ~A theoretical solutions (2^n)."
       (float (+ (height paragraph) (depth paragraph)))
       (float (height paragraph))
       (float (depth paragraph))
-      (length (pinned-lines paragraph)))))
+      (length (pinned-lines paragraph))
+      (break-points-number paragraph)
+      (theoretical-solutions-number paragraph))))

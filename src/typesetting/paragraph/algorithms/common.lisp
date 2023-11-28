@@ -159,6 +159,11 @@ Primary methods must return a possibly modified lineup.")
     "Return LINEUP as-is. This is the default method."
     lineup))
 
+;; #### FIXME: the design of this is not satisfactory. Every method calls
+;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number
+;; of identical keywords (such as :disposition or :lineup), hence, there is
+;; some duplication. Paragraph making and lineup typesetting should probably
+;; be separated.
 (defgeneric typeset-lineup
     (lineup disposition width beds algorithm &key &allow-other-keys)
   (:documentation

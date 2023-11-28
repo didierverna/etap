@@ -145,4 +145,5 @@
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :lineup lineup
     :lines (barnett-make-lines lineup disposition width beds)))

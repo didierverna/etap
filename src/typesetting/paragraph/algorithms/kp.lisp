@@ -346,6 +346,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (make-instance 'kp-graph-paragraph
       :width width
       :disposition disposition
+      :lineup lineup
       :layouts layouts
       :pass pass
       ;; #### WARNING: by choosing the first layout here, we're doing the
@@ -673,6 +674,7 @@ through the algorithm in the TeX jargon).
       (make-instance 'kp-dynamic-paragraph
 	:width width
 	:disposition disposition
+	:lineup lineup
 	:pass pass
 	:demerits (kp-node-total-demerits best)
 	:nodes-number (hash-table-count nodes)

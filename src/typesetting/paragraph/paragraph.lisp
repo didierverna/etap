@@ -71,6 +71,18 @@ Possible values are nil, :explicit, or :implicit."
 ;; Paragraphs
 ;; ==========
 
+(defmethod initialize-instance :before ((paragraph paragraph) &key lineup)
+  "Compute and store the number of break points and theoretical solutions."
+  (when lineup
+    (let ((break-points-number
+	    (count-if (lambda (item)
+			(and (break-point-p item) ($< (penalty item) +∞)))
+		lineup)))
+      (setf (slot-value paragraph 'break-points-number)
+	    break-points-number
+	    (slot-value paragraph 'theoretical-solutions-number)
+	    (expt 2 break-points-number)))))
+
 (defmethod initialize-instance :after
     ((paragraph paragraph)
      &key lines

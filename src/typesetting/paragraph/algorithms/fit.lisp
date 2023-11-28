@@ -468,6 +468,7 @@ LINE class."))
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :lineup lineup
     :lines (fit-make-lines lineup disposition width beds
 	     variant fallback
 	     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink

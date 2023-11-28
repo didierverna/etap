@@ -323,6 +323,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :lineup lineup
     :lines (fixed-make-lines
 	    lineup (disposition-type disposition) width beds
 	    fallback width-offset avoid-hyphens prefer-overfulls)))
