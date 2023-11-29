@@ -481,13 +481,19 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   ;; language thing needs to be abstracted away.
   (setf (nlstring context) (make-nlstring :text *text* :language :english))
   (setf (editor-pane-text (text interface)) (text (nlstring context)))
-  (setf (choice-selection (language-menu-component interface)) 0) ;; Yuck!
   (update interface))
 
 (defun language-menu-callback (data interface)
   (setf (language (nlstring (context interface))) data)
   (update interface))
 
+(defun language-menu-popup-callback (component)
+  (setf (choice-selection component)
+	(ecase (language (nlstring (context (element-interface-for-callback
+					     component))))
+	  ;; Yuck!
+	  (:english 0)
+	  (:français 1))))
 
 ;; Interface
 (define-interface etap ()
@@ -506,13 +512,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (:reset)
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
-   (language-menu-component :component (:english :français)
-     :interaction :single-selection
-     :print-function 'title-capitalize
-     :reader language-menu-component)
    (language-menu nil ;; Ignore popup menu's title
-     (language-menu-component)
-     :callback 'language-menu-callback))
+     ((:component (:english :français)
+       :interaction :single-selection
+       :print-function 'title-capitalize
+       :callback 'language-menu-callback
+       :popup-callback 'language-menu-popup-callback))))
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
