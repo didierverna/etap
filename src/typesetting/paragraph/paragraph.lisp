@@ -131,10 +131,9 @@ We consider that the paragraph's baseline is the first line's baseline."
 (defun make-paragraph
     (&rest keys
      &key (context *context*)
-	  (text (if context (text context) *text*))
+	  (text *text*)
+	  (language :english)
 	  (font (if context (font context) *font*))
-	  (hyphenation-rules (if context (hyphenation-rules context)
-				 *hyphenation-rules*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
@@ -146,15 +145,15 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (width (if context (paragraph-width context) 284)))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
-corresponding global variable, KERNING, LIGATURES, and HYPHENATION are
-defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to
-:fixed, and WIDTH to 284pt."
-  (declare (ignore text font hyphenation-rules kerning ligatures hyphenation))
+Otherwise, TEXT and FONT are defaulted from the corresponding global
+variables, LANGUAGE defaults to :english, KERNING, LIGATURES, and HYPHENATION
+are defaulted from FEATURES, DISPOSITION is defaulted to :flush-left,
+ALGORITHM to :fixed, and WIDTH to 284pt."
+  (declare (ignore text language font kerning ligatures hyphenation))
   (unless lineupp
     (setq lineup
 	  (apply #'make-lineup
-	    (select-keys keys :context :text :font :hyphenation-rules
+	    (select-keys keys :context :text :language :font
 			      :features :kerning :ligatures :hyphenation))))
   (setq lineup (apply #'prepare-lineup
 		 lineup disposition (algorithm-type algorithm)

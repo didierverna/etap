@@ -1,5 +1,10 @@
 (in-package :etap)
 
+
+;; =================
+;; Hyphenation Files
+;; =================
+
 (defun parse-hyphenation-pattern (string)
   "Parse STRING as a hyphenation pattern.
 Return two values: the radical and the list of weighted hyphenation points."
@@ -35,15 +40,22 @@ Return two values: the radical and the list of hyphenation points."
 	  :else :do (setf (aref word i) char) :and :do (incf i)
 	:finally (return (values word hyphenation-points))))
 
-(defun load-hyphenation-rules (language &aux (rules (make-hyphenation-rules)))
-  "Load LANGUAGE's hyphenation rules.
-Return an HYPHENATION-RULES instance. The files from which to load the
-patterns and exceptions must be found in ETAP's share/hyphenation/
-subdirectory, and must be named LANGUAGE.pat.txt and LANGUAGE.hyp.txt
-respectively."
+(defvar *hyphenation-files* '((:english . "en-us") (:français . "fr"))
+  "An alist matching languages (keywords) to hyphenation file name radicals.
+Hyphenation files are located in ETAP's share/hyphenation/ subdirectory.
+For each file name RADICAL, there must be a file patterns file named
+RADICAL.pat.txt, and possibly an exceptions file named RADICAL.hyp.txt.")
+
+(defun load-hyphenation-rules
+    (language
+     &aux (radical (or (cdr (assoc language *hyphenation-files*))
+		       (error "No hyphenation files for ~A." language)))
+	  (rules (make-hyphenation-rules)))
+  "Load LANGUAGE's hyphenation rules. Return an HYPHENATION-RULES instance.
+LANGUAGE must exist in `*HYPHENATION-FILES*', which see."
   (with-open-file
       (stream (asdf:system-relative-pathname :etap
-	          (concatenate 'string "share/hyphenation/" language ".pat")
+		  (concatenate 'string "share/hyphenation/" radical ".pat")
 		:type "txt"))
     (loop :for line := (read-line stream nil)
 	  :while line
@@ -52,7 +64,7 @@ respectively."
 		(setf (hyphenation-pattern word rules) pattern))))
   (with-open-file
       (stream (asdf:system-relative-pathname :etap
-	          (concatenate 'string "share/hyphenation/" language ".hyp")
+		  (concatenate 'string "share/hyphenation/" radical ".hyp")
 		:type "txt")
        :if-does-not-exist nil)
     (when (streamp stream)
@@ -63,5 +75,18 @@ respectively."
 		  (setf (hyphenation-exception word rules) pattern)))))
   rules)
 
-(defparameter *hyphenation-rules* (load-hyphenation-rules "en-us")
-  "The hyphenation rules.")
+
+
+;; =================
+;; Hyphenation Rules
+;; =================
+
+(defvar *hyphenation-rules* (make-hash-table)
+  "A hash table mapping languages (keywords) to loaded hyphenation rules.")
+
+(defun get-hyphenation-rules (language)
+  "Get LANGUAGE's hyphenation rules, possibly loading them first.
+Return an HYPHENATION-RULES instance."
+  (or (gethash language *hyphenation-rules*)
+      (setf (gethash language *hyphenation-rules*)
+	    (load-hyphenation-rules language))))

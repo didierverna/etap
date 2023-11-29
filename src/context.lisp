@@ -5,10 +5,6 @@
 	 :initform *font*
 	 :initarg :font
 	 :accessor font)
-   (hyphenation-rules :documentation "The hyphenation rules."
-		      :initform *hyphenation-rules*
-		      :initarg :hyphenation-rules
-		      :accessor hyphenation-rules)
    (algorithm :documentation "The typesetting algorithm."
 	      :initform :fixed
 	      :initarg :algorithm
@@ -27,21 +23,22 @@
 		    :initform 284 ;; 284.52756pt = 10cm
 		    :initarg :paragraph-width
 		    :accessor paragraph-width)
-   (text :documentation "The paragraph text."
-	 :initform *text*
-	 :initarg :text
-	 :accessor text))
+   (nlstring :documentation "The paragraph's natural language string."
+	     :accessor nlstring))
   (:documentation "The CONTEXT class.
 A context object stores the requested parameters for one experiment."))
 
+(defmethod initialize-instance :after
+    ((context context) &key (text *text*) (language :english))
+  "Create CONTEXT's nlstring from TEXT in LANGUAGE."
+  (setf (nlstring context) (make-nlstring :text text :language language)))
+
 (defun make-context
     (&rest keys
-     &key font hyphenation-rules algorithm disposition features
-	  paragraph-width
-	  text)
-  (declare (ignore font hyphenation-rules algorithm disposition features
-		   paragraph-width
-		   text))
+     &key font algorithm disposition features paragraph-width
+	  text language)
+  (declare (ignore font algorithm disposition features paragraph-width
+		   text language))
   "Create a new context object."
   (apply #'make-instance 'context keys))
 

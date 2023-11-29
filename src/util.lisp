@@ -1,17 +1,5 @@
 (in-package :etap)
 
-(defparameter *text*
-  "In olden times when wishing still helped one, there lived a king whose
-daughters were all beautiful; and the youngest was so beautiful that the sun
-itself, which has seen so much, was astonished whenever it shone in her face.
-Close by the king's castle lay a great dark forest, and under an old lime-tree
-in the forest was a well, and when the day was very warm, the king's child
-went out into the forest and sat down by the side of the cool fountain; and
-when she was bored she took a golden ball, and threw it up on high and caught
-it; and this ball was her favorite plaything."
-  "The text.")
-
-
 (defun retain (object list &key (test #'eq) key pre-test)
   "Return a copy of LIST from which only OBJECT is retained.
 Each item in LIST is TESTed with EQ by default. TEST is performed on the item

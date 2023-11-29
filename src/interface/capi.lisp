@@ -210,7 +210,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		 &aux (interface (top-level-interface pane)))
   "Set editor PANE's current text in PANE's context."
   (declare (ignore point old-length new-length))
-  (setf (text (context interface)) (editor-pane-text pane))
+  (setf (text (nlstring (context interface))) (editor-pane-text pane))
   (update interface))
 
 (defun set-paragraph-width
@@ -473,21 +473,19 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore data))
   (display (rivers-interface interface) :owner interface))
 
-(defun text-menu-callback (data interface)
+(defun text-menu-callback
+    (data interface &aux (context (context interface)))
   "Reset the source text." ;; Currently what the only button does.
   (declare (ignore data))
   ;; #### FIXME: see comment on top of INTERFACE-DISPLAY. This whole text +
   ;; language thing needs to be abstracted away.
-  (setf (editor-pane-text (text interface)) *text*)
-  (setf (text (context interface)) (editor-pane-text (text interface)))
+  (setf (nlstring context) (make-nlstring :text *text* :language :english))
+  (setf (editor-pane-text (text interface)) (text (nlstring context)))
   (setf (choice-selection (language-menu-component interface)) 0) ;; Yuck!
-  (setf (hyphenation-rules (context interface)) *hyphenation-rules*)
   (update interface))
 
 (defun language-menu-callback (data interface)
-  (setf (hyphenation-rules (context interface))
-	(load-hyphenation-rules
-	 (case data (:english "en-us") (:français "fr"))))
+  (setf (language (nlstring (context interface))) data)
   (update interface))
 
 
@@ -881,10 +879,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Set PANE's choice selection from CHOICES in OPTIONS."
   (setf (choice-selection pane) (collect-options-indices options choices)))
 
-;; #### FIXME: this function is out of date. In particular, it won't honor
-;; non-default hyphenation rules stored in the context. But to fix that, I'd
-;; need to extend that code with declarative associations between languages
-;; and rules. Everything is currently hard-wired.
+;; #### FIXME: this function is out of date. In particular, it won't honor a
+;; non-default language stored in the context.
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
   "Prepare ETAP GUI for display."
@@ -989,7 +985,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
-  (setf (editor-pane-text (text etap)) (text context))
+  (setf (editor-pane-text (text etap)) (text (nlstring context)))
   (let ((size
 	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)

@@ -455,12 +455,15 @@ Currently, this means alphabetic or a dash."
 ;; one word between two glues, so for instance in "... foo.bar ...", bar will
 ;; never be hyphenated. There are also other rules that prevent hyphenation in
 ;; some situations, which we do not have right now.
-(defun slice-text (text font hyphenation-rules)
-  "Slice TEXT (a string) in FONT, possibly with HYPHENATION-RULES.
+(defun slice-nlstring
+    (nlstring font hyphenate
+     &aux (hyphenation-rules
+	   (when hyphenate (get-hyphenation-rules (language nlstring)))))
+  "Slice NLSTRING in FONT, and possibly HYPHENATE it.
 Return a list of characters from FONT, interword glues, and discretionaries if
-HYPHENATION-RULES is non-NIL. STRING is initially trimmed from blanks, and
-inner consecutive blanks are replaced with a single interword glue."
-  (loop :with string := (string-trim *blanks* (or text ""))
+HYPHENATE is non-NIL. STRING is initially trimmed from blanks, and inner
+consecutive blanks are replaced with a single interword glue."
+  (loop :with string := (string-trim *blanks* (text nlstring))
 	:with length := (length string)
 	:with i := 0
 	:while (< i length)
@@ -490,20 +493,23 @@ inner consecutive blanks are replaced with a single interword glue."
 
 (defun make-lineup
     (&key (context *context*)
-	  (text (if context (text context) *text*))
+	  (text *text* textp)
+	  (language :english languagep)
 	  (font (if context (font context) *font*))
-	  (hyphenation-rules (if context (hyphenation-rules context)
-				 *hyphenation-rules*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation))
-     &aux (lineup (slice-text text font (when hyphenation hyphenation-rules))))
+     &aux (nlstring (or (when (or textp languagep)
+			  (make-nlstring :text text :language language))
+			(nlstring context)
+			(make-nlstring :text text :language language)))
+	  (lineup (slice-nlstring nlstring font hyphenation)))
   "Make a new lineup.
 When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, FONT, and HYPHENATION-RULES are defaulted from the
-corresponding global variable, and KERNING, LIGATURES, and HYPHENATION are
-defaulted from FEATURES."
+Otherwise, TEXT and FONT are defaulted from the corresponding global
+variables, LANGUAGE defaults to :english, and KERNING, LIGATURES, and
+HYPHENATION are defaulted from FEATURES."
   ;; #### NOTE: the order is important below. Kerning must be computed after
   ;; ligature characters have been inserted, and the processing of ligatures
   ;; and kerning may affect the contents of discretionaries, so we must add
