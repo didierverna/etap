@@ -22,12 +22,13 @@
 		   (:file "font")))
      (:module "language"
       :serial t
-      :components ((:file "language")
+      :components ((:file "common")
 		   (:module "hyphenation"
 		    :serial t
 		    :components ((:file "rules")
 				 (:file "load")
 				 (:file "hyphenate")))
+		   (:file "language")
 		   (:file "text")))
      (:file "context")
      (:module "typesetting"
