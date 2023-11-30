@@ -468,8 +468,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 ;; Menus
 (defun tools-menu-callback (data interface)
-  ;; #### NOTE: currently don't care about DATA, as we only have one menu
-  ;; #### item.
+  "Display the rivers interface." ;; Currently what the only button does.
   (declare (ignore data))
   (display (rivers-interface interface) :owner interface))
 
@@ -483,10 +482,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (update interface))
 
 (defun language-menu-callback (data interface)
+  "Change the current text's language."
   (setf (language (nlstring (context interface))) data)
   (update interface))
 
 (defun language-menu-popup-callback (component)
+  "Update the language popup to the current language."
   (setf (choice-selection component)
 	(position (language (nlstring (context (element-interface-for-callback
 						component))))

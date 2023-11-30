@@ -13,6 +13,7 @@
 
 (defun make-nlstring (&rest initargs &key text language)
   "Make a new NLString with TEXT in LANGUAGE."
+  (declare (ignore text language))
   (apply #'make-instance 'nlstring initargs))
 
 (defparameter *text*
