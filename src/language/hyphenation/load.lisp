@@ -75,7 +75,7 @@ LANGUAGE must exist in `*LANGUAGES*', which see."
 ;; Hyphenation Rules
 ;; =================
 
-(defvar *hyphenation-rules* (make-hash-table)
+(defparameter *hyphenation-rules* (make-hash-table)
   "A hash table mapping languages (keywords) to loaded hyphenation rules.")
 
 (defun get-hyphenation-rules (language)

@@ -16,7 +16,7 @@
   (declare (ignore text language))
   (apply #'make-instance 'nlstring initargs))
 
-(defparameter *text*
+(defvar *text*
   "In olden times when wishing still helped one, there lived a king whose
 daughters were all beautiful; and the youngest was so beautiful that the sun
 itself, which has seen so much, was astonished whenever it shone in her face.
