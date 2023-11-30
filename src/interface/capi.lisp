@@ -512,8 +512,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
-     nil ;; The items will be created dynamically in INTERFACE-DISPLAY.
-     :reader language-menu))
+     nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
@@ -885,7 +884,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Prepare ETAP GUI for display."
   (setf (slot-value (rivers-interface etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
-  (setf (menu-items (language-menu etap))
+  (setf (menu-items (slot-value etap 'language-menu))
 	(list (make-instance 'menu-component
 		:items (mapcar #'car *languages*)
 		:interaction :single-selection
