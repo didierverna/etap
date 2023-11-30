@@ -477,7 +477,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Reset the source text." ;; Currently what the only button does.
   (declare (ignore data))
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
-  ;; Note: the language menu is updated at the next pop-up.
+  ;; #### NOTE: the language menu's selection is updated on pop-up.
   (setf (editor-pane-text (text interface)) (text (nlstring context)))
   (update interface))
 
@@ -512,11 +512,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
-     ((:component (:english :français)
-       :interaction :single-selection
-       :print-function 'title-capitalize
-       :callback 'language-menu-callback
-       :popup-callback 'language-menu-popup-callback))))
+     nil ;; The items will be created dynamically in INTERFACE-DISPLAY.
+     :reader language-menu))
   (:menu-bar tools-menu)
   (:panes
    (algorithms tab-layout
@@ -883,12 +880,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   "Set PANE's choice selection from CHOICES in OPTIONS."
   (setf (choice-selection pane) (collect-options-indices options choices)))
 
-;; #### FIXME: this function is out of date. In particular, it won't honor a
-;; non-default language stored in the context.
 (defmethod interface-display :before
     ((etap etap) &aux (context (context etap)))
   "Prepare ETAP GUI for display."
   (setf (slot-value (rivers-interface etap) 'main-interface) etap)
+  ;; #### NOTE: this menu's selection is updated on pop-up.
+  (setf (menu-items (language-menu etap))
+	(list (make-instance 'menu-component
+		:items (mapcar #'car *languages*)
+		:interaction :single-selection
+		:print-function 'title-capitalize
+		:callback 'language-menu-callback
+		:popup-callback 'language-menu-popup-callback)))
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
