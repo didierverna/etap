@@ -40,19 +40,13 @@ Return two values: the radical and the list of hyphenation points."
 	  :else :do (setf (aref word i) char) :and :do (incf i)
 	:finally (return (values word hyphenation-points))))
 
-(defvar *hyphenation-files* '((:english . "en-us") (:français . "fr"))
-  "An alist matching languages (keywords) to hyphenation file name radicals.
-Hyphenation files are located in ETAP's share/hyphenation/ subdirectory.
-For each file name RADICAL, there must be a file patterns file named
-RADICAL.pat.txt, and possibly an exceptions file named RADICAL.hyp.txt.")
-
 (defun load-hyphenation-rules
     (language
-     &aux (radical (or (cdr (assoc language *hyphenation-files*))
+     &aux (radical (or (cdr (assoc language *languages*))
 		       (error "No hyphenation files for ~A." language)))
 	  (rules (make-hyphenation-rules)))
   "Load LANGUAGE's hyphenation rules. Return an HYPHENATION-RULES instance.
-LANGUAGE must exist in `*HYPHENATION-FILES*', which see."
+LANGUAGE must exist in `*LANGUAGES*', which see."
   (with-open-file
       (stream (asdf:system-relative-pathname :etap
 		  (concatenate 'string "share/hyphenation/" radical ".pat")

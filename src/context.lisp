@@ -29,7 +29,7 @@
 A context object stores the requested parameters for one experiment."))
 
 (defmethod initialize-instance :after
-    ((context context) &key (text *text*) (language :english))
+    ((context context) &key (text *text*) (language *language*))
   "Create CONTEXT's nlstring from TEXT in LANGUAGE."
   (setf (nlstring context) (make-nlstring :text text :language language)))
 

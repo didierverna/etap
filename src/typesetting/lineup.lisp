@@ -494,7 +494,7 @@ consecutive blanks are replaced with a single interword glue."
 (defun make-lineup
     (&key (context *context*)
 	  (text *text* textp)
-	  (language :english languagep)
+	  (language *language* languagep)
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -507,9 +507,9 @@ consecutive blanks are replaced with a single interword glue."
 	  (lineup (slice-nlstring nlstring font hyphenation)))
   "Make a new lineup.
 When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT and FONT are defaulted from the corresponding global
-variables, LANGUAGE defaults to :english, and KERNING, LIGATURES, and
-HYPHENATION are defaulted from FEATURES."
+Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
+global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
+FEATURES." 
   ;; #### NOTE: the order is important below. Kerning must be computed after
   ;; ligature characters have been inserted, and the processing of ligatures
   ;; and kerning may affect the contents of discretionaries, so we must add

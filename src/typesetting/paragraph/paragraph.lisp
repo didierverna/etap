@@ -132,7 +132,7 @@ We consider that the paragraph's baseline is the first line's baseline."
     (&rest keys
      &key (context *context*)
 	  (text *text*)
-	  (language :english)
+	  (language *language*)
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -145,10 +145,10 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (width (if context (paragraph-width context) 284)))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT and FONT are defaulted from the corresponding global
-variables, LANGUAGE defaults to :english, KERNING, LIGATURES, and HYPHENATION
-are defaulted from FEATURES, DISPOSITION is defaulted to :flush-left,
-ALGORITHM to :fixed, and WIDTH to 284pt."
+Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
+global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
+FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to :fixed, and
+WIDTH to 284pt." 
   (declare (ignore text language font kerning ligatures hyphenation))
   (unless lineupp
     (setq lineup

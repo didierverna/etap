@@ -1,10 +1,10 @@
 (in-package :etap)
 
 (defclass nlstring ()
-  ((text :documentation "The nlstring's text (a string)."
+  ((text :documentation "The nlstring's text (a string, empty by default)."
 	 :initform "" :initarg :text :accessor text)
-   (language :documentation "The nlstring's language."
-	     :initform :english :initarg :language :accessor language))
+   (language :documentation "The nlstring's language, *LANGUAGE* by default."
+	     :initform *language* :initarg :language :accessor language))
   (:documentation "The NLString (Natural Language String) class."))
 
 (defmethod initialize-instance :after ((nlstring nlstring) &key)

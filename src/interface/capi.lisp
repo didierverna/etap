@@ -477,9 +477,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (data interface &aux (context (context interface)))
   "Reset the source text." ;; Currently what the only button does.
   (declare (ignore data))
-  ;; #### FIXME: see comment on top of INTERFACE-DISPLAY. This whole text +
-  ;; language thing needs to be abstracted away.
-  (setf (nlstring context) (make-nlstring :text *text* :language :english))
+  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
+  ;; Note: the language menu is updated at the next pop-up.
   (setf (editor-pane-text (text interface)) (text (nlstring context)))
   (update interface))
 
@@ -489,11 +488,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 (defun language-menu-popup-callback (component)
   (setf (choice-selection component)
-	(ecase (language (nlstring (context (element-interface-for-callback
-					     component))))
-	  ;; Yuck!
-	  (:english 0)
-	  (:français 1))))
+	(position (language (nlstring (context (element-interface-for-callback
+						component))))
+		  *languages*
+		  :key #'car)))
 
 ;; Interface
 (define-interface etap ()
