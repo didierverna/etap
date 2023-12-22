@@ -334,7 +334,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			       :hyphenate t :threshold threshold
 			       :final emergency-stretch)
 			(incf pass)))))
-	 (layouts (layouts graph `(kp-layout :threshold ,threshold))))
+	 (layouts (graph-layouts graph `(kp-layout :threshold ,threshold))))
     (mapc (lambda (layout)
 	    (kp-postprocess-layout layout
 	      adjacent-demerits double-hyphen-demerits

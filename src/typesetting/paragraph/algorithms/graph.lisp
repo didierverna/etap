@@ -202,24 +202,25 @@ A layout represents one path from the root to the leaf node of a graph."))
     "Perform the pushing."
     (push edge (edges layout))))
 
-(defun %layouts (graph layout-class layout-initargs)
+(defun %graph-layouts (graph layout-class layout-initargs)
   "Return GRAPH's layouts of LAYOUT-CLASS initialized with LAYOUT-INITARGS."
   (when graph
     (mapcan (lambda (edge)
 	      (if (edges (destination edge))
 		(mapc (lambda (layout) (push-edge edge layout))
-		  (%layouts (destination edge) layout-class layout-initargs))
+		  (%graph-layouts
+		   (destination edge) layout-class layout-initargs))
 		(list (apply #'make-instance layout-class :edge edge
 			     layout-initargs))))
       (edges graph))))
 
-(defun layouts (graph &optional (layout-type 'layout)
-		      &aux (layout-class (car-or-symbol layout-type))
-			   (layout-initargs (cdr-or-nil layout-type)))
+(defun graph-layouts (graph &optional (layout-type 'layout)
+			    &aux (layout-class (car-or-symbol layout-type))
+				 (layout-initargs (cdr-or-nil layout-type)))
   "Return GRAPH's layouts of LAYOUT-TYPE.
 LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
 form (CLASS-NAME INITARGS...)."
-  (%layouts graph layout-class layout-initargs))
+  (%graph-layouts graph layout-class layout-initargs))
 
 
 
@@ -228,15 +229,16 @@ form (CLASS-NAME INITARGS...)."
 ;; =======================
 
 (defclass layouts-paragraph (paragraph)
-  ((layouts-number :documentation "The number of initial layouts."
-		   :initarg :layouts-number
+  ((layouts :documentation "The initial layouts."
+	    :initarg :layouts
+	    :reader layouts)
+   (layouts-number :documentation "The number of initial layouts."
 		   :reader layouts-number))
   (:documentation "The LAYOUTS-PARAGRAPH class."))
 
-(defmethod initialize-instance :around
-    ((paragraph layouts-paragraph) &rest keys &key layouts)
-  "Compute the :layouts-number initialization argument."
-  (apply #'call-next-method paragraph :layouts-number (length layouts) keys))
+(defmethod initialize-instance :after ((paragraph layouts-paragraph) &key)
+  "Fill in the layouts number slot value."
+  (setf (slot-value paragraph 'layouts-number) (length (layouts paragraph))))
 
 (defmethod paragraph-properties strnlcat ((paragraph layouts-paragraph))
   "Advertise layouts based PARAGRAPH's number of initial layouts."

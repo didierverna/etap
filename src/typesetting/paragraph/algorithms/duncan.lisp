@@ -211,7 +211,7 @@ This class keeps track of the line's weight."))
   (declare (ignore discriminating-function))
   (let* ((graph (make-graph lineup width
 		  :edge-type `(duncan-edge ,@options) :fulls t))
-	 (layouts (layouts graph 'duncan-layout)))
+	 (layouts (graph-layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
 		    (zerop (underfulls layout))
