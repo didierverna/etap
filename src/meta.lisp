@@ -10,6 +10,8 @@
    ;; CAPI exports these and it sucks.
    :item :layout)
   (:export
+    :*language*
+    :*text*
     :make-context :*context*
     :make-lineup
     :make-paragraph
