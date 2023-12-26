@@ -65,6 +65,10 @@ Note the S appended to NAME in the choices variable name."
 ;; Quality measurements
 ;; ====================
 
+;; #### NOTE: the two functions below normally belong to the Knuth-Plass
+;; algorithm. They're here because the Best-Fit / Justified one uses them as
+;; well.
+
 ;; #### NOTE: according to #108, TeX clamps badness values to 10000 which is
 ;; an approximation of 2^13, and called "infinitely bad", but there's in fact
 ;; more to it than that when the badness function is used in the paragraph
@@ -113,6 +117,19 @@ Note the S appended to NAME in the choices variable name."
   (if (or ($< scale -1) ($= scale +∞))
     +∞
     (* 100 (expt (abs scale) 3))))
+
+(defun local-demerits (badness penalty line-penalty)
+  "Return a line's local demerits.
+Local demerits do not account for contextual information such as hyphens
+adjacency or fitness class difference (that's what they are called \"local\").
+They are computed from the line scale's BADNESS, a possible PENALTY where the
+line ends, and also include the LINE-PENALTY parameter."
+  (cond ((and (numberp penalty) (<= 0 penalty))
+	 ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
+	((and (numberp penalty) (< penalty 0))
+	 ($+ ($^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
+	(t ;; -∞
+	 ($^ ($+ line-penalty badness) 2))))
 
 
 

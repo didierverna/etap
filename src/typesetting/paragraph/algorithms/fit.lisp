@@ -16,10 +16,10 @@
 ;; fits the paragraph width exactly (hence, also with the minimum number of
 ;; characters and the maximum stretch). The Last variant does the opposite
 ;; (maximum number of characters and maximum shrink). The Best variant uses
-;; TeX's "badness + hyphen penalty" to weight solutions. When there is no fit,
-;; all versions fall back to the ragged (or Fixed algorithm) logic. That is,
-;; they behave according to the settings of "Width Offset", "Avoid Hyphens",
-;; and "Prefer Overfulls".
+;; TeX's local demerits to weight solutions. When there is no fit, all
+;; versions fall back to the ragged (or Fixed algorithm) logic. That is, they
+;; behave according to the settings of "Width Offset", "Avoid Hyphens", and
+;; "Prefer Overfulls".
 
 ;; The "Relax" option affects the First and Last variants in ragged
 ;; dispositions. When checked, lines are "de-stretched" or "de-shrunk" towards
@@ -65,7 +65,9 @@
 ;; Best/Justified version, and provide a choice? See for instance some ideas
 ;; in the Fixed algorithm's comment section.
 
-;; #### TODO: add a tolerance parameter.
+;; #### TODO: add a tolerance parameter. But a better way of doing it, again,
+;; would be to parametrize by a full-blown cost function, which could then be
+;; selected to be the Knuth-Plass one.
 
 
 (in-package :etap)
@@ -124,8 +126,16 @@ for equally good solutions."))
   "Define a NAMEd Fit caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber fit ,name ,min ,default ,max))
 
+;; #### NOTE: the LINE-PENALTY parameter has no impact on the algorithm, since
+;; it's a constant which affects all line endings in the same way. It's just
+;; here so that we can compute the same local demerits as in the Knuth-Plass,
+;; and hence compare the two. Hopefully, this mess will go away when we
+;; parametrize the cost function.
+(define-fit-caliber line-penalty 0 10 100)
 (define-fit-caliber hyphen-penalty -1000 50 1000)
 (define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
+;; #### NOTE: no final-hyphen-demerits because that would not be a *-fit
+;; algorithm anymore (we would need to look one line ahead).
 (define-fit-caliber width-offset -50 0 0)
 
 
@@ -224,7 +234,7 @@ This function returns three values:
 	      (+ width width-offset) prefer-overfulls
 	      fallback avoid-hyphens)))))
   (:method (lineup start width (variant (eql :best))
-	    &key discriminating-function prefer-shrink
+	    &key line-penalty discriminating-function prefer-shrink
 		 fallback width-offset avoid-hyphens prefer-overfulls)
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
@@ -240,8 +250,9 @@ This function returns three values:
 	     (let ((possibilities (length fits)))
 	       (mapc (lambda (fit)
 		       (change-class fit 'fit-weighted-boundary
-			 :weight ($+ (scale-badness (scale fit))
-				     (penalty (item fit)))
+			 :weight (local-demerits (scale-badness (scale fit))
+						 (penalty (item fit))
+						 line-penalty)
 			 :possibilities possibilities))
 		 fits))
 	     ;; Note the use of $< and EQL here, because we can have (at most)
@@ -396,13 +407,14 @@ LINE class."))
 	     :scale theoretical :effective-scale effective line-initargs))))
 
 (defun fit-make-lines
-    (lineup disposition width beds variant fallback
+    (lineup disposition width beds variant line-penalty fallback
      width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
      discriminating-function
      &aux (get-line-boundary
 	   (if (eq (disposition-type disposition) :justified)
 	     (lambda (start)
 	       (fit-justified-line-boundary lineup start width variant
+	         :line-penalty line-penalty
 		 :discriminating-function discriminating-function
 		 :prefer-shrink prefer-shrink
 		 :fallback fallback
@@ -457,11 +469,12 @@ LINE class."))
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fit))
-     &key variant fallback
+     &key variant line-penalty fallback
 	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
 	  discriminating-function)
   "Typeset LINEUP with the Fit algorithm."
   (default-fit variant)
+  (calibrate-fit line-penalty)
   (default-fit fallback)
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
@@ -470,6 +483,6 @@ LINE class."))
     :disposition disposition
     :lineup lineup
     :lines (fit-make-lines lineup disposition width beds
-	     variant fallback
+	     variant line-penalty fallback
 	     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
 	     discriminating-function)))

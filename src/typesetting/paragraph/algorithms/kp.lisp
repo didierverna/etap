@@ -64,19 +64,6 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   "Return FITNESS-CLASS's name (a string)."
   (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
 
-(defun local-demerits (badness penalty line-penalty)
-  "Return a line's local demerits.
-Local demerits do not account for contextual information such as hyphens
-adjacency or fitness class difference (that's what they are called \"local\").
-They are computed from the line scale's BADNESS, a possible PENALTY where the
-line ends, and also include the LINE-PENALTY parameter."
-  (cond ((and (numberp penalty) (<= 0 penalty))
-	 ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
-	((and (numberp penalty) (< penalty 0))
-	 ($+ ($^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
-	(t ;; -∞
-	 ($^ ($+ line-penalty badness) 2))))
-
 
 ;; -------------------
 ;; Line specialization

@@ -114,12 +114,14 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		(radio-selection fit :variant interface)
 		(radio-selection fit :fallback interface)
 		(radio-selection fit :discriminating-function interface)
+		(slider-value fit :line-penalty interface)
 		(slider-value fit :hyphen-penalty interface)
 		(slider-value fit :explicit-hyphen-penalty interface)
 		(slider-value fit :width-offset interface)
 		(choice-selected-items (fit-options interface)))))
   (update interface))
 
+(define-slider-callback fit-line-penalty)
 (define-slider-callback fit-hyphen-penalty)
 (define-slider-callback fit-explicit-hyphen-penalty)
 ;; DEFINE-SLIDER-CALLBACK doesn't handle more informative titles than just
@@ -592,6 +594,17 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
+   (fit-line-penalty slider
+     :title (format nil "Line Penalty: ~D"
+	      (caliber-default *fit-line-penalty*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *fit-line-penalty*)
+     :end (caliber-max *fit-line-penalty*)
+     :slug-start (caliber-default *fit-line-penalty*)
+     :tick-frequency 0
+     :callback 'set-fit-line-penalty
+     :reader fit-line-penalty)
    (fit-hyphen-penalty slider
      :title (format nil "Hyphen Penalty: ~D"
 	      (caliber-default *fit-hyphen-penalty*))
@@ -849,7 +862,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (fit-settings row-layout
 		 '(fit-variant fit-fallback fit-options fit-parameters))
    (fit-parameters column-layout
-     '(fit-discriminating-function
+     '(fit-discriminating-function fit-line-penalty
        fit-hyphen-penalty fit-explicit-hyphen-penalty fit-width-offset)
      :title "Other Parameters"
      :title-position :frame
@@ -959,7 +972,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	 (set-fallback fit)
 	 (set-options fit)
 	 (set-choice fit :discriminating-function)
-	 (set-sliders fit :hyphen-penalty :explicit-hyphen-penalty)
+	 (set-sliders fit :line-penalty
+	   :hyphen-penalty :explicit-hyphen-penalty)
 	 ;; SET-SLIDER doesn't handle more informative titles than just
 	 ;; displaying the values.
 	 (setf (range-slug-start (fit-width-offset etap))
