@@ -2,6 +2,11 @@
 ;; Michael F. (1981), "Breaking paragraphs into lines", Software: Practice and
 ;; Experience, 11 (11): 1119–1184.
 
+;; #### FIXME: my implementation of the 3 passes is probably not correct. It
+;; seems that TeX goes into the 2nd pass, not only when the first fails, but
+;; also when it succeeds with a non-zero looseness, and the number of lines
+;; doesn't match. I need to check this.
+
 (in-package :etap)
 
 ;; =============
