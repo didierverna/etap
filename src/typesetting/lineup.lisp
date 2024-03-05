@@ -648,7 +648,10 @@ A boundary represents a possible break point in the lineup.
 The end of the lineup is represented by a special boundary with a null item
 and start index (the stop index being the lineup's length).
 
-Algorithms may provide their own boundary sub-class.
+Greedy algorithms may extend this class in order to memoize various aspects of
+line computation (see `next-boundary'), essentially because all boundaries
+subject to comparison at one point in time relate to the same beginning of
+line. Non-greedy algorithms should not.
 
 All boundaries respond to the following pseudo-accessors, which see:
 - `hyphenated'."))
