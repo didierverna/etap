@@ -148,7 +148,7 @@ When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
 global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
 FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to :fixed, and
-WIDTH to 284pt." 
+WIDTH to 284pt."
   (declare (ignore text language font kerning ligatures hyphenation))
   (unless lineupp
     (setq lineup

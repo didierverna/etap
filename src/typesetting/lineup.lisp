@@ -509,7 +509,7 @@ consecutive blanks are replaced with a single interword glue."
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
 global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES." 
+FEATURES."
   ;; #### NOTE: the order is important below. Kerning must be computed after
   ;; ligature characters have been inserted, and the processing of ligatures
   ;; and kerning may affect the contents of discretionaries, so we must add
