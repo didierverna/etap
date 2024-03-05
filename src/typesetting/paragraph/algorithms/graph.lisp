@@ -22,21 +22,9 @@
 ;; Graphs
 ;; ======
 
-;; ---------------
-;; Data Structures
-;; ---------------
-
-(defclass edge ()
-  ((destination :documentation "The node this edge points to."
-		:initarg :destination
-		:reader destination))
-  ;; This is necessary to allow the code below to pass :lineup, :start, and
-  ;; :width along, even though this base class doesn't actually use them.
-  (:default-initargs :allow-other-keys t)
-  (:documentation "The EDGE class.
-Algorithms using a graph to represent paragraph breaking solutions specialize
-this class to add specific properties to their edges."))
-
+;; -----
+;; Nodes
+;; -----
 
 (defclass node ()
   ((boundary :documentation "This node's boundary."
@@ -47,15 +35,42 @@ this class to add specific properties to their edges."))
 	  :reader edges))
   (:documentation "The NODE class.
 A node represents a boundary at which a paragraph is broken, and links to the
-next possible break positions."))
+next possible break positions.
+
+All nodes respond to the following pseudo-accessors, which see:
+- `hyphenated'."))
+
+(defmethod hyphenated ((node node))
+  "Return NODE's hyphenation status."
+  (hyphenated (boundary node)))
 
 (defun make-node (boundary &optional edges)
   "Make a node at BOUNDARY, optionally followed by EDGES."
   (make-instance 'node :boundary boundary :edges edges))
 
-(defun hyphenp (edge)
-  "Return T if EDGE's destination boundary is hyphenated."
-  (hyphenation-point-p (item (boundary (destination edge)))))
+
+;; -----
+;; Edges
+;; -----
+
+(defclass edge ()
+  ((destination :documentation "The node this edge points to."
+		:initarg :destination
+		:reader destination))
+  ;; This is necessary to allow the code below to pass :lineup, :start, and
+  ;; :width along, even though this base class doesn't actually use them.
+  (:default-initargs :allow-other-keys t)
+  (:documentation "The EDGE class.
+Algorithms using a graph to represent paragraph breaking solutions specialize
+this class to add specific properties to their edges.
+
+All edges respond to the following pseudo-accessors, which see:
+- `hyphenated'."))
+
+(defmethod hyphenated ((edge edge))
+  "Return EDGE's hyphenation status."
+  (hyphenated (destination edge)))
+
 
 
 ;; ------------------

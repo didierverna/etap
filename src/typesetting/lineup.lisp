@@ -167,6 +167,16 @@ This class represents hyphenation point discretionaries."))
   (declare (ignore pre-break post-break no-break explicit))
   (apply #'make-instance 'hyphenation-point initargs))
 
+(defgeneric hyphenated (object)
+  (:documentation "Return OBJECT's hyphenation status.
+Possible values are nil, :explicit, or :implicit.")
+  (:method (object)
+    "Return NIL. This is the default method."
+    nil)
+  (:method ((object hyphenation-mixin))
+    "Return hyphenation mixin OBJECT's status (:explicit or :implicit)."
+    (if (explicitp object) :explicit :implicit)))
+
 
 ;; Glues
 
@@ -638,7 +648,14 @@ A boundary represents a possible break point in the lineup.
 The end of the lineup is represented by a special boundary with a null item
 and start index (the stop index being the lineup's length).
 
-Algorithms may provide their own boundary sub-class."))
+Algorithms may provide their own boundary sub-class.
+
+All boundaries respond to the following pseudo-accessors, which see:
+- `hyphenated'."))
+
+(defmethod hyphenated ((boundary boundary))
+  "Return BOUNDARY's hyphenation status."
+  (hyphenated (item boundary)))
 
 (defun last-boundary-p (boundary)
   "Return T if BOUNDARY is the last one."

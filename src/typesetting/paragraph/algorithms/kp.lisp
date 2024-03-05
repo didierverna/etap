@@ -191,13 +191,13 @@ such as hyphen adjacency and fitness class differences between lines."
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
-	  :when (and (hyphenp edge1) (hyphenp edge2))
+	  :when (and (hyphenated edge1) (hyphenated edge2))
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) double-hyphen-demerits))
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) adjacent-demerits)))
-    (when (hyphenp (nth (- (size layout) 2) (edges layout)))
+    (when (hyphenated (nth (- (size layout) 2) (edges layout)))
       (setf (demerits layout) ($+ final-hyphen-demerits (demerits layout))))))
 
 

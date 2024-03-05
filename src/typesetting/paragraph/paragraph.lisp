@@ -42,8 +42,7 @@
   (effective-scale (line line)))
 
 (defmethod hyphenated ((line pinned-line))
-  "Whether pinned LINE is hyphenated.
-Possible values are nil, :explicit, or :implicit."
+  "Return pinned LINE's hyphenation status."
   (hyphenated (line line)))
 
 (defmethod penalty ((line pinned-line))

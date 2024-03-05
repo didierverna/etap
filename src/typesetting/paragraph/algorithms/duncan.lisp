@@ -98,14 +98,14 @@ The weight is computed according to the discriminating function."
 
 (defmethod initialize-instance :after ((layout duncan-layout) &key edge)
   "Initialize Duncan LAYOUT's properties."
-  (setf (hyphens layout) (if (hyphenp edge) 1 0)
+  (setf (hyphens layout) (if (hyphenated edge) 1 0)
 	(underfulls layout) (if (eq (fitness edge) :underfull) 1 0)
 	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
 	(weight layout) (weight edge)))
 
 (defmethod push-edge :after (edge (layout duncan-layout))
   "Update Duncan LAYOUT's properties after pushing EDGE to it."
-  (when (hyphenp edge) (incf (hyphens layout)))
+  (when (hyphenated edge) (incf (hyphens layout)))
   (case (fitness edge)
     (:underfull (incf (underfulls layout)))
     (:overfull (incf (overfulls layout))))
