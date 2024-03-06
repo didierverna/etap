@@ -126,10 +126,14 @@ BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the sub-graph's root node.
 This function memoizes previously computed sub-graphs into HASH table."
+  ;; #### NOTE: the hash table may contain purposedly null entries for some
+  ;; keys. This indicates that an attempt at creating a sub-graph was made but
+  ;; failed, so there's no point in trying again.
   (multiple-value-bind (value found) (gethash (stop-idx boundary) hash)
     (if found
       value
       (setf (gethash (stop-idx boundary) hash)
+	    ;; #### NOTE: this may turn out to be NIL. See comment above.
 	    (if (last-boundary-p boundary)
 	      (make-node boundary)
 	      (let ((nodes (loop :for next-boundary
