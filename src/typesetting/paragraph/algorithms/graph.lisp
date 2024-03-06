@@ -18,9 +18,9 @@
 (in-package :etap)
 
 
-;; ======
+;; ==========================================================================
 ;; Graphs
-;; ======
+;; ==========================================================================
 
 ;; -----
 ;; Nodes
@@ -34,10 +34,9 @@
 	  :initarg :edges
 	  :reader edges))
   (:documentation "The NODE class.
-A node represents a boundary at which a paragraph is broken, and links to the
-next possible break positions.
-
-All nodes respond to the following pseudo-accessors, which see:
+This is the base class for representing a line break possibility in a graph
+representation of paragraph breaking. All nodes respond to the following
+pseudo-accessors, which see:
 - `hyphenated'."))
 
 (defmethod hyphenated ((node node))
@@ -61,10 +60,9 @@ All nodes respond to the following pseudo-accessors, which see:
   ;; :width along, even though this base class doesn't actually use them.
   (:default-initargs :allow-other-keys t)
   (:documentation "The EDGE class.
-Algorithms using a graph to represent paragraph breaking solutions specialize
-this class to add specific properties to their edges.
-
-All edges respond to the following pseudo-accessors, which see:
+This is the base class for representing an edge to a node in a graph
+representation of paragraph breaking. All edges respond to the following
+pseudo-accessors, which see:
 - `hyphenated'."))
 
 (defmethod hyphenated ((edge edge))
@@ -126,7 +124,7 @@ BOUNDARY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the sub-graph's root node.
 This function memoizes previously computed sub-graphs into HASH table."
-  ;; #### NOTE: the hash table may contain purposedly null entries for some
+  ;; #### NOTE: the hash table may contain purposely null entries for some
   ;; keys. This indicates that an attempt at creating a sub-graph was made but
   ;; failed, so there's no point in trying again.
   (multiple-value-bind (value found) (gethash (stop-idx boundary) hash)
@@ -190,9 +188,9 @@ second value."
 
 
 
-;; =======
+;; ==========================================================================
 ;; Layouts
-;; =======
+;; ==========================================================================
 
 ;; #### FIXME: it is not powerful enough to use graph edges when creating
 ;; layouts. An edge can be used in multiple graph paths, so it cannot store
