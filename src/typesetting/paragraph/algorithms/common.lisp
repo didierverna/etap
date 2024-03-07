@@ -31,14 +31,14 @@ A caliber represents values that have a mininum, a maximum, and a default."
 (defmacro calibrate
     (prefix name
      &optional infinity
-     &aux (variable (intern (format nil "~A" name)))
+     &aux (variable (intern (format nil "*~A*" name)))
 	  (caliber (intern (format nil "*~A-~A*" prefix name))))
-  "Calibrate NAMEd variable according to the *PREFIX-NAME* caliber.
-- If the variable's value is NIL, set it to the caliber's default.
-- If the variable's value is already properly calibrated, leave it be.
-- If the variable's value is out of bounds (large inequality), clamp it or set
-  it to an infinity value of the same sign, according to INFINITY. INFINITY
-    may be NIL (the default), T, :positive, or :negative."
+  "Calibrate *NAME* according to the *PREFIX-NAME* caliber.
+- If *NAME* is null, set it to the caliber's default.
+- If *NAME* is already properly calibrated, leave it be.
+- If *NAME* is out of bounds (large inequality), clamp it or set it to an
+  infinity value of the same sign, according to INFINITY. INFINITY may be NIL
+  (the default), T, :positive, or :negative." 
   `(cond ((null ,variable)
 	  (setq ,variable (caliber-default ,caliber)))
 	 ((<= ,variable (caliber-min ,caliber))
@@ -53,9 +53,9 @@ A caliber represents values that have a mininum, a maximum, and a default."
 
 (defmacro default
     (prefix name
-     &aux (variable (intern (format nil "~A" name)))
+     &aux (variable (intern (format nil "*~A*" name)))
 	  (choices (intern (format nil "*~A-~AS*" prefix name))))
-  "If NAMEd variable is null, set it to the first *PREFIX-NAMES* choice.
+  "If *NAME* is null, set it to the first *PREFIX-NAMES* choice.
 Note the S appended to NAME in the choices variable name."
   `(when (null ,variable) (setq ,variable (car ,choices))))
 

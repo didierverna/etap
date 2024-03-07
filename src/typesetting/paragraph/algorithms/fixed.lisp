@@ -145,8 +145,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; access the max width of underfulls (so necessarily a number; otherwise it
 ;; wouldn't be an underfull), and the min width of overfulls (also necessarily
 ;; a number).
-(defun fixed-fallback-boundary (underfull overfull width prefer-overfulls
-				&optional (policy :anyfull) avoid-hyphens)
+(defun fixed-fallback-boundary (underfull overfull width)
   "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary."
   (cond
     ;; No possibility, no choice.
@@ -156,9 +155,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     ((and overfull (not underfull)) overfull)
     ;; Two possibilities from now on.
     ;; Still no choice in these two policies.
-    ((eq policy :underfull) underfull)
-    ((eq policy :overfull) overfull)
-    ;; Anyfull policy from now on.
+    ((eq *fallback* :underfull) underfull)
+    ((eq *fallback* :overfull) overfull)
+    ;; Anyfull fallback from now on.
     ;; One solution is closer to the paragraph's width, so still no choice.
     ((< (- width (max-width underfull)) (- (min-width overfull) width))
      underfull)
@@ -171,20 +170,19 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	      (hyphenation-point-p (item overfull)))
 	 (and (not (hyphenation-point-p (item underfull)))
 	      (not (hyphenation-point-p (item overfull)))))
-     (if prefer-overfulls overfull underfull))
+     (if *prefer-overfulls* overfull underfull))
     ;; Exactly one hyphen. If we care, choose the other solution.
-    (avoid-hyphens
+    (*avoid-hyphens*
      (if (hyphenation-point-p (item underfull)) overfull underfull))
     ;; Finally, we might still prefer overfulls.
-    (t (if prefer-overfulls overfull underfull))))
+    (t (if *prefer-overfulls* overfull underfull))))
 
 
 ;; This function collects boundaries between the last underfull (included) and
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fixed-justified-line-boundary
-    (lineup start width fallback width-offset avoid-hyphens prefer-overfulls)
+(defun fixed-justified-line-boundary (lineup start width)
   "Return the Fixed algorithm's view of the end of a justified line boundary."
   (loop :with underfull :with fit :with overfull
 	:for boundary
@@ -198,9 +196,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	:finally
 	   (return (or fit
 		       (fixed-fallback-boundary
-			underfull overfull
-			(+ width width-offset) prefer-overfulls
-			fallback avoid-hyphens)))))
+			underfull overfull (+ width *width-offset*))))))
 
 
 ;; #### NOTE: the function below handles infinite penalties and understands a
@@ -214,8 +210,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; still important to collect a word overfull if possible, because of that
 ;; very same option.
 (defun fixed-ragged-line-boundary
-    (lineup start width fallback width-offset avoid-hyphens prefer-overfulls
-     &optional (width-kind :natural))
+    (lineup start width &optional (width-kind :natural))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
@@ -243,38 +238,36 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 			 (setq overword boundary continue nil))))))
 	:finally
 	   (return
-	     (cond ((and fit (hyphenation-point-p (item fit)) avoid-hyphens)
+	     (cond ((and fit (hyphenation-point-p (item fit)) *avoid-hyphens*)
 		    ;; We have a hyphen fit but we prefer to avoid hyphens.
 		    ;; Choose a word solution if possible. Otherwise, fallback
 		    ;; to the hyphen fit.
-		    (ecase fallback
+		    (ecase *fallback*
 		      (:underfull (or underword fit))
 		      (:anyfull (or (fixed-fallback-boundary
 				     underword overword
-				     (+ width width-offset) prefer-overfulls)
+				     (+ width *width-offset*))
 				    fit))
 		      (:overfull (or overword fit))))
 		   ;; We have a fit and we don't care about hyphens or it's a
 		   ;; word fit. Choose it.
 		   (fit fit)
-		   (avoid-hyphens
+		   (*avoid-hyphens*
 		    ;; We don't have a fit and we want to avoid hyphens.
 		    ;; Choose a word solution if possible.
-		    (ecase fallback
+		    (ecase *fallback*
 		      (:underfull (or underword underfull overfull))
 		      (:anyfull (or (fixed-fallback-boundary
 				     underword overword
-				     (+ width width-offset) prefer-overfulls)
+				     (+ width *width-offset*))
 				    (fixed-fallback-boundary
 				     underfull overfull
-				     (+ width width-offset) prefer-overfulls)))
+				     (+ width *width-offset*))))
 		      (:overfull (or overword overfull underfull))))
 		   (t
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (fixed-fallback-boundary
-		     underfull overfull
-		     (+ width width-offset) prefer-overfulls
-		     fallback))))))
+		     underfull overfull (+ width *width-offset*)))))))
 
 
 
@@ -282,23 +275,19 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; Lines
 ;; =====
 
-(defun fixed-make-lines
-    (lineup disposition width beds
-     fallback width-offset avoid-hyphens prefer-overfulls
-     &aux (get-line-boundary (if (eq disposition :justified)
-			       #'fixed-justified-line-boundary
-			       #'fixed-ragged-line-boundary)))
+(defun fixed-make-lines (lineup disposition width beds)
   "Make fixed lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (when lineup
-    (loop :for start := 0 :then (start-idx boundary)
-	  :while start
-	  :for boundary := (funcall get-line-boundary
-			     lineup start width fallback
-			     width-offset avoid-hyphens prefer-overfulls)
-	  :collect (make-instance 'line
-		     :lineup lineup
-		     :start-idx start :stop-idx (stop-idx boundary)
-		     :beds beds))))
+  (let ((get-line-boundary (if (eq disposition :justified)
+			     #'fixed-justified-line-boundary
+			     #'fixed-ragged-line-boundary)))
+    (when lineup
+      (loop :for start := 0 :then (start-idx boundary)
+	    :while start
+	    :for boundary := (funcall get-line-boundary lineup start width)
+	    :collect (make-instance 'line
+		       :lineup lineup
+		       :start-idx start :stop-idx (stop-idx boundary)
+		       :beds beds)))))
 
 
 
@@ -316,14 +305,17 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fixed))
-     &key fallback width-offset avoid-hyphens prefer-overfulls)
+     &key ((:fallback *fallback*))
+	  ((:width-offset *width-offset*))
+	  ((:avoid-hyphens *avoid-hyphens*))
+	  ((:prefer-overfulls *prefer-overfulls*)))
   "Typeset LINEUP with the Fixed algorithm."
+  (declare (special *fallback* *width-offset*
+		    *avoid-hyphens* *prefer-overfulls*))
   (default-fixed fallback)
   (calibrate-fixed width-offset)
   (make-instance 'paragraph
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fixed-make-lines
-	    lineup (disposition-type disposition) width beds
-	    fallback width-offset avoid-hyphens prefer-overfulls)))
+    :lines (fixed-make-lines lineup (disposition-type disposition) width beds)))
