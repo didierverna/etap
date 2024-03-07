@@ -277,7 +277,9 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; Lines
 ;; =====
 
-(defun fixed-make-lines (lineup disposition width beds)
+(defun fixed-make-lines
+    (lineup disposition width beds
+     &aux (disposition (disposition-type disposition)))
   "Make fixed lines from LINEUP for a DISPOSITION paragraph of WIDTH."
   (let ((get-line-boundary (case disposition
 			     (:justified #'fixed-justified-line-boundary)
@@ -318,4 +320,4 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fixed-make-lines lineup (disposition-type disposition) width beds)))
+    :lines (fixed-make-lines lineup disposition width beds)))
