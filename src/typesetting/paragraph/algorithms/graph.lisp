@@ -148,9 +148,9 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 		  (make-node
 		   boundary
 		   (mapcar (lambda (node)
-			     (apply #'make-instance edge-type
-				    :lineup lineup :start (start-idx boundary)
-				    :width width :destination node))
+			     (make-instance edge-type
+			       :lineup lineup :start (start-idx boundary)
+			       :width width :destination node))
 		     nodes)))))))))
 
 (defun make-graph
@@ -177,9 +177,8 @@ second value."
        (make-node
 	nil
 	(mapcar (lambda (node)
-		  (apply #'make-instance edge-type
-			 :lineup lineup :start 0 :width width
-			 :destination node))
+		  (make-instance edge-type
+		    :lineup lineup :start 0 :width width :destination node))
 	  nodes)))
      graph)))
 
