@@ -136,7 +136,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup start width line-penalty
+     &key lineup start width
      &aux (stop (stop-idx (boundary (destination edge)))))
   "Initialize EDGE's scale, fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
@@ -153,7 +153,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
   (setf (slot-value edge 'demerits)
 	(local-demerits (badness edge)
 			(penalty (item (boundary (destination edge))))
-			line-penalty)))
+			*line-penalty*)))
 
 
 ;; -------
@@ -179,26 +179,25 @@ This class is mixed in both the graph and dynamic paragraph classes."))
   (incf (size layout))
   (setf (demerits layout) ($+ (demerits layout) (demerits edge))))
 
-(defun kp-postprocess-layout
-    (layout adjacent-demerits double-hyphen-demerits final-hyphen-demerits)
+(defun kp-postprocess-layout (layout)
   "Finish computing LAYOUT's total demerits.
 When this function is called, LAYOUT's demerits contain only the sum of each
 line's local ones. This function handles the remaining contextual information,
 such as hyphen adjacency and fitness class differences between lines."
   ;; See warning in KP-CREATE-NODES about that.
   (when (= (fitness-class (first (edges layout))) 0)
-    (setf (demerits layout) ($+ (demerits layout) adjacent-demerits)))
+    (setf (demerits layout) ($+ (demerits layout) *adjacent-demerits*)))
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
 	  :when (and (hyphenated edge1) (hyphenated edge2))
 	    :do (setf (demerits layout)
-		      ($+ (demerits layout) double-hyphen-demerits))
+		      ($+ (demerits layout) *double-hyphen-demerits*))
 	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
 	    :do (setf (demerits layout)
-		      ($+ (demerits layout) adjacent-demerits)))
+		      ($+ (demerits layout) *adjacent-demerits*)))
     (when (hyphenated (nth (- (size layout) 2) (edges layout)))
-      (setf (demerits layout) ($+ final-hyphen-demerits (demerits layout))))))
+      (setf (demerits layout) ($+ *final-hyphen-demerits* (demerits layout))))))
 
 
 ;; ---------------
@@ -298,10 +297,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; -----------
 
 (defun kp-graph-typeset-lineup
-    (lineup disposition width beds line-penalty
-     adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-     pre-tolerance tolerance emergency-stretch looseness
-     &aux (threshold pre-tolerance) (pass 1))
+    (lineup disposition width beds &aux (threshold *pre-tolerance*) (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
   (let* ((graph (when lineup
 		  ;; #### NOTE: we guard against a null lineup here in order
@@ -310,31 +306,27 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		  ;; pass.
 		  (or (when ($<= 0 threshold)
 			(make-graph lineup width
-			  :edge-type `(kp-edge :line-penalty ,line-penalty)
+			  :edge-type 'kp-edge
 			  :next-boundaries #'kp-next-boundaries
 			  :threshold threshold))
-		      (prog1 (make-graph lineup width
-			       :edge-type `(kp-edge :line-penalty ,line-penalty)
+		      (progn (incf pass)
+			     (make-graph lineup width
+			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t
-			       :threshold (setq threshold tolerance)
-			       :final (zerop emergency-stretch))
-			(incf pass))
-		      (prog1 (make-graph lineup width
-			       :edge-type `(kp-edge :line-penalty ,line-penalty)
+			       :threshold (setq threshold *tolerance*)
+			       :final (zerop *emergency-stretch*)))
+		      (progn (incf pass)
+			     (make-graph lineup width
+			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t :threshold threshold
-			       :final emergency-stretch)
-			(incf pass)))))
+			       :final *emergency-stretch*)))))
 	 (layouts (graph-layouts graph `(kp-layout :threshold ,threshold))))
-    (mapc (lambda (layout)
-	    (kp-postprocess-layout layout
-	      adjacent-demerits double-hyphen-demerits
-	      final-hyphen-demerits))
-      layouts)
+    (mapc #'kp-postprocess-layout layouts)
     (setq layouts (sort layouts #'$< :key #'demerits))
-    (unless (or (zerop looseness) (null layouts))
-      (let ((ideal-size (+ (size (car layouts)) looseness)))
+    (unless (or (zerop *looseness*) (null layouts))
+      (let ((ideal-size (+ (size (car layouts)) *looseness*)))
 	(setq layouts (sort layouts (lambda (size1 size2)
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
@@ -344,7 +336,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       :disposition disposition
       :lineup lineup
       :layouts layouts
-      :pass pass
+      :pass pass ;; #### FIXME: wrong if null lineup. Should be 0.
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
       ;; could instead check for multiple such layouts and take the last one.
@@ -376,131 +368,126 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Boundary lookup
 ;; ---------------
 
-(defun kp-try-boundary (boundary nodes
-			lineup width threshold line-penalty
-			adjacent-demerits double-hyphen-demerits
-			final-hyphen-demerits final
-			&aux (emergency-stretch (when (numberp final) final)))
+(defun kp-try-boundary
+    (boundary nodes lineup width threshold final
+     &aux (emergency-stretch (when (numberp final) final))
+	  last-deactivated-node new-nodes)
   "Examine BOUNDARY and update active NODES accordingly."
-  (let (last-deactivated-node new-nodes)
-    (maphash
-     (lambda (key node
-	      &aux (previous-boundary (key-boundary key))
-		   (previous-line (key-line key))
-		   (previous-fitness (key-fitness key))
-		   (scale (lineup-scale lineup
-					(start-idx previous-boundary)
-					(stop-idx boundary)
-					width)))
-       (when (or ($< scale -1)
-		 (eq (penalty (item boundary)) -∞)
-		 ;; #### WARNING: we must deactivate all nodes when we reach
-		 ;; the paragraph's end. TeX does this by adding a forced
-		 ;; break at the end.
-		 (last-boundary-p boundary))
-	 (setq last-deactivated-node (cons key node))
-	 (remhash key nodes))
-       (when ($<= -1 scale)
-	 (let ((badness (scale-badness
-			 (if emergency-stretch
-			   (lineup-scale lineup
-					 (start-idx previous-boundary)
-					 (stop-idx boundary)
-					 width emergency-stretch)
-			   scale))))
-	   (when ($<= badness threshold)
-	     (let* ((fitness (scale-fitness-class scale))
-		    (demerits (local-demerits badness (penalty (item boundary))
-					      line-penalty))
-		    (total-demerits ($+ (kp-node-total-demerits node)
-					demerits)))
-	       ;; #### FIXME: for now, all contextual penalties affect the
-	       ;; total demerits only below. This is to remain consistent with
-	       ;; the graph implementation, and is due to a limitation in the
-	       ;; layouts design. See the related comment in the layouts
-	       ;; section of graph.lisp.
-	       (when (> (abs (- fitness previous-fitness)) 1)
-		 (setq total-demerits ($+ total-demerits adjacent-demerits)))
-	       ;; #### NOTE: according to #859, TeX doesn't consider the
-	       ;; admittedly very rare and weird case where a paragraph would
-	       ;; end with an explicit hyphen. As stipulated in #829, for the
-	       ;; purpose of computing demerits, the end of the paragraph is
-	       ;; always regarded as virtually hyphenated, and in case the
-	       ;; previous line (really) is hyphenated, the value of
-	       ;; final-hyphen-demerits is used instead of
-	       ;; double-hyphen-demerits. One could consider using
-	       ;; double-hyphen-demerits when there actually is a final
-	       ;; hyphen, but on the other hand, the final line is rarely
-	       ;; justified so the two hyphens are very unlikely to create a
-	       ;; ladder.
-	       (when (discretionaryp (item previous-boundary))
-		 (if (last-boundary-p boundary)
+  (maphash
+   (lambda (key node
+	    &aux (previous-boundary (key-boundary key))
+		 (previous-line (key-line key))
+		 (previous-fitness (key-fitness key))
+		 (scale (lineup-scale lineup
+				      (start-idx previous-boundary)
+				      (stop-idx boundary)
+				      width)))
+     (when (or ($< scale -1)
+	       (eq (penalty (item boundary)) -∞)
+	       ;; #### WARNING: we must deactivate all nodes when we reach
+	       ;; the paragraph's end. TeX does this by adding a forced
+	       ;; break at the end.
+	       (last-boundary-p boundary))
+       (setq last-deactivated-node (cons key node))
+       (remhash key nodes))
+     (when ($<= -1 scale)
+       (let ((badness (scale-badness
+		       (if emergency-stretch
+			 (lineup-scale lineup
+				       (start-idx previous-boundary)
+				       (stop-idx boundary)
+				       width emergency-stretch)
+			 scale))))
+	 (when ($<= badness threshold)
+	   (let* ((fitness (scale-fitness-class scale))
+		  (demerits (local-demerits badness (penalty (item boundary))
+					    *line-penalty*))
+		  (total-demerits ($+ (kp-node-total-demerits node)
+				      demerits)))
+	     ;; #### FIXME: for now, all contextual penalties affect the total
+	     ;; demerits only below. This is to remain consistent with the
+	     ;; graph implementation, and is due to a limitation in the
+	     ;; layouts design. See the related comment in the layouts section
+	     ;; of graph.lisp.
+	     (when (> (abs (- fitness previous-fitness)) 1)
+	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
+	     ;; #### NOTE: according to #859, TeX doesn't consider the
+	     ;; admittedly very rare and weird case where a paragraph would
+	     ;; end with an explicit hyphen. As stipulated in #829, for the
+	     ;; purpose of computing demerits, the end of the paragraph is
+	     ;; always regarded as virtually hyphenated, and in case the
+	     ;; previous line (really) is hyphenated, the value of
+	     ;; final-hyphen-demerits is used instead of
+	     ;; double-hyphen-demerits. One could consider using
+	     ;; double-hyphen-demerits when there actually is a final hyphen,
+	     ;; but on the other hand, the final line is rarely justified so
+	     ;; the two hyphens are very unlikely to create a ladder.
+	     (when (discretionaryp (item previous-boundary))
+	       (if (last-boundary-p boundary)
+		 (setq total-demerits
+		       ($+ total-demerits *final-hyphen-demerits*))
+		 (when (discretionaryp (item boundary))
 		   (setq total-demerits
-			 ($+ total-demerits final-hyphen-demerits))
-		   (when (discretionaryp (item boundary))
-		     (setq total-demerits
-			   ($+ total-demerits double-hyphen-demerits)))))
-	       (let* ((new-key (make-key boundary (1+ previous-line) fitness))
-		      (previous (find new-key new-nodes
-				  :test #'equal :key #'car)))
-		 (if previous
-		   ;; #### NOTE: the inclusive inequality below is conformant
-		   ;; with what TeX does in #855. Concretely, it makes the KP
-		   ;; algorithm greedy in some sense: in case of demerits
-		   ;; equality, TeX keeps the last envisioned solution. On the
-		   ;; other hand, we're in fact not doing exactly the same
-		   ;; thing because we're using MAPHASH and the order of the
-		   ;; nodes in the hash table is not deterministic.
-		   (when ($<= total-demerits
-			      (kp-node-total-demerits (cdr previous)))
-		     (setf (kp-node-scale (cdr previous)) scale
-			   (kp-node-badness (cdr previous)) badness
-			   (kp-node-demerits (cdr previous)) demerits
-			   (kp-node-total-demerits (cdr previous))
-			   total-demerits
-			   (kp-node-previous (cdr previous)) node))
-		   (push (cons new-key
-			       (kp-make-node :boundary boundary
-					     :scale scale
-					     :fitness-class fitness
-					     :badness badness
-					     :demerits demerits
-					     :total-demerits total-demerits
-					     :previous node))
-			 new-nodes))))))))
-     nodes)
-    (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
-      (setq new-nodes
-	    (list
-	     (let* ((scale (lineup-scale lineup
-					 (start-idx
-					  (key-boundary
-					   (car last-deactivated-node)))
-					 (stop-idx boundary)
-					 width))
-		    (fitness-class (scale-fitness-class scale)))
-	       (cons (make-key boundary
-			       (1+ (key-line (car last-deactivated-node)))
-			       fitness-class)
-		     (kp-make-node :boundary boundary
-				   :scale scale
-				   :fitness-class fitness-class
-				   ;; #### NOTE: in this situation, TeX sets
-				   ;; the local demerits to 0 (#855) by
-				   ;; checking the artificial_demerits flag.
-				   ;; So we just re-use the previous total.
-				   :badness 0
-				   :demerits 0
-				   :total-demerits (kp-node-total-demerits
-						    (cdr last-deactivated-node))
-				   :previous (cdr last-deactivated-node)))))))
-    (mapc (lambda (new-node)
-	    (setf (gethash (car new-node) nodes) (cdr new-node)))
-      new-nodes)))
+			 ($+ total-demerits *double-hyphen-demerits*)))))
+	     (let* ((new-key (make-key boundary (1+ previous-line) fitness))
+		    (previous (find new-key new-nodes
+				:test #'equal :key #'car)))
+	       (if previous
+		 ;; #### NOTE: the inclusive inequality below is conformant
+		 ;; with what TeX does in #855. Concretely, it makes the KP
+		 ;; algorithm greedy in some sense: in case of demerits
+		 ;; equality, TeX keeps the last envisioned solution. On the
+		 ;; other hand, we're in fact not doing exactly the same thing
+		 ;; because we're using MAPHASH and the order of the nodes in
+		 ;; the hash table is not deterministic.
+		 (when ($<= total-demerits
+			    (kp-node-total-demerits (cdr previous)))
+		   (setf (kp-node-scale (cdr previous)) scale
+			 (kp-node-badness (cdr previous)) badness
+			 (kp-node-demerits (cdr previous)) demerits
+			 (kp-node-total-demerits (cdr previous))
+			 total-demerits
+			 (kp-node-previous (cdr previous)) node))
+		 (push (cons new-key
+			     (kp-make-node :boundary boundary
+					   :scale scale
+					   :fitness-class fitness
+					   :badness badness
+					   :demerits demerits
+					   :total-demerits total-demerits
+					   :previous node))
+		       new-nodes))))))))
+   nodes)
+  (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
+    (setq new-nodes
+	  (list
+	   (let* ((scale (lineup-scale lineup
+				       (start-idx
+					(key-boundary
+					 (car last-deactivated-node)))
+				       (stop-idx boundary)
+				       width))
+		  (fitness-class (scale-fitness-class scale)))
+	     (cons (make-key boundary
+			     (1+ (key-line (car last-deactivated-node)))
+			     fitness-class)
+		   (kp-make-node :boundary boundary
+				 :scale scale
+				 :fitness-class fitness-class
+				 ;; #### NOTE: in this situation, TeX sets the
+				 ;; local demerits to 0 (#855) by checking the
+				 ;; artificial_demerits flag. So we just
+				 ;; re-use the previous total.
+				 :badness 0
+				 :demerits 0
+				 :total-demerits (kp-node-total-demerits
+						  (cdr last-deactivated-node))
+				 :previous (cdr last-deactivated-node)))))))
+  (mapc (lambda (new-node)
+	  (setf (gethash (car new-node) nodes) (cdr new-node)))
+    new-nodes))
 
-(defun kp-create-nodes (lineup width hyphenate threshold line-penalty
-			adjacent-demerits double-hyphen-demerits
-			final-hyphen-demerits &optional final)
+(defun kp-create-nodes (lineup width pass)
   "Compute the best sequences of breaks for LINEUP in the Knuth-Plass sense.
 This function may be called up to three times (corresponding to \"passes\"
 through the algorithm in the TeX jargon).
@@ -534,7 +521,13 @@ through the algorithm in the TeX jargon).
   ;;   because we use the key to get it,
   ;; - an initial total demerits of 0.
   ;; The other slots (scale, badness, and demerits are not initialized).
-  (let ((root-boundary (make-instance 'boundary :item nil :start-idx 0))
+  (let ((hyphenate (> pass 1))
+	(threshold (if (> pass 1) *tolerance* *pre-tolerance*))
+	(final (case pass
+		 (1 nil)
+		 (2 (zerop *emergency-stretch*))
+		 (3 *emergency-stretch*)))
+	(root-boundary (make-instance 'boundary :item nil :start-idx 0))
 	(nodes (make-hash-table :test #'equal)))
     (setf (gethash (make-key root-boundary 0 2) nodes)
 	  (kp-make-node :boundary root-boundary :fitness-class 2
@@ -545,10 +538,7 @@ through the algorithm in the TeX jargon).
 	  :when (and ($< (penalty (item boundary)) +∞)
 		     (or hyphenate
 			 (not (hyphenation-point-p (item boundary)))))
-	    :do (kp-try-boundary boundary nodes
-		  lineup width threshold line-penalty
-		  adjacent-demerits double-hyphen-demerits
-		  final-hyphen-demerits final))
+	    :do (kp-try-boundary boundary nodes lineup width threshold final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 
@@ -557,10 +547,11 @@ through the algorithm in the TeX jargon).
 ;; -----------------
 
 (defun kp-dynamic-make-lines
-    (lineup disposition beds node threshold
+    (lineup disposition beds node pass
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
+	   (cadr (member :overshrink (disposition-options disposition))))
+	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*)))
   "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass dynamic NODE."
   (loop :with lines
 	:with stretch-tolerance := (stretch-tolerance threshold)
@@ -620,28 +611,13 @@ through the algorithm in the TeX jargon).
 ;; Entry point
 ;; -----------
 
-(defun kp-dynamic-typeset-lineup
-    (lineup disposition width beds line-penalty
-     adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-     pre-tolerance tolerance emergency-stretch looseness
-     &aux (threshold pre-tolerance)
-	  (pass 1))
+(defun kp-dynamic-typeset-lineup (lineup disposition width beds &aux (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
   (if lineup
-    (let* ((nodes (or (when ($<= 0 threshold)
-			(kp-create-nodes lineup width nil threshold
-			  line-penalty adjacent-demerits double-hyphen-demerits
-			  final-hyphen-demerits))
-		      (prog1 (kp-create-nodes lineup width t
-			       (setq threshold tolerance) line-penalty
-			       adjacent-demerits double-hyphen-demerits
-			       final-hyphen-demerits (zerop emergency-stretch))
-			(incf pass))
-		      (prog1 (kp-create-nodes lineup width t
-			       threshold line-penalty
-			       adjacent-demerits double-hyphen-demerits
-			       final-hyphen-demerits emergency-stretch)
-			(incf pass))))
+    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
+			(kp-create-nodes lineup width pass))
+		      (kp-create-nodes lineup width (incf pass))
+		      (kp-create-nodes lineup width (incf pass))))
 	   (best (loop :with total-demerits := +∞ :with best :with last
 		       :for node :being :the :hash-values :in nodes
 			 :using (hash-key key)
@@ -650,12 +626,12 @@ through the algorithm in the TeX jargon).
 			 :do (setq best (cons (key-line key) node)
 				   total-demerits (kp-node-total-demerits node))
 		       :finally (return (or best last)))))
-      (if (zerop looseness)
+      (if (zerop *looseness*)
 	(setq best (cdr best))
 	(setq best
-	      (loop :with ideal-size := (+ (car best) looseness)
+	      (loop :with ideal-size := (+ (car best) *looseness*)
 		    :with closer := (cdr best)
-		    :with delta := (abs looseness)
+		    :with delta := (abs *looseness*)
 		    :for node :being :the :hash-values :in nodes
 		      :using (hash-key key)
 		    :do (cond ((< (abs (- ideal-size (key-line key))) delta)
@@ -674,11 +650,11 @@ through the algorithm in the TeX jargon).
 	:pass pass
 	:demerits (kp-node-total-demerits best)
 	:nodes-number (hash-table-count nodes)
-	:lines (kp-dynamic-make-lines lineup disposition beds best threshold)))
+	:lines (kp-dynamic-make-lines lineup disposition beds best pass)))
     (make-instance 'kp-dynamic-paragraph
       :width width
       :disposition disposition
-      :pass 1
+      :pass 0
       :demerits 0
       :nodes-number 0
       :lines nil)))
@@ -697,27 +673,40 @@ through the algorithm in the TeX jargon).
   "Default Knuth-Plass NAMEd variable."
   `(default kp ,name))
 
-(defmethod prepare-lineup (lineup disposition (algorithm (eql :knuth-plass))
-			   &key hyphen-penalty explicit-hyphen-penalty)
+(defmethod prepare-lineup
+    (lineup disposition (algorithm (eql :knuth-plass))
+     &key ((:hyphen-penalty *hyphen-penalty*))
+	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Apply hyphen penalties and add a final glue to the lineup."
+  (declare (special *hyphen-penalty* *explicit-hyphen-penalty*))
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
   (mapc (lambda (item)
 	  (when (hyphenation-point-p item)
 	    (setf (penalty item)
 		  (if (explicitp item)
-		    explicit-hyphen-penalty
-		    hyphen-penalty))))
+		    *explicit-hyphen-penalty*
+		    *hyphen-penalty*))))
     lineup)
   (when lineup (endpush (make-glue :stretch +∞ :penalty +∞) lineup))
   lineup)
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :knuth-plass))
-     &key variant line-penalty
-	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-	  pre-tolerance tolerance emergency-stretch looseness)
+     &key ((:variant *variant*))
+	  ((:line-penalty *line-penalty*))
+	  ((:adjacent-demerits *adjacent-demerits*))
+	  ((:double-hyphen-demerits *double-hyphen-demerits*))
+	  ((:final-hyphen-demerits *final-hyphen-demerits*))
+	  ((:pre-tolerance *pre-tolerance*))
+	  ((:tolerance *tolerance*))
+	  ((:emergency-stretch *emergency-stretch*))
+	  ((:looseness *looseness*)))
   "Typeset LINEUP with the Knuth-Plass algorithm."
+  (declare (special *variant* *line-penalty*
+		    *adjacent-demerits* *double-hyphen-demerits*
+		    *final-hyphen-demerits* *pre-tolerance* *tolerance*
+		    *emergency-stretch* *looseness*))
   (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
@@ -727,9 +716,7 @@ through the algorithm in the TeX jargon).
   (calibrate-kp tolerance :positive)
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
-  (funcall (ecase variant
+  (funcall (ecase *variant*
 	     (:graph #'kp-graph-typeset-lineup)
 	     (:dynamic #'kp-dynamic-typeset-lineup))
-    lineup disposition width beds line-penalty
-    adjacent-demerits double-hyphen-demerits final-hyphen-demerits
-    pre-tolerance tolerance emergency-stretch looseness))
+    lineup disposition width beds))
