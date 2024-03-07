@@ -25,6 +25,8 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+(defvar *discriminating-function*)
+
 
 
 ;; ====================
@@ -211,7 +213,6 @@ This class keeps track of the line's weight."))
     (lineup disposition width beds (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Duncan algorithm."
-  (declare (special *discriminating-function*))
   (default-duncan discriminating-function)
   (let* ((graph (make-graph lineup width :edge-type 'duncan-edge :fulls t))
 	 (layouts (graph-layouts graph 'duncan-layout)))

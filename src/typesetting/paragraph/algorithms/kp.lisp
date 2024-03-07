@@ -41,6 +41,11 @@
     :kp-variant-dynamic "Dynamic programming implementation."))
 
 
+(define-global-variables variant hyphen-penalty explicit-hyphen-penalty
+  line-penalty adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+  pre-tolerance tolerance emergency-stretch looseness)
+
+
 
 ;; =========
 ;; Utilities
@@ -678,7 +683,6 @@ through the algorithm in the TeX jargon).
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Apply hyphen penalties and add a final glue to the lineup."
-  (declare (special *hyphen-penalty* *explicit-hyphen-penalty*))
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
   (mapc (lambda (item)
@@ -703,10 +707,6 @@ through the algorithm in the TeX jargon).
 	  ((:emergency-stretch *emergency-stretch*))
 	  ((:looseness *looseness*)))
   "Typeset LINEUP with the Knuth-Plass algorithm."
-  (declare (special *variant* *line-penalty*
-		    *adjacent-demerits* *double-hyphen-demerits*
-		    *final-hyphen-demerits* *pre-tolerance* *tolerance*
-		    *emergency-stretch* *looseness*))
   (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)

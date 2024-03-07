@@ -60,6 +60,13 @@ Note the S appended to NAME in the choices variable name."
   `(when (null ,variable) (setq ,variable (car ,choices))))
 
 
+(defmacro define-global-variables (&rest names)
+  "Define global variables for all NAMES. Earmuffs are added to all NAMES."
+  `(progn
+     ,@(mapcar (lambda (name) (list 'defvar (intern (format nil "*~A*" name))))
+	 names)))
+
+
 
 ;; ====================
 ;; Quality measurements

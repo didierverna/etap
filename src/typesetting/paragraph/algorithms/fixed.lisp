@@ -93,6 +93,8 @@ the underfull one."))
 
 (define-fixed-caliber width-offset -50 0 0)
 
+(define-global-variables fallback width-offset avoid-hyphens prefer-overfulls)
+
 
 
 ;; ==========
@@ -310,8 +312,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  ((:avoid-hyphens *avoid-hyphens*))
 	  ((:prefer-overfulls *prefer-overfulls*)))
   "Typeset LINEUP with the Fixed algorithm."
-  (declare (special *fallback* *width-offset*
-		    *avoid-hyphens* *prefer-overfulls*))
   (default-fixed fallback)
   (calibrate-fixed width-offset)
   (make-instance 'paragraph

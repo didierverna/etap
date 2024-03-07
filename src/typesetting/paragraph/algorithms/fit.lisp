@@ -139,6 +139,11 @@ for equally good solutions."))
 (define-fit-caliber width-offset -50 0 0)
 
 
+(define-global-variables variant hyphen-penalty explicit-hyphen-penalty
+  line-penalty fallback width-offset avoid-hyphens prefer-overfulls relax
+  prefer-shrink discriminating-function)
+
+
 
 ;; ==========
 ;; Boundaries
@@ -443,7 +448,6 @@ LINE class."))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Apply hyphen penalties to the lineup."
-  (declare (special *hyphen-penalty* *explicit-hyphen-penalty*))
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
   (mapc (lambda (item)
@@ -467,9 +471,6 @@ LINE class."))
 	  ((:prefer-shrink *prefer-shrink*))
 	  ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Fit algorithm."
-  (declare (special *variant* *line-penalty* *fallback* *width-offset*
-		    *avoid-hyphens* *prefer-overfulls* *relax* *prefer-shrink*
-		    *discriminating-function*))
   (default-fit variant)
   (calibrate-fit line-penalty)
   (default-fit fallback)
