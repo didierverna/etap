@@ -207,17 +207,17 @@ This function returns three values:
 	:finally (return (values fits underfull overfull))))
 
 
-(defgeneric fit-justified-line-boundary
-    (lineup start width variant &key &allow-other-keys)
+;; #### NOTE: even though the value is dynamically scoped, we're still passing
+;; VARIANT explicitly to this function for specialization purposes.
+(defgeneric fit-justified-line-boundary (lineup start width variant)
   (:documentation
    "Return the Fit algorithm's view of the end of a justified line boundary.")
-  (:method (lineup start width variant
-	    &key fallback width-offset avoid-hyphens prefer-overfulls)
+  (:method (lineup start width variant)
     "Find a first-/last-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
 	(fit-justified-line-boundaries lineup start width)
       (cond (fits
-	     (when avoid-hyphens
+	     (when *avoid-hyphens*
 	       (setq fits
 		     (loop :for boundary :in fits
 			   :if (hyphenation-point-p (item boundary))
@@ -230,12 +230,8 @@ This function returns three values:
 	       (:last (first fits))))
 	    (t
 	     (fixed-fallback-boundary
-	      underfull overfull
-	      (+ width width-offset) prefer-overfulls
-	      fallback avoid-hyphens)))))
-  (:method (lineup start width (variant (eql :best))
-	    &key line-penalty discriminating-function prefer-shrink
-		 fallback width-offset avoid-hyphens prefer-overfulls)
+	      underfull overfull (+ width *width-offset*))))))
+  (:method (lineup start width (variant (eql :best)))
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
 	(fit-justified-line-boundaries lineup start width)
@@ -252,7 +248,7 @@ This function returns three values:
 		       (change-class fit 'fit-weighted-boundary
 			 :weight (local-demerits (scale-badness (scale fit))
 						 (penalty (item fit))
-						 line-penalty)
+						 *line-penalty*)
 			 :possibilities possibilities))
 		 fits))
 	     ;; Note the use of $< and EQL here, because we can have (at most)
@@ -264,7 +260,7 @@ This function returns three values:
 	       ;; We have two or more equal weights, so they can only be
 	       ;; numerical.
 	       (let ((new-weight
-		       (ecase discriminating-function
+		       (ecase *discriminating-function*
 			 (:minimize-distance
 			  (lambda (fit) (abs (- width (width fit)))))
 			 (:minimize-scaling
@@ -277,13 +273,11 @@ This function returns three values:
 			    :test #'= :key #'weight)))
 	     (cond ((cdr fits)
 		    (assert (= (length fits) 2))
-		    (if prefer-shrink (first fits) (second fits)))
+		    (if *prefer-shrink* (first fits) (second fits)))
 		   (t (first fits))))
 	    (t
 	     (fixed-fallback-boundary
-	      underfull overfull
-	      (+ width width-offset) prefer-overfulls fallback
-	      avoid-hyphens))))))
+	      underfull overfull (+ width *width-offset*)))))))
 
 
 
@@ -315,17 +309,19 @@ LINE class."))
 ;; Lines computation
 ;; -----------------
 
+;; #### NOTE: even though the value is dynamically scoped, we're still passing
+;; VARIANT explicitly to this function for specialization purposes.
 (defgeneric fit-make-line
     (lineup start boundary disposition beds variant &key &allow-other-keys)
   (:documentation
    "Make a Fit line from LINEUP chunk between START and BOUNDARY.")
   (:method (lineup start boundary disposition beds (variant (eql :first))
-	    &key width relax
+	    &key width
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are stretched as much as possible.
 		 (scale 1))
     "Make a first-fit ragged line from LINEUP chunk between START and BOUNDARY."
-    (when relax
+    (when *relax*
       (setq scale
 	    (if (last-boundary-p boundary)
 	      ;; There is no constraint on destretching the last line.
@@ -346,12 +342,12 @@ LINE class."))
     (make-instance 'line
       :lineup lineup :start-idx start :stop-idx (stop-idx boundary) :beds beds))
   (:method (lineup start boundary disposition beds (variant (eql :last))
-	    &key width relax
+	    &key width
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are shrunk as much as possible.
 		 (scale -1))
     "Make a last-fit ragged line from LINEUP chunk between START and BOUNDARY."
-    (when relax
+    (when *relax*
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
       ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
@@ -406,38 +402,27 @@ LINE class."))
       (apply #'make-instance line-class
 	     :scale theoretical :effective-scale effective line-initargs))))
 
-(defun fit-make-lines
-    (lineup disposition width beds variant line-penalty fallback
-     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-     discriminating-function
-     &aux (get-line-boundary
-	   (if (eq (disposition-type disposition) :justified)
-	     (lambda (start)
-	       (fit-justified-line-boundary lineup start width variant
-	         :line-penalty line-penalty
-		 :discriminating-function discriminating-function
-		 :prefer-shrink prefer-shrink
-		 :fallback fallback
-		 :width-offset width-offset
-		 :avoid-hyphens avoid-hyphens
-		 :prefer-overfulls prefer-overfulls))
-	     (lambda (start)
-	       (fixed-ragged-line-boundary lineup start width
-		 fallback width-offset avoid-hyphens prefer-overfulls
-		 (ecase variant
-		   (:first :max)
-		   (:best :natural)
-		   (:last :min)))))))
+(defun fit-make-lines (lineup disposition width beds)
   "Make fit lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (when lineup
-    (loop :for start := 0 :then (start-idx boundary)
-	  :while start
-	  :for boundary := (funcall get-line-boundary start)
-	  :collect (apply #'fit-make-line lineup start boundary
-			  (disposition-type disposition) beds variant
-			  :width width
-			  :relax relax
-			  (disposition-options disposition)))))
+  (let ((get-line-boundary
+	  (case (disposition-type disposition)
+	    (:justified (lambda (start)
+			  (fit-justified-line-boundary lineup start width
+						       *variant*)))
+	    (t (lambda (start)
+		 (fixed-ragged-line-boundary lineup start width
+					     (ecase *variant*
+					       (:first :max)
+					       (:best :natural)
+					       (:last :min))))))))
+    (when lineup
+      (loop :for start := 0 :then (start-idx boundary)
+	    :while start
+	    :for boundary := (funcall get-line-boundary start)
+	    :collect (apply #'fit-make-line lineup start boundary
+			    (disposition-type disposition) beds *variant*
+			    :width width
+			    (disposition-options disposition))))))
 
 
 
@@ -453,26 +438,38 @@ LINE class."))
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
-(defmethod prepare-lineup (lineup disposition (algorithm (eql :fit))
-			   &key hyphen-penalty explicit-hyphen-penalty)
+(defmethod prepare-lineup
+    (lineup disposition (algorithm (eql :fit))
+     &key ((:hyphen-penalty *hyphen-penalty*))
+	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Apply hyphen penalties to the lineup."
+  (declare (special *hyphen-penalty* *explicit-hyphen-penalty*))
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
   (mapc (lambda (item)
 	  (when (hyphenation-point-p item)
 	    (setf (penalty item)
 		  (if (explicitp item)
-		    explicit-hyphen-penalty
-		    hyphen-penalty))))
+		    *explicit-hyphen-penalty*
+		    *hyphen-penalty*))))
     lineup)
   lineup)
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fit))
-     &key variant line-penalty fallback
-	  width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-	  discriminating-function)
+     &key ((:variant *variant*))
+	  ((:line-penalty *line-penalty*))
+	  ((:fallback *fallback*))
+	  ((:width-offset *width-offset*))
+	  ((:avoid-hyphens *avoid-hyphens*))
+	  ((:prefer-overfulls *prefer-overfulls*))
+	  ((:relax *relax*))
+	  ((:prefer-shrink *prefer-shrink*))
+	  ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Fit algorithm."
+  (declare (special *variant* *line-penalty* *fallback* *width-offset*
+		    *avoid-hyphens* *prefer-overfulls* *relax* *prefer-shrink*
+		    *discriminating-function*))
   (default-fit variant)
   (calibrate-fit line-penalty)
   (default-fit fallback)
@@ -482,7 +479,4 @@ LINE class."))
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fit-make-lines lineup disposition width beds
-	     variant line-penalty fallback
-	     width-offset avoid-hyphens prefer-overfulls relax prefer-shrink
-	     discriminating-function)))
+    :lines (fit-make-lines lineup disposition width beds)))
