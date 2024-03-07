@@ -53,7 +53,6 @@ The weight is computed according to the discriminating function."
 (defmethod initialize-instance :after
     ((edge duncan-edge)
      &key lineup start width
-	  (discriminating-function (car *duncan-discriminating-functions*))
      &aux (last-line-p (last-boundary-p (boundary (destination edge)))))
   "Initialize Duncan EDGE's properties."
   (multiple-value-bind (natural max min stretch shrink)
@@ -76,7 +75,7 @@ The weight is computed according to the discriminating function."
 	    ;; other hand, if the last line is overfull, then it's bad and we
 	    ;; need to take its weight into account.
 	    0
-	    (ecase discriminating-function
+	    (ecase *discriminating-function*
 	      (:minimize-distance (abs (- width natural)))
 	      (:minimize-scaling ($abs (scale edge))))))))
 
@@ -196,6 +195,10 @@ This class keeps track of the line's weight."))
 ;; Entry Point
 ;; ===========
 
+(defmacro default-duncan (name)
+  "Default Duncan NAMEd variable."
+  `(default duncan ,name))
+
 ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
 ;; preventive fulls, that is, we don't return *full boundaries if there is at
 ;; least one fit boundary. Experience shows that including preventive fulls
@@ -206,11 +209,11 @@ This class keeps track of the line's weight."))
 ;; would only affect very rare cases. But this should be experimented.
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :duncan))
-     &rest options &key discriminating-function)
+     &key ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Duncan algorithm."
-  (declare (ignore discriminating-function))
-  (let* ((graph (make-graph lineup width
-		  :edge-type `(duncan-edge ,@options) :fulls t))
+  (declare (special *discriminating-function*))
+  (default-duncan discriminating-function)
+  (let* ((graph (make-graph lineup width :edge-type 'duncan-edge :fulls t))
 	 (layouts (graph-layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
