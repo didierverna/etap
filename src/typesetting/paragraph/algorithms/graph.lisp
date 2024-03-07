@@ -117,8 +117,7 @@ The possible endings are listed in reverse order (from last to first)."
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
 (defun make-subgraph
-    (lineup width boundary edge-type edge-options next-boundaries graph
-     &rest options)
+    (lineup width boundary edge-type next-boundaries graph &rest options)
   "Make a solutions subgraph for breaking LINEUP's remainder starting at
 BOUNDARY into a paragraph of WIDTH.
 
@@ -142,8 +141,8 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 					 options)
 				 :when (apply #'make-subgraph
 					 lineup width next-boundary
-					 edge-type edge-options
-					 next-boundaries graph options)
+					 edge-type next-boundaries graph
+					 options)
 				   :collect :it)))
 		(when nodes
 		  (make-node
@@ -151,17 +150,14 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 		   (mapcar (lambda (node)
 			     (apply #'make-instance edge-type
 				    :lineup lineup :start (start-idx boundary)
-				    :width width :destination node
-				    edge-options))
+				    :width width :destination node))
 		     nodes)))))))))
 
 (defun make-graph
     (lineup width
      &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
      &allow-other-keys
-     &aux (edge-options (when (consp edge-type) (cdr edge-type)))
-	  (edge-type (if (consp edge-type) (car edge-type) edge-type))
-	  (options (remove-keys keys :edge-type :next-boundaries)))
+     &aux (options (remove-keys keys :edge-type :next-boundaries)))
   "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the graph's root node, and the nodes hash table as a
@@ -174,8 +170,7 @@ second value."
 			  :in (apply next-boundaries lineup 0 width options)
 			:when (apply #'make-subgraph
 				lineup width next-boundary
-				edge-type edge-options next-boundaries graph
-				options)
+				edge-type next-boundaries graph	options)
 			  :collect :it))))
     (values
      (when nodes
@@ -183,8 +178,8 @@ second value."
 	nil
 	(mapcar (lambda (node)
 		  (apply #'make-instance edge-type
-			 :lineup lineup :start 0 :width width :destination node
-			 edge-options))
+			 :lineup lineup :start 0 :width width
+			 :destination node))
 	  nodes)))
      graph)))
 
