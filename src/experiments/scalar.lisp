@@ -67,12 +67,20 @@
 (defun collect-demerits
     (lineup widths algorithm
      &rest options
-     &key line-penalty hyphen-penalty explicit-hyphen-penalty
-	  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+     &key
+     ((:line-penalty *line-penalty*))
+     ((:hyphen-penalty *hyphen-penalty*))
+     ((:explicit-hyphen-penalty *explicit-hyphen-penalty*))
+     ((:adjacent-demerits *adjacent-demerits*))
+     ((:double-hyphen-demerits *double-hyphen-demerits*))
+     ((:final-hyphen-demerits *final-hyphen-demerits*))
      &allow-other-keys)
   "Collect TeX's demerits evaluation per paragraph WIDTHS.
-Inifinite demerits are collected as \"NaN\", in order for subsequent plotting
+Infinite demerits are collected as \"NaN\", in order for subsequent plotting
 to be able to handle that gracefully."
+  (declare (special *line-penalty* *hyphen-penalty* *explicit-hyphen-penalty*
+		    *adjacent-demerits* *double-hyphen-demerits*
+		    *final-hyphen-demerits*))
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
@@ -86,8 +94,8 @@ to be able to handle that gracefully."
 	:when (hyphenation-point-p item)
 	  :do (setf (penalty item)
 		    (if (explicitp item)
-		      explicit-hyphen-penalty
-		      hyphen-penalty)))
+		      *explicit-hyphen-penalty*
+		      *hyphen-penalty*)))
   (mapcar (lambda (width)
 	    (let* ((lines (pinned-lines
 			   (apply #'typeset-lineup lineup :justified width
@@ -96,9 +104,9 @@ to be able to handle that gracefully."
 		   (demerits (local-demerits
 			      (scale-badness (scale (car lines)))
 			      (penalty (car lines))
-			      line-penalty)))
+			      *line-penalty*)))
 	      (when (= (scale-fitness-class (scale (car lines))) 0)
-		(setf demerits ($+ demerits adjacent-demerits)))
+		(setf demerits ($+ demerits *adjacent-demerits*)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
@@ -106,16 +114,16 @@ to be able to handle that gracefully."
 				    (local-demerits
 				     (scale-badness (scale line2))
 				     (penalty line2)
-				     line-penalty)))
+				     *line-penalty*)))
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits
-				  ($+ demerits double-hyphen-demerits)))
+				  ($+ demerits *double-hyphen-demerits*)))
 			  (when (> (abs (- (scale-fitness-class (scale line1))
 					   (scale-fitness-class (scale line2))))
 				   1)
-			    (setq demerits ($+ demerits adjacent-demerits)))))
+			    (setq demerits ($+ demerits *adjacent-demerits*)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))
-		(setq demerits ($+ demerits final-hyphen-demerits)))
+		(setq demerits ($+ demerits *final-hyphen-demerits*)))
 	      (if (numberp demerits) (float demerits) "NaN")))
     widths))
 
