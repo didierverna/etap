@@ -146,4 +146,4 @@
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (barnett-make-lines (contents lineup) disposition width beds)))
+    :lines (barnett-make-lines (harray lineup) disposition width beds)))

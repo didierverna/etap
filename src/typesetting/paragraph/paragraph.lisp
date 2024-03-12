@@ -129,7 +129,7 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
 	  (width (if context (paragraph-width context) 284))
-	  (hash nil hashp)
+	  (hlist nil hlistp)
 	  (lineup nil lineupp))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
@@ -141,9 +141,9 @@ WIDTH to 284pt."
     (when lineupp (warn "creating a lineup anyway (can't be null)."))
     (setq lineup
 	  (%make-lineup
-	   (if hashp
-	     hash
-	     (%make-hash text language font kerning ligatures hyphenation))
+	   (if hlistp
+	     hlist
+	     (%make-hlist text language font kerning ligatures hyphenation))
 	   disposition algorithm)))
   (apply #'typeset-lineup
     lineup disposition width beds (algorithm-type algorithm)

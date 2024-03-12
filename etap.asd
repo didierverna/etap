@@ -39,7 +39,7 @@
        (:module "paragraph"
 	:serial t
 	:components
-		((:file "hash")
+		((:file "hlist")
 		 (:file "common")
 		 (:module "algorithms"
 		  :components

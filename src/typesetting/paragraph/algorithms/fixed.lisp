@@ -318,4 +318,4 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fixed-make-lines (contents lineup) disposition width beds)))
+    :lines (fixed-make-lines (harray lineup) disposition width beds)))

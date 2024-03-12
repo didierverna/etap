@@ -1,15 +1,25 @@
-;; A hash is the result of slicing the input text into a list of individual
-;; constituents: characters, kerns, hyphenation points, glues, etc.
-;; Typesetting algorithms don't work on a hash directly. They transform it
-;; into a lineup first.
+;; An `hlist' (borrowing terminology from TeX) is the result of slicing
+;; (hashing? but that's not the meaning of the h in hlist ;-)) the input text
+;; into a list of individual constituents: characters (font-dependent), kerns
+;; (if requested), discretionaries for hyphenation points (if requested,
+;; language-dependent) and ligatures (if requested), and interword glues.
 
-;; #### WARNING: there are a number of characteristics in the hash that
+;; The computation of the hlist is considered a pre-processing stage. No
+;; aspects of paragraph formatting are known yet (paragraph disposition,
+;; typesetting algorithm, or anything else). Most typesetting algorithms
+;; post-process the hlist (for example by adjusting penalties or adding
+;; glues).
+
+;; After this is done, the hlist (an actual list) is transformed into an array
+;; called the `harray', itself stored into a lineup object.
+
+;; #### WARNING: there are a number of characteristics in the hlist that
 ;; affect the way algorithms are implemented. These specificities should be
 ;; kept in mind because should they change, said algorithms may become buggy.
 ;; In particular:
-;; - the paragraph string is trimmed from spaces. There is a single glue
-;;   between words (and the KP algorithm adds an infinitely stretchable glue
-;;   at the end of the paragraph),
+;; - the paragraph string has leading and trailing spaces removed. There is a
+;;   single glue between words (the KP algorithm adds an infinitely
+;;   stretchable one at the end),
 ;; - the only discretionaries that we have come from the hyphenation step, so
 ;;   they originally appear only in the middle of words. However, they may
 ;;   turn out to be anywhere after processing ligatures and kerning.
@@ -28,7 +38,7 @@
   "The typesetting features, as advertised by the interface.")
 
 
-;; Hash / Lineup elements geometry.
+;; HList elements geometry.
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -64,7 +74,7 @@
 
 
 ;; ==========================================================================
-;; Hash / Lineup Constituents
+;; HList Constituents
 ;; ==========================================================================
 
 ;; -----
@@ -224,7 +234,7 @@ Glues represent breakable, elastic space."))
 
 
 ;; ==========================================================================
-;; Hash Creation
+;; HList Creation
 ;; ==========================================================================
 
 ;; #### NOTE: the procedures handling ligatures and kerning below are aware of
@@ -236,7 +246,7 @@ Glues represent breakable, elastic space."))
 ;; potential ligatures starting from a post-break element and going to both a
 ;; no-break and a pre-break later on, we can't represent that statically. The
 ;; only truly general solution is to delay ligature and kerning processing
-;; until the lineup is flattened. But then, this means that we also need to do
+;; until the harray is flattened. But then, this means that we also need to do
 ;; that every time we want to poll the size of various lineup chunks. This
 ;; could be rather expensive (although I haven't tried it).
 
@@ -281,9 +291,9 @@ Glues represent breakable, elastic space."))
 	(when kerning (endpush (make-kern kerning) (post-break elt1)))))
     nil))
 
-(defun process-kerning (hash)
-  "Return an new HASH with kerns."
-  (loop :for elements :on hash
+(defun process-kerning (hlist)
+  "Return an new HLIST with kerns."
+  (loop :for elements :on hlist
 	:for elt1 := (car elements)
 	:for elt2 := (cadr elements)
 	:for remainder := (cddr elements)
@@ -318,11 +328,11 @@ accessible. There can be several of them, notably if ELT is a discretionary.")
     (append (next-characters (pre-break elt))
 	    (next-characters (append (no-break elt) remainder)))))
 
-(defun next-characters (hash)
-  "Return a list of next characters in HASH.
-This function looks up in HASH for all characters directly accessible.
-There can be several of them, notably if HASH begins with a discretionary."
-  (when hash (next-characters-1 (car hash) (cdr hash))))
+(defun next-characters (hlist)
+  "Return a list of next characters in HLIST.
+This function looks up in HLIST for all characters directly accessible.
+There can be several of them, notably if HLIST begins with a discretionary."
+  (when hlist (next-characters-1 (car hlist) (cdr hlist))))
 
 ;; #### NOTE: after processing ligatures, we may end up with adjacent
 ;; discretionaries, but this is normal. For example, in the word ef-fi-cient,
@@ -331,7 +341,7 @@ There can be several of them, notably if HASH begins with a discretionary."
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
   (:documentation "Process ligatures for (ELT1 ELT2 . REMAINDER).
 Return a list of two values: a list of done elements that should be appended
-to the new hash, and the unprocessed new remainder.")
+to the new hlist, and the unprocessed new remainder.")
   (:method (elt1 elt2 remainder)
     "Return (ELT1) and (ELT2 . REMAINDER). This is the default method."
     (list (list elt1) (cons elt2 remainder)))
@@ -381,14 +391,14 @@ to the new hash, and the unprocessed new remainder.")
 (defun process-ligatures-1 (elt remainder)
   "Process ligatures for (ELT . REMAINDER).
 Return a list of two values: a list of done elements that should be appended
-to the new hash, and the unprocessed new remainder."
+to the new hlist, and the unprocessed new remainder."
   (if remainder
     (process-ligatures-2 elt (car remainder) (cdr remainder))
     (list (list elt))))
 
-(defun process-ligatures (hash)
-  "Return a new HASH with ligatures."
-  (loop :for elts := hash :then remainder
+(defun process-ligatures (hlist)
+  "Return a new HLIST with ligatures."
+  (loop :for elts := hlist :then remainder
 	:for (done remainder) := (process-ligatures-1 (car elts) (cdr elts))
 	:while elts
 	:append done))
@@ -502,18 +512,18 @@ are replaced with a single interword glue."
 
 
 ;; -----------------
-;; Hash computation
+;; HList computation
 ;; -----------------
 
-(defun %make-hash (text language font kerning ligatures hyphenation)
-  "Hash TEXT in LANGUAGE for FONT, with KERNING, LIGATURES, and HYPHENATION."
-  (let ((hash (slice text language font hyphenation)))
+(defun %make-hlist (text language font kerning ligatures hyphenation)
+  "Slice TEXT in LANGUAGE for FONT, with KERNING, LIGATURES, and HYPHENATION."
+  (let ((hlist (slice text language font hyphenation)))
     ;; #### WARNING: the order is important below. Kerning must be computed
     ;; after ligature characters have been inserted, and the processing of
     ;; ligatures and kerning may affect the contents of discretionaries, so we
     ;; must add hyphenation clues only after everything else has been done.
-    (when ligatures (setq hash (process-ligatures hash)))
-    (when kerning (setq hash (process-kerning hash)))
+    (when ligatures (setq hlist (process-ligatures hlist)))
+    (when kerning (setq hlist (process-kerning hlist)))
     (when hyphenation
       (mapc (lambda (element)
 	      (when (hyphenation-point-p element)
@@ -521,13 +531,13 @@ are replaced with a single interword glue."
 			:explicit-hyphenation-clue
 			:hyphenation-clue)
 		      (no-break element))))
-	hash))
-    hash))
+	hlist))
+    hlist))
 
 ;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
 ;; argument on purpose: it's more convenient to provide access to TEXT and
 ;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
-(defun make-hash
+(defun make-hlist
     (&key (context *context*)
 	  (text (if context (text (nlstring context)) *text*))
 	  (language (if context (language (nlstring context)) *language*))
@@ -536,9 +546,9 @@ are replaced with a single interword glue."
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation)))
-  "Make a new hash.
+  "Make a new hlist.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
 global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
 FEATURES."
-  (%make-hash text language font kerning ligatures hyphenation))
+  (%make-hlist text language font kerning ligatures hyphenation))

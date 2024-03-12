@@ -170,13 +170,13 @@ This function returns two values.
 ;; Entry Points
 ;; ==========================================================================
 
-(defgeneric process-hash (hash disposition algorithm &key &allow-other-keys)
+(defgeneric process-hlist (hlist disposition algorithm &key &allow-other-keys)
   (:documentation
-   "Process HASH for DISPOSITION in an ALGORITHM-specific way.
-All primary methods must return a (possibly modified) HASH.")
-  (:method (hash disposition algorithm &key)
-    "Return HASH as-is. This is the default method."
-    hash))
+   "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
+All primary methods must return a (possibly modified) HLIST.")
+  (:method (hlist disposition algorithm &key)
+    "Return hlist as-is. This is the default method."
+    hlist))
 
 ;; #### FIXME: the design of this is not satisfactory. Every method calls
 ;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number

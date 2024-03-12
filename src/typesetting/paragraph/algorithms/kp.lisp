@@ -304,25 +304,25 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun kp-graph-typeset-lineup
     (lineup disposition width beds &aux (threshold *pre-tolerance*) (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
-  (let* ((graph (unless (zerop (length (contents lineup)))
+  (let* ((graph (unless (zerop (length (harray lineup)))
 		  ;; #### NOTE: we guard against a null lineup here in order
 		  ;; to avoid running the 3 passes. It's not the same to not
 		  ;; have lines, and to not have a solution in a particular
 		  ;; pass.
 		  (or (when ($<= 0 threshold)
-			(make-graph (contents lineup) width
+			(make-graph (harray lineup) width
 			  :edge-type 'kp-edge
 			  :next-boundaries #'kp-next-boundaries
 			  :threshold threshold))
 		      (progn (incf pass)
-			     (make-graph (contents lineup) width
+			     (make-graph (harray lineup) width
 			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t
 			       :threshold (setq threshold *tolerance*)
 			       :final (zerop *emergency-stretch*)))
 		      (progn (incf pass)
-			     (make-graph (contents lineup) width
+			     (make-graph (harray lineup) width
 			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t :threshold threshold
@@ -350,7 +350,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; either, so there's no rush. It's still important to keep that in mind
       ;; however, because that explains while we may end up with different
       ;; solutions between the graph and the dynamic versions.
-      :lines (kp-graph-make-lines (contents lineup) disposition beds
+      :lines (kp-graph-make-lines (harray lineup) disposition beds
 				  (first layouts)))))
 
 
@@ -619,7 +619,7 @@ through the algorithm in the TeX jargon).
 
 (defun kp-dynamic-typeset-lineup (lineup disposition width beds &aux (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
-  (if (zerop (length (contents lineup)))
+  (if (zerop (length (harray lineup)))
     (make-instance 'kp-dynamic-paragraph
       :width width
       :disposition disposition
@@ -629,9 +629,9 @@ through the algorithm in the TeX jargon).
       :nodes-number 0
       :lines nil)
     (let* ((nodes (or (when ($>= *pre-tolerance* 0)
-			(kp-create-nodes (contents lineup) width pass))
-		      (kp-create-nodes (contents lineup) width (incf pass))
-		      (kp-create-nodes (contents lineup) width (incf pass))))
+			(kp-create-nodes (harray lineup) width pass))
+		      (kp-create-nodes (harray lineup) width (incf pass))
+		      (kp-create-nodes (harray lineup) width (incf pass))))
 	   (best (loop :with total-demerits := +∞ :with best :with last
 		       :for node :being :the :hash-values :in nodes
 			 :using (hash-key key)
@@ -664,7 +664,7 @@ through the algorithm in the TeX jargon).
 	:pass pass
 	:demerits (kp-node-total-demerits best)
 	:nodes-number (hash-table-count nodes)
-	:lines (kp-dynamic-make-lines (contents lineup) disposition beds best
+	:lines (kp-dynamic-make-lines (harray lineup) disposition beds best
 				      pass)))))
 
 

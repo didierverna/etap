@@ -1,8 +1,17 @@
-;; A lineup is the result of post-processing a hash by a specific algorithm.
-;; While a hash is a list of constituents, a lineup is an array of such. A
-;; lineup can be as simple as an array version of the original hash, but some
-;; algorithms perform additional treatment on the constituents, such as
-;; adjusting penalties, inserting glues, etc.
+;; A `lineup' is an object representing the paragraph material ready for
+;; typesetting. The actual material is stored into a so-called `harray' (the
+;; equivalent of an hlist, in array form).
+
+;; An harray can be as simple as an array version of the original hlist, but
+;; contrary to the hlist, it depends on the final paragraph disposition and
+;; typesetting algorithm in use. Most algorithms post-process the hlist (for
+;; example by adjusting penalties or adding glues).
+
+;; In addition to the harray, the lineup also stores the computation of the
+;; break points and theoretical solutions numbers. We associate those numbers
+;; with the harray rather than with the hlist because some algorithms have
+;; control over the availability of the original break points (e.g. by putting
+;; an infinite penalty on hyphenation points).
 
 (in-package :etap)
 
@@ -12,12 +21,12 @@
 ;; ==========================================================================
 
 (defclass lineup ()
-  ((hash
-    :documentation "The lineup's original hash."
-    :initarg :hash :reader hash)
-   (contents
-    :documentation "The lineup's contents."
-    :initarg :contents :reader contents)
+  ((hlist
+    :documentation "The lineup's original hlist."
+    :initarg :hlist :reader hlist)
+   (harray
+    :documentation "The lineup's harray."
+    :initarg :harray :reader harray)
    (break-points-#
     :documentation "The number of break points."
     :initform 0 :reader break-points-#)
@@ -27,16 +36,16 @@
   (:documentation "The LINEUP class."))
 
 (defmethod initialize-instance :after
-    ((lineup lineup) &key &aux (contents (contents lineup)))
+    ((lineup lineup) &key &aux (harray (harray lineup)))
   "Compute LINEUP's number of break points and theoretical solutions."
   ;; #### NOTE: for clarity, we want to make a distinction between and empty
   ;; paragraph and a non-empty one with no break points. In the former case,
   ;; we state that we have 0 solutions, while in the later case we have one.
-  (unless (zerop (length contents))
+  (unless (zerop (length harray))
     (let ((break-points-#
 	    (count-if (lambda (item)
 			(and (break-point-p item) ($< (penalty item) +∞)))
-		contents)))
+		harray)))
       (setf (slot-value lineup 'break-points-#)
 	    break-points-#
 	    (slot-value lineup 'theoretical-solutions-#)
@@ -45,14 +54,15 @@
 ;; #### WARNING: the DISPOSITION argument is currently unused, but will be
 ;; when we update the KP algorithm to handle ragged dispositions properly.
 (defun %make-lineup
-    (hash disposition algorithm
-     &aux (contents (when hash
-		      (apply #'process-hash hash disposition
-			     (algorithm-type algorithm)
-			     (algorithm-options algorithm)))))
+    (hlist disposition algorithm
+     &aux (processed-hlist (when hlist
+			     (apply #'process-hlist hlist disposition
+				    (algorithm-type algorithm)
+				    (algorithm-options algorithm)))))
   (make-instance 'lineup
-    :hash hash
-    :contents (make-array (length contents) :initial-contents contents)))
+    :hlist hlist
+    :harray (make-array (length processed-hlist)
+	      :initial-contents processed-hlist)))
 
 ;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
 ;; argument on purpose: it's more convenient to provide access to TEXT and
@@ -68,13 +78,14 @@
 	  (hyphenation (getf features :hyphenation))
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
-	  (hash (%make-hash text language font kerning ligatures hyphenation)))
+	  (hlist (%make-hlist text language font kerning ligatures
+			      hyphenation)))
   "Make a new lineup.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
 global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
 FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
-  (%make-lineup hash disposition algorithm))
+  (%make-lineup hlist disposition algorithm))
 
 
 

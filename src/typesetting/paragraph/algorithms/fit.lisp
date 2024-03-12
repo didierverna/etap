@@ -480,4 +480,4 @@ LINE class."))
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fit-make-lines (contents lineup) disposition width beds)))
+    :lines (fit-make-lines (harray lineup) disposition width beds)))

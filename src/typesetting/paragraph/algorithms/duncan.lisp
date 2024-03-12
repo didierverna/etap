@@ -214,7 +214,7 @@ This class keeps track of the line's weight."))
      &key ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Duncan algorithm."
   (default-duncan discriminating-function)
-  (let* ((graph (make-graph (contents lineup) width :edge-type 'duncan-edge
+  (let* ((graph (make-graph (harray lineup) width :edge-type 'duncan-edge
 						    :fulls t))
 	 (layouts (graph-layouts graph 'duncan-layout)))
     (labels ((perfect (layout)
@@ -252,5 +252,5 @@ This class keeps track of the line's weight."))
 	:disposition disposition
 	:lineup lineup
 	:layouts layouts
-	:lines (duncan-make-lines (contents lineup) disposition beds
+	:lines (duncan-make-lines (harray lineup) disposition beds
 				  (first layouts))))))
