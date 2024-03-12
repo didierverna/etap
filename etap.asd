@@ -16,20 +16,23 @@
      (:file "util")
      (:module "font"
       :serial t
-      :components ((:file "glyphlist.txt")
-		   (:file "lm-ec.enc")
-		   (:file "lm-ec")
-		   (:file "font")))
+      :components
+      ((:file "glyphlist.txt")
+       (:file "lm-ec.enc")
+       (:file "lm-ec")
+       (:file "font")))
      (:module "language"
       :serial t
-      :components ((:file "common")
-		   (:module "hyphenation"
-		    :serial t
-		    :components ((:file "rules")
-				 (:file "load")
-				 (:file "hyphenate")))
-		   (:file "language")
-		   (:file "text")))
+      :components
+      ((:file "common")
+       (:module "hyphenation"
+	:serial t
+	:components
+		((:file "rules")
+		 (:file "load")
+		 (:file "hyphenate")))
+       (:file "language")
+       (:file "text")))
      (:file "context")
      (:module "typesetting"
       :serial t
@@ -43,8 +46,8 @@
 		 (:file "common")
 		 (:module "algorithms"
 		  :components
-			  ((:file "common")
-			   (:file "lineup")
+			  ((:file "lineup")
+			   (:file "common" :depends-on ("lineup"))
 			   (:file "fixed" :depends-on ("common"))
 			   (:file "fit" :depends-on  ("fixed"))
 			   (:file "barnett" :depends-on  ("fixed"))
