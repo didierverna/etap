@@ -1,8 +1,8 @@
 (in-package :etap)
 
-;; =========================
+;; ==========================================================================
 ;; Parametrization Utilities
-;; =========================
+;; ==========================================================================
 
 ;; For easy exchange with the interface and manipulation as function keyword
 ;; parameters.
@@ -38,7 +38,7 @@ A caliber represents values that have a mininum, a maximum, and a default."
 - If *NAME* is already properly calibrated, leave it be.
 - If *NAME* is out of bounds (large inequality), clamp it or set it to an
   infinity value of the same sign, according to INFINITY. INFINITY may be NIL
-  (the default), T, :positive, or :negative." 
+  (the default), T, :positive, or :negative."
   `(cond ((null ,variable)
 	  (setq ,variable (caliber-default ,caliber)))
 	 ((<= ,variable (caliber-min ,caliber))
@@ -68,9 +68,10 @@ Note the S appended to NAME in the choices variable name."
 
 
 
-;; ====================
+
+;; ==========================================================================
 ;; Quality measurements
-;; ====================
+;; ==========================================================================
 
 ;; #### NOTE: the two functions below normally belong to the Knuth-Plass
 ;; algorithm. They're here because the Best-Fit / Justified one uses them as
@@ -140,9 +141,10 @@ line ends, and also include the LINE-PENALTY parameter."
 
 
 
-;; =========
+
+;; ==========================================================================
 ;; Utilities
-;; =========
+;; ==========================================================================
 
 (defun actual-scales (scale &key (shrink-tolerance -1) (stretch-tolerance 1)
 				 (overshrink nil) (overstretch nil))
@@ -163,25 +165,18 @@ This function returns two values.
 
 
 
-;; ============
+
+;; ==========================================================================
 ;; Entry Points
-;; ============
+;; ==========================================================================
 
-;; #### WARNING: the DISPOSITION argument is currently unused, but will be
-;; when we update the KP algorithm to handle ragged dispositions properly.
-(defgeneric prepare-lineup
-    (lineup disposition algorithm &key &allow-other-keys)
+(defgeneric process-hash (hash disposition algorithm &key &allow-other-keys)
   (:documentation
-   "Prepare LINEUP for DISPOSITION in an ALGORITHM-specific way.
-Primary methods must return a possibly modified lineup.")
-  (:method :around (lineup disposition algorithm &key)
-    "Only proceed when LINEUP is not null, and finally convert it to an array."
-    (when lineup
-      (setq lineup (call-next-method))
-      (make-array (length lineup) :initial-contents lineup)))
-  (:method (lineup disposition algorithm &key)
-    "Return LINEUP as-is. This is the default method."
-    lineup))
+   "Process HASH for DISPOSITION in an ALGORITHM-specific way.
+All primary methods must return a (possibly modified) HASH.")
+  (:method (hash disposition algorithm &key)
+    "Return HASH as-is. This is the default method."
+    hash))
 
 ;; #### FIXME: the design of this is not satisfactory. Every method calls
 ;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number

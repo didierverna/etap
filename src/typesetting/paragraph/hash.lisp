@@ -1,10 +1,15 @@
-;; #### WARNING: there are a number of characteristics in the lineup that
+;; A hash is the result of slicing the input text into a list of individual
+;; constituents: characters, kerns, hyphenation points, glues, etc.
+;; Typesetting algorithms don't work on a hash directly. They transform it
+;; into a lineup first.
+
+;; #### WARNING: there are a number of characteristics in the hash that
 ;; affect the way algorithms are implemented. These specificities should be
 ;; kept in mind because should they change, said algorithms may become buggy.
 ;; In particular:
-;; - the paragraph string is trimmed for spaces. There is a single glue
-;;   between each words, and the KP algorithm adds an infinitely stretchable
-;;   glue at the end of the paragraph.
+;; - the paragraph string is trimmed from spaces. There is a single glue
+;;   between words (and the KP algorithm adds an infinitely stretchable glue
+;;   at the end of the paragraph),
 ;; - the only discretionaries that we have come from the hyphenation step, so
 ;;   they originally appear only in the middle of words. However, they may
 ;;   turn out to be anywhere after processing ligatures and kerning.
@@ -12,18 +17,18 @@
 (in-package :etap)
 
 
-;; =================
+;; ==========================================================================
 ;; General Utilities
-;; =================
+;; ==========================================================================
 
 ;; For the interface.
 
-(defparameter *lineup-features*
+(defparameter *typesetting-features*
   '((:kerning t) (:ligatures t) (:hyphenation t))
-  "The lineup features, as advertised by the interface.")
+  "The typesetting features, as advertised by the interface.")
 
 
-;; Lineup elements geometry.
+;; Hash / Lineup elements geometry.
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -57,9 +62,10 @@
 
 
 
-;; ===================
-;; Lineup Constituents
-;; ===================
+
+;; ==========================================================================
+;; Hash / Lineup Constituents
+;; ==========================================================================
 
 ;; -----
 ;; Kerns
@@ -216,11 +222,10 @@ Glues represent breakable, elastic space."))
 
 
 
-;; ===============
-;; Lineup Creation
-;; ===============
-
-;; #### WARNING: in the code below, the lineup is still a list.
+
+;; ==========================================================================
+;; Hash Creation
+;; ==========================================================================
 
 ;; #### NOTE: the procedures handling ligatures and kerning below are aware of
 ;; discretionaries, but they are really meant for those inserted automatically
@@ -240,14 +245,14 @@ Glues represent breakable, elastic space."))
 ;; -------
 
 (defun kerning (elt1 elt2)
-  "Return kerning information for lineup elements ELT1 and ELT2, or NIL."
+  "Return kerning information for ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
        (tfm:kerning elt1 elt2)))
 
 (defgeneric collect-kern (elt1 elt2 remainder)
   (:documentation
-   "Collect kerning information for lineup (ELT1 ELT2 . REMAINDER).")
+   "Collect kerning information for (ELT1 ELT2 . REMAINDER).")
   (:method (elt1 elt2 remainder)
     "Return NIL. This is the default method."
     nil)
@@ -276,9 +281,9 @@ Glues represent breakable, elastic space."))
 	(when kerning (endpush (make-kern kerning) (post-break elt1)))))
     nil))
 
-(defun process-kerning (lineup)
-  "Return an new LINEUP with kerns."
-  (loop :for elements :on lineup
+(defun process-kerning (hash)
+  "Return an new HASH with kerns."
+  (loop :for elements :on hash
 	:for elt1 := (car elements)
 	:for elt2 := (cadr elements)
 	:for remainder := (cddr elements)
@@ -292,14 +297,14 @@ Glues represent breakable, elastic space."))
 ;; --------------------
 
 (defun ligature (elt1 elt2)
-  "Return a ligature for lineup ELT1 and ELT2, or NIL."
+  "Return a ligature for ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
        (tfm:ligature elt1 elt2)))
 
 (defgeneric next-characters-1 (elt remainder)
   (:documentation
-   "Return a list of next characters for lineup (ELT . REMAINDER).
+   "Return a list of next characters for (ELT . REMAINDER).
 This function looks up in (ELT . REMAINDER) for all characters directly
 accessible. There can be several of them, notably if ELT is a discretionary.")
   (:method (elt remainder)
@@ -313,20 +318,20 @@ accessible. There can be several of them, notably if ELT is a discretionary.")
     (append (next-characters (pre-break elt))
 	    (next-characters (append (no-break elt) remainder)))))
 
-(defun next-characters (lineup)
-  "Return a list of next characters in LINEUP.
-This function looks up in LINEUP for all characters directly accessible.
-There can be several of them, notably if LINEUP begins with a discretionary."
-  (when lineup (next-characters-1 (car lineup) (cdr lineup))))
+(defun next-characters (hash)
+  "Return a list of next characters in HASH.
+This function looks up in HASH for all characters directly accessible.
+There can be several of them, notably if HASH begins with a discretionary."
+  (when hash (next-characters-1 (car hash) (cdr hash))))
 
 ;; #### NOTE: after processing ligatures, we may end up with adjacent
-;; #### discretionaries, but this is normal. For example, in the word
-;; #### ef-fi-cient, what we get eventually is
-;; #### e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
+;; discretionaries, but this is normal. For example, in the word ef-fi-cient,
+;; what we get eventually is
+;; e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
 (defgeneric process-ligatures-2 (elt1 elt2 remainder)
-  (:documentation "Process ligatures for lineup (ELT1 ELT2 . REMAINDER).
+  (:documentation "Process ligatures for (ELT1 ELT2 . REMAINDER).
 Return a list of two values: a list of done elements that should be appended
-to the new lineup, and the unprocessed new remainder.")
+to the new hash, and the unprocessed new remainder.")
   (:method (elt1 elt2 remainder)
     "Return (ELT1) and (ELT2 . REMAINDER). This is the default method."
     (list (list elt1) (cons elt2 remainder)))
@@ -374,16 +379,16 @@ to the new lineup, and the unprocessed new remainder.")
 	   (list (list elt1) (cons elt2 remainder))))))
 
 (defun process-ligatures-1 (elt remainder)
-  "Process ligatures for lineup ELT followed by REMAINDER.
+  "Process ligatures for (ELT . REMAINDER).
 Return a list of two values: a list of done elements that should be appended
-to the new lineup, and the unprocessed new remainder."
+to the new hash, and the unprocessed new remainder."
   (if remainder
     (process-ligatures-2 elt (car remainder) (cdr remainder))
     (list (list elt))))
 
-(defun process-ligatures (lineup)
-  "Return a new LINEUP with ligatures."
-  (loop :for elts := lineup :then remainder
+(defun process-ligatures (hash)
+  "Return a new HASH with ligatures."
+  (loop :for elts := hash :then remainder
 	:for (done remainder) := (process-ligatures-1 (car elts) (cdr elts))
 	:while elts
 	:append done))
@@ -445,7 +450,7 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 
 
 ;; --------------
-;; Lineup slicing
+;; Text slicing
 ;; --------------
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
@@ -465,15 +470,14 @@ Currently, this means alphabetic or a dash."
 ;; one word between two glues, so for instance in "... foo.bar ...", bar will
 ;; never be hyphenated. There are also other rules that prevent hyphenation in
 ;; some situations, which we do not have right now.
-(defun slice-nlstring
-    (nlstring font hyphenate
-     &aux (hyphenation-rules
-	   (when hyphenate (get-hyphenation-rules (language nlstring)))))
-  "Slice NLSTRING in FONT, and possibly HYPHENATE it.
-Return a list of characters from FONT, interword glues, and discretionaries if
-HYPHENATE is non-NIL. STRING is initially trimmed from blanks, and inner
-consecutive blanks are replaced with a single interword glue."
-  (loop :with string := (string-trim *blanks* (text nlstring))
+(defun slice
+    (text language font hyphenate
+     &aux (hyphenation-rules (when hyphenate (get-hyphenation-rules language))))
+  "Slice LANGUAGE TEXT in FONT, possibly HYPHENATE'ing it.
+Return a list of FONT characters, interword glues, and discretionaries if
+HYPHENATE. TEXT is initially trimmed from blanks, and inner consecutive blanks
+are replaced with a single interword glue."
+  (loop :with string := (string-trim *blanks* text)
 	:with length := (length string)
 	:with i := 0
 	:while (< i length)
@@ -497,189 +501,44 @@ consecutive blanks are replaced with a single interword glue."
 	  :and :do (incf i)))
 
 
-;; ------------------
-;; Lineup computation
-;; ------------------
+;; -----------------
+;; Hash computation
+;; -----------------
 
-(defun make-lineup
+(defun %make-hash (text language font kerning ligatures hyphenation)
+  "Hash TEXT in LANGUAGE for FONT, with KERNING, LIGATURES, and HYPHENATION."
+  (let ((hash (slice text language font hyphenation)))
+    ;; #### WARNING: the order is important below. Kerning must be computed
+    ;; after ligature characters have been inserted, and the processing of
+    ;; ligatures and kerning may affect the contents of discretionaries, so we
+    ;; must add hyphenation clues only after everything else has been done.
+    (when ligatures (setq hash (process-ligatures hash)))
+    (when kerning (setq hash (process-kerning hash)))
+    (when hyphenation
+      (mapc (lambda (element)
+	      (when (hyphenation-point-p element)
+		(push (if (explicitp element)
+			:explicit-hyphenation-clue
+			:hyphenation-clue)
+		      (no-break element))))
+	hash))
+    hash))
+
+;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
+;; argument on purpose: it's more convenient to provide access to TEXT and
+;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
+(defun make-hash
     (&key (context *context*)
-	  (text *text* textp)
-	  (language *language* languagep)
+	  (text (if context (text (nlstring context)) *text*))
+	  (language (if context (language (nlstring context)) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
-     &aux (nlstring (or (when (or textp languagep)
-			  (make-nlstring :text text :language language))
-			(nlstring context)
-			(make-nlstring :text text :language language)))
-	  (lineup (slice-nlstring nlstring font hyphenation)))
-  "Make a new lineup.
+	  (hyphenation (getf features :hyphenation)))
+  "Make a new hash.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
 global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
 FEATURES."
-  ;; #### NOTE: the order is important below. Kerning must be computed after
-  ;; ligature characters have been inserted, and the processing of ligatures
-  ;; and kerning may affect the contents of discretionaries, so we must add
-  ;; hyphenation clues only after everything else has been done.
-  (when ligatures (setq lineup (process-ligatures lineup)))
-  (when kerning (setq lineup (process-kerning lineup)))
-  (when hyphenation
-    (mapc (lambda (element)
-	    (when (hyphenation-point-p element)
-	      (push (if (explicitp element)
-		      :explicit-hyphenation-clue
-		      :hyphenation-clue)
-		    (no-break element))))
-      lineup))
-  lineup)
-
-
-
-;; ===================
-;; Lineup Manipulation
-;; ===================
-
-;; #### WARNING: in the code below, the lineup has become an array.
-
-;; ---------
-;; Utilities
-;; ---------
-
-(defun lineup-aref (lineup i start stop &aux (element (aref lineup i)))
-  "Return LINEUP element at position I, between START and STOP boundaries.
-If element is a discretionary, return the appropriate pre/no/post break part."
-  (if (discretionaryp element)
-    ;; #### WARNING: after all the pre-processing done on the lineup,
-    ;; including ligatures / kerning management in the presence of hyphenation
-    ;; points, we may end up with lineups beginning or ending with
-    ;; discretionaries (or even consecutive discretionaries for that matter).
-    ;; When discretionaries begin or end the lineup, we must not consider them
-    ;; as post- or pre-breaks though.
-    (cond ((and (= i start) (not (zerop start)))
-	   (post-break element))
-	  ((and (= i (1- stop)) (not (= stop (length lineup))))
-	   (pre-break element))
-	  (t (no-break element)))
-    element))
-
-
-;; -------------
-;; Lineup widths
-;; -------------
-
-(defun lineup-width (lineup start stop)
-  "Compute LINEUP's width between START and STOP.
-Return five values: the natural, maximum, and minimum width, followed by the
-stretch and shrink amounts."
-  (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
-	:for i :from start :upto (1- stop)
-	;; #### FIXME: this works for now, but it is not quite right in the
-	;; general case. When ELEMENT is a list (typically the contents of a
-	;; discretionary, there could be anything inside, including, e.g.,
-	;; glues. See also the long comment above the KERNING function.
-	:for element := (lineup-aref lineup i start stop)
-	:do (incf width (width element))
-	:when (gluep element)
-	  :do (setq stretch ($+ stretch (stretch element))
-		    shrink (+ shrink (shrink element)))
-	:finally (return (values width ($+ width stretch) (- width shrink)
-				 stretch shrink))))
-
-(defun lineup-max-width (lineup start stop)
-  "Return LINEUP's width between START and STOP, with maximal stretching."
-  (multiple-value-bind (natural max) (lineup-width lineup start stop)
-    (declare (ignore natural))
-    max))
-
-(defun lineup-min-width (lineup start stop)
-  "Return LINEUP's width between START and STOP, with maximal shrinking."
-  (multiple-value-bind (natural max min) (lineup-width lineup start stop)
-    (declare (ignore natural max))
-    min))
-
-
-;; -------------
-;; Lineup scales
-;; -------------
-
-(defun scaling (width target stretch shrink)
-  "Return the amount of scaling required to reach TARGET from WIDTH.
-The amount in question is 0 if WIDTH is equal to TARGET.
-Otherwise, it's a possibly infinite stretching (positive) or shrinking
-(negative) ratio relative to the elasticity provided by STRETCH and SHRINK."
-  (cond ((= width target) 0)
-	((< width target) ($/ (- target width) stretch))
-	((< target width) ($/ (- target width) shrink))))
-
-(defun lineup-scale (lineup start stop target &optional extra)
-  "Return the amount of scaling required for LINEUP chunk between START and
-STOP to reach TARGET width, possibly with EXTRA stretch.
-See `scaling' for more information."
-  (multiple-value-bind (width max min stretch shrink)
-      (lineup-width lineup start stop)
-    (declare (ignore max min))
-    (when extra (setq stretch ($+ stretch extra)))
-    (scaling width target stretch shrink)))
-
-
-;; -----------------
-;; Lineup boundaries
-;; -----------------
-
-(defclass boundary ()
-  ((item
-    :documentation "The lineup item at that boundary."
-    :initarg :item :reader item)
-   (stop-idx
-    :documentation "The lineup index for an end of line at that boundary."
-    :initarg :stop-idx :reader stop-idx)
-   (start-idx
-    :documentation
-    "The lineup index for a beginning of line at that boundary."
-    :initarg :start-idx :reader start-idx))
-  (:default-initargs :allow-other-keys t) ;; allow :lineup
-  (:documentation "Base class for lineup boundaries.
-A boundary represents a possible break point in the lineup.
-The end of the lineup is represented by a special boundary with a null item
-and start index (the stop index being the lineup's length).
-
-Greedy algorithms may extend this class in order to memoize various aspects of
-line computation (see `next-boundary'), essentially because all boundaries
-subject to comparison at one point in time relate to the same beginning of
-line. Non-greedy algorithms should not.
-
-All boundaries respond to the following pseudo-accessors, which see:
-- `hyphenated'."))
-
-(defmethod hyphenated ((boundary boundary))
-  "Return BOUNDARY's hyphenation status."
-  (hyphenated (item boundary)))
-
-(defun last-boundary-p (boundary)
-  "Return T if BOUNDARY is the last one."
-  (null (item boundary)))
-
-(defun next-boundary (lineup from &optional (boundary-class 'boundary)
-				   &rest keys &key &allow-other-keys
-				   &aux (length (length lineup)))
-  "Return the next boundary in LINEUP FROM position, or NIL.
-The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
-This function understands the terminal case where FROM = LINEUP's
-length (possibly coming from the end of lineup special boundary), in which
-case it signals that there is no more boundary to find by returning NIL."
-  (unless (= from length)
-    (let* ((idx (position-if #'break-point-p lineup :start (1+ from)))
-	   (item (when idx (aref lineup idx)))
-	   stop-idx start-idx)
-      (etypecase item
-	(glue (setq stop-idx idx start-idx (1+ idx)))
-	(discretionary (setq stop-idx (1+ idx) start-idx idx))
-	(null (setq stop-idx length)))
-      (apply #'make-instance boundary-class
-	     :item item :stop-idx stop-idx :start-idx start-idx
-	     :lineup lineup keys))))
+  (%make-hash text language font kerning ligatures hyphenation))

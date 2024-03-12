@@ -35,15 +35,16 @@
       :serial t
       :components
       ((:file "arith")
-       (:file "lineup")
        (:file "common")
        (:module "paragraph"
 	:serial t
 	:components
-		((:file "common")
+		((:file "hash")
+		 (:file "common")
 		 (:module "algorithms"
 		  :components
 			  ((:file "common")
+			   (:file "lineup")
 			   (:file "fixed" :depends-on ("common"))
 			   (:file "fit" :depends-on  ("fixed"))
 			   (:file "barnett" :depends-on  ("fixed"))

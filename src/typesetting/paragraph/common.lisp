@@ -222,21 +222,19 @@ Maybe also include river BEDS."
    (lineup :documentation "The paragraph's lineup."
 	   :initform nil :initarg :lineup
 	   :reader lineup)
-   ;; #### FIXME: the two properties below belong to the lineup rather than to
-   ;; the paragraph itself. The lineup should in fact be an object rather than
-   ;; just an array, now.
-   (break-points-number :documentation "The number of break points."
-			:initform 0
-			:reader break-points-number)
-   (theoretical-solutions-number
-    :documentation "The number of theoretical break solutions (2^n)."
-    :initform 1
-    :reader theoretical-solutions-number)
    (pinned-lines :documentation "The paragraph's pinned lines."
 		 :initform nil
 		 :initarg :pinned-lines
 		 :reader pinned-lines))
   (:documentation "The PARAGRAPH class."))
+
+(defmethod break-points-# ((paragraph paragraph))
+  "Return the number of break points in PARAGRAPH's lineup."
+  (break-points-# (lineup paragraph)))
+
+(defmethod theoretical-solutions-# ((paragraph paragraph))
+  "Return the number of theoretical break solutions in PARAGRAPH's lineup."
+  (theoretical-solutions-# (lineup paragraph)))
 
 (defgeneric paragraph-properties (paragraph)
   (:documentation "Return a string describing PARAGRAPH's properties.")
@@ -251,5 +249,5 @@ This is the default method."
       (float (height paragraph))
       (float (depth paragraph))
       (length (pinned-lines paragraph))
-      (break-points-number paragraph)
-      (theoretical-solutions-number paragraph))))
+      (break-points-# paragraph)
+      (theoretical-solutions-# paragraph))))

@@ -786,7 +786,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :title "Features" :title-position :frame
      :visible-max-width nil
      :visible-max-height nil
-     :items *lineup-features*
+     :items *typesetting-features*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-features
      :retract-callback 'set-features
@@ -1000,7 +1000,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (set-choice-selection (disposition-options-panel etap)
 			(disposition-options (disposition context))
 			*disposition-options*)
-  (set-choice-selection (features etap) (features context) *lineup-features*)
+  (set-choice-selection (features etap)
+			(features context)
+			*typesetting-features*)
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
