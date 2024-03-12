@@ -38,7 +38,7 @@
   "The typesetting features, as advertised by the interface.")
 
 
-;; HList elements geometry.
+;; HList constituents geometry.
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -485,8 +485,8 @@ Currently, this means alphabetic or a dash."
      &aux (hyphenation-rules (when hyphenate (get-hyphenation-rules language))))
   "Slice LANGUAGE TEXT in FONT, possibly HYPHENATE'ing it.
 Return a list of FONT characters, interword glues, and discretionaries if
-HYPHENATE. TEXT is initially trimmed from blanks, and inner consecutive blanks
-are replaced with a single interword glue."
+HYPHENATE. TEXT's leading and trailing spaces are removed,, and inner
+consecutive blanks are replaced with a single interword glue."
   (loop :with string := (string-trim *blanks* text)
 	:with length := (length string)
 	:with i := 0
@@ -516,7 +516,8 @@ are replaced with a single interword glue."
 ;; -----------------
 
 (defun %make-hlist (text language font kerning ligatures hyphenation)
-  "Slice TEXT in LANGUAGE for FONT, with KERNING, LIGATURES, and HYPHENATION."
+  "Make a new hlist for LANGUAGE TEXT in FONT.
+When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
   (let ((hlist (slice text language font hyphenation)))
     ;; #### WARNING: the order is important below. Kerning must be computed
     ;; after ligature characters have been inserted, and the processing of
