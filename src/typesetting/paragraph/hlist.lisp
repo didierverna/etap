@@ -247,7 +247,7 @@ Glues represent breakable, elastic space."))
 ;; no-break and a pre-break later on, we can't represent that statically. The
 ;; only truly general solution is to delay ligature and kerning processing
 ;; until the harray is flattened. But then, this means that we also need to do
-;; that every time we want to poll the size of various lineup chunks. This
+;; that every time we want to poll the size of various harray chunks. This
 ;; could be rather expensive (although I haven't tried it).
 
 ;; -------
