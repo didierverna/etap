@@ -170,14 +170,6 @@ This function returns two values.
 ;; Entry Points
 ;; ==========================================================================
 
-(defgeneric process-hlist (hlist disposition algorithm &key &allow-other-keys)
-  (:documentation
-   "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
-All primary methods must return a (possibly modified) HLIST.")
-  (:method (hlist disposition algorithm &key)
-    "Return hlist as-is. This is the default method."
-    hlist))
-
 ;; #### FIXME: the design of this is not satisfactory. Every method calls
 ;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number
 ;; of identical keywords (such as :disposition or :lineup), hence, there is

@@ -113,13 +113,13 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	  :reader width :reader min-width :reader max-width))
   (:documentation "The FIXED-BOUNDARY class."))
 
-;; #### NOTE: since LINEUP-WIDTH computes the whole line properties, we might
+;; #### NOTE: since HARRAY-WIDTH computes the whole line properties, we might
 ;; just as well remember those values for other boundary classes.
 (defmethod initialize-instance :around
-    ((boundary fixed-boundary) &rest keys &key lineup start stop-idx)
+    ((boundary fixed-boundary) &rest keys &key harray start stop-idx)
   "Compute and propagate BOUNDARY's line properties to subsequent methods."
   (multiple-value-bind (natural max min stretch shrink)
-      (lineup-width lineup start stop-idx)
+      (harray-width harray start stop-idx)
     (apply #'call-next-method boundary
 	   :natural-width natural :max-width max :min-width min
 	   :stretch stretch :shrink shrink
@@ -184,12 +184,12 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fixed-justified-line-boundary (lineup start width)
+(defun fixed-justified-line-boundary (harray start width)
   "Return the Fixed algorithm's view of the end of a justified line boundary."
   (loop :with underfull :with fit :with overfull
 	:for boundary
-	  := (next-boundary lineup start 'fixed-boundary :start start)
-	    :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
+	  := (next-boundary harray start 'fixed-boundary :start start)
+	    :then (next-boundary harray (stop-idx boundary) 'fixed-boundary
 				 :start start)
 	:while (and boundary (not overfull))
 	:do (cond ((< (width boundary) width) (setq underfull boundary))
@@ -212,13 +212,13 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; still important to collect a word overfull if possible, because of that
 ;; very same option.
 (defun fixed-ragged-line-boundary
-    (lineup start width &optional (width-kind :natural))
+    (harray start width &optional (width-kind :natural))
   "Return the Fixed algorithm's view of the end of a ragged line boundary."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
-	:for boundary := (next-boundary lineup start 'fixed-boundary
+	:for boundary := (next-boundary harray start 'fixed-boundary
 					:start start :width-kind width-kind)
-	  :then (next-boundary lineup (stop-idx boundary) 'fixed-boundary
+	  :then (next-boundary harray (stop-idx boundary) 'fixed-boundary
 			       :start start :width-kind width-kind)
 	:while continue
 	:do (when ($< (penalty (item boundary)) +∞)
@@ -277,17 +277,17 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; Lines
 ;; =====
 
-(defun fixed-make-lines (lineup disposition width beds)
-  "Make fixed lines from LINEUP for a DISPOSITION paragraph of WIDTH."
+(defun fixed-make-lines (harray disposition width beds)
+  "Make fixed lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (let ((get-line-boundary (case (disposition-type disposition)
 			     (:justified #'fixed-justified-line-boundary)
 			     (t #'fixed-ragged-line-boundary))))
-    (when lineup
+    (when harray
       (loop :for start := 0 :then (start-idx boundary)
 	    :while start
-	    :for boundary := (funcall get-line-boundary lineup start width)
+	    :for boundary := (funcall get-line-boundary harray start width)
 	    :collect (make-instance 'line
-		       :lineup lineup
+		       :harray harray
 		       :start-idx start :stop-idx (stop-idx boundary)
 		       :beds beds)))))
 

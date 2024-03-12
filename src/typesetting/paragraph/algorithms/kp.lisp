@@ -141,7 +141,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 
 (defmethod initialize-instance :after
     ((edge kp-edge)
-     &key lineup start width
+     &key harray start width
      &aux (stop (stop-idx (boundary (destination edge)))))
   "Initialize EDGE's scale, fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
@@ -152,7 +152,7 @@ This class is mixed in both the graph and dynamic paragraph classes."))
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf (slot-value edge 'scale) (lineup-scale lineup start stop width))
+  (setf (slot-value edge 'scale) (harray-scale harray start stop width))
   (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
   (setf (slot-value edge 'badness) (scale-badness (scale edge)))
   (setf (slot-value edge 'demerits)
@@ -210,17 +210,17 @@ such as hyphen adjacency and fitness class differences between lines."
 ;; ---------------
 
 (defun kp-next-boundaries
-    (lineup start width
+    (harray start width
      &key hyphenate threshold final
      &aux (emergency-stretch (when (numberp final) final)))
   "Knuth-Plass graph implementation version of `next-boundaries'.
 See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (loop :with boundaries :with overfull :with emergency-boundary
 	:with continue := t
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop-idx boundary))
+	:for boundary := (next-boundary harray start)
+	  :then (next-boundary harray (stop-idx boundary))
 	:while continue
-	:for min-width := (lineup-min-width lineup start (stop-idx boundary))
+	:for min-width := (harray-min-width harray start (stop-idx boundary))
 	:do (when (and ($< (penalty (item boundary)) +∞)
 		       (or hyphenate
 			   (not (hyphenation-point-p (item boundary)))))
@@ -228,7 +228,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	      (cond ((> min-width width)
 		     (setq overfull boundary continue nil))
 		    (($<= (scale-badness
-			   (lineup-scale lineup start (stop-idx boundary)
+			   (harray-scale harray start (stop-idx boundary)
 					 width emergency-stretch))
 			  threshold)
 		     (push boundary boundaries))
@@ -244,7 +244,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; -----------------
 
 (defun kp-graph-make-lines
-    (lineup disposition beds layout
+    (harray disposition beds layout
      &aux (justified (eq (disposition-type disposition) :justified))
 	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
 	  ;; elastic underfulls (in case of an impossible layout, it falls
@@ -257,7 +257,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  stretch-tolerance
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
+  "Typeset HARRAY as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
   (when layout
     (setq stretch-tolerance (stretch-tolerance (threshold layout)))
     (loop :for edge :in (edges layout)
@@ -269,7 +269,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			   :stretch-tolerance stretch-tolerance
 			   :overshrink overshrink :overstretch t)
 		       (make-instance 'kp-line
-			 :lineup lineup :start-idx start :stop-idx stop
+			 :harray harray :start-idx start :stop-idx stop
 			 :beds beds
 			 :scale theoretical :effective-scale effective
 			 :fitness-class (fitness-class edge)
@@ -277,7 +277,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			 :demerits (demerits edge)))
 	  :else
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop
+		       :harray harray :start-idx start :stop-idx stop
 		       :beds beds))))
 
 
@@ -375,7 +375,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; ---------------
 
 (defun kp-try-boundary
-    (boundary nodes lineup width threshold final
+    (boundary nodes harray width threshold final
      &aux (emergency-stretch (when (numberp final) final))
 	  last-deactivated-node new-nodes)
   "Examine BOUNDARY and update active NODES accordingly."
@@ -384,7 +384,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	    &aux (previous-boundary (key-boundary key))
 		 (previous-line (key-line key))
 		 (previous-fitness (key-fitness key))
-		 (scale (lineup-scale lineup
+		 (scale (harray-scale harray
 				      (start-idx previous-boundary)
 				      (stop-idx boundary)
 				      width)))
@@ -399,7 +399,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
      (when ($<= -1 scale)
        (let ((badness (scale-badness
 		       (if emergency-stretch
-			 (lineup-scale lineup
+			 (harray-scale harray
 				       (start-idx previous-boundary)
 				       (stop-idx boundary)
 				       width emergency-stretch)
@@ -467,7 +467,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
     (setq new-nodes
 	  (list
-	   (let* ((scale (lineup-scale lineup
+	   (let* ((scale (harray-scale harray
 				       (start-idx
 					(key-boundary
 					 (car last-deactivated-node)))
@@ -493,8 +493,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
-(defun kp-create-nodes (lineup width pass)
-  "Compute the best sequences of breaks for LINEUP in the Knuth-Plass sense.
+(defun kp-create-nodes (harray width pass)
+  "Compute the best sequences of breaks for HARRAY in the Knuth-Plass sense.
 This function may be called up to three times (corresponding to \"passes\"
 through the algorithm in the TeX jargon).
 - HYPHENATE means consider hyphenation points as potential breaks. It is NIL
@@ -538,13 +538,13 @@ through the algorithm in the TeX jargon).
     (setf (gethash (make-key root-boundary 0 2) nodes)
 	  (kp-make-node :boundary root-boundary :fitness-class 2
 			:total-demerits 0))
-    (loop :for boundary := (next-boundary lineup 0)
-	    :then (next-boundary lineup (stop-idx boundary))
+    (loop :for boundary := (next-boundary harray 0)
+	    :then (next-boundary harray (stop-idx boundary))
 	  :while boundary
 	  :when (and ($< (penalty (item boundary)) +∞)
 		     (or hyphenate
 			 (not (hyphenation-point-p (item boundary)))))
-	    :do (kp-try-boundary boundary nodes lineup width threshold final))
+	    :do (kp-try-boundary boundary nodes harray width threshold final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 
@@ -553,12 +553,12 @@ through the algorithm in the TeX jargon).
 ;; -----------------
 
 (defun kp-dynamic-make-lines
-    (lineup disposition beds node pass
+    (harray disposition beds node pass
      &aux (justified (eq (disposition-type disposition) :justified))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition))))
 	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*)))
-  "Typeset LINEUP as a DISPOSITION paragraph with Knuth-Plass dynamic NODE."
+  "Typeset HARRAY as a DISPOSITION paragraph with Knuth-Plass dynamic NODE."
   (loop :with lines
 	:with stretch-tolerance := (stretch-tolerance threshold)
 	:for end := node :then (kp-node-previous end)
@@ -582,7 +582,7 @@ through the algorithm in the TeX jargon).
 			  :stretch-tolerance stretch-tolerance
 			  :overshrink overshrink :overstretch t)
 		      (make-instance 'kp-line
-			:lineup lineup
+			:harray harray
 			:start-idx start :stop-idx stop
 			:beds beds
 			:scale theoretical
@@ -591,7 +591,7 @@ through the algorithm in the TeX jargon).
 			:badness (kp-node-badness end)
 			:demerits (kp-node-demerits end)))
 		    (make-instance 'line
-		      :lineup lineup :start-idx start :stop-idx stop
+		      :harray harray :start-idx start :stop-idx stop
 		      :beds beds))
 		  lines)
 	:finally (return lines)))

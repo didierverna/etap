@@ -1,7 +1,9 @@
 (in-package :etap)
 
 
-;; For the interface.
+;; -----------------
+;; For the interface
+;; -----------------
 
 (defparameter *dispositions*
   '(:flush-left :centered :flush-right :justified))
@@ -101,13 +103,13 @@ River beds stand in the middle of glue space and are positioned at Y = 0."))
 ;; =====
 
 (defclass line ()
-  ((lineup :documentation "The corresponding lineup."
-	   :initarg :lineup
-	   :reader lineup)
-   (start-idx :documentation "This line's start index in LINEUP."
+  ((harray :documentation "The corresponding harray."
+	   :initarg :harray
+	   :reader harray)
+   (start-idx :documentation "This line's start index in HARRAY."
 	      :initarg :start-idx
 	      :reader start-idx)
-   (stop-idx :documentation "This line's stop index in LINEUP."
+   (stop-idx :documentation "This line's stop index in HARRAY."
 	     :initarg :stop-idx
 	     :reader stop-idx)
    (scale :documentation "The line'scale, as computed by the algorithm.
@@ -133,10 +135,10 @@ origin. A line also remembers its scale factor."))
 
 (defmethod hyphenated ((line line))
   "Return LINE's hyphenation status."
-  (hyphenated (aref (lineup line) (1- (stop-idx line)))))
+  (hyphenated (aref (harray line) (1- (stop-idx line)))))
 
 (defmethod penalty
-    ((line line) &aux (element (aref (lineup line) (1- (stop-idx line)))))
+    ((line line) &aux (element (aref (harray line) (1- (stop-idx line)))))
   "Return LINE's penalty."
   (if (break-point-p element) (penalty element) 0))
 
@@ -152,10 +154,10 @@ origin. A line also remembers its scale factor."))
   "Return LINE's depth."
   (loop :for object :in (pinned-objects line) :maximize (depth object)))
 
-(defun flatten-lineup (lineup start stop)
-  "Return a flattened list of LINEUP elements between START and STOP."
+(defun flatten-harray (harray start stop)
+  "Return a flattened list of HARRAY elements between START and STOP."
   (loop :for i :from start :upto (1- stop)
-	:for elt := (lineup-aref lineup i start stop)
+	:for elt := (haref harray i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
 (defmethod initialize-instance :after ((line line) &key beds &aux scale)
@@ -170,10 +172,10 @@ Maybe also include river BEDS."
   (setq scale (if (numberp (effective-scale line)) (effective-scale line) 0))
   (setf (slot-value line 'pinned-objects)
 	(loop :with x := 0 :with w
-	      :with lineup := (lineup line)
-	      :with last-elt := (aref lineup (1- (length lineup)))
+	      :with harray := (harray line)
+	      :with last-elt := (aref harray (1- (length harray)))
 	      :for elt
-		:in (flatten-lineup lineup (start-idx line) (stop-idx line))
+		:in (flatten-harray harray (start-idx line) (stop-idx line))
 	      :if (eq elt :explicit-hyphenation-clue)
 		:collect (make-hyphenation-clue line x)
 	      :else :if (eq elt :hyphenation-clue)

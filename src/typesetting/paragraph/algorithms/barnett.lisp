@@ -55,12 +55,12 @@
 ;; Boundary lookup
 ;; ---------------
 
-(defun barnett-line-boundary (lineup start width)
+(defun barnett-line-boundary (harray start width)
   "Return the Barnett algorithm's view of the end of line boundary."
   (loop :with underword :with hyphens := (list) :with overword
-	:for boundary := (next-boundary lineup start 'barnett-boundary
+	:for boundary := (next-boundary harray start 'barnett-boundary
 					:start start :width width)
-	  :then (next-boundary lineup (stop-idx boundary) 'barnett-boundary
+	  :then (next-boundary harray (stop-idx boundary) 'barnett-boundary
 			       :start start :width width)
 	:while (and boundary (not overword))
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
@@ -101,14 +101,14 @@
 ;; can get are when there is no elasticity, so this option should have no
 ;; effect.
 (defun barnett-make-lines
-    (lineup disposition width beds
+    (harray disposition width beds
      &aux (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Make Barnett lines from LINEUP for a DISPOSITION paragraph of WIDTH."
-  (when lineup
+  "Make Barnett lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+  (when harray
     (loop :for start := 0 :then (start-idx boundary)
 	  :while start
-	  :for boundary := (barnett-line-boundary lineup start width)
+	  :for boundary := (barnett-line-boundary harray start width)
 	  :for stop := (stop-idx boundary)
 	  :for scale := (scale boundary)
 	  ;; Justified line
@@ -124,13 +124,13 @@
 			   (actual-scales scale
 			     :overshrink overshrink :stretch-tolerance +∞))
 		       (make-instance 'line
-			 :lineup lineup :start-idx start :stop-idx stop
+			 :harray harray :start-idx start :stop-idx stop
 			 :beds beds
 			 :scale theoretical :effective-scale effective))
 	  :else
 	    ;; Other dispositions: just switch back to normal spacing.
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop
+		       :harray harray :start-idx start :stop-idx stop
 		       :beds beds))))
 
 

@@ -56,7 +56,7 @@ pseudo-accessors, which see:
   ((destination :documentation "The node this edge points to."
 		:initarg :destination
 		:reader destination))
-  ;; This is necessary to allow the code below to pass :lineup, :start, and
+  ;; This is necessary to allow the code below to pass :harray, :start, and
   ;; :width along, even though this base class doesn't actually use them.
   (:default-initargs :allow-other-keys t)
   (:documentation "The EDGE class.
@@ -77,8 +77,8 @@ pseudo-accessors, which see:
 
 ;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
 ;; instead of just a Boolean, for keeping more than 1 *full.
-(defun next-boundaries (lineup start width &key fulls strict)
-  "Find the possible endings for LINEUP line of WIDTH beginning at START.
+(defun next-boundaries (harray start width &key fulls strict)
+  "Find the possible endings for a line of WIDTH beginning at START in HARRAY.
 If no possible ending is found, return NIL, unless FULLS, in which case return
 the last underfull and the first overfull (if any) as a fallback solution.
 If FULLS is :PREVENTIVE, also return these fulls even if possible endings were
@@ -86,12 +86,12 @@ found. If STRICT, consider that even the last line must fit exactly. Otherwise
 (the default), consider a final underfull as a fit.
 The possible endings are listed in reverse order (from last to first)."
   (loop :with underfull :with fits := (list) :with overfull
-	:for boundary := (next-boundary lineup start)
-	  :then (next-boundary lineup (stop-idx boundary))
+	:for boundary := (next-boundary harray start)
+	  :then (next-boundary harray (stop-idx boundary))
 	:while (and boundary (not overfull))
 	:for (nil max min)
 	  := (multiple-value-list
-	      (lineup-width lineup start (stop-idx boundary)))
+	      (harray-width harray start (stop-idx boundary)))
 	:do (cond (($< max width)
 		   (if (and (last-boundary-p boundary) (not strict))
 		     (push boundary fits)
@@ -117,8 +117,8 @@ The possible endings are listed in reverse order (from last to first)."
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
 (defun make-subgraph
-    (lineup width boundary edge-type next-boundaries graph &rest options)
-  "Make a solutions subgraph for breaking LINEUP's remainder starting at
+    (harray width boundary edge-type next-boundaries graph &rest options)
+  "Make a solutions subgraph for breaking HARRAY's remainder starting at
 BOUNDARY into a paragraph of WIDTH.
 
 If no line breaking solution is found, return NIL. Otherwise, return the
@@ -137,10 +137,10 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 	      (make-node boundary)
 	      (let ((nodes (loop :for next-boundary
 				   :in (apply next-boundaries
-					 lineup (start-idx boundary) width
+					 harray (start-idx boundary) width
 					 options)
 				 :when (apply #'make-subgraph
-					 lineup width next-boundary
+					 harray width next-boundary
 					 edge-type next-boundaries graph
 					 options)
 				   :collect :it)))
@@ -149,27 +149,27 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 		   boundary
 		   (mapcar (lambda (node)
 			     (make-instance edge-type
-			       :lineup lineup :start (start-idx boundary)
+			       :harray harray :start (start-idx boundary)
 			       :width width :destination node))
 		     nodes)))))))))
 
 (defun make-graph
-    (lineup width
+    (harray width
      &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
      &allow-other-keys
      &aux (options (remove-keys keys :edge-type :next-boundaries)))
-  "Make a solutions graph for breaking LINEUP into a paragraph of WIDTH.
+  "Make a solutions graph for breaking HARRAY into a paragraph of WIDTH.
 If no line breaking solution is found, this function returns NIL.
 Otherwise, it returns the graph's root node, and the nodes hash table as a
 second value."
   (let* ((graph (make-hash-table))
-	 ;; #### NOTE: we protect against empty lineups here because not every
+	 ;; #### NOTE: we protect against empty harrays here because not every
 	 ;; NEXT-BOUNDARIES function might do so.
-	 (nodes (when lineup
+	 (nodes (when harray
 		  (loop :for next-boundary
-			  :in (apply next-boundaries lineup 0 width options)
+			  :in (apply next-boundaries harray 0 width options)
 			:when (apply #'make-subgraph
-				lineup width next-boundary
+				harray width next-boundary
 				edge-type next-boundaries graph	options)
 			  :collect :it))))
     (values
@@ -178,7 +178,7 @@ second value."
 	nil
 	(mapcar (lambda (node)
 		  (make-instance edge-type
-		    :lineup lineup :start 0 :width width :destination node))
+		    :harray harray :start 0 :width width :destination node))
 	  nodes)))
      graph)))
 

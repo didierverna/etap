@@ -54,11 +54,11 @@ The weight is computed according to the discriminating function."
 
 (defmethod initialize-instance :after
     ((edge duncan-edge)
-     &key lineup start width
+     &key harray start width
      &aux (last-line-p (last-boundary-p (boundary (destination edge)))))
   "Initialize Duncan EDGE's properties."
   (multiple-value-bind (natural max min stretch shrink)
-      (lineup-width lineup start (stop-idx (boundary (destination edge))))
+      (harray-width harray start (stop-idx (boundary (destination edge))))
     (setf (slot-value edge 'fitness)
 	  ;; #### NOTE: an underfull last line is actually a fit.
 	  (cond (($< max width) (if last-line-p :fit :underfull))
@@ -135,12 +135,12 @@ This class keeps track of the line's weight."))
 ;; -----------------
 
 (defun duncan-make-lines
-    (lineup disposition beds layout
+    (harray disposition beds layout
      &aux (overstretch
 	   (cadr (member :overstretch (disposition-options disposition))))
 	  (overshrink
 	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Typeset LINEUP as a DISPOSITION paragraph with Duncan LAYOUT."
+  "Typeset HARRAY as a DISPOSITION paragraph with Duncan LAYOUT."
   (when layout
     (loop :for edge :in (edges layout)
 	  :and start := 0 :then (start-idx (boundary (destination edge)))
@@ -157,7 +157,7 @@ This class keeps track of the line's weight."))
 			   (actual-scales scale
 			     :overshrink overshrink :overstretch overstretch))
 		       (make-instance 'duncan-line
-			 :lineup lineup :start-idx start :stop-idx stop
+			 :harray harray :start-idx start :stop-idx stop
 			 :beds beds
 			 :scale theoretical
 			 :effective-scale effective
@@ -165,7 +165,7 @@ This class keeps track of the line's weight."))
 	  :else
 	    ;; Other dispositions: just switch back to normal spacing.
 	    :collect (make-instance 'line
-		       :lineup lineup :start-idx start :stop-idx stop
+		       :harray harray :start-idx start :stop-idx stop
 		       :beds beds))))
 
 

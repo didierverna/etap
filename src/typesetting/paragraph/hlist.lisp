@@ -1,7 +1,7 @@
 ;; An `hlist' (borrowing terminology from TeX) is the result of slicing
 ;; (hashing? but that's not the meaning of the h in hlist ;-)) the input text
-;; into a list of individual constituents: characters (font-dependent), kerns
-;; (if requested), discretionaries for hyphenation points (if requested,
+;; into a list of individual items: characters (font-dependent), kerns (if
+;; requested), discretionaries for hyphenation points (if requested,
 ;; language-dependent) and ligatures (if requested), and interword glues.
 
 ;; The computation of the hlist is considered a pre-processing stage. No
@@ -31,14 +31,18 @@
 ;; General Utilities
 ;; ==========================================================================
 
-;; For the interface.
+;; -----------------
+;; For the interface
+;; -----------------
 
 (defparameter *typesetting-features*
   '((:kerning t) (:ligatures t) (:hyphenation t))
   "The typesetting features, as advertised by the interface.")
 
 
-;; HList constituents geometry.
+;; --------------------
+;; HList items geometry
+;; --------------------
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -74,7 +78,7 @@
 
 
 ;; ==========================================================================
-;; HList Constituents
+;; HList Items
 ;; ==========================================================================
 
 ;; -----

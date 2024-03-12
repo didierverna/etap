@@ -186,9 +186,9 @@ for equally good solutions."))
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fit-justified-line-boundaries (lineup start width)
+(defun fit-justified-line-boundaries (harray start width)
   "Return possible boundaries for justification by the Fit algorithm.
-Boundaries are collected for a LINEUP line beginning at START, and for a
+Boundaries are collected for a HARRAY line beginning at START, and for a
 paragraph of WIDTH.
 This function returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
@@ -196,9 +196,9 @@ This function returns three values:
 - the first overfull boundary or NIL."
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
-	:for boundary := (next-boundary lineup start 'fit-boundary
+	:for boundary := (next-boundary harray start 'fit-boundary
 					:start start :width width)
-	  :then (next-boundary lineup (stop-idx boundary) 'fit-boundary
+	  :then (next-boundary harray (stop-idx boundary) 'fit-boundary
 			       :start start :width width)
 	:while continue
 	:do (when ($< (penalty (item boundary)) +∞)
@@ -214,13 +214,13 @@ This function returns three values:
 
 ;; #### NOTE: even though the value is dynamically scoped, we're still passing
 ;; VARIANT explicitly to this function for specialization purposes.
-(defgeneric fit-justified-line-boundary (lineup start width variant)
+(defgeneric fit-justified-line-boundary (harray start width variant)
   (:documentation
    "Return the Fit algorithm's view of the end of a justified line boundary.")
-  (:method (lineup start width variant)
+  (:method (harray start width variant)
     "Find a first-/last-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
-	(fit-justified-line-boundaries lineup start width)
+	(fit-justified-line-boundaries harray start width)
       (cond (fits
 	     (when *avoid-hyphens*
 	       (setq fits
@@ -236,10 +236,10 @@ This function returns three values:
 	    (t
 	     (fixed-fallback-boundary
 	      underfull overfull (+ width *width-offset*))))))
-  (:method (lineup start width (variant (eql :best)))
+  (:method (harray start width (variant (eql :best)))
     "Find a best-fit boundary for the justified disposition."
     (multiple-value-bind (fits underfull overfull)
-	(fit-justified-line-boundaries lineup start width)
+	(fit-justified-line-boundaries harray start width)
       (cond ((and fits (null (cdr fits)))
 	     (first fits))
 	    (fits
@@ -317,15 +317,15 @@ LINE class."))
 ;; #### NOTE: even though the value is dynamically scoped, we're still passing
 ;; VARIANT explicitly to this function for specialization purposes.
 (defgeneric fit-make-line
-    (lineup start boundary disposition beds variant &key &allow-other-keys)
+    (harray start boundary disposition beds variant &key &allow-other-keys)
   (:documentation
-   "Make a Fit line from LINEUP chunk between START and BOUNDARY.")
-  (:method (lineup start boundary disposition beds (variant (eql :first))
+   "Make a Fit line from HARRAY chunk between START and BOUNDARY.")
+  (:method (harray start boundary disposition beds (variant (eql :first))
 	    &key width
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are stretched as much as possible.
 		 (scale 1))
-    "Make a first-fit ragged line from LINEUP chunk between START and BOUNDARY."
+    "Make a first-fit ragged line from HARRAY chunk between START and BOUNDARY."
     (when *relax*
       (setq scale
 	    (if (last-boundary-p boundary)
@@ -333,31 +333,31 @@ LINE class."))
 	      0
 	      ;; On the other hand, do not destretch any other line so much
 	      ;; that another chunk would fit in.
-	      (let ((scale (scale (next-boundary lineup stop 'fit-boundary
+	      (let ((scale (scale (next-boundary harray stop 'fit-boundary
 						 :start start :width width))))
 		;; A positive scale means that another chunk would fit in, and
 		;; still be underfull (possibly not even elastic), so we can
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
 		(if ($> scale 0) scale 0)))))
-    (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
+    (make-instance 'line :harray harray :start-idx start :stop-idx stop
 		   :beds beds :scale scale))
-  (:method (lineup start boundary disposition beds (variant (eql :best)) &key)
-    "Make a best-fit ragged line from LINEUP chunk between START and BOUNDARY."
+  (:method (harray start boundary disposition beds (variant (eql :best)) &key)
+    "Make a best-fit ragged line from HARRAY chunk between START and BOUNDARY."
     (make-instance 'line
-      :lineup lineup :start-idx start :stop-idx (stop-idx boundary) :beds beds))
-  (:method (lineup start boundary disposition beds (variant (eql :last))
+      :harray harray :start-idx start :stop-idx (stop-idx boundary) :beds beds))
+  (:method (harray start boundary disposition beds (variant (eql :last))
 	    &key width
 	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are shrunk as much as possible.
 		 (scale -1))
-    "Make a last-fit ragged line from LINEUP chunk between START and BOUNDARY."
+    "Make a last-fit ragged line from HARRAY chunk between START and BOUNDARY."
     (when *relax*
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
       ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
       ;; calling BOUNDARY-SCALE.
-      (setq scale (let ((scale (lineup-scale lineup start stop width)))
+      (setq scale (let ((scale (harray-scale harray start stop width)))
 		    ;; - A positive scale means that the line is naturally
 		    ;;   underfull (maybe not even elastic), so we can
 		    ;;   deshrink  completely.
@@ -366,17 +366,17 @@ LINE class."))
 		    ;; - Finally, a scale < -1 means that the line cannot fit
 		    ;;   at all, so we must stay at our original -1.
 		    (if ($>= scale 0) 0 ($max scale -1)))))
-    (make-instance 'line :lineup lineup :start-idx start :stop-idx stop
+    (make-instance 'line :harray harray :start-idx start :stop-idx stop
 		   :beds beds :scale scale))
-  (:method (lineup start boundary (disposition (eql :justified)) beds variant
+  (:method (harray start boundary (disposition (eql :justified)) beds variant
 	    &key overstretch overshrink
 	    &aux (stop (stop-idx boundary))
 		 (scale (scale boundary))
 		 (line-initargs
-		  `(:lineup ,lineup :start-idx ,start :stop-idx ,stop
+		  `(:harray ,harray :start-idx ,start :stop-idx ,stop
 		    :beds ,beds))
 		 line-class)
-    "Make an any-fit justified line from LINEUP chunk between START and STOP."
+    "Make an any-fit justified line from HARRAY chunk between START and STOP."
     (etypecase boundary
       (fit-weighted-boundary
        (setq line-class 'fit-line)
@@ -407,24 +407,24 @@ LINE class."))
       (apply #'make-instance line-class
 	     :scale theoretical :effective-scale effective line-initargs))))
 
-(defun fit-make-lines (lineup disposition width beds)
-  "Make fit lines from LINEUP for a DISPOSITION paragraph of WIDTH."
+(defun fit-make-lines (harray disposition width beds)
+  "Make fit lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (let ((get-line-boundary
 	  (case (disposition-type disposition)
 	    (:justified (lambda (start)
-			  (fit-justified-line-boundary lineup start width
+			  (fit-justified-line-boundary harray start width
 						       *variant*)))
 	    (t (lambda (start)
-		 (fixed-ragged-line-boundary lineup start width
+		 (fixed-ragged-line-boundary harray start width
 					     (ecase *variant*
 					       (:first :max)
 					       (:best :natural)
 					       (:last :min))))))))
-    (when lineup
+    (when harray
       (loop :for start := 0 :then (start-idx boundary)
 	    :while start
 	    :for boundary := (funcall get-line-boundary start)
-	    :collect (apply #'fit-make-line lineup start boundary
+	    :collect (apply #'fit-make-line harray start boundary
 			    (disposition-type disposition) beds *variant*
 			    :width width
 			    (disposition-options disposition))))))
