@@ -681,11 +681,11 @@ through the algorithm in the TeX jargon).
   "Default Knuth-Plass NAMEd variable."
   `(default kp ,name))
 
-(defmethod process-hash
-    (hash disposition (algorithm (eql :knuth-plass))
+(defmethod process-hlist
+    (hlist disposition (algorithm (eql :knuth-plass))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HASH, and append the final glue to it."
+  "Adjust hyphen penalties in HLIST, and append the final glue to it."
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
   (mapc (lambda (item)
@@ -694,9 +694,9 @@ through the algorithm in the TeX jargon).
 		  (if (explicitp item)
 		    *explicit-hyphen-penalty*
 		    *hyphen-penalty*))))
-    hash)
-  (endpush (make-glue :stretch +∞ :penalty +∞) hash)
-  hash)
+    hlist)
+  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
+  hlist)
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :knuth-plass))

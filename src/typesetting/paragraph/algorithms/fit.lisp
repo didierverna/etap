@@ -443,11 +443,11 @@ LINE class."))
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
-(defmethod process-hash
-    (hash disposition (algorithm (eql :fit))
+(defmethod process-hlist
+    (hlist disposition (algorithm (eql :fit))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HASH."
+  "Adjust hyphen penalties in HLIST."
   (calibrate-fit hyphen-penalty t)
   (calibrate-fit explicit-hyphen-penalty t)
   (mapc (lambda (item)
@@ -456,8 +456,8 @@ LINE class."))
 		  (if (explicitp item)
 		    *explicit-hyphen-penalty*
 		    *hyphen-penalty*))))
-    hash)
-  hash)
+    hlist)
+  hlist)
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fit))
