@@ -115,12 +115,11 @@ See `scaling' for more information."
     :documentation "The harray index for an end of line at that boundary."
     :initarg :stop-idx :reader stop-idx)
    (start-idx
-    :documentation
-    "The harray index for a beginning of line at that boundary."
+    :documentation "The harray index for a beginning of line at that boundary."
     :initarg :start-idx :reader start-idx))
   (:default-initargs :allow-other-keys t) ;; allow :harray
   (:documentation "Base class for boundaries.
-A boundary represents a possible break point in the harray.
+A boundary represents a possible break point in an harray.
 The end of the harray is represented by a special boundary with a null item
 and start index (the stop index being the harray's length).
 
