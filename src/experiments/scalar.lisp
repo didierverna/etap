@@ -18,7 +18,8 @@
 	    (loop :with fulls := 0
 		  :for lines :on (pinned-lines
 				  (apply #'typeset-lineup lineup
-					 :justified width algorithm options))
+					 :justified width nil
+					 algorithm options))
 		  :for w := (width (car lines))
 		  :when (or (> w width)
 			    ;; Do not count an underfull last line.
@@ -31,7 +32,7 @@
   "Collect ALGORITHM's number of hyphenated lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (reduce #'+ (pinned-lines
-			 (apply #'typeset-lineup lineup :justified width
+			 (apply #'typeset-lineup lineup :justified width nil
 				algorithm options))
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
@@ -42,7 +43,7 @@
 	    (let ((scales
 		    (mapcar #'scale
 		      (pinned-lines
-		       (apply #'typeset-lineup lineup :justified width
+		       (apply #'typeset-lineup lineup :justified width nil
 			      algorithm options)))))
 	      (float (/ (reduce #'+ scales) (length scales)))))
     widths))
@@ -53,7 +54,7 @@
 	    (let* ((scales
 		     (mapcar #'scale
 		       (pinned-lines
-			(apply #'typeset-lineup lineup :justified width
+			(apply #'typeset-lineup lineup :justified width nil
 			       algorithm options))))
 		   (length (length scales))
 		   (mean (float (/ (reduce #'+ scales) length))))
@@ -85,12 +86,14 @@ to be able to handle that gracefully."
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
-  ;; #### WARNING: PREPARE-LINEUP won't have set the hyphen penalties in most
-  ;; algorithms. We need to do it here. Note that the lineup is an array now.
+  ;; #### WARNING: the lineup is not prepared for collecting demerits here in
+  ;; most cases, so we need to mimic the effect of PROCESS-HLIST first
+  ;; (although on the harray this time).
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
-  (loop :for i :from 0 :upto (1- (length lineup))
-	:for item := (aref lineup i)
+  (loop :with harray := (harray lineup)
+	:for i :from 0 :upto (1- (length harray))
+	:for item := (aref harray i)
 	:when (hyphenation-point-p item)
 	  :do (setf (penalty item)
 		    (if (explicitp item)
@@ -98,7 +101,7 @@ to be able to handle that gracefully."
 		      *hyphen-penalty*)))
   (mapcar (lambda (width)
 	    (let* ((lines (pinned-lines
-			   (apply #'typeset-lineup lineup :justified width
+			   (apply #'typeset-lineup lineup :justified width nil
 				  algorithm options)))
 		   (length (length lines))
 		   (demerits (local-demerits
@@ -152,11 +155,11 @@ width2 scalar1 scalar2 ...
 	 (values
 	   (mapcar
 	       (lambda (algorithm)
-		 (apply collect (apply #'prepare-lineup
-				  (make-lineup)
-				  (disposition-type (disposition *context*))
-				  (cadr algorithm) (cddr algorithm))
-			widths (cadr algorithm)	(cddr algorithm)))
+		 (apply collect
+		   (make-lineup :algorithm (cdr algorithm))
+		   widths
+		   (cadr algorithm)
+		   (cddr algorithm)))
 	     algorithms)))
     (apply #'mapc (lambda (width &rest values)
 		    (format t "~A~{ ~A~}~%" width values))
