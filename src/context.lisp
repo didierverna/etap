@@ -1,5 +1,10 @@
 (in-package :etap)
 
+;; #### NOTE: this, along with some :initform values below, are necessary
+;; forward declarations.
+(defvar *paragraph-width* 284 ;; 284.52756pt = 10cm
+  "The default paragraph width.")
+
 (defclass context ()
   ((font :documentation "The TFM font."
 	 :initform *font*
@@ -20,7 +25,7 @@
    (beds :documentation "Whether to record river beds."
 	 :initform nil :initarg :beds :accessor beds)
    (paragraph-width :documentation "The requested paragraph width in points."
-		    :initform 284 ;; 284.52756pt = 10cm
+		    :initform *paragraph-width*
 		    :initarg :paragraph-width
 		    :accessor paragraph-width)
    (nlstring :documentation "The paragraph's natural language string."

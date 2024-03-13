@@ -1,5 +1,4 @@
 (in-package :etap)
 
 (defvar *language* :english
-  "The language.")
-
+  "The default language.")

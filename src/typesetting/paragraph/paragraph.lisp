@@ -128,15 +128,15 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (beds (when context (beds context)))
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
-	  (width (if context (paragraph-width context) 284))
+	  (width (if context (paragraph-width context) *paragraph-width*))
 	  (hlist nil hlistp)
 	  (lineup nil lineupp))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
-global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES, DISPOSITION is defaulted to :flush-left, ALGORITHM to :fixed, and
-WIDTH to 284pt."
+Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
+corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
+defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
+ALGORITHM to :fixed."
   (unless lineup
     (when lineupp (warn "creating a lineup anyway (can't be null)."))
     (setq lineup

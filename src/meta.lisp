@@ -12,6 +12,7 @@
   (:export
     :*language*
     :*text*
+    :*paragraph-width*
     :*context* :make-context
     :make-hlist
     :make-lineup

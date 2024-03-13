@@ -1,12 +1,12 @@
-;; #### NOTE: with the defaults (default text, 284pt, all features), there are
-;; 66576 paragraph solutions including going through under and overfull lines
-;; (21096 without hyphenation). The raw tree of all such solutions has 150860
-;; nodes (48338 without hyphenation). However, once a line stop has been
-;; decided, all possible solutions for the next lines remain the same (modulo
-;; the rectangular paragraph assumption), however we reached that possible
-;; stop. This means that there is a lot of room for re-using branches. And
-;; indeed, when sharing nodes, we fall from 150860 to 98 (from 48338 to 83
-;; without hyphenation).
+;; #### NOTE: with the default text, paragraph width, and all features, there
+;; are 66576 paragraph solutions including going through under and overfull
+;; lines (21096 without hyphenation). The raw tree of all such solutions has
+;; 150860 nodes (48338 without hyphenation). However, once a line stop has
+;; been decided, all possible solutions for the next lines remain the same
+;; (modulo the rectangular paragraph assumption), however we reached that
+;; possible stop. This means that there is a lot of room for re-using
+;; branches. And indeed, when sharing nodes, we fall from 150860 to 98 (from
+;; 48338 to 83 without hyphenation).
 
 ;; If we avoid preventive fulls, that is, if we include only under- and
 ;; overfull solutions when there is no fit, the number of paragraph solutions
