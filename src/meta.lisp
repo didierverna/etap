@@ -12,7 +12,8 @@
   (:export
     :*language*
     :*text*
-    :make-context :*context*
+    :*context* :make-context
+    :make-hlist
     :make-lineup
     :make-paragraph
     #+lispworks :run))
