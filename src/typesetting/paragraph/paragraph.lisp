@@ -49,10 +49,12 @@
   "Return pinned LINE's penalty."
   (penalty (line line)))
 
-(defun pin-line (line board x y)
-  "Pin LINE on BOARD at position (X, Y)."
+;; #### NOTE: we don't have having nesting feature right now, so no board for
+;; pinned lines (toplevel objects).
+(defun pin-line (line x y)
+  "Pin LINE at position (X, Y)."
   (let ((pinned-line
-	  (make-instance 'pinned-line :line line :board board :x x :y y)))
+	  (make-instance 'pinned-line :line line :x x :y y)))
     ;; #### FIXME: gross hack alert. Pinned objects have their line as the
     ;; board. But a line is not a pinned object, so it has no 2D coordinates,
     ;; and there is no back pointer from a line to a pinned line. For rivers
@@ -99,7 +101,7 @@
 			    (:flush-right (- width (width line))))
 		;; #### TODO: nothing fancy about interline spacing yet.
 		:for y := 0 :then (+ y baselineskip)
-		:collect (pin-line line paragraph x y)))))
+		:collect (pin-line line x y)))))
 
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.

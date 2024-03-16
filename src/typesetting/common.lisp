@@ -2,7 +2,7 @@
 
 (defclass pinned ()
   ((board :documentation "The object's board."
-	  :initarg :board :reader board)
+	  :initform nil :initarg :board :reader board)
    (x :documentation "The object's X coordinate, relative to its board."
       :initform 0 :initarg :x :accessor x)
    (y :documentation "The object's Y coordinate, relative to its board."
