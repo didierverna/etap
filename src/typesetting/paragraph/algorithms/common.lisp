@@ -170,6 +170,12 @@ This function returns two values.
 ;; Entry Points
 ;; ==========================================================================
 
+(defgeneric break-harray
+    (harray disposition width beds algorithm &key &allow-other-keys)
+  (:documentation
+   "Break HARRAY as a DISPOSITION paragraph of WIDTH with ALGORITHM.
+Also maybe include river BEDS."))
+
 ;; #### FIXME: the design of this is not satisfactory. Every method calls
 ;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number
 ;; of identical keywords (such as :disposition or :lineup), hence, there is

@@ -55,10 +55,9 @@
 
 (in-package :etap)
 
-
-;; =============
+;; ==========================================================================
 ;; Specification
-;; =============
+;; ==========================================================================
 
 (defparameter *fixed-fallbacks*
   '(:underfull :anyfull :overfull))
@@ -97,9 +96,10 @@ the underfull one."))
 
 
 
-;; ==========
+
+;; ==========================================================================
 ;; Boundaries
-;; ==========
+;; ==========================================================================
 
 ;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
 ;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
@@ -273,9 +273,10 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 
-;; =====
+
+;; ==========================================================================
 ;; Lines
-;; =====
+;; ==========================================================================
 
 (defun fixed-make-lines (harray disposition width beds)
   "Make fixed lines from HARRAY for a DISPOSITION paragraph of WIDTH."
@@ -293,9 +294,30 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 
-;; ===========
-;; Entry Point
-;; ===========
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
+
+(defun fixed-break-harray (harray disposition width beds)
+  "Make fixed pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+  (loop :with line-boundary := (case disposition
+				 (:justified #'fixed-justified-line-boundary)
+				 (t #'fixed-ragged-line-boundary))
+	:with baseline-skip := (baseline-skip harray)
+	:for y := 0 :then (+ y baseline-skip)
+	:for start := 0 :then (start-idx boundary) :while start
+	:for boundary := (funcall line-boundary harray start width)
+	:for line := (make-instance 'line
+		       :harray harray
+		       :start-idx start :stop-idx (stop-idx boundary)
+		       :beds beds)
+	:for x := (case disposition
+		    ((:flush-left :justified) 0)
+		    (:centered (/ (- width (width line)) 2))
+		    (:flush-right (- width (width line))))
+	:collect (pin-line line x y)))
+
 
 (defmacro default-fixed (name)
   "Default Fixed NAMEd variable."
@@ -305,8 +327,34 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Calibrate NAMEd Fixed variable."
   `(calibrate fixed ,name ,infinity))
 
+(defclass fixed-breakup (breakup)
+  ((pinned-lines :documentation "The pinned lines."
+		 :initarg :pinned-lines :reader pinned-lines))
+  (:documentation "The Fixed Breakup class."))
+
+(defmethod break-harray
+    (harray disposition width beds (algorithm (eql :fixed))
+     &key ((:fallback *fallback*))
+	  ((:width-offset *width-offset*))
+	  ((:avoid-hyphens *avoid-hyphens*))
+	  ((:prefer-overfulls *prefer-overfulls*)))
+  "Break HARRAY with the Fixed algorithm."
+  (default-fixed fallback)
+  (calibrate-fixed width-offset)
+  (make-instance 'fixed-breakup
+    :pinned-lines (fixed-break-harray harray (disposition-type disposition)
+				      width beds)))
+
+
+
+
+;; ==========================================================================
+;; Entry Point
+;; ==========================================================================
+
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fixed))
+     &rest keys
      &key ((:fallback *fallback*))
 	  ((:width-offset *width-offset*))
 	  ((:avoid-hyphens *avoid-hyphens*))
@@ -318,4 +366,5 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fixed-make-lines (harray lineup) disposition width beds)))
+    :breakup (apply #'break-harray (harray lineup) disposition width beds
+		    :fixed keys)))

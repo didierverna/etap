@@ -1,9 +1,9 @@
 (in-package :etap)
 
 
-;; -----------------
-;; For the interface
-;; -----------------
+;; ==========================================================================
+;; Dispositions
+;; ==========================================================================
 
 (defparameter *dispositions*
   '(:flush-left :centered :flush-right :justified))
@@ -31,9 +31,10 @@ ignoring the algorithm's decision."))
 
 
 
-;; ==============
-;; Pinned Objects
-;; ==============
+
+;; ==========================================================================
+;; Pinned Items
+;; ==========================================================================
 
 (defclass pinned-character (pinned)
   ((character-metrics :documentation "The pinned character."
@@ -98,9 +99,10 @@ River beds stand in the middle of glue space and are positioned at Y = 0."))
 
 
 
-;; =====
+
+;; ==========================================================================
 ;; Lines
-;; =====
+;; ==========================================================================
 
 (defclass line ()
   ((harray :documentation "The corresponding harray."
@@ -210,9 +212,102 @@ Maybe also include river BEDS."
 
 
 
-;; ==========
+
+;; ==========================================================================
+;; Pinned lines
+;; ==========================================================================
+
+(defclass pinned-line (pinned)
+  ((line :documentation "The corresponding line."
+	 :initarg :line
+	 :reader line))
+  (:documentation "The PINNED-LINE class."))
+
+(defmethod width ((line pinned-line))
+  "Return pinned LINE's width."
+  (width (line line)))
+
+(defmethod height ((line pinned-line))
+  "Return pinned LINE's height."
+  (height (line line)))
+
+(defmethod depth ((line pinned-line))
+  "Return pinned LINE's depth."
+  (depth (line line)))
+
+(defmethod scale ((line pinned-line))
+  "Return pinned LINE's scale."
+  (scale (line line)))
+
+(defmethod effective-scale ((line pinned-line))
+  "Return pinned LINE's effective scale factor."
+  (effective-scale (line line)))
+
+(defmethod hyphenated ((line pinned-line))
+  "Return pinned LINE's hyphenation status."
+  (hyphenated (line line)))
+
+(defmethod penalty ((line pinned-line))
+  "Return pinned LINE's penalty."
+  (penalty (line line)))
+
+;; #### NOTE: we don't have having nesting feature right now, so no board for
+;; pinned lines (toplevel objects).
+(defun pin-line (line x y)
+  "Pin LINE at position (X, Y)."
+  (let ((pinned-line (make-instance 'pinned-line :line line :x x :y y)))
+    ;; #### FIXME: gross hack alert. Pinned objects have their line as the
+    ;; board. But a line is not a pinned object, so it has no 2D coordinates,
+    ;; and there is no back pointer from a line to a pinned line. For rivers
+    ;; detection, I'm thus changing the beds boards to their pinned line for
+    ;; now. Of course, this is completely broken.
+    (mapc (lambda (object)
+	    (when (bedp object)
+	      (setf (slot-value object 'board) pinned-line)))
+      (pinned-objects line))
+    pinned-line))
+
+;; #### TODO: this is gross but it works for now (we use a single font). 1.2
+;; (expressed in ratio to avoid going all floats) is what TeX uses with the
+;; Computer Modern fonts. But we should get the appropriate value somewhere
+;; (it's up to the font designers, but it's not in the TFM format for
+;; example).
+(defun baseline-skip (harray)
+  "Return HARRAY's baseline skip."
+  (* 12/10
+     (tfm:design-size (tfm:font (find 'tfm:character-metrics harray
+				  :key #'type-of)))))
+  
+(defun pin-lines (lines disposition width)
+  "Pin LINES in DISPOSITION for a paragraph of WIDTH."
+  (let ((baseline-skip (if lines (baseline-skip (harray (first lines))) 0)))
+    (loop :for line :in lines
+	  :for x := (case disposition
+		      ((:flush-left :justified) 0)
+		      (:centered (/ (- width (width line)) 2))
+		      (:flush-right (- width (width line))))
+	  ;; #### TODO: nothing fancy about interline spacing yet.
+	  :for y := 0 :then (+ y baseline-skip)
+	  :collect (pin-line line x y))))
+
+
+
+
+;; ==========================================================================
+;; Breakups
+;; ==========================================================================
+
+(defclass breakup ()
+  ()
+  (:documentation "The BREAKUP class.
+This is the base class for breakups."))
+
+
+
+
+;; ==========================================================================
 ;; Paragraphs
-;; ==========
+;; ==========================================================================
 
 (defclass paragraph ()
   ((width :documentation "The paragraph's width."
@@ -224,10 +319,9 @@ Maybe also include river BEDS."
    (lineup :documentation "The paragraph's lineup."
 	   :initform nil :initarg :lineup
 	   :reader lineup)
-   (pinned-lines :documentation "The paragraph's pinned lines."
-		 :initform nil
-		 :initarg :pinned-lines
-		 :reader pinned-lines))
+   (breakup :documentation "The paragraph's breakup."
+	    :initarg :breakup
+	    :reader breakup))
   (:documentation "The PARAGRAPH class."))
 
 (defmethod break-points-# ((paragraph paragraph))
@@ -237,6 +331,10 @@ Maybe also include river BEDS."
 (defmethod theoretical-solutions-# ((paragraph paragraph))
   "Return the number of theoretical break solutions in PARAGRAPH's lineup."
   (theoretical-solutions-# (lineup paragraph)))
+
+(defmethod pinned-lines ((paragraph paragraph))
+  "Return PARAGRAPH's pinned lines."
+  (pinned-lines (breakup paragraph)))
 
 (defgeneric paragraph-properties (paragraph)
   (:documentation "Return a string describing PARAGRAPH's properties.")
