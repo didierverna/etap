@@ -72,10 +72,9 @@
 
 (in-package :etap)
 
-
-;; =============
+;; ==========================================================================
 ;; Specification
-;; =============
+;; ==========================================================================
 
 (defparameter *fit-variants*
   '(:first :best :last))
@@ -145,9 +144,10 @@ for equally good solutions."))
 
 
 
-;; ==========
+
+;; ==========================================================================
 ;; Boundaries
-;; ==========
+;; ==========================================================================
 
 (defclass fit-boundary (fixed-boundary)
   ((max-width :documentation "This boundary's maximum line width."
@@ -286,9 +286,10 @@ This function returns three values:
 
 
 
-;; =====
+
+;; ==========================================================================
 ;; Lines
-;; =====
+;; ==========================================================================
 
 (defclass fit-line (line)
   ((weight :documentation "This line's weight."
@@ -407,33 +408,40 @@ LINE class."))
       (apply #'make-instance line-class
 	     :scale theoretical :effective-scale effective line-initargs))))
 
-(defun fit-make-lines (harray disposition width beds)
-  "Make fit lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (let ((get-line-boundary
-	  (case (disposition-type disposition)
-	    (:justified (lambda (start)
-			  (fit-justified-line-boundary harray start width
-						       *variant*)))
-	    (t (lambda (start)
-		 (fixed-ragged-line-boundary harray start width
-					     (ecase *variant*
-					       (:first :max)
-					       (:best :natural)
-					       (:last :min))))))))
-    (when harray
-      (loop :for start := 0 :then (start-idx boundary)
-	    :while start
-	    :for boundary := (funcall get-line-boundary start)
-	    :collect (apply #'fit-make-line harray start boundary
-			    (disposition-type disposition) beds *variant*
-			    :width width
-			    (disposition-options disposition))))))
 
 
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
 
-;; ============
-;; Entry Points
-;; ============
+(defun fit-break-harray (harray disposition width beds)
+  "Make fit pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+  (loop :with disposition-options := (disposition-options disposition)
+	:with disposition := (disposition-type disposition)
+	:with line-boundary
+	  := (case disposition
+	       (:justified
+		(lambda (start)
+		  (fit-justified-line-boundary harray start width *variant*)))
+	       (t
+		(lambda (start)
+		  (fixed-ragged-line-boundary harray start width
+					      (ecase *variant*
+						(:first :max)
+						(:best :natural)
+						(:last :min))))))
+	:with baseline-skip := (baseline-skip harray)
+	:for y := 0 :then (+ y baseline-skip)
+	:for start := 0 :then (start-idx boundary) :while start
+	:for boundary := (funcall line-boundary start)
+	:for line := (apply #'fit-make-line harray start boundary disposition
+			    beds *variant* :width width disposition-options)
+	:for x := (case disposition
+		    ((:flush-left :justified) 0)
+		    (:centered (/ (- width (width line)) 2))
+		    (:flush-right (- width (width line))))
+	:collect (pin-line line x y)))
 
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."
@@ -442,6 +450,33 @@ LINE class."))
 (defmacro default-fit (name)
   "Default Fit NAMEd variable."
   `(default fit ,name))
+
+(defmethod break-harray
+    (harray disposition width beds (algorithm (eql :fit))
+     &key ((:variant *variant*))
+	  ((:line-penalty *line-penalty*))
+	  ((:fallback *fallback*))
+	  ((:width-offset *width-offset*))
+	  ((:avoid-hyphens *avoid-hyphens*))
+	  ((:prefer-overfulls *prefer-overfulls*))
+	  ((:relax *relax*))
+	  ((:prefer-shrink *prefer-shrink*))
+	  ((:discriminating-function *discriminating-function*)))
+  "Break HARRAY with the Fit algorithm."
+  (default-fit variant)
+  (calibrate-fit line-penalty)
+  (default-fit fallback)
+  (calibrate-fit width-offset)
+  (default-fit discriminating-function)
+  (make-instance 'simple-breakup
+    :pinned-lines (fit-break-harray harray disposition width beds)))
+
+
+
+
+;; ==========================================================================
+;; Entry Points
+;; ==========================================================================
 
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :fit))
@@ -461,6 +496,7 @@ LINE class."))
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :fit))
+     &rest keys
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:fallback *fallback*))
@@ -480,4 +516,5 @@ LINE class."))
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (fit-make-lines (harray lineup) disposition width beds)))
+    :breakup (apply #'break-harray (harray lineup) disposition width beds
+		    :fit keys)))
