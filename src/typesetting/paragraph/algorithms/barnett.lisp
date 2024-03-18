@@ -93,50 +93,6 @@
 
 
 ;; ==========================================================================
-;; Lines
-;; ==========================================================================
-
-;; #### NOTE: I'm handling the overshrink option below as in the other
-;; algorithms, but I think that by construction, the only overfulls that we
-;; can get are when there is no elasticity, so this option should have no
-;; effect.
-(defun barnett-make-lines
-    (harray disposition width beds
-     &aux (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Make Barnett lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (when harray
-    (loop :for start := 0 :then (start-idx boundary)
-	  :while start
-	  :for boundary := (barnett-line-boundary harray start width)
-	  :for stop := (stop-idx boundary)
-	  :for scale := (scale boundary)
-	  ;; Justified line
-	  :if (eq (disposition-type disposition) :justified)
-	    :collect (multiple-value-bind (theoretical effective)
-			 (if (last-boundary-p boundary)
-			   ;; Justified last line: maybe shrink it but don't
-			   ;; stretch it.
-			   (actual-scales scale
-			     :overshrink overshrink :stretch-tolerance 0)
-			   ;; Justified regular line: always stretch as
-			   ;; needed, and maybe overshrink.
-			   (actual-scales scale
-			     :overshrink overshrink :stretch-tolerance +∞))
-		       (make-instance 'line
-			 :harray harray :start-idx start :stop-idx stop
-			 :beds beds
-			 :scale theoretical :effective-scale effective))
-	  :else
-	    ;; Other dispositions: just switch back to normal spacing.
-	    :collect (make-instance 'line
-		       :harray harray :start-idx start :stop-idx stop
-		       :beds beds))))
-
-
-
-
-;; ==========================================================================
 ;; Breakup
 ;; ==========================================================================
 

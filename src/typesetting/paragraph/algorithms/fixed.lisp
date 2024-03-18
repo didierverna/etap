@@ -275,27 +275,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 
 ;; ==========================================================================
-;; Lines
-;; ==========================================================================
-
-(defun fixed-make-lines (harray disposition width beds)
-  "Make fixed lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (let ((get-line-boundary (case (disposition-type disposition)
-			     (:justified #'fixed-justified-line-boundary)
-			     (t #'fixed-ragged-line-boundary))))
-    (when harray
-      (loop :for start := 0 :then (start-idx boundary)
-	    :while start
-	    :for boundary := (funcall get-line-boundary harray start width)
-	    :collect (make-instance 'line
-		       :harray harray
-		       :start-idx start :stop-idx (stop-idx boundary)
-		       :beds beds)))))
-
-
-
-
-;; ==========================================================================
 ;; Breakup
 ;; ==========================================================================
 
