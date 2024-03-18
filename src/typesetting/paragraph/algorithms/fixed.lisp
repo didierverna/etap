@@ -86,11 +86,21 @@ into account, choose the overfull rather than
 the underfull one."))
 
 
+(defmacro default-fixed (name)
+  "Default Fixed NAMEd variable."
+  `(default fixed ,name))
+
+
 (defmacro define-fixed-caliber (name min default max)
   "Define a NAMEd Fixed caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber fixed ,name ,min ,default ,max))
 
 (define-fixed-caliber width-offset -50 0 0)
+
+(defmacro calibrate-fixed (name &optional infinity)
+  "Calibrate NAMEd Fixed variable."
+  `(calibrate fixed ,name ,infinity))
+
 
 (define-global-variables fallback width-offset avoid-hyphens prefer-overfulls)
 
@@ -298,14 +308,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		    (:flush-right (- width (width line))))
 	:collect (pin-line line x y)))
 
-
-(defmacro default-fixed (name)
-  "Default Fixed NAMEd variable."
-  `(default fixed ,name))
-
-(defmacro calibrate-fixed (name &optional infinity)
-  "Calibrate NAMEd Fixed variable."
-  `(calibrate fixed ,name ,infinity))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fixed))

@@ -121,6 +121,11 @@ prefer shrinking over stretching
 for equally good solutions."))
 
 
+(defmacro default-fit (name)
+  "Default Fit NAMEd variable."
+  `(default fit ,name))
+
+
 (defmacro define-fit-caliber (name min default max)
   "Define a NAMEd Fit caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber fit ,name ,min ,default ,max))
@@ -136,6 +141,10 @@ for equally good solutions."))
 ;; #### NOTE: no final-hyphen-demerits because that would not be a *-fit
 ;; algorithm anymore (we would need to look one line ahead).
 (define-fit-caliber width-offset -50 0 0)
+
+(defmacro calibrate-fit (name &optional infinity)
+  "Calibrate NAMEd Fit variable."
+  `(calibrate fit ,name ,infinity))
 
 
 (define-global-variables variant hyphen-penalty explicit-hyphen-penalty
@@ -442,14 +451,6 @@ LINE class."))
 		    (:centered (/ (- width (width line)) 2))
 		    (:flush-right (- width (width line))))
 	:collect (pin-line line x y)))
-
-(defmacro calibrate-fit (name &optional infinity)
-  "Calibrate NAMEd Fit variable."
-  `(calibrate fit ,name ,infinity))
-
-(defmacro default-fit (name)
-  "Default Fit NAMEd variable."
-  `(default fit ,name))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fit))
