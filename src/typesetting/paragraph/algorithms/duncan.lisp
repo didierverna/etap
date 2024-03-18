@@ -17,21 +17,25 @@
 
 (in-package :etap)
 
-
-;; =============
+;; ==========================================================================
 ;; Specification
-;; =============
+;; ==========================================================================
 
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
 (defvar *discriminating-function*)
 
+(defmacro default-duncan (name)
+  "Default Duncan NAMEd variable."
+  `(default duncan ,name))
 
 
-;; ====================
+
+
+;; ==========================================================================
 ;; Graph Specialization
-;; ====================
+;; ==========================================================================
 
 ;; -----
 ;; Edges
@@ -114,9 +118,10 @@ The weight is computed according to the discriminating function."
 
 
 
-;; =====
+
+;; ==========================================================================
 ;; Lines
-;; =====
+;; ==========================================================================
 
 (defclass duncan-line (line)
   ((weight :documentation "This line's weight."
@@ -134,89 +139,64 @@ This class keeps track of the line's weight."))
 ;; Lines computation
 ;; -----------------
 
-(defun duncan-make-lines
-    (harray disposition beds layout
-     &aux (overstretch
-	   (cadr (member :overstretch (disposition-options disposition))))
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Typeset HARRAY as a DISPOSITION paragraph with Duncan LAYOUT."
+(defun duncan-pin-layout (harray disposition width beds layout)
+  "Pin Duncan LAYOUT from HARRAY for a DISPOSITION paragraph."
   (when layout
-    (loop :for edge :in (edges layout)
+    (loop :with disposition-options := (disposition-options disposition)
+	  :with overstretch := (getf disposition-options :overstretch)
+	  :with overshrink := (getf disposition-options :overshrink)
+	  :with disposition := (disposition-type disposition)
+	  :with baseline-skip := (baseline-skip harray)
+	  :for y := 0 :then (+ y baseline-skip)
+	  :for edge :in (edges layout)
 	  :and start := 0 :then (start-idx (boundary (destination edge)))
 	  :for stop := (stop-idx (boundary (destination edge)))
 	  :for scale = (scale edge)
-	  :if (eq (disposition-type disposition) :justified)
-	    :collect (multiple-value-bind (theoretical effective)
-			 (if (last-boundary-p (boundary (destination edge)))
-			   ;; Justified last line: maybe shrink it but don't
-			   ;; stretch it.
-			   (actual-scales scale
-			     :overshrink overshrink :stretch-tolerance 0)
-			   ;; Justified regular line: make it fit.
-			   (actual-scales scale
-			     :overshrink overshrink :overstretch overstretch))
-		       (make-instance 'duncan-line
-			 :harray harray :start-idx start :stop-idx stop
-			 :beds beds
-			 :scale theoretical
-			 :effective-scale effective
-			 :weight (weight edge)))
-	  :else
-	    ;; Other dispositions: just switch back to normal spacing.
-	    :collect (make-instance 'line
-		       :harray harray :start-idx start :stop-idx stop
-		       :beds beds))))
+	  :for line := (case disposition
+			 (:justified
+			  (multiple-value-bind (theoretical effective)
+			      (if (last-boundary-p
+				   (boundary (destination edge)))
+				;; Justified last line: maybe shrink it but
+				;; don't stretch it.
+				(actual-scales scale
+				  :overshrink overshrink :stretch-tolerance 0)
+				;; Justified regular line: make it fit.
+				(actual-scales scale
+				  :overshrink overshrink
+				  :overstretch overstretch))
+			    (make-instance 'duncan-line
+			      :harray harray :start-idx start :stop-idx stop
+			      :beds beds
+			      :scale theoretical
+			      :effective-scale effective
+			      :weight (weight edge))))
+			 (t ;; just switch back to normal spacing.
+			  (make-instance 'line
+			    :harray harray :start-idx start :stop-idx stop
+			    :beds beds)))
+	  :for x := (case disposition
+		      ((:flush-left :justified) 0)
+		      (:centered (/ (- width (width line)) 2))
+		      (:flush-right (- width (width line))))
+	  :collect (pin-line line x y))))
 
 
 
-;; ========================
-;; Paragraph Specialization
-;; ========================
 
-(defclass duncan-paragraph (layouts-paragraph)
-  ((weight :documentation "This paragraph's weight."
-	   :initarg :weight
-	   :reader weight))
-  (:documentation "The DUNCAN-PARAGRAPH class."))
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
 
-(defmethod initialize-instance :around
-    ((paragraph duncan-paragraph) &rest keys &key layouts)
-  "Compute the :weight initialization argument."
-  (apply #'call-next-method paragraph
-	 :weight (if layouts (weight (first layouts)) 0)
-	 keys))
-
-(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
-  "Advertise Duncan PARAGRAPH's weight."
-  (format nil "Weight: ~A." (float (weight paragraph))))
-
-
-
-;; ===========
-;; Entry Point
-;; ===========
-
-(defmacro default-duncan (name)
-  "Default Duncan NAMEd variable."
-  `(default duncan ,name))
-
-;; #### TODO: this is in fact not specific to Duncan but... here we avoid
-;; preventive fulls, that is, we don't return *full boundaries if there is at
-;; least one fit boundary. Experience shows that including preventive fulls
-;; leads to an explosion of the graph size. On the other hand, maybe it is
-;; possible that we miss better solutions like this. For example, it could be
-;; possible that by making a line arbitrarily underfull instead of fit, we
-;; reduce the number of subsequent *fulls. I hope that if it's possible, it
-;; would only affect very rare cases. But this should be experimented.
-(defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :duncan))
+(defmethod break-harray
+    (harray disposition width beds (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
-  "Typeset LINEUP with the Duncan algorithm."
+  "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
-  (let* ((graph (make-graph (harray lineup) width :edge-type 'duncan-edge
-						    :fulls t))
-	 (layouts (graph-layouts graph 'duncan-layout)))
+  (let* ((graph (make-graph harray width :edge-type 'duncan-edge :fulls t))
+	 (layouts (graph-layouts graph 'duncan-layout))
+	 breakup)
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
 		    (zerop (underfulls layout))
@@ -246,11 +226,54 @@ This class keeps track of the line's weight."))
 		   (and (misfit l1) (misfit l2)
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
-      (setq layouts (sort layouts #'better))
-      (make-instance 'duncan-paragraph
-	:width width
-	:disposition disposition
-	:lineup lineup
-	:layouts layouts
-	:lines (duncan-make-lines (harray lineup) disposition beds
-				  (first layouts))))))
+      (setq layouts (sort layouts #'better)))
+    (setq breakup (make-instance 'graph-breakup :graph graph :layouts layouts))
+    (unless (zerop (length layouts))
+      (setf (aref (renditions breakup) 0)
+	    (duncan-pin-layout harray disposition width beds (first layouts))))
+    breakup))
+
+
+
+
+;; ==========================================================================
+;; Paragraph Specialization
+;; ==========================================================================
+
+;; #### FIXME: needs to go away.
+(defclass duncan-paragraph (layouts-paragraph)
+  ()
+  (:documentation "The DUNCAN-PARAGRAPH class."))
+
+(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
+  "Advertise Duncan PARAGRAPH's weight."
+  (let ((layout (aref (layouts (breakup paragraph)) 0)))
+    (format nil "Weight: ~A." (float (if layout (weight layout) 0)))))
+
+
+
+
+;; ==========================================================================
+;; Entry Point
+;; ==========================================================================
+
+;; #### TODO: this is in fact not specific to Duncan but... here we avoid
+;; preventive fulls, that is, we don't return *full boundaries if there is at
+;; least one fit boundary. Experience shows that including preventive fulls
+;; leads to an explosion of the graph size. On the other hand, maybe it is
+;; possible that we miss better solutions like this. For example, it could be
+;; possible that by making a line arbitrarily underfull instead of fit, we
+;; reduce the number of subsequent *fulls. I hope that if it's possible, it
+;; would only affect very rare cases. But this should be experimented.
+(defmethod typeset-lineup
+    (lineup disposition width beds (algorithm (eql :duncan))
+     &rest keys
+     &key ((:discriminating-function *discriminating-function*)))
+  "Typeset LINEUP with the Duncan algorithm."
+  (default-duncan discriminating-function)
+  (make-instance 'duncan-paragraph
+    :width width
+    :disposition disposition
+    :lineup lineup
+    :breakup (apply #'break-harray (harray lineup) disposition width beds
+		    :duncan keys)))

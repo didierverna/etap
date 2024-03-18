@@ -17,7 +17,6 @@
 
 (in-package :etap)
 
-
 ;; ==========================================================================
 ;; Graphs
 ;; ==========================================================================
@@ -68,7 +67,6 @@ pseudo-accessors, which see:
 (defmethod hyphenated ((edge edge))
   "Return EDGE's hyphenation status."
   (hyphenated (destination edge)))
-
 
 
 ;; ------------------
@@ -184,6 +182,7 @@ second value."
 
 
 
+
 ;; ==========================================================================
 ;; Layouts
 ;; ==========================================================================
@@ -237,22 +236,51 @@ form (CLASS-NAME INITARGS...)."
 
 
 
-;; =======================
+
+;; ==========================================================================
+;; Graph Breakups
+;; ==========================================================================
+
+(defclass graph-breakup (breakup)
+  ((graph :documentation "The breakup's original graph."
+	  :initarg :graph :reader graph)
+   (layouts :documentation "The breakup's sorted layouts array."
+	    :initarg :layouts :reader layouts)
+   (renditions :documentation "The breakup's sorted layout renditions array."
+	       :reader renditions))
+  (:documentation "The Graph Breakup class.
+This class is used by graph based algorithms. It allows the storage of a
+breaking solutions graph, the corresponding layouts, and layout renditions."))
+
+(defmethod initialize-instance :around
+    ((breakup graph-breakup) &rest keys &key layouts)
+  "Convert the layouts initarg to an array."
+  (apply #'call-next-method breakup
+	 :layouts (make-array (length layouts) :initial-contents layouts)
+	 keys))
+
+(defmethod initialize-instance :after ((breakup graph-breakup) &key)
+  "Create the renditions array."
+  (setf (slot-value breakup 'renditions)
+	(make-array (length (layouts breakup)) :initial-element nil)))
+
+(defmethod pinned-lines
+    ((breakup graph-breakup) &aux (renditions (renditions breakup)))
+  (unless (zerop (length renditions))
+    (aref (renditions breakup) 0)))
+
+
+
+
+;; ==========================================================================
 ;; Layout Based Paragraphs
-;; =======================
+;; ==========================================================================
 
+;; #### FIXME: needs to go away.
 (defclass layouts-paragraph (paragraph)
-  ((layouts :documentation "The initial layouts."
-	    :initarg :layouts
-	    :reader layouts)
-   (layouts-number :documentation "The number of initial layouts."
-		   :reader layouts-number))
+  ()
   (:documentation "The LAYOUTS-PARAGRAPH class."))
-
-(defmethod initialize-instance :after ((paragraph layouts-paragraph) &key)
-  "Fill in the layouts number slot value."
-  (setf (slot-value paragraph 'layouts-number) (length (layouts paragraph))))
 
 (defmethod paragraph-properties strnlcat ((paragraph layouts-paragraph))
   "Advertise layouts based PARAGRAPH's number of initial layouts."
-  (format nil "From ~A layout~:P." (layouts-number paragraph)))
+  (format nil "From ~A layout~:P." (length (layouts (breakup paragraph)))))
