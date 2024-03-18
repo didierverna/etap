@@ -34,10 +34,9 @@
 
 (in-package :etap)
 
-
-;; ==========
+;; ==========================================================================
 ;; Boundaries
-;; ==========
+;; ==========================================================================
 
 (defclass barnett-boundary (fixed-boundary)
   ((scale :documentation "This boundary's required scaling."
@@ -92,9 +91,10 @@
 
 
 
-;; =====
+
+;; ==========================================================================
 ;; Lines
-;; =====
+;; ==========================================================================
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we
@@ -135,9 +135,63 @@
 
 
 
-;; ===========
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
+
+;; #### NOTE: I'm handling the overshrink option below as in the other
+;; algorithms, but I think that by construction, the only overfulls that we
+;; can get are when there is no elasticity, so this option should have no
+;; effect.
+(defun barnett-break-harray (harray disposition width beds)
+  "Make Barnett pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+  (loop :with overshrink := (getf (disposition-options disposition) :overshrink)
+	:with disposition := (disposition-type disposition)
+	:with baseline-skip := (baseline-skip harray)
+	:for y := 0 :then (+ y baseline-skip)
+	:for start := 0 :then (start-idx boundary) :while start
+	:for boundary := (barnett-line-boundary harray start width)
+	:for stop := (stop-idx boundary)
+	:for scale := (scale boundary)
+	:for line := (case disposition
+		       (:justified
+			(multiple-value-bind (theoretical effective)
+			    (if (last-boundary-p boundary)
+			      ;; Justified last line: maybe shrink it but
+			      ;; don't stretch it.
+			      (actual-scales scale
+				:overshrink overshrink :stretch-tolerance 0)
+			      ;; Justified regular line: always stretch as
+			      ;; needed, and maybe overshrink.
+			      (actual-scales scale
+				:overshrink overshrink :stretch-tolerance +∞))
+			  (make-instance 'line
+			    :harray harray :start-idx start :stop-idx stop
+			    :beds beds
+			    :scale theoretical :effective-scale effective)))
+		       (t ;; just switch back to normal spacing.
+			(make-instance 'line
+			  :harray harray :start-idx start :stop-idx stop
+			  :beds beds)))
+	:for x := (case disposition
+		    ((:flush-left :justified) 0)
+		    (:centered (/ (- width (width line)) 2))
+		    (:flush-right (- width (width line))))
+	:collect (pin-line line x y)))
+
+(defmethod break-harray
+    (harray disposition width beds (algorithm (eql :barnett)) &key)
+  "Break HARRAY with the Barnett algorithm."
+  (make-instance 'simple-breakup
+    :pinned-lines (barnett-break-harray harray disposition width beds)))
+
+
+
+
+;; ==========================================================================
 ;; Entry Point
-;; ===========
+;; ==========================================================================
 
 (defmethod typeset-lineup
     (lineup disposition width beds (algorithm (eql :barnett)) &key)
@@ -146,4 +200,4 @@
     :width width
     :disposition disposition
     :lineup lineup
-    :lines (barnett-make-lines (harray lineup) disposition width beds)))
+    :breakup (break-harray (harray lineup) disposition width beds :barnett)))

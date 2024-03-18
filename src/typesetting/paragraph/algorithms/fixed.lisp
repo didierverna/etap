@@ -301,7 +301,8 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 
 (defun fixed-break-harray (harray disposition width beds)
   "Make fixed pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with line-boundary := (case disposition
+  (loop :with disposition := (disposition-type disposition)
+	:with line-boundary := (case disposition
 				 (:justified #'fixed-justified-line-boundary)
 				 (t #'fixed-ragged-line-boundary))
 	:with baseline-skip := (baseline-skip harray)
@@ -327,11 +328,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Calibrate NAMEd Fixed variable."
   `(calibrate fixed ,name ,infinity))
 
-(defclass fixed-breakup (breakup)
-  ((pinned-lines :documentation "The pinned lines."
-		 :initarg :pinned-lines :reader pinned-lines))
-  (:documentation "The Fixed Breakup class."))
-
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fixed))
      &key ((:fallback *fallback*))
@@ -341,9 +337,8 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   "Break HARRAY with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (make-instance 'fixed-breakup
-    :pinned-lines (fixed-break-harray harray (disposition-type disposition)
-				      width beds)))
+  (make-instance 'simple-breakup
+    :pinned-lines (fixed-break-harray harray disposition width beds)))
 
 
 

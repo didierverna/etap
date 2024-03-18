@@ -277,7 +277,7 @@ Maybe also include river BEDS."
   (* 12/10
      (tfm:design-size (tfm:font (find 'tfm:character-metrics harray
 				  :key #'type-of)))))
-  
+
 (defun pin-lines (lines disposition width)
   "Pin LINES in DISPOSITION for a paragraph of WIDTH."
   (let ((baseline-skip (if lines (baseline-skip (harray (first lines))) 0)))
@@ -301,6 +301,14 @@ Maybe also include river BEDS."
   ()
   (:documentation "The BREAKUP class.
 This is the base class for breakups."))
+
+(defclass simple-breakup (breakup)
+  ((pinned-lines :documentation "The pinned lines."
+		 :initarg :pinned-lines :reader pinned-lines))
+  (:documentation "The Simple Breakup class.
+This class allows the storage of a single breaking solution. It is thus
+adequate for greedy algorithms making only discrete choices. Current
+algorithms using it are Fixed and Barnett."))
 
 
 
