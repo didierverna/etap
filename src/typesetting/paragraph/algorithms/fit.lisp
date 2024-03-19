@@ -121,9 +121,9 @@ prefer shrinking over stretching
 for equally good solutions."))
 
 
-(defmacro default-fit (name)
-  "Default Fit NAMEd variable."
-  `(default fit ,name))
+(define-global-variables variant hyphen-penalty explicit-hyphen-penalty
+  line-penalty fallback width-offset avoid-hyphens prefer-overfulls relax
+  prefer-shrink discriminating-function)
 
 
 (defmacro define-fit-caliber (name min default max)
@@ -142,14 +142,14 @@ for equally good solutions."))
 ;; algorithm anymore (we would need to look one line ahead).
 (define-fit-caliber width-offset -50 0 0)
 
+
+(defmacro default-fit (name)
+  "Default Fit NAMEd variable."
+  `(default fit ,name))
+
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."
   `(calibrate fit ,name ,infinity))
-
-
-(define-global-variables variant hyphen-penalty explicit-hyphen-penalty
-  line-penalty fallback width-offset avoid-hyphens prefer-overfulls relax
-  prefer-shrink discriminating-function)
 
 
 

@@ -86,9 +86,7 @@ into account, choose the overfull rather than
 the underfull one."))
 
 
-(defmacro default-fixed (name)
-  "Default Fixed NAMEd variable."
-  `(default fixed ,name))
+(define-global-variables fallback width-offset avoid-hyphens prefer-overfulls)
 
 
 (defmacro define-fixed-caliber (name min default max)
@@ -97,12 +95,14 @@ the underfull one."))
 
 (define-fixed-caliber width-offset -50 0 0)
 
+
+(defmacro default-fixed (name)
+  "Default Fixed NAMEd variable."
+  `(default fixed ,name))
+
 (defmacro calibrate-fixed (name &optional infinity)
   "Calibrate NAMEd Fixed variable."
   `(calibrate fixed ,name ,infinity))
-
-
-(define-global-variables fallback width-offset avoid-hyphens prefer-overfulls)
 
 
 

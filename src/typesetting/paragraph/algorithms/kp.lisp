@@ -9,15 +9,19 @@
 
 (in-package :etap)
 
-;; =============
+;; ==========================================================================
 ;; Specification
-;; =============
+;; ==========================================================================
 
 (defparameter *kp-variants*
   '(:graph :dynamic))
 
 (defparameter *kp-variants-help-keys*
   '(:kp-variant-graph :kp-variant-dynamic))
+
+(defparameter *kp-tooltips*
+  '(:kp-variant-graph "Graph-based implementation."
+    :kp-variant-dynamic "Dynamic programming implementation."))
 
 
 (defmacro define-kp-caliber (name min default max)
@@ -36,20 +40,25 @@
 (define-kp-caliber looseness -10 0 10)
 
 
-(defparameter *kp-tooltips*
-  '(:kp-variant-graph "Graph-based implementation."
-    :kp-variant-dynamic "Dynamic programming implementation."))
-
-
 (define-global-variables variant hyphen-penalty explicit-hyphen-penalty
   line-penalty adjacent-demerits double-hyphen-demerits final-hyphen-demerits
   pre-tolerance tolerance emergency-stretch looseness)
 
 
+(defmacro calibrate-kp (name &optional infinity)
+  "Calibrate NAMEd Knuth-Plass variable."
+  `(calibrate kp ,name ,infinity))
 
-;; =========
+(defmacro default-kp (name)
+  "Default Knuth-Plass NAMEd variable."
+  `(default kp ,name))
+
+
+
+
+;; ==========================================================================
 ;; Utilities
-;; =========
+;; ==========================================================================
 
 ;; #### WARNING: the logic is ACTUAL-SCALES is to establish scaling
 ;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
@@ -120,9 +129,10 @@ This class is mixed in both the graph and dynamic paragraph classes."))
 
 
 
-;; =============
+
+;; ==========================================================================
 ;; Graph Variant
-;; =============
+;; ==========================================================================
 
 ;; -----
 ;; Edges
@@ -355,9 +365,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 
 
-;; ===============
+
+;; ==========================================================================
 ;; Dynamic Variant
-;; ===============
+;; ==========================================================================
 
 (defstruct (kp-node (:constructor kp-make-node))
   boundary scale fitness-class badness demerits total-demerits previous)
@@ -669,17 +680,10 @@ through the algorithm in the TeX jargon).
 
 
 
-;; ============
+
+;; ==========================================================================
 ;; Entry Points
-;; ============
-
-(defmacro calibrate-kp (name &optional infinity)
-  "Calibrate NAMEd Knuth-Plass variable."
-  `(calibrate kp ,name ,infinity))
-
-(defmacro default-kp (name)
-  "Default Knuth-Plass NAMEd variable."
-  `(default kp ,name))
+;; ==========================================================================
 
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :knuth-plass))
