@@ -150,10 +150,11 @@
 ;; ==========================================================================
 
 (defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :barnett)) &key)
+    (hlist lineup disposition width beds (algorithm (eql :barnett)) &key)
   "Typeset LINEUP with the Barnett algorithm."
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :hlist hlist
     :lineup lineup
     :breakup (break-harray (harray lineup) disposition width beds :barnett)))

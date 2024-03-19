@@ -496,7 +496,7 @@ LINE class."))
   hlist)
 
 (defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :fit))
+    (hlist lineup disposition width beds (algorithm (eql :fit))
      &rest keys
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
@@ -516,6 +516,7 @@ LINE class."))
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :hlist hlist
     :lineup lineup
     :breakup (apply #'break-harray (harray lineup) disposition width beds
 		    :fit keys)))

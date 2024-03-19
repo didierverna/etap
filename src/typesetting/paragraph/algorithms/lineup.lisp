@@ -167,10 +167,7 @@ signals that there is no more boundary to find by returning NIL."
 ;; ==========================================================================
 
 (defclass lineup ()
-  ((hlist
-    :documentation "The lineup's original hlist."
-    :initarg :hlist :reader hlist)
-   (harray
+  ((harray
     :documentation "The lineup's harray."
     :initarg :harray :reader harray)
    (break-points-#
@@ -197,7 +194,7 @@ signals that there is no more boundary to find by returning NIL."
 	    (slot-value lineup 'theoretical-solutions-#)
 	    (expt 2 break-points-#)))))
 
-(defgeneric process-hlist (hlist disposition algorithm &key &allow-other-keys)
+(defgeneric process-hlist (hlist disposition algorithm &key)
   (:documentation
    "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
 All primary methods must return a (possibly modified) HLIST.")
@@ -214,7 +211,6 @@ All primary methods must return a (possibly modified) HLIST.")
 				    (algorithm-type algorithm)
 				    (algorithm-options algorithm)))))
   (make-instance 'lineup
-    :hlist hlist
     :harray (make-array (length processed-hlist)
 	      :initial-contents processed-hlist)))
 

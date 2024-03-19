@@ -182,7 +182,7 @@ Also maybe include river BEDS."))
 ;; some duplication. Paragraph making and lineup typesetting should probably
 ;; be separated.
 (defgeneric typeset-lineup
-    (lineup disposition width beds algorithm &key &allow-other-keys)
+    (hlist lineup disposition width beds algorithm &key &allow-other-keys)
   (:documentation
    "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.
 Also maybe include river BEDS."))

@@ -329,7 +329,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; ==========================================================================
 
 (defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :fixed))
+    (hlist lineup disposition width beds (algorithm (eql :fixed))
      &rest keys
      &key ((:fallback *fallback*))
 	  ((:width-offset *width-offset*))
@@ -341,6 +341,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   (make-instance 'paragraph
     :width width
     :disposition disposition
+    :hlist hlist
     :lineup lineup
     :breakup (apply #'break-harray (harray lineup) disposition width beds
 		    :fixed keys)))

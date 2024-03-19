@@ -324,6 +324,9 @@ algorithms using it are Fixed and Barnett."))
    (disposition :documentation "The paragraph's disposition."
 		:initarg :disposition
 		:reader disposition)
+   (hlist :documentation "The paragraph's original hlist."
+	  :initform nil :initarg :hlist
+	  :reader hlist)
    (lineup :documentation "The paragraph's lineup."
 	   :initform nil :initarg :lineup
 	   :reader lineup)

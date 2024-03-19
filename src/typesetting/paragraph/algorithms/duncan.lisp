@@ -266,7 +266,7 @@ This class keeps track of the line's weight."))
 ;; reduce the number of subsequent *fulls. I hope that if it's possible, it
 ;; would only affect very rare cases. But this should be experimented.
 (defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :duncan))
+    (hlist lineup disposition width beds (algorithm (eql :duncan))
      &rest keys
      &key ((:discriminating-function *discriminating-function*)))
   "Typeset LINEUP with the Duncan algorithm."
@@ -274,6 +274,7 @@ This class keeps track of the line's weight."))
   (make-instance 'duncan-paragraph
     :width width
     :disposition disposition
+    :hlist hlist
     :lineup lineup
     :breakup (apply #'break-harray (harray lineup) disposition width beds
 		    :duncan keys)))

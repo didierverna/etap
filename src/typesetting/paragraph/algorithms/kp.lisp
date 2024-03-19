@@ -312,7 +312,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; -----------
 
 (defun kp-graph-typeset-lineup
-    (lineup disposition width beds &aux (threshold *pre-tolerance*) (pass 1))
+    (hlist lineup disposition width beds
+     &aux (threshold *pre-tolerance*) (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
   (let* ((graph (unless (zerop (length (harray lineup)))
 		  ;; #### NOTE: we guard against a null lineup here in order
@@ -349,6 +350,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (make-instance 'kp-graph-paragraph
       :width width
       :disposition disposition
+      :hlist hlist
       :lineup lineup
       :layouts layouts
       :pass pass ;; #### FIXME: wrong if null lineup. Should be 0.
@@ -628,12 +630,14 @@ through the algorithm in the TeX jargon).
 ;; Entry point
 ;; -----------
 
-(defun kp-dynamic-typeset-lineup (lineup disposition width beds &aux (pass 1))
+(defun kp-dynamic-typeset-lineup
+    (hlist lineup disposition width beds &aux (pass 1))
   "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length (harray lineup)))
     (make-instance 'kp-dynamic-paragraph
       :width width
       :disposition disposition
+      :hlist hlist
       :lineup lineup
       :pass 0
       :demerits 0
@@ -671,6 +675,7 @@ through the algorithm in the TeX jargon).
       (make-instance 'kp-dynamic-paragraph
 	:width width
 	:disposition disposition
+	:hlist hlist
 	:lineup lineup
 	:pass pass
 	:demerits (kp-node-total-demerits best)
@@ -703,7 +708,7 @@ through the algorithm in the TeX jargon).
   hlist)
 
 (defmethod typeset-lineup
-    (lineup disposition width beds (algorithm (eql :knuth-plass))
+    (hlist lineup disposition width beds (algorithm (eql :knuth-plass))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
@@ -726,4 +731,4 @@ through the algorithm in the TeX jargon).
   (funcall (ecase *variant*
 	     (:graph #'kp-graph-typeset-lineup)
 	     (:dynamic #'kp-dynamic-typeset-lineup))
-    lineup disposition width beds))
+    hlist lineup disposition width beds))

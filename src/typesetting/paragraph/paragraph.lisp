@@ -44,22 +44,15 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
 	  (width (if context (paragraph-width context) *paragraph-width*))
-	  (hlist nil hlistp)
-	  (lineup nil lineupp))
+	  ;; #### WARNING: no mutual coherency checks for these two.
+	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
+	  (lineup (%make-lineup hlist disposition algorithm)))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
 corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
 ALGORITHM to :fixed."
-  (unless lineup
-    (when lineupp (warn "creating a lineup anyway (can't be null)."))
-    (setq lineup
-	  (%make-lineup
-	   (if hlistp
-	     hlist
-	     (%make-hlist text language font kerning ligatures hyphenation))
-	   disposition algorithm)))
   (apply #'typeset-lineup
-    lineup disposition width beds (algorithm-type algorithm)
+    hlist lineup disposition width beds (algorithm-type algorithm)
     (algorithm-options algorithm)))
