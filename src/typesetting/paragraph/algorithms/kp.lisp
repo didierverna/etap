@@ -283,8 +283,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  ;; stretch in the stretch-tolerance one.
 	  :with overshrink := (getf disposition-options :overshrink)
 	  :with disposition := (disposition-type disposition)
-	  :with threshold := (if (> pass 1) *tolerance* *pre-tolerance*)
-	  :with stretch-tolerance := (stretch-tolerance threshold)
+	  :with stretch-tolerance
+	    := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for edge :in (edges layout)
@@ -604,8 +604,8 @@ through the algorithm in the TeX jargon).
 	;; in the stretch-tolerance one.
 	:with overshrink := (getf disposition-options :overshrink)
 	:with disposition := (disposition-type disposition)
-	:with threshold := (if (> pass 1) *tolerance* *pre-tolerance*)
-	:with stretch-tolerance := (stretch-tolerance threshold)
+	:with stretch-tolerance
+	  := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
 	:with lines
 	:for end := node :then (kp-node-previous end)
 	:for beg := (kp-node-previous end)
