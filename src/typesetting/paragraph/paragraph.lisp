@@ -1,10 +1,14 @@
 (in-package :etap)
 
 
-;; For the interface
+;; ==========================================================================
+;; Specification
+;; ==========================================================================
 
 (defparameter *paragraph-min-width* 142 ;; 142.26378pt = 5cm
   "The paragraph's minimum width in points.")
+
+;; #### NOTE: *paragraph-width* is defined in context.lisp
 
 (defparameter *paragraph-max-width* 569 ;; 569.0551pt = 20cm
   "The paragraph's maximum width in points.")
@@ -16,20 +20,62 @@
 ;; Paragraphs
 ;; ==========================================================================
 
+(defclass paragraph ()
+  ((width :documentation "The paragraph's width."
+	  :initarg :width :reader width)
+   (hlist :documentation "The paragraph's original hlist."
+	  :initform nil :initarg :hlist
+	  :reader hlist)
+   (lineup :documentation "The paragraph's lineup."
+	   :initform nil :initarg :lineup
+	   :reader lineup)
+   (breakup :documentation "The paragraph's breakup."
+	    :initarg :breakup
+	    :reader breakup))
+  (:documentation "The PARAGRAPH class."))
+
+(defmethod pinned-lines ((paragraph paragraph))
+  "Return PARAGRAPH's pinned lines."
+  (pinned-lines (breakup paragraph)))
+
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.
 This is in fact the height of the first line (or 0), since we consider that
 the paragraph's baseline is the first line's baseline. Not to be confused with
 the height of the whole paragraph."
   (if (pinned-lines paragraph)
-      (height (first (pinned-lines paragraph)))
-      0))
+    (height (first (pinned-lines paragraph)))
+    0))
 
 (defmethod depth
     ((paragraph paragraph) &aux (last (car (last (pinned-lines paragraph)))))
   "Return paragraph's depth.
 We consider that the paragraph's baseline is the first line's baseline."
   (if last (+ (y last) (depth last)) 0))
+
+(defmethod break-points-# ((paragraph paragraph))
+  "Return PARAGRAPH's number of break points."
+  (break-points-# (lineup paragraph)))
+
+(defmethod theoretical-solutions-# ((paragraph paragraph))
+  "Return PARAGRAPH's number of theoretical break solutions."
+  (theoretical-solutions-# (lineup paragraph)))
+
+(defun paragraph-properties (paragraph)
+  "Return a string advertising PARAGRAPH's properties.
+Currently, these are the ones not visible on the GUI:
+  - vertical dimensions,
+  - number of break points,
+  - number of theoretical solutions,
+  - ... followed by breakup properties (see `breakup-properties'.)"
+  (strnlcat (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~@
+			 ~A breakpoints, ~A theoretical solutions (2^n)."
+	      (float (+ (height paragraph) (depth paragraph)))
+	      (float (height paragraph))
+	      (float (depth paragraph))
+	      (break-points-# paragraph)
+	      (theoretical-solutions-# paragraph))
+	    (breakup-properties (breakup paragraph))))
 
 (defun make-paragraph
     (&key (context *context*)
@@ -44,15 +90,16 @@ We consider that the paragraph's baseline is the first line's baseline."
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
 	  (width (if context (paragraph-width context) *paragraph-width*))
-	  ;; #### WARNING: no mutual coherency checks for these two.
+	  ;; #### WARNING: no mutual coherency checks for these three.
 	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
-	  (lineup (%make-lineup hlist disposition algorithm)))
+	  (lineup (%make-lineup hlist disposition algorithm))
+	  (breakup (%make-breakup lineup disposition width beds algorithm)))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
 corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
-ALGORITHM to :fixed."
-  (apply #'typeset-lineup
-    hlist lineup disposition width beds (algorithm-type algorithm)
-    (algorithm-options algorithm)))
+ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
+subsequently computed."
+  (make-instance 'paragraph
+    :width width :hlist hlist :lineup lineup :breakup breakup))

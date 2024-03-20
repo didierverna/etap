@@ -189,11 +189,38 @@ This class keeps track of the line's weight."))
 ;; Breakup
 ;; ==========================================================================
 
+;; #### TODO: this class exists only for specializing BREAKUP-PROPERTIES, and
+;; only because the breakup's layouts are specialized. This should be done
+;; differently (like: by breakup-properties calling a layout-properties
+;; protocol of some kind).
+(defclass duncan-breakup (graph-breakup)
+  ()
+  (:documentation "The DUNCAN-BREAKUP class."))
+
+;; #### FIXME: the method combination should handle functions returning NIL as
+;; well as strings and filter those out. This would help improve the case
+;; where we don't have a layout below.
+(defmethod breakup-properties strnlcat ((breakup duncan-breakup))
+  "Advertise Duncan BREAKUP's layout weight."
+  (if (zerop (length (layouts breakup)))
+    ""
+    (let ((layout (aref (layouts breakup) 0)))
+      (format nil "Weight: ~A." (float (if layout (weight layout) 0))))))
+
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
+  ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
+  ;; preventive fulls, that is, we don't return *full boundaries if there is
+  ;; at least one fit boundary. Experience shows that including preventive
+  ;; fulls leads to an explosion of the graph size. On the other hand, maybe
+  ;; it is possible that we miss better solutions like this. For example, it
+  ;; could be possible that by making a line arbitrarily underfull instead of
+  ;; fit, we reduce the number of subsequent *fulls. I hope that if it's
+  ;; possible, it would only affect very rare cases. But this should be
+  ;; experimented.
   (let* ((graph (make-graph harray width :edge-type 'duncan-edge :fulls t))
 	 (layouts (graph-layouts graph 'duncan-layout))
 	 breakup)
@@ -227,54 +254,9 @@ This class keeps track of the line's weight."))
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
       (setq layouts (sort layouts #'better)))
-    (setq breakup (make-instance 'graph-breakup :graph graph :layouts layouts))
+    (setq breakup (make-instance 'duncan-breakup
+		    :graph graph :layouts layouts))
     (unless (zerop (length layouts))
       (setf (aref (renditions breakup) 0)
 	    (duncan-pin-layout harray disposition width beds (first layouts))))
     breakup))
-
-
-
-
-;; ==========================================================================
-;; Paragraph Specialization
-;; ==========================================================================
-
-;; #### FIXME: needs to go away.
-(defclass duncan-paragraph (layouts-paragraph)
-  ()
-  (:documentation "The DUNCAN-PARAGRAPH class."))
-
-(defmethod paragraph-properties strnlcat ((paragraph duncan-paragraph))
-  "Advertise Duncan PARAGRAPH's weight."
-  (let ((layout (aref (layouts (breakup paragraph)) 0)))
-    (format nil "Weight: ~A." (float (if layout (weight layout) 0)))))
-
-
-
-
-;; ==========================================================================
-;; Entry Point
-;; ==========================================================================
-
-;; #### TODO: this is in fact not specific to Duncan but... here we avoid
-;; preventive fulls, that is, we don't return *full boundaries if there is at
-;; least one fit boundary. Experience shows that including preventive fulls
-;; leads to an explosion of the graph size. On the other hand, maybe it is
-;; possible that we miss better solutions like this. For example, it could be
-;; possible that by making a line arbitrarily underfull instead of fit, we
-;; reduce the number of subsequent *fulls. I hope that if it's possible, it
-;; would only affect very rare cases. But this should be experimented.
-(defmethod typeset-lineup
-    (hlist lineup disposition width beds (algorithm (eql :duncan))
-     &rest keys
-     &key ((:discriminating-function *discriminating-function*)))
-  "Typeset LINEUP with the Duncan algorithm."
-  (default-duncan discriminating-function)
-  (make-instance 'duncan-paragraph
-    :width width
-    :disposition disposition
-    :hlist hlist
-    :lineup lineup
-    :breakup (apply #'break-harray (harray lineup) disposition width beds
-		    :duncan keys)))

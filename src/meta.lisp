@@ -14,5 +14,6 @@
     :*context* :make-context
     :make-hlist
     :make-lineup
+    :make-breakup
     :make-paragraph
     #+lispworks :run))

@@ -269,6 +269,10 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
   (unless (zerop (length renditions))
     (aref (renditions breakup) 0)))
 
+(defmethod breakup-properties strnlcat ((breakup graph-breakup))
+  "Advertise graph BREAKUP's number of initial layouts."
+  (format nil "From ~A layout~:P." (length (layouts breakup))))
+
 
 
 
@@ -280,7 +284,3 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
 (defclass layouts-paragraph (paragraph)
   ()
   (:documentation "The LAYOUTS-PARAGRAPH class."))
-
-(defmethod paragraph-properties strnlcat ((paragraph layouts-paragraph))
-  "Advertise layouts based PARAGRAPH's number of initial layouts."
-  (format nil "From ~A layout~:P." (length (layouts (breakup paragraph)))))

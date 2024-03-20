@@ -46,12 +46,13 @@
 		 (:file "common")
 		 (:module "algorithms"
 		  :components
-			  ((:file "lineup")
-			   (:file "common" :depends-on ("lineup"))
-			   (:file "fixed" :depends-on ("common"))
+			  ((:file "common")
+			   (:file "lineup" :depends-on ("common"))
+			   (:file "breakup" :depends-on ("lineup"))
+			   (:file "fixed" :depends-on ("breakup"))
 			   (:file "fit" :depends-on  ("fixed"))
 			   (:file "barnett" :depends-on  ("fixed"))
-			   (:file "graph" :depends-on ("fit"))
+			   (:file "graph" :depends-on ("breakup"))
 			   (:file "duncan" :depends-on  ("graph"))
 			   (:file "kp" :depends-on  ("graph"))))
 		 (:file "paragraph")

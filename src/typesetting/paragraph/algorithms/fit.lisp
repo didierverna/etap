@@ -155,6 +155,29 @@ for equally good solutions."))
 
 
 ;; ==========================================================================
+;; HList
+;; ==========================================================================
+
+(defmethod process-hlist
+    (hlist disposition (algorithm (eql :fit))
+     &key ((:hyphen-penalty *hyphen-penalty*))
+	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
+  "Adjust hyphen penalties in HLIST."
+  (calibrate-fit hyphen-penalty t)
+  (calibrate-fit explicit-hyphen-penalty t)
+  (mapc (lambda (item)
+	  (when (hyphenation-point-p item)
+	    (setf (penalty item)
+		  (if (explicitp item)
+		    *explicit-hyphen-penalty*
+		    *hyphen-penalty*))))
+    hlist)
+  hlist)
+
+
+
+
+;; ==========================================================================
 ;; Boundaries
 ;; ==========================================================================
 
@@ -471,52 +494,3 @@ LINE class."))
   (default-fit discriminating-function)
   (make-instance 'simple-breakup
     :pinned-lines (fit-break-harray harray disposition width beds)))
-
-
-
-
-;; ==========================================================================
-;; Entry Points
-;; ==========================================================================
-
-(defmethod process-hlist
-    (hlist disposition (algorithm (eql :fit))
-     &key ((:hyphen-penalty *hyphen-penalty*))
-	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HLIST."
-  (calibrate-fit hyphen-penalty t)
-  (calibrate-fit explicit-hyphen-penalty t)
-  (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
-	    (setf (penalty item)
-		  (if (explicitp item)
-		    *explicit-hyphen-penalty*
-		    *hyphen-penalty*))))
-    hlist)
-  hlist)
-
-(defmethod typeset-lineup
-    (hlist lineup disposition width beds (algorithm (eql :fit))
-     &rest keys
-     &key ((:variant *variant*))
-	  ((:line-penalty *line-penalty*))
-	  ((:fallback *fallback*))
-	  ((:width-offset *width-offset*))
-	  ((:avoid-hyphens *avoid-hyphens*))
-	  ((:prefer-overfulls *prefer-overfulls*))
-	  ((:relax *relax*))
-	  ((:prefer-shrink *prefer-shrink*))
-	  ((:discriminating-function *discriminating-function*)))
-  "Typeset LINEUP with the Fit algorithm."
-  (default-fit variant)
-  (calibrate-fit line-penalty)
-  (default-fit fallback)
-  (calibrate-fit width-offset)
-  (default-fit discriminating-function)
-  (make-instance 'paragraph
-    :width width
-    :disposition disposition
-    :hlist hlist
-    :lineup lineup
-    :breakup (apply #'break-harray (harray lineup) disposition width beds
-		    :fit keys)))

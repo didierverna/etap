@@ -162,27 +162,3 @@ This function returns two values.
 	   (setq theoretical-scale ($min theoretical-scale stretch-tolerance))
 	   (unless overstretch (setq effective-scale theoretical-scale))))
     (values theoretical-scale effective-scale)))
-
-
-
-
-;; ==========================================================================
-;; Entry Points
-;; ==========================================================================
-
-(defgeneric break-harray
-    (harray disposition width beds algorithm &key &allow-other-keys)
-  (:documentation
-   "Break HARRAY as a DISPOSITION paragraph of WIDTH with ALGORITHM.
-Also maybe include river BEDS."))
-
-;; #### FIXME: the design of this is not satisfactory. Every method calls
-;; MAKE-PARAGRAPH with its own paragraph class, but also has to pass a number
-;; of identical keywords (such as :disposition or :lineup), hence, there is
-;; some duplication. Paragraph making and lineup typesetting should probably
-;; be separated.
-(defgeneric typeset-lineup
-    (hlist lineup disposition width beds algorithm &key &allow-other-keys)
-  (:documentation
-   "Typeset LINEUP as a DISPOSITION paragraph of WIDTH with ALGORITHM.
-Also maybe include river BEDS."))

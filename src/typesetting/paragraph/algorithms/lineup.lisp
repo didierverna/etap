@@ -194,7 +194,10 @@ signals that there is no more boundary to find by returning NIL."
 	    (slot-value lineup 'theoretical-solutions-#)
 	    (expt 2 break-points-#)))))
 
-(defgeneric process-hlist (hlist disposition algorithm &key)
+;; #### NOTE: this function is called with all the algorithm options, without
+;; knowing in advance whether they're going to be used or not, so we need to
+;; relax keyword argument checking.
+(defgeneric process-hlist (hlist disposition algorithm &key &allow-other-keys)
   (:documentation
    "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
 All primary methods must return a (possibly modified) HLIST.")

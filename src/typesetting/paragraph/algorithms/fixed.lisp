@@ -320,28 +320,3 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   (calibrate-fixed width-offset)
   (make-instance 'simple-breakup
     :pinned-lines (fixed-break-harray harray disposition width beds)))
-
-
-
-
-;; ==========================================================================
-;; Entry Point
-;; ==========================================================================
-
-(defmethod typeset-lineup
-    (hlist lineup disposition width beds (algorithm (eql :fixed))
-     &rest keys
-     &key ((:fallback *fallback*))
-	  ((:width-offset *width-offset*))
-	  ((:avoid-hyphens *avoid-hyphens*))
-	  ((:prefer-overfulls *prefer-overfulls*)))
-  "Typeset LINEUP with the Fixed algorithm."
-  (default-fixed fallback)
-  (calibrate-fixed width-offset)
-  (make-instance 'paragraph
-    :width width
-    :disposition disposition
-    :hlist hlist
-    :lineup lineup
-    :breakup (apply #'break-harray (harray lineup) disposition width beds
-		    :fixed keys)))

@@ -121,7 +121,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (:documentation "The KP-PARAGRAPH-MIXIN class.
 This class is mixed in both the graph and dynamic paragraph classes."))
 
-(defmethod paragraph-properties strnlcat ((mixin kp-paragraph-mixin))
+#+()(defmethod paragraph-properties strnlcat ((mixin kp-paragraph-mixin))
   "Advertise TeX's algorithm pass number and total demerits."
   (format nil "Pass: ~A.~%Demerits: ~A."
     (pass mixin)
@@ -620,7 +620,7 @@ through the algorithm in the TeX jargon).
 		 :reader nodes-number))
   (:documentation "The KP-DYNAMIC-PARAGRAPH class."))
 
-(defmethod paragraph-properties strnlcat ((paragraph kp-dynamic-paragraph))
+#+()(defmethod paragraph-properties strnlcat ((paragraph kp-dynamic-paragraph))
   "Advertise the number of remaining active nodes."
   (format nil "From ~A remaining active node~:P."
     (nodes-number paragraph)))

@@ -141,20 +141,3 @@
   "Break HARRAY with the Barnett algorithm."
   (make-instance 'simple-breakup
     :pinned-lines (barnett-break-harray harray disposition width beds)))
-
-
-
-
-;; ==========================================================================
-;; Entry Point
-;; ==========================================================================
-
-(defmethod typeset-lineup
-    (hlist lineup disposition width beds (algorithm (eql :barnett)) &key)
-  "Typeset LINEUP with the Barnett algorithm."
-  (make-instance 'paragraph
-    :width width
-    :disposition disposition
-    :hlist hlist
-    :lineup lineup
-    :breakup (break-harray (harray lineup) disposition width beds :barnett)))
