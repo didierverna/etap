@@ -195,13 +195,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -------
 
 (defclass kp-layout (layout)
-  ;; #### FIXME: this is wrong. all layouts we get come from the same graph,
-  ;; so they have the same threshold. This should be a property of the breakup
-  ;; instead.
-  ((threshold :documentation "This layout's badness threshold."
-	      :initarg :threshold
-	      :reader threshold)
-   (size :documentation "This layout's size (i.e. the number of lines)."
+  ((size :documentation "This layout's size (i.e. the number of lines)."
 	 :accessor size)
    (demerits :documentation "This layout's total demerits."
 	     :accessor demerits))
@@ -275,7 +269,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines computation
 ;; -----------------
 
-(defun kp-pin-layout (harray disposition width beds layout)
+(defun kp-pin-layout (harray disposition width beds layout pass)
   "Pin Knuth-Plass LAYOUT from HARRAY for a DISPOSITION paragraph."
   (when layout
     (loop :with disposition-options := (disposition-options disposition)
@@ -288,8 +282,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  ;; the overstretched parameter to T and not counting emergency
 	  ;; stretch in the stretch-tolerance one.
 	  :with overshrink := (getf disposition-options :overshrink)
-	  :with stretch-tolerance := (stretch-tolerance (threshold layout))
 	  :with disposition := (disposition-type disposition)
+	  :with threshold := (if (> pass 1) *tolerance* *pre-tolerance*)
+	  :with stretch-tolerance := (stretch-tolerance threshold)
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for edge :in (edges layout)
@@ -369,7 +364,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t :threshold threshold
 			       :final *emergency-stretch*)))))
-	 (layouts (graph-layouts graph `(kp-layout :threshold ,threshold))))
+	 (layouts (graph-layouts graph 'kp-layout)))
     (mapc #'kp-postprocess-layout layouts)
     (setq layouts (sort layouts #'$< :key #'demerits))
     (unless (or (zerop *looseness*) (null layouts))
@@ -392,7 +387,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     ;; between the graph and the dynamic versions.
     (unless (zerop (length layouts))
       (setf (aref (renditions breakup) 0)
-	    (kp-pin-layout harray disposition width beds (first layouts))))
+	    (kp-pin-layout harray disposition width beds (first layouts)
+			   pass)))
     breakup))
 
 
