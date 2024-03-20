@@ -195,6 +195,9 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -------
 
 (defclass kp-layout (layout)
+  ;; #### FIXME: this is wrong. all layouts we get come from the same graph,
+  ;; so they have the same threshold. This should be a property of the breakup
+  ;; instead.
   ((threshold :documentation "This layout's badness threshold."
 	      :initarg :threshold
 	      :reader threshold)
@@ -592,21 +595,28 @@ through the algorithm in the TeX jargon).
 ;; Lines computation
 ;; -----------------
 
-(defun kp-dynamic-make-lines
-    (harray disposition beds node pass
-     &aux (justified (eq (disposition-type disposition) :justified))
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition))))
-	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*)))
-  "Typeset HARRAY as a DISPOSITION paragraph with Knuth-Plass dynamic NODE."
-  (loop :with lines
+(defun kp-dynamic-pin-node (harray disposition width beds node pass)
+  "Pin Knuth-Plass NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
+  (loop :with disposition-options := (disposition-options disposition)
+	;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
+	;; elastic underfulls (in case of an impossible layout, it falls back
+	;; to overfull boxes). This means that the overstretch option has no
+	;; effect, but it allows for a nice trick: we can indicate lines
+	;; exceeding the tolerance thanks to an emergency stretch as
+	;; overstretched, regardless of the option. This is done by setting
+	;; the overstretched parameter to T and not counting emergency stretch
+	;; in the stretch-tolerance one.
+	:with overshrink := (getf disposition-options :overshrink)
+	:with disposition := (disposition-type disposition)
+	:with threshold := (if (> pass 1) *tolerance* *pre-tolerance*)
 	:with stretch-tolerance := (stretch-tolerance threshold)
+	:with lines
 	:for end := node :then (kp-node-previous end)
 	:for beg := (kp-node-previous end)
 	:while beg
 	:for start := (start-idx (kp-node-boundary beg))
 	:for stop := (stop-idx (kp-node-boundary end))
-	:do (push (if justified
+	:do (push (if (eq disposition :justified)
 		    ;; #### NOTE: I think that the Knuth-Plass algorithm
 		    ;; cannot produce elastic underfulls (in case of an
 		    ;; impossible layout, it falls back to overfull boxes).
@@ -634,46 +644,53 @@ through the algorithm in the TeX jargon).
 		      :harray harray :start-idx start :stop-idx stop
 		      :beds beds))
 		  lines)
-	:finally (return lines)))
+	:finally
+	   (return (loop :with baseline-skip := (baseline-skip harray)
+			 :for y := 0 :then (+ y baseline-skip)
+			 :for line :in lines
+			 :for x := (case disposition
+				     ((:flush-left :justified) 0)
+				     (:centered (/ (- width (width line)) 2))
+				     (:flush-right (- width (width line))))
+			 :collect (pin-line line x y)))))
 
 
 ;; ------------------------
-;; Paragraph specialization
+;; Breakup specialization
 ;; ------------------------
 
-(defclass kp-dynamic-paragraph (kp-paragraph-mixin paragraph)
-  ((nodes-number :documentation "The number of remaining active nodes."
-		 :initarg :nodes-number
-		 :reader nodes-number))
-  (:documentation "The KP-DYNAMIC-PARAGRAPH class."))
+;; #### FIXME: this is good enough for now, but we want to keep around all
+;; possible solutions for the remaining active nodes, just like what we do for
+;; graph based breakups. In fact, since the dynamic optimization is
+;; essentially just a way to keep only pruned graphs in memory, we should
+;; still get layouts in the end.
+(defclass kp-dynamic-breakup (kp-breakup-mixin simple-breakup)
+  ((nodes-# :documentation "The number of remaining active nodes."
+	    :initarg :nodes-# :reader nodes-#)
+   (demerits :documentation "The total demerits."
+	     :initarg :demerits :reader demerits))
+  (:documentation "The KP-DYNAMIC-BREAKUP class."))
 
-#+()(defmethod paragraph-properties strnlcat ((paragraph kp-dynamic-paragraph))
+(defmethod breakup-properties strnlcat ((breakup kp-dynamic-breakup))
   "Advertise the number of remaining active nodes."
-  (format nil "From ~A remaining active node~:P."
-    (nodes-number paragraph)))
+  (format nil "Demerits: ~A~@
+	       From ~A remaining active node~:P."
+    ($float (demerits breakup))
+    (nodes-# breakup)))
 
-
-;; -----------
-;; Entry point
-;; -----------
-
-(defun kp-dynamic-typeset-lineup
-    (hlist lineup disposition width beds &aux (pass 1))
-  "Typeset LINEUP with the Knuth-Plass algorithm, dynamic programming version."
-  (if (zerop (length (harray lineup)))
-    (make-instance 'kp-dynamic-paragraph
-      :width width
-      :disposition disposition
-      :hlist hlist
-      :lineup lineup
+(defun kp-dynamic-break-harray
+    (harray disposition width beds &aux (pass 1))
+  "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
+  (if (zerop (length harray))
+    (make-instance 'kp-dynamic-breakup
       :pass 0
       :demerits 0
-      :nodes-number 0
-      :lines nil)
+      :nodes-# 0
+      :pinned-lines nil)
     (let* ((nodes (or (when ($>= *pre-tolerance* 0)
-			(kp-create-nodes (harray lineup) width pass))
-		      (kp-create-nodes (harray lineup) width (incf pass))
-		      (kp-create-nodes (harray lineup) width (incf pass))))
+			(kp-create-nodes harray width pass))
+		      (kp-create-nodes harray width (incf pass))
+		      (kp-create-nodes harray width (incf pass))))
 	   (best (loop :with total-demerits := +∞ :with best :with last
 		       :for node :being :the :hash-values :in nodes
 			 :using (hash-key key)
@@ -699,18 +716,19 @@ through the algorithm in the TeX jargon).
 				       (kp-node-total-demerits closer)))
 			       (setq closer node)))
 		    :finally (return closer))))
-      (make-instance 'kp-dynamic-paragraph
-	:width width
-	:disposition disposition
-	:hlist hlist
-	:lineup lineup
+      (make-instance 'kp-dynamic-breakup
 	:pass pass
 	:demerits (kp-node-total-demerits best)
-	:nodes-number (hash-table-count nodes)
-	:lines (kp-dynamic-make-lines (harray lineup) disposition beds best
-				      pass)))))
+	:nodes-# (hash-table-count nodes)
+	:pinned-lines (kp-dynamic-pin-node
+		       harray disposition width beds best pass)))))
 
 
+
+
+;; ==========================================================================
+;; Variant Dispatch
+;; ==========================================================================
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :knuth-plass))
@@ -735,5 +753,5 @@ through the algorithm in the TeX jargon).
   (calibrate-kp looseness)
   (funcall (ecase *variant*
 	     (:graph #'kp-graph-break-harray)
-	     (:dynamic #'kp-dynamic-typeset-lineup))
+	     (:dynamic #'kp-dynamic-break-harray))
     harray disposition width beds))
