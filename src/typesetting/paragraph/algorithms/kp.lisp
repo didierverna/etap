@@ -57,6 +57,30 @@
 
 
 ;; ==========================================================================
+;; HList
+;; ==========================================================================
+
+(defmethod process-hlist
+    (hlist disposition (algorithm (eql :knuth-plass))
+     &key ((:hyphen-penalty *hyphen-penalty*))
+	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
+  "Adjust hyphen penalties in HLIST, and append the final glue to it."
+  (calibrate-kp hyphen-penalty t)
+  (calibrate-kp explicit-hyphen-penalty t)
+  (mapc (lambda (item)
+	  (when (hyphenation-point-p item)
+	    (setf (penalty item)
+		  (if (explicitp item)
+		    *explicit-hyphen-penalty*
+		    *hyphen-penalty*))))
+    hlist)
+  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
+  hlist)
+
+
+
+
+;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
 
@@ -108,24 +132,19 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
     ($float (demerits line))))
 
 
-;; ------------------------
-;; Paragraph specialization
-;; ------------------------
+;; ----------------------
+;; Breakup specialization
+;; ----------------------
 
-(defclass kp-paragraph-mixin ()
-  ((pass :documentation "Which of the 3 passes produced this paragraph."
-	 :initarg :pass :reader pass)
-   (demerits :documentation "This paragraph's total demerits."
-	     :initarg :demerits
-	     :reader demerits))
-  (:documentation "The KP-PARAGRAPH-MIXIN class.
-This class is mixed in both the graph and dynamic paragraph classes."))
+(defclass kp-breakup-mixin ()
+  ((pass :documentation "Which of the 3 passes produced this breakup."
+	 :initarg :pass :reader pass))
+  (:documentation "The KP-BREAKUP-MIXIN class.
+This class is mixed in both the graph and dynamic breakup classes."))
 
-#+()(defmethod paragraph-properties strnlcat ((mixin kp-paragraph-mixin))
+(defmethod breakup-properties strnlcat ((mixin kp-breakup-mixin))
   "Advertise TeX's algorithm pass number and total demerits."
-  (format nil "Pass: ~A.~%Demerits: ~A."
-    (pass mixin)
-    ($float (demerits mixin))))
+  (format nil "Pass: ~A." (pass mixin)))
 
 
 
@@ -253,9 +272,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines computation
 ;; -----------------
 
-(defun kp-graph-make-lines
-    (harray disposition beds layout
-     &aux (justified (eq (disposition-type disposition) :justified))
+(defun kp-pin-layout (harray disposition width beds layout)
+  "Pin Knuth-Plass LAYOUT from HARRAY for a DISPOSITION paragraph."
+  (when layout
+    (loop :with disposition-options := (disposition-options disposition)
 	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
 	  ;; elastic underfulls (in case of an impossible layout, it falls
 	  ;; back to overfull boxes). This means that the overstretch option
@@ -264,76 +284,84 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  ;; overstretched, regardless of the option. This is done by setting
 	  ;; the overstretched parameter to T and not counting emergency
 	  ;; stretch in the stretch-tolerance one.
-	  stretch-tolerance
-	  (overshrink
-	   (cadr (member :overshrink (disposition-options disposition)))))
-  "Typeset HARRAY as a DISPOSITION paragraph with Knuth-Plass LAYOUT."
-  (when layout
-    (setq stretch-tolerance (stretch-tolerance (threshold layout)))
-    (loop :for edge :in (edges layout)
+	  :with overshrink := (getf disposition-options :overshrink)
+	  :with stretch-tolerance := (stretch-tolerance (threshold layout))
+	  :with disposition := (disposition-type disposition)
+	  :with baseline-skip := (baseline-skip harray)
+	  :for y := 0 :then (+ y baseline-skip)
+	  :for edge :in (edges layout)
 	  :and start := 0 :then (start-idx (boundary (destination edge)))
 	  :for stop := (stop-idx (boundary (destination edge)))
-	  :if justified
-	    :collect (multiple-value-bind (theoretical effective)
-			 (actual-scales (scale edge)
-			   :stretch-tolerance stretch-tolerance
-			   :overshrink overshrink :overstretch t)
-		       (make-instance 'kp-line
-			 :harray harray :start-idx start :stop-idx stop
-			 :beds beds
-			 :scale theoretical :effective-scale effective
-			 :fitness-class (fitness-class edge)
-			 :badness (badness edge)
-			 :demerits (demerits edge)))
-	  :else
-	    :collect (make-instance 'line
-		       :harray harray :start-idx start :stop-idx stop
-		       :beds beds))))
+	  :for line := (case disposition
+			 (:justified
+			  (multiple-value-bind (theoretical effective)
+			      (actual-scales (scale edge)
+				:stretch-tolerance stretch-tolerance
+				:overshrink overshrink
+				:overstretch t)
+			    (make-instance 'kp-line
+			      :harray harray :start-idx start :stop-idx stop
+			      :beds beds
+			      :scale theoretical :effective-scale effective
+			      :fitness-class (fitness-class edge)
+			      :badness (badness edge)
+			      :demerits (demerits edge))))
+			 (t ;; just switch back to normal spacing.
+			  (make-instance 'line
+			    :harray harray :start-idx start :stop-idx stop
+			    :beds beds)))
+	  :for x := (case disposition
+		      ((:flush-left :justified) 0)
+		      (:centered (/ (- width (width line)) 2))
+		      (:flush-right (- width (width line))))
+	  :collect (pin-line line x y))))
 
 
-;; --------------------
-;; Graph specialization
-;; --------------------
+;; ----------------------
+;; Breakup specialization
+;; ----------------------
 
-(defclass kp-graph-paragraph (kp-paragraph-mixin layouts-paragraph)
+;; #### TODO: this class exists only for specializing BREAKUP-PROPERTIES, and
+;; only because the breakup's layouts are specialized. This should be done
+;; differently (like: by breakup-properties calling a layout-properties
+;; protocol of some kind).
+(defclass kp-graph-breakup (kp-breakup-mixin graph-breakup)
   ()
-  (:documentation "The KP-GRAPH-PARAGRAPH class."))
+  (:documentation "The KP-GRAPH-BREAKUP class."))
 
-(defmethod initialize-instance :around
-    ((paragraph kp-graph-paragraph) &rest keys &key layouts)
-  "Compute the :demerits initialization argument."
-  (apply #'call-next-method paragraph
-	 :demerits (if layouts (demerits (first layouts)) 0)
-	 keys))
+;; #### FIXME: the method combination should handle functions returning NIL as
+;; well as strings and filter those out. This would help improve the case
+;; where we don't have a layout below.
+(defmethod breakup-properties strnlcat ((breakup kp-graph-breakup))
+  "Advertise Knuth-Plass BREAKUP's layout demerits."
+  (if (zerop (length (layouts breakup)))
+    ""
+    (let ((layout (aref (layouts breakup) 0)))
+      (format nil "Demerits: ~A." ($float (if layout (demerits layout) 0))))))
 
-
-;; -----------
-;; Entry point
-;; -----------
-
-(defun kp-graph-typeset-lineup
-    (hlist lineup disposition width beds
-     &aux (threshold *pre-tolerance*) (pass 1))
-  "Typeset LINEUP with the Knuth-Plass algorithm, graph version."
-  (let* ((graph (unless (zerop (length (harray lineup)))
+(defun kp-graph-break-harray
+    (harray disposition width beds
+     &aux (threshold *pre-tolerance*) (pass 1) breakup)
+  "Break HARRAY with the Knuth-Plass algorithm, graph version."
+  (let* ((graph (unless (zerop (length harray))
 		  ;; #### NOTE: we guard against a null lineup here in order
 		  ;; to avoid running the 3 passes. It's not the same to not
 		  ;; have lines, and to not have a solution in a particular
 		  ;; pass.
 		  (or (when ($<= 0 threshold)
-			(make-graph (harray lineup) width
+			(make-graph harray width
 			  :edge-type 'kp-edge
 			  :next-boundaries #'kp-next-boundaries
 			  :threshold threshold))
 		      (progn (incf pass)
-			     (make-graph (harray lineup) width
+			     (make-graph harray width
 			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t
 			       :threshold (setq threshold *tolerance*)
 			       :final (zerop *emergency-stretch*)))
 		      (progn (incf pass)
-			     (make-graph (harray lineup) width
+			     (make-graph harray width
 			       :edge-type 'kp-edge
 			       :next-boundaries #'kp-next-boundaries
 			       :hyphenate t :threshold threshold
@@ -347,23 +375,22 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				      (< (abs (- size1 ideal-size))
 					 (abs (- size2 ideal-size))))
 			:key #'size))))
-    (make-instance 'kp-graph-paragraph
-      :width width
-      :disposition disposition
-      :hlist hlist
-      :lineup lineup
-      :layouts layouts
-      :pass pass ;; #### FIXME: wrong if null lineup. Should be 0.
-      ;; #### WARNING: by choosing the first layout here, we're doing the
-      ;; opposite of what TeX does in case of total demerits equality. We
-      ;; could instead check for multiple such layouts and take the last one.
-      ;; On the other hand, while we're using a hash table in the dynamic
-      ;; programming implementation, we're not doing exactly what TeX does
-      ;; either, so there's no rush. It's still important to keep that in mind
-      ;; however, because that explains while we may end up with different
-      ;; solutions between the graph and the dynamic versions.
-      :lines (kp-graph-make-lines (harray lineup) disposition beds
-				  (first layouts)))))
+    (setq breakup (make-instance 'kp-graph-breakup
+		    ;; #### FIXME: wrong if null harray. Should be 0.
+		    :pass pass
+		    :graph graph :layouts layouts))
+    ;; #### WARNING: by choosing the first layout here, we're doing the
+    ;; opposite of what TeX does in case of total demerits equality. We could
+    ;; instead check for multiple such layouts and take the last one. On the
+    ;; other hand, while we're using a hash table in the dynamic programming
+    ;; implementation, we're not doing exactly what TeX does either, so
+    ;; there's no rush. It's still important to keep that in mind however,
+    ;; because that explains while we may end up with different solutions
+    ;; between the graph and the dynamic versions.
+    (unless (zerop (length layouts))
+      (setf (aref (renditions breakup) 0)
+	    (kp-pin-layout harray disposition width beds (first layouts))))
+    breakup))
 
 
 
@@ -685,30 +712,8 @@ through the algorithm in the TeX jargon).
 
 
 
-
-;; ==========================================================================
-;; Entry Points
-;; ==========================================================================
-
-(defmethod process-hlist
-    (hlist disposition (algorithm (eql :knuth-plass))
-     &key ((:hyphen-penalty *hyphen-penalty*))
-	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HLIST, and append the final glue to it."
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
-  (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
-	    (setf (penalty item)
-		  (if (explicitp item)
-		    *explicit-hyphen-penalty*
-		    *hyphen-penalty*))))
-    hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
-  hlist)
-
-(defmethod typeset-lineup
-    (hlist lineup disposition width beds (algorithm (eql :knuth-plass))
+(defmethod break-harray
+    (harray disposition width beds (algorithm (eql :knuth-plass))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
@@ -718,7 +723,7 @@ through the algorithm in the TeX jargon).
 	  ((:tolerance *tolerance*))
 	  ((:emergency-stretch *emergency-stretch*))
 	  ((:looseness *looseness*)))
-  "Typeset LINEUP with the Knuth-Plass algorithm."
+  "Break HARRAY with the Knuth-Plass algorithm."
   (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
@@ -729,6 +734,6 @@ through the algorithm in the TeX jargon).
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
   (funcall (ecase *variant*
-	     (:graph #'kp-graph-typeset-lineup)
+	     (:graph #'kp-graph-break-harray)
 	     (:dynamic #'kp-dynamic-typeset-lineup))
-    hlist lineup disposition width beds))
+    harray disposition width beds))
