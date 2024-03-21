@@ -20,6 +20,15 @@
 ;; Paragraphs
 ;; ==========================================================================
 
+;; #### NOTE: contrary to other parameters that were used to generate the
+;; paragraph (disposition, etc.), and even though it's not necessary for
+;; drawing, we remember the width in the class below. That's because we
+;; consider the paragraph's bounding box to be an inherent part of it, and we
+;; need to remember the paragraph's width to get it. GUIs use other parameters
+;; from the original context in order to draw various clues on top of the
+;; actual paragraph's contents. The paragraph width is in fact also available
+;; in the original context, but GUIs are still invited to use the slot below
+;; instead, for consistency.
 (defclass paragraph ()
   ((width :documentation "The paragraph's width."
 	  :initarg :width :reader width)
