@@ -138,7 +138,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 
 (defclass kp-breakup-mixin ()
   ((pass :documentation "Which of the 3 passes produced this breakup."
-	 :initarg :pass :reader pass))
+	 :initform 0 :initarg :pass :reader pass))
   (:documentation "The KP-BREAKUP-MIXIN class.
 This class is mixed in both the graph and dynamic breakup classes."))
 
@@ -332,64 +332,62 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; where we don't have a layout below.
 (defmethod breakup-properties strnlcat ((breakup kp-graph-breakup))
   "Advertise Knuth-Plass BREAKUP's layout demerits."
+  ;; Works on both null and 0 length arrays.
   (if (zerop (length (layouts breakup)))
     ""
     (let ((layout (aref (layouts breakup) 0)))
       (format nil "Demerits: ~A." ($float (if layout (demerits layout) 0))))))
 
-(defun kp-graph-break-harray
-    (harray disposition width beds
-     &aux (threshold *pre-tolerance*) (pass 1) breakup)
+(defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
-  (let* ((graph (unless (zerop (length harray))
-		  ;; #### NOTE: we guard against a null lineup here in order
-		  ;; to avoid running the 3 passes. It's not the same to not
-		  ;; have lines, and to not have a solution in a particular
-		  ;; pass.
-		  (or (when ($<= 0 threshold)
-			(make-graph harray width
-			  :edge-type 'kp-edge
-			  :next-boundaries #'kp-next-boundaries
-			  :threshold threshold))
-		      (progn (incf pass)
-			     (make-graph harray width
-			       :edge-type 'kp-edge
-			       :next-boundaries #'kp-next-boundaries
-			       :hyphenate t
-			       :threshold (setq threshold *tolerance*)
-			       :final (zerop *emergency-stretch*)))
-		      (progn (incf pass)
-			     (make-graph harray width
-			       :edge-type 'kp-edge
-			       :next-boundaries #'kp-next-boundaries
-			       :hyphenate t :threshold threshold
-			       :final *emergency-stretch*)))))
-	 (layouts (graph-layouts graph 'kp-layout)))
-    (mapc #'kp-postprocess-layout layouts)
-    (setq layouts (sort layouts #'$< :key #'demerits))
-    (unless (or (zerop *looseness*) (null layouts))
-      (let ((ideal-size (+ (size (car layouts)) *looseness*)))
-	(setq layouts (sort layouts (lambda (size1 size2)
-				      (< (abs (- size1 ideal-size))
-					 (abs (- size2 ideal-size))))
-			:key #'size))))
-    (setq breakup (make-instance 'kp-graph-breakup
-		    ;; #### FIXME: wrong if null harray. Should be 0.
-		    :pass pass
-		    :graph graph :layouts layouts))
-    ;; #### WARNING: by choosing the first layout here, we're doing the
-    ;; opposite of what TeX does in case of total demerits equality. We could
-    ;; instead check for multiple such layouts and take the last one. On the
-    ;; other hand, while we're using a hash table in the dynamic programming
-    ;; implementation, we're not doing exactly what TeX does either, so
-    ;; there's no rush. It's still important to keep that in mind however,
-    ;; because that explains while we may end up with different solutions
-    ;; between the graph and the dynamic versions.
-    (unless (zerop (length layouts))
+  (if (zerop (length harray))
+    (make-instance 'kp-graph-breakup)
+    (let ((threshold *pre-tolerance*)
+	  (pass 1)
+	  graph layouts breakup)
+      (when ($<= 0 threshold)
+	(setq graph (make-graph harray width
+				:edge-type 'kp-edge
+				:next-boundaries #'kp-next-boundaries
+				:threshold threshold)))
+      (unless (edges graph)
+	(incf pass)
+	(setq threshold *tolerance*)
+	(setq graph (make-graph harray width
+				:edge-type 'kp-edge
+				:next-boundaries #'kp-next-boundaries
+				:hyphenate t :threshold threshold
+				:final (zerop *emergency-stretch*))))
+      (unless (edges graph)
+	(incf pass)
+	(setq graph (make-graph harray width
+				:edge-type 'kp-edge
+				:next-boundaries #'kp-next-boundaries
+				:hyphenate t :threshold threshold
+				:final *emergency-stretch*)))
+      (setq layouts (graph-layouts graph 'kp-layout))
+      (mapc #'kp-postprocess-layout layouts)
+      (setq layouts (sort layouts #'$< :key #'demerits))
+      (unless (zerop *looseness*)
+	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
+	  (setq layouts (sort layouts (lambda (size1 size2)
+					(< (abs (- size1 ideal-size))
+					   (abs (- size2 ideal-size))))
+			  :key #'size))))
+      (setq breakup (make-instance 'kp-graph-breakup
+		      :pass pass :graph graph :layouts layouts))
+      ;; #### WARNING: by choosing the first layout here, we're doing the
+      ;; opposite of what TeX does in case of total demerits equality. We
+      ;; could instead check for multiple such layouts and take the last one.
+      ;; On the other hand, while we're using a hash table in the dynamic
+      ;; programming implementation, we're not doing exactly what TeX does
+      ;; either, so there's no rush. It's still important to keep that in mind
+      ;; however, because that explains while we may end up with different
+      ;; solutions between the graph and the dynamic versions.
       (setf (aref (renditions breakup) 0)
 	    (kp-pin-layout harray disposition width beds (first layouts)
-			   pass)))
-    breakup))
+			   pass))
+      breakup)))
 
 
 
@@ -662,9 +660,9 @@ through the algorithm in the TeX jargon).
 ;; still get layouts in the end.
 (defclass kp-dynamic-breakup (kp-breakup-mixin simple-breakup)
   ((nodes-# :documentation "The number of remaining active nodes."
-	    :initarg :nodes-# :reader nodes-#)
+	    :initform 0 :initarg :nodes-# :reader nodes-#)
    (demerits :documentation "The total demerits."
-	     :initarg :demerits :reader demerits))
+	     :initform 0 :initarg :demerits :reader demerits))
   (:documentation "The KP-DYNAMIC-BREAKUP class."))
 
 (defmethod breakup-properties strnlcat ((breakup kp-dynamic-breakup))
@@ -678,11 +676,7 @@ through the algorithm in the TeX jargon).
     (harray disposition width beds &aux (pass 1))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length harray))
-    (make-instance 'kp-dynamic-breakup
-      :pass 0
-      :demerits 0
-      :nodes-# 0
-      :pinned-lines nil)
+    (make-instance 'kp-dynamic-breakup)
     (let* ((nodes (or (when ($>= *pre-tolerance* 0)
 			(kp-create-nodes harray width pass))
 		      (kp-create-nodes harray width (incf pass))
@@ -713,9 +707,9 @@ through the algorithm in the TeX jargon).
 			       (setq closer node)))
 		    :finally (return closer))))
       (make-instance 'kp-dynamic-breakup
-	:pass pass
-	:demerits (kp-node-total-demerits best)
 	:nodes-# (hash-table-count nodes)
+	:demerits (kp-node-total-demerits best)
+	:pass pass
 	:pinned-lines (kp-dynamic-pin-node
 		       harray disposition width beds best pass)))))
 

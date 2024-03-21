@@ -319,4 +319,5 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
   (make-instance 'simple-breakup
-    :pinned-lines (fixed-break-harray harray disposition width beds)))
+    :pinned-lines (unless (zerop (length harray))
+		    (fixed-break-harray harray disposition width beds))))

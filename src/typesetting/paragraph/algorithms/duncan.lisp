@@ -202,6 +202,7 @@ This class keeps track of the line's weight."))
 ;; where we don't have a layout below.
 (defmethod breakup-properties strnlcat ((breakup duncan-breakup))
   "Advertise Duncan BREAKUP's layout weight."
+  ;; Works on both null and 0 length arrays.
   (if (zerop (length (layouts breakup)))
     ""
     (let ((layout (aref (layouts breakup) 0)))
@@ -212,17 +213,19 @@ This class keeps track of the line's weight."))
      &key ((:discriminating-function *discriminating-function*)))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
-  ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
-  ;; preventive fulls, that is, we don't return *full boundaries if there is
-  ;; at least one fit boundary. Experience shows that including preventive
-  ;; fulls leads to an explosion of the graph size. On the other hand, maybe
-  ;; it is possible that we miss better solutions like this. For example, it
-  ;; could be possible that by making a line arbitrarily underfull instead of
-  ;; fit, we reduce the number of subsequent *fulls. I hope that if it's
-  ;; possible, it would only affect very rare cases. But this should be
-  ;; experimented.
-  (let* ((graph (make-graph harray width :edge-type 'duncan-edge :fulls t))
-	 (layouts (graph-layouts graph 'duncan-layout))
+  (if (zerop (length harray))
+    (make-instance 'duncan-breakup)
+    ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
+    ;; preventive fulls, that is, we don't return *full boundaries if there is
+    ;; at least one fit boundary. Experience shows that including preventive
+    ;; fulls leads to an explosion of the graph size. On the other hand, maybe
+    ;; it is possible that we miss better solutions like this. For example, it
+    ;; could be possible that by making a line arbitrarily underfull instead
+    ;; of fit, we reduce the number of subsequent *fulls. I hope that if it's
+    ;; possible, it would only affect very rare cases. But this should be
+    ;; experimented.
+    (let* ((graph (make-graph harray width :edge-type 'duncan-edge :fulls t))
+	   (layouts (graph-layouts graph 'duncan-layout))
 	 breakup)
     (labels ((perfect (layout)
 	       (and (zerop (hyphens layout))
@@ -259,4 +262,4 @@ This class keeps track of the line's weight."))
     (unless (zerop (length layouts))
       (setf (aref (renditions breakup) 0)
 	    (duncan-pin-layout harray disposition width beds (first layouts))))
-    breakup))
+    breakup)))

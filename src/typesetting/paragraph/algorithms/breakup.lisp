@@ -25,7 +25,9 @@ This is the base class for breakups."))
 
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to
-;; relax keyword argument checking.
+;; relax keyword argument checking. Also, each algorithm is responsible for
+;; instantiating the appropriate breakup class, so we cannot short-circuit
+;; anything here in case of an empty harray.
 (defgeneric break-harray
     (harray disposition width beds algorithm &key &allow-other-keys)
   (:documentation
@@ -71,7 +73,7 @@ subsequently computed."
 
 (defclass simple-breakup (breakup)
   ((pinned-lines :documentation "The pinned lines."
-		 :initarg :pinned-lines :reader pinned-lines))
+		 :initform nil :initarg :pinned-lines :reader pinned-lines))
   (:documentation "The Simple Breakup class.
 This class allows the storage of a single breaking solution. It is thus
 adequate for greedy algorithms making only discrete choices. Current

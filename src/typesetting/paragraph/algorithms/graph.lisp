@@ -151,33 +151,28 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 			       :width width :destination node))
 		     nodes)))))))))
 
+;; #### NOTE: this function is not supposed to be called on empty harrays.
+;; This should be checked by BREAK-HARRAY beforehand.
 (defun make-graph
     (harray width
      &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
      &allow-other-keys
      &aux (options (remove-keys keys :edge-type :next-boundaries)))
   "Make a solutions graph for breaking HARRAY into a paragraph of WIDTH.
-If no line breaking solution is found, this function returns NIL.
-Otherwise, it returns the graph's root node, and the nodes hash table as a
-second value."
+Return two values: the graph's root node, and the nodes hash table. Note that
+if no breaking solution is found, the root node will have no edges."
   (let* ((graph (make-hash-table))
-	 ;; #### NOTE: we protect against empty harrays here because not every
-	 ;; NEXT-BOUNDARIES function might do so.
-	 (nodes (when harray
-		  (loop :for next-boundary
-			  :in (apply next-boundaries harray 0 width options)
-			:when (apply #'make-subgraph
-				harray width next-boundary
-				edge-type next-boundaries graph	options)
-			  :collect :it))))
+	 (nodes (loop :for next-boundary
+			:in (apply next-boundaries harray 0 width options)
+		      :when (apply #'make-subgraph harray width next-boundary
+				   edge-type next-boundaries graph options)
+			:collect :it)))
     (values
-     (when nodes
-       (make-node
-	nil
-	(mapcar (lambda (node)
-		  (make-instance edge-type
-		    :harray harray :start 0 :width width :destination node))
-	  nodes)))
+     (make-node nil
+       (mapcar (lambda (node)
+		 (make-instance edge-type
+		   :harray harray :start 0 :width width :destination node))
+	 nodes))
      graph)))
 
 
@@ -216,16 +211,18 @@ A layout represents one path from the root to the leaf node of a graph."))
 
 (defun %graph-layouts (graph layout-class layout-initargs)
   "Return GRAPH's layouts of LAYOUT-CLASS initialized with LAYOUT-INITARGS."
-  (when graph
-    (mapcan (lambda (edge)
-	      (if (edges (destination edge))
-		(mapc (lambda (layout) (push-edge edge layout))
-		  (%graph-layouts
-		   (destination edge) layout-class layout-initargs))
-		(list (apply #'make-instance layout-class :edge edge
-			     layout-initargs))))
-      (edges graph))))
+  (mapcan (lambda (edge)
+	    (if (edges (destination edge))
+	      (mapc (lambda (layout) (push-edge edge layout))
+		(%graph-layouts
+		 (destination edge) layout-class layout-initargs))
+	      (list (apply #'make-instance layout-class :edge edge
+			   layout-initargs))))
+    (edges graph)))
 
+;; #### NOTE: this function is not supposed to be called on null graphs
+;; (coming from empty harrays), but might still return null layouts when the
+;; graph got no solution.
 (defun graph-layouts (graph &optional (layout-type 'layout)
 			    &aux (layout-class (car-or-symbol layout-type))
 				 (layout-initargs (cdr-or-nil layout-type)))
@@ -241,37 +238,41 @@ form (CLASS-NAME INITARGS...)."
 ;; Graph Breakups
 ;; ==========================================================================
 
+;; #### NOTE: MAKE-GRAPH won't even be called on empty harrays. In such a
+;; case, a graph breakup (which needs to exist anyway) will have its graph,
+;; layouts, and renditions slots set to NIL. on the contrary, if the harray is
+;; not empty, but no solution is found, the graph will just be an empty root
+;; node, and the layouts and renditions slots will contain arrays of size 0.
+
 (defclass graph-breakup (breakup)
   ((graph :documentation "The breakup's original graph."
-	  :initarg :graph :reader graph)
+	  :initform nil :initarg :graph :reader graph)
    (layouts :documentation "The breakup's sorted layouts array."
-	    :initarg :layouts :reader layouts)
+	    :initform nil :reader layouts)
    (renditions :documentation "The breakup's sorted layout renditions array."
-	       :reader renditions))
+	       :initform nil :reader renditions))
   (:documentation "The Graph Breakup class.
 This class is used by graph based algorithms. It allows the storage of a
 breaking solutions graph, the corresponding layouts, and layout renditions."))
 
-(defmethod initialize-instance :around
-    ((breakup graph-breakup) &rest keys &key layouts)
-  "Convert the layouts initarg to an array."
-  (apply #'call-next-method breakup
-	 :layouts (make-array (length layouts) :initial-contents layouts)
-	 keys))
-
-(defmethod initialize-instance :after ((breakup graph-breakup) &key)
-  "Create the renditions array."
-  (setf (slot-value breakup 'renditions)
-	(make-array (length (layouts breakup)) :initial-element nil)))
+(defmethod initialize-instance :after ((breakup graph-breakup) &key layouts)
+  "Convert the layouts list to an array and create the renditions array."
+  (when (graph breakup)
+    (setf (slot-value breakup 'layouts)
+	  (make-array (length layouts) :initial-contents layouts))
+    (setf (slot-value breakup 'renditions)
+	  (make-array (length layouts) :initial-element nil))))
 
 (defmethod pinned-lines
     ((breakup graph-breakup) &aux (renditions (renditions breakup)))
-  (unless (zerop (length renditions))
+  (when (and renditions (not (zerop (length renditions))))
     (aref (renditions breakup) 0)))
 
 (defmethod breakup-properties strnlcat ((breakup graph-breakup))
   "Advertise graph BREAKUP's number of initial layouts."
-  (format nil "From ~A layout~:P." (length (layouts breakup))))
+  (format nil "From ~A layout~:P."
+    ;; Works on both null and 0 length arrays.
+    (length (layouts breakup))))
 
 
 

@@ -493,4 +493,5 @@ LINE class."))
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
   (make-instance 'simple-breakup
-    :pinned-lines (fit-break-harray harray disposition width beds)))
+    :pinned-lines (unless (zerop (length harray))
+		    (fit-break-harray harray disposition width beds))))
