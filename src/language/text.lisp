@@ -1,15 +1,11 @@
 (in-package :etap)
 
 (defclass nlstring ()
-  ((text :documentation "The nlstring's text (a string, empty by default)."
-	 :initform "" :initarg :text :accessor text)
+  ((text :documentation "The nlstring's text (a string, or NIL; the default)."
+	 :initform nil :initarg :text :accessor text)
    (language :documentation "The nlstring's language, *LANGUAGE* by default."
 	     :initform *language* :initarg :language :accessor language))
   (:documentation "The NLString (Natural Language String) class."))
-
-(defmethod initialize-instance :after ((nlstring nlstring) &key)
-  "Potentially turn a null text into the empty string."
-  (unless (text nlstring) (setf (text nlstring) "")))
 
 (defun make-nlstring (&rest initargs &key text language)
   "Make a new NLString with TEXT in LANGUAGE."

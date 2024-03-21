@@ -522,22 +522,24 @@ consecutive blanks are replaced with a single interword glue."
 (defun %make-hlist (text language font kerning ligatures hyphenation)
   "Make a new hlist for LANGUAGE TEXT in FONT.
 When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
-  (let ((hlist (slice text language font hyphenation)))
-    ;; #### WARNING: the order is important below. Kerning must be computed
-    ;; after ligature characters have been inserted, and the processing of
-    ;; ligatures and kerning may affect the contents of discretionaries, so we
-    ;; must add hyphenation clues only after everything else has been done.
-    (when ligatures (setq hlist (process-ligatures hlist)))
-    (when kerning (setq hlist (process-kerning hlist)))
-    (when hyphenation
-      (mapc (lambda (element)
-	      (when (hyphenation-point-p element)
-		(push (if (explicitp element)
-			:explicit-hyphenation-clue
-			:hyphenation-clue)
-		      (no-break element))))
-	hlist))
-    hlist))
+  (unless (zerop (length text)) ; works for both NIL and ""
+    (let ((hlist (slice text language font hyphenation)))
+      ;; #### WARNING: the order is important below. Kerning must be computed
+      ;; after ligature characters have been inserted, and the processing of
+      ;; ligatures and kerning may affect the contents of discretionaries, so
+      ;; we must add hyphenation clues only after everything else has been
+      ;; done.
+      (when ligatures (setq hlist (process-ligatures hlist)))
+      (when kerning (setq hlist (process-kerning hlist)))
+      (when hyphenation
+	(mapc (lambda (element)
+		(when (hyphenation-point-p element)
+		  (push (if (explicitp element)
+			  :explicit-hyphenation-clue
+			  :hyphenation-clue)
+			(no-break element))))
+	  hlist))
+      hlist)))
 
 ;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
 ;; argument on purpose: it's more convenient to provide access to TEXT and
