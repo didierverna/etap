@@ -17,9 +17,9 @@
   (mapcar (lambda (width)
 	    (loop :with fulls := 0
 		  :for lines :on (pinned-lines
-				  (apply #'typeset-lineup lineup
-					 :justified width nil
-					 algorithm options))
+				  (apply #'break-harray (harray lineup)
+					 :justified width nil algorithm
+					 options))
 		  :for w := (width (car lines))
 		  :when (or (> w width)
 			    ;; Do not count an underfull last line.
@@ -32,8 +32,9 @@
   "Collect ALGORITHM's number of hyphenated lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (reduce #'+ (pinned-lines
-			 (apply #'typeset-lineup lineup :justified width nil
-				algorithm options))
+			 (apply #'break-harray (harray lineup)
+				:justified width nil algorithm
+				options))
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
 
@@ -43,8 +44,9 @@
 	    (let ((scales
 		    (mapcar #'scale
 		      (pinned-lines
-		       (apply #'typeset-lineup lineup :justified width nil
-			      algorithm options)))))
+		       (apply #'break-harray (harray lineup)
+			      :justified width nil algorithm
+			      options)))))
 	      (float (/ (reduce #'+ scales) (length scales)))))
     widths))
 
@@ -54,8 +56,9 @@
 	    (let* ((scales
 		     (mapcar #'scale
 		       (pinned-lines
-			(apply #'typeset-lineup lineup :justified width nil
-			       algorithm options))))
+			(apply #'break-harray lineup
+			       :justified width nil algorithm
+			       options))))
 		   (length (length scales))
 		   (mean (float (/ (reduce #'+ scales) length))))
 	      (sqrt (/ (reduce #'+
@@ -101,8 +104,9 @@ to be able to handle that gracefully."
 		      *hyphen-penalty*)))
   (mapcar (lambda (width)
 	    (let* ((lines (pinned-lines
-			   (apply #'typeset-lineup lineup :justified width nil
-				  algorithm options)))
+			   (apply #'break-harray (harray lineup)
+				  :justified width nil algorithm
+				  options)))
 		   (length (length lines))
 		   (demerits (local-demerits
 			      (scale-badness (scale (car lines)))
