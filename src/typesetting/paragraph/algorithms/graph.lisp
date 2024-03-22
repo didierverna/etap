@@ -275,15 +275,3 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
     ((breakup graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise graph BREAKUP's number of initial layouts."
   (when layouts (format nil "From ~A layout~:P." (length layouts))))
-
-
-
-
-;; ==========================================================================
-;; Layout Based Paragraphs
-;; ==========================================================================
-
-;; #### FIXME: needs to go away.
-(defclass layouts-paragraph (paragraph)
-  ()
-  (:documentation "The LAYOUTS-PARAGRAPH class."))
