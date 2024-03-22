@@ -208,6 +208,10 @@ This class is mixed in both the graph and dynamic breakup classes."))
   "Initialize LAYOUT's size to 1 and demerits to its last EDGE's."
   (setf (size layout) 1 (demerits layout) (demerits edge)))
 
+(defmethod properties strnlcat ((layout kp-layout))
+  "Advertise Knuth-Plass LAYOUT's demerits."
+  (format nil "Demerits: ~A." ($float (demerits layout))))
+
 (defmethod push-edge :after (edge (layout kp-layout))
   "Increase LAYOUT size by 1 and demerits with EDGE's."
   (incf (size layout))
@@ -321,21 +325,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; ----------------------
 ;; Breakup specialization
 ;; ----------------------
-
-;; #### TODO: this class exists only for specializing PROPERTIES, and only
-;; because the breakup's layouts are specialized. This should be done
-;; differently (like: by PROPERTIES calling itself on layouts.
-(defclass kp-graph-breakup (kp-breakup-mixin graph-breakup)
-  ()
-  (:documentation "The KP-GRAPH-BREAKUP class."))
-
-;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so the
-;; breakup's layouts is either null, or an array of at least one element.
-(defmethod properties strnlcat
-    ((breakup kp-graph-breakup) &aux (layouts (layouts breakup)))
-  "Advertise Knuth-Plass BREAKUP's layout demerits."
-  (when layouts
-    (format nil "Demerits: ~A." ($float (demerits (aref layouts 0))))))
 
 (defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."

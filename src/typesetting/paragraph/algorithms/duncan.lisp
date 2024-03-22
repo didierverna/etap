@@ -108,6 +108,10 @@ The weight is computed according to the discriminating function."
 	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
 	(weight layout) (weight edge)))
 
+(defmethod properties strnlcat ((layout duncan-layout))
+  "Advertise Duncan LAYOUT's weight."
+  (format nil "Weight: ~A." (float (weight layout))))
+
 (defmethod push-edge :after (edge (layout duncan-layout))
   "Update Duncan LAYOUT's properties after pushing EDGE to it."
   (when (hyphenated edge) (incf (hyphens layout)))
@@ -188,20 +192,6 @@ This class keeps track of the line's weight."))
 ;; ==========================================================================
 ;; Breakup
 ;; ==========================================================================
-
-;; #### TODO: this class exists only for specializing PROPERTIES, and only
-;; because the breakup's layouts are specialized. This should be done
-;; differently (like: by PROPERTIES calling itself on layouts).
-(defclass duncan-breakup (graph-breakup)
-  ()
-  (:documentation "The DUNCAN-BREAKUP class."))
-
-;; #### NOTE: the Duncan algorithm never refuses to typeset, so the breakup's
-;; layouts is either null, or an array of at least one element.
-(defmethod properties strnlcat
-    ((breakup duncan-breakup) &aux (layouts (layouts breakup)))
-  "Advertise Duncan BREAKUP's layout weight."
-  (when layouts (format nil "Weight: ~A." (float (weight (aref layouts 0))))))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :duncan))
