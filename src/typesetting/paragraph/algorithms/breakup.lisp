@@ -15,13 +15,10 @@ This is the base class for breakups."))
   "Return BREAKUP's number of lines."
   (length (pinned-lines breakup)))
 
-(defgeneric breakup-properties (breakup)
-  (:documentation "Return a string advertising BREAKUP's properties.
-Methods may return an empty string or NIL if there is nothing to advertise.")
-  (:method-combination strnlcat)
-  (:method strnlcat (breakup &aux (lines-# (lines-# breakup)))
-    "Addvertise BREAKUP's number of lines."
-    (unless (zerop lines-#) (format nil "~A line~:P." (lines-# breakup)))))
+(defmethod properties strnlcat
+    ((breakup breakup) &aux (lines-# (lines-# breakup)))
+  "Addvertise BREAKUP's number of lines."
+  (unless (zerop lines-#) (format nil "~A line~:P." (lines-# breakup))))
 
 
 ;; #### NOTE: this function is called with all the algorithm options, without

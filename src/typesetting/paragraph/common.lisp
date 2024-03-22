@@ -1,6 +1,14 @@
 (in-package :etap)
 
+;; For GUI popups.
+(defgeneric properties (object)
+  (:documentation "Return a string advertising OBJECT's properties.
+Methods may return an empty string or NIL if there is nothing to advertise.")
+  (:method-combination strnlcat :most-specific-last))
 
+
+
+
 ;; ==========================================================================
 ;; Dispositions
 ;; ==========================================================================
@@ -199,17 +207,13 @@ Maybe also include river BEDS."
 		       :collect (make-bed line (+ x (/ w 2)) w) :end
 		:and :do (incf x w))))
 
-(defgeneric line-properties (line)
-  (:documentation "Return a string advertising LINE's properties.
-Methods may return an empty string or NIL if there is nothing to advertise.")
-  (:method-combination strnlcat :most-specific-last)
-  (:method strnlcat ((line line))
-    "Advertise LINE's width. This is the default method."
-    (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
-      (float (width line))
-      ($float (scale line))
-      ($/= (scale line) (effective-scale line))
-      ($float (effective-scale line)))))
+(defmethod properties strnlcat ((line line))
+  "Advertise LINE's width. This is the default method."
+  (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
+    (float (width line))
+    ($float (scale line))
+    ($/= (scale line) (effective-scale line))
+    ($float (effective-scale line))))
 
 
 

@@ -124,7 +124,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 	     :reader demerits))
   (:documentation "The Knuth-Plass line class."))
 
-(defmethod line-properties strnlcat ((line kp-line))
+(defmethod properties strnlcat ((line kp-line))
   "Advertise LINE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
     (fitness-class-name (fitness-class line))
@@ -144,7 +144,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a pass of
 ;; 0 means that the harray was empty.
-(defmethod breakup-properties strnlcat
+(defmethod properties strnlcat
     ((mixin kp-breakup-mixin) &aux (pass (pass mixin)))
   "Advertise TeX's algorithm pass number and total demerits."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
@@ -322,17 +322,16 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Breakup specialization
 ;; ----------------------
 
-;; #### TODO: this class exists only for specializing BREAKUP-PROPERTIES, and
-;; only because the breakup's layouts are specialized. This should be done
-;; differently (like: by breakup-properties calling a layout-properties
-;; protocol of some kind).
+;; #### TODO: this class exists only for specializing PROPERTIES, and only
+;; because the breakup's layouts are specialized. This should be done
+;; differently (like: by PROPERTIES calling itself on layouts.
 (defclass kp-graph-breakup (kp-breakup-mixin graph-breakup)
   ()
   (:documentation "The KP-GRAPH-BREAKUP class."))
 
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so the
 ;; breakup's layouts is either null, or an array of at least one element.
-(defmethod breakup-properties strnlcat
+(defmethod properties strnlcat
     ((breakup kp-graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise Knuth-Plass BREAKUP's layout demerits."
   (when layouts
@@ -667,7 +666,7 @@ through the algorithm in the TeX jargon).
 
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
 ;; of 0 means that the harray was empty.
-(defmethod breakup-properties strnlcat
+(defmethod properties strnlcat
     ((breakup kp-dynamic-breakup) &aux (nodes-# (nodes-# breakup)))
   "Advertise the number of remaining active nodes."
   (unless (zerop nodes-#)

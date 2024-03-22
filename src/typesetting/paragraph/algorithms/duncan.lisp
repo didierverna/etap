@@ -130,7 +130,7 @@ The weight is computed according to the discriminating function."
   (:documentation "The Duncan line class.
 This class keeps track of the line's weight."))
 
-(defmethod line-properties strnlcat ((line duncan-line))
+(defmethod properties strnlcat ((line duncan-line))
   "Advertise LINE's weight."
   (format nil "Weight: ~A." ($float (weight line))))
 
@@ -189,17 +189,16 @@ This class keeps track of the line's weight."))
 ;; Breakup
 ;; ==========================================================================
 
-;; #### TODO: this class exists only for specializing BREAKUP-PROPERTIES, and
-;; only because the breakup's layouts are specialized. This should be done
-;; differently (like: by breakup-properties calling a layout-properties
-;; protocol of some kind).
+;; #### TODO: this class exists only for specializing PROPERTIES, and only
+;; because the breakup's layouts are specialized. This should be done
+;; differently (like: by PROPERTIES calling itself on layouts).
 (defclass duncan-breakup (graph-breakup)
   ()
   (:documentation "The DUNCAN-BREAKUP class."))
 
 ;; #### NOTE: the Duncan algorithm never refuses to typeset, so the breakup's
 ;; layouts is either null, or an array of at least one element.
-(defmethod breakup-properties strnlcat
+(defmethod properties strnlcat
     ((breakup duncan-breakup) &aux (layouts (layouts breakup)))
   "Advertise Duncan BREAKUP's layout weight."
   (when layouts (format nil "Weight: ~A." (float (weight (aref layouts 0))))))

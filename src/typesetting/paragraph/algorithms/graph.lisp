@@ -271,7 +271,7 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
   (when (and renditions (not (zerop (length renditions))))
     (aref (renditions breakup) 0)))
 
-(defmethod breakup-properties strnlcat
+(defmethod properties strnlcat
     ((breakup graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise graph BREAKUP's number of initial layouts."
   (when layouts (format nil "From ~A layout~:P." (length layouts))))
