@@ -49,7 +49,10 @@ items satisfying PRE-TEST are considered."
     (symbol nil)))
 
 (defun strnlcat (&rest strings)
-  "Concatenate STRINGS, inserting newlines in between."
+  "Concatenate STRINGS, inserting newlines in between.
+Before concatenation, STRINGS is rid of null elements or empty strings."
+  ;; This works both on NIL or "".
+  (setq strings (remove-if (lambda (str) (zerop (length str))) strings))
   (with-output-to-string (stream nil :element-type 'character)
     (loop :for remainder :on strings
 	  :do (princ (car remainder) stream)

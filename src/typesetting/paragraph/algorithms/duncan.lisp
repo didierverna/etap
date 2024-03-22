@@ -131,7 +131,7 @@ The weight is computed according to the discriminating function."
 This class keeps track of the line's weight."))
 
 (defmethod line-properties strnlcat ((line duncan-line))
-  "Return a string advertising LINE's weight."
+  "Advertise LINE's weight."
   (format nil "Weight: ~A." ($float (weight line))))
 
 
@@ -197,16 +197,12 @@ This class keeps track of the line's weight."))
   ()
   (:documentation "The DUNCAN-BREAKUP class."))
 
-;; #### FIXME: the method combination should handle functions returning NIL as
-;; well as strings and filter those out. This would help improve the case
-;; where we don't have a layout below.
-(defmethod breakup-properties strnlcat ((breakup duncan-breakup))
+;; #### NOTE: the Duncan algorithm never refuses to typeset, so the breakup's
+;; layouts is either null, or an array of at least one element.
+(defmethod breakup-properties strnlcat
+    ((breakup duncan-breakup) &aux (layouts (layouts breakup)))
   "Advertise Duncan BREAKUP's layout weight."
-  ;; Works on both null and 0 length arrays.
-  (if (zerop (length (layouts breakup)))
-    ""
-    (let ((layout (aref (layouts breakup) 0)))
-      (format nil "Weight: ~A." (float (if layout (weight layout) 0))))))
+  (when layouts (format nil "Weight: ~A." (float (weight (aref layouts 0))))))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :duncan))

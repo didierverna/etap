@@ -337,7 +337,7 @@ justified disposition. Note that unfit lines are still represented by the base
 LINE class."))
 
 (defmethod line-properties strnlcat ((line fit-line))
-  "Return a string advertising LINE's weight."
+  "Advertise LINE's weight."
   (format nil "Weight: ~A, out of ~A possible solutions."
     ($float (weight line))
     (possibilities line)))

@@ -125,7 +125,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (:documentation "The Knuth-Plass line class."))
 
 (defmethod line-properties strnlcat ((line kp-line))
-  "Return a string advertising LINE's fitness class, badness, and demerits."
+  "Advertise LINE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
     (fitness-class-name (fitness-class line))
     ($float (badness line))
@@ -142,9 +142,12 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (:documentation "The KP-BREAKUP-MIXIN class.
 This class is mixed in both the graph and dynamic breakup classes."))
 
-(defmethod breakup-properties strnlcat ((mixin kp-breakup-mixin))
+;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a pass of
+;; 0 means that the harray was empty.
+(defmethod breakup-properties strnlcat
+    ((mixin kp-breakup-mixin) &aux (pass (pass mixin)))
   "Advertise TeX's algorithm pass number and total demerits."
-  (format nil "Pass: ~A." (pass mixin)))
+  (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
 
 
@@ -327,16 +330,13 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   ()
   (:documentation "The KP-GRAPH-BREAKUP class."))
 
-;; #### FIXME: the method combination should handle functions returning NIL as
-;; well as strings and filter those out. This would help improve the case
-;; where we don't have a layout below.
-(defmethod breakup-properties strnlcat ((breakup kp-graph-breakup))
+;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so the
+;; breakup's layouts is either null, or an array of at least one element.
+(defmethod breakup-properties strnlcat
+    ((breakup kp-graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise Knuth-Plass BREAKUP's layout demerits."
-  ;; Works on both null and 0 length arrays.
-  (if (zerop (length (layouts breakup)))
-    ""
-    (let ((layout (aref (layouts breakup) 0)))
-      (format nil "Demerits: ~A." ($float (if layout (demerits layout) 0))))))
+  (when layouts
+    (format nil "Demerits: ~A." ($float (demerits (aref layouts 0))))))
 
 (defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
@@ -665,12 +665,16 @@ through the algorithm in the TeX jargon).
 	     :initform 0 :initarg :demerits :reader demerits))
   (:documentation "The KP-DYNAMIC-BREAKUP class."))
 
-(defmethod breakup-properties strnlcat ((breakup kp-dynamic-breakup))
+;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
+;; of 0 means that the harray was empty.
+(defmethod breakup-properties strnlcat
+    ((breakup kp-dynamic-breakup) &aux (nodes-# (nodes-# breakup)))
   "Advertise the number of remaining active nodes."
-  (format nil "Demerits: ~A~@
+  (unless (zerop nodes-#)
+    (format nil "Demerits: ~A~@
 	       From ~A remaining active node~:P."
-    ($float (demerits breakup))
-    (nodes-# breakup)))
+      ($float (demerits breakup))
+      nodes-#)))
 
 (defun kp-dynamic-break-harray
     (harray disposition width beds &aux (pass 1))

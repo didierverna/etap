@@ -77,14 +77,15 @@ Currently, these are the ones not visible on the GUI:
   - number of break points,
   - number of theoretical solutions,
   - ... followed by breakup properties (see `breakup-properties'.)"
-  (strnlcat (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~@
-			 ~A breakpoints, ~A theoretical solutions (2^n)."
-	      (float (+ (height paragraph) (depth paragraph)))
-	      (float (height paragraph))
-	      (float (depth paragraph))
-	      (break-points-# paragraph)
-	      (theoretical-solutions-# paragraph))
-	    (breakup-properties (breakup paragraph))))
+  (unless (zerop (length (hlist paragraph)))
+    (strnlcat (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~@
+			   ~A breakpoints, ~A theoretical solutions (2^n)."
+		      (float (+ (height paragraph) (depth paragraph)))
+		      (float (height paragraph))
+		      (float (depth paragraph))
+		      (break-points-# paragraph)
+		      (theoretical-solutions-# paragraph))
+	      (breakup-properties (breakup paragraph)))))
 
 (defun make-paragraph
     (&key (context *context*)

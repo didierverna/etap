@@ -240,9 +240,12 @@ form (CLASS-NAME INITARGS...)."
 
 ;; #### NOTE: MAKE-GRAPH won't even be called on empty harrays. In such a
 ;; case, a graph breakup (which needs to exist anyway) will have its graph,
-;; layouts, and renditions slots set to NIL. on the contrary, if the harray is
-;; not empty, but no solution is found, the graph will just be an empty root
+;; layouts, and renditions slots set to NIL. On the contrary, if the harray is
+;; not empty but no solution is found, the graph will just be an empty root
 ;; node, and the layouts and renditions slots will contain arrays of size 0.
+;; In fact, the distinction between empty harrays and empty graphs is
+;; preventive only, because currently, no algorithm refuses to typeset (they
+;; all fall back to an emergency solution). But we never know...
 
 (defclass graph-breakup (breakup)
   ((graph :documentation "The breakup's original graph."
@@ -268,11 +271,10 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
   (when (and renditions (not (zerop (length renditions))))
     (aref (renditions breakup) 0)))
 
-(defmethod breakup-properties strnlcat ((breakup graph-breakup))
+(defmethod breakup-properties strnlcat
+    ((breakup graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise graph BREAKUP's number of initial layouts."
-  (format nil "From ~A layout~:P."
-    ;; Works on both null and 0 length arrays.
-    (length (layouts breakup))))
+  (when layouts (format nil "From ~A layout~:P." (length layouts))))
 
 
 

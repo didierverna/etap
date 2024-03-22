@@ -200,7 +200,8 @@ Maybe also include river BEDS."
 		:and :do (incf x w))))
 
 (defgeneric line-properties (line)
-  (:documentation "Return a string describing LINE's properties.")
+  (:documentation "Return a string advertising LINE's properties.
+Methods may return an empty string or NIL if there is nothing to advertise.")
   (:method-combination strnlcat :most-specific-last)
   (:method strnlcat ((line line))
     "Advertise LINE's width. This is the default method."
