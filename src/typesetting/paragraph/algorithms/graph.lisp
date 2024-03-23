@@ -34,9 +34,7 @@
 	  :reader edges))
   (:documentation "The NODE class.
 This is the base class for representing a line break possibility in a graph
-representation of paragraph breaking. All nodes respond to the following
-pseudo-accessors, which see:
-- `hyphenated'."))
+representation of paragraph breaking."))
 
 (defmethod hyphenated ((node node))
   "Return NODE's hyphenation status."
@@ -60,9 +58,7 @@ pseudo-accessors, which see:
   (:default-initargs :allow-other-keys t)
   (:documentation "The EDGE class.
 This is the base class for representing an edge to a node in a graph
-representation of paragraph breaking. All edges respond to the following
-pseudo-accessors, which see:
-- `hyphenated'."))
+representation of paragraph breaking."))
 
 (defmethod hyphenated ((edge edge))
   "Return EDGE's hyphenation status."
