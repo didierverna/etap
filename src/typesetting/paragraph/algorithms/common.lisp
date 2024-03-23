@@ -290,27 +290,6 @@ A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
 
-(defmethod hyphenated ((line line))
-  "Return LINE's hyphenation status."
-  (hyphenated (aref (harray line) (1- (stop-idx line)))))
-
-(defmethod penalty
-    ((line line) &aux (element (aref (harray line) (1- (stop-idx line)))))
-  "Return LINE's penalty."
-  (if (break-point-p element) (penalty element) 0))
-
-(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
-  "Return LINE's width."
-  (+ (x object) (width object)))
-
-(defmethod height ((line line))
-  "Return LINE's height."
-  (loop :for object :in (pinned-objects line) :maximize (height object)))
-
-(defmethod depth ((line line))
-  "Return LINE's depth."
-  (loop :for object :in (pinned-objects line) :maximize (depth object)))
-
 (defmethod initialize-instance :after ((line line) &key beds &aux scale)
   "Possibly initialize the LINE's effective scale, and pin its objects.
 Maybe also include river BEDS."
@@ -347,6 +326,28 @@ Maybe also include river BEDS."
 		       ;; do not count a final glue as a river bed.
 		       :collect (make-bed line (+ x (/ w 2)) w) :end
 		:and :do (incf x w))))
+
+
+(defmethod hyphenated ((line line))
+  "Return LINE's hyphenation status."
+  (hyphenated (aref (harray line) (1- (stop-idx line)))))
+
+(defmethod penalty
+    ((line line) &aux (element (aref (harray line) (1- (stop-idx line)))))
+  "Return LINE's penalty."
+  (if (break-point-p element) (penalty element) 0))
+
+(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
+  "Return LINE's width."
+  (+ (x object) (width object)))
+
+(defmethod height ((line line))
+  "Return LINE's height."
+  (loop :for object :in (pinned-objects line) :maximize (height object)))
+
+(defmethod depth ((line line))
+  "Return LINE's depth."
+  (loop :for object :in (pinned-objects line) :maximize (depth object)))
 
 (defmethod properties strnlcat ((line line))
   "Advertise LINE's width. This is the default method."
