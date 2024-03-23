@@ -1,9 +1,8 @@
 (in-package :etap)
 
-;; #### NOTE: this, along with some :initform values below, are necessary
-;; forward declarations.
-(defvar *paragraph-width* 284 ;; 284.52756pt = 10cm
-  "The default paragraph width.")
+;; ==========================================================================
+;; Contexts
+;; ==========================================================================
 
 (defclass context ()
   ((font :documentation "The TFM font."
@@ -49,3 +48,103 @@ A context object stores the requested parameters for one experiment."))
 
 (defvar *context* (make-context)
   "The global context.")
+
+
+
+
+;; ==========================================================================
+;; Entry Points
+;; ==========================================================================
+
+;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
+;; argument on purpose: it's more convenient to provide access to TEXT and
+;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
+(defun make-hlist
+    (&key (context *context*)
+	  (text (if context (text (nlstring context)) *text*))
+	  (language (if context (language (nlstring context)) *language*))
+	  (font (if context (font context) *font*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation)))
+  "Make a new hlist.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
+global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
+FEATURES."
+  (%make-hlist text language font kerning ligatures hyphenation))
+
+;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
+;; argument on purpose: it's more convenient to provide access to TEXT and
+;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
+(defun make-lineup
+    (&key (context *context*)
+	  (text (if context (text (nlstring context)) *text*))
+	  (language (if context (language (nlstring context)) *language*))
+	  (font (if context (font context) *font*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation))
+	  (disposition (if context (disposition context) :flush-left))
+	  (algorithm (if context (algorithm context) :fixed))
+	  (hlist (%make-hlist text language font kerning ligatures
+			      hyphenation)))
+  "Make a new lineup.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
+global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
+FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
+  (%make-lineup hlist disposition algorithm))
+
+(defun make-breakup
+    (&key (context *context*)
+	  (text (if context (text (nlstring context)) *text*))
+	  (language (if context (language (nlstring context)) *language*))
+	  (font (if context (font context) *font*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation))
+	  (beds (when context (beds context)))
+	  (disposition (if context (disposition context) :flush-left))
+	  (algorithm (if context (algorithm context) :fixed))
+	  (width (if context (paragraph-width context) *paragraph-width*))
+	  ;; #### WARNING: no mutual coherency checks for these three.
+	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
+	  (lineup (%make-lineup hlist disposition algorithm)))
+  "Make a new breakup.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
+corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
+defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
+ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
+subsequently computed."
+  (%make-breakup lineup disposition width beds algorithm))
+
+(defun make-paragraph
+    (&key (context *context*)
+	  (text (if context (text (nlstring context)) *text*))
+	  (language (if context (language (nlstring context)) *language*))
+	  (font (if context (font context) *font*))
+	  (features (when context (features context)))
+	  (kerning (getf features :kerning))
+	  (ligatures (getf features :ligatures))
+	  (hyphenation (getf features :hyphenation))
+	  (beds (when context (beds context)))
+	  (disposition (if context (disposition context) :flush-left))
+	  (algorithm (if context (algorithm context) :fixed))
+	  (width (if context (paragraph-width context) *paragraph-width*))
+	  ;; #### WARNING: no mutual coherency checks for these three.
+	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
+	  (lineup (%make-lineup hlist disposition algorithm))
+	  (breakup (%make-breakup lineup disposition width beds algorithm)))
+  "Make a new paragraph.
+When provided, CONTEXT is used to default the other parameters.
+Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
+corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
+defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
+ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
+subsequently computed."
+  (%make-paragraph width hlist lineup breakup))

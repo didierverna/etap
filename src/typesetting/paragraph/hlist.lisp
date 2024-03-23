@@ -540,22 +540,3 @@ When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
 			(no-break element))))
 	  hlist))
       hlist)))
-
-;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
-;; argument on purpose: it's more convenient to provide access to TEXT and
-;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
-(defun make-hlist
-    (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation)))
-  "Make a new hlist.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
-global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES."
-  (%make-hlist text language font kerning ligatures hyphenation))

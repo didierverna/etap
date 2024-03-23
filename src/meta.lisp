@@ -8,12 +8,7 @@
    ;; CAPI exports these and it sucks.
    :item :layout)
   (:export
-    :*language*
-    :*text*
-    :*paragraph-width*
+    :*language* :*text* :*paragraph-width*
     :*context* :make-context
-    :make-hlist
-    :make-lineup
-    :make-breakup
-    :make-paragraph
+    :make-hlist :make-lineup :make-breakup :make-paragraph
     #+lispworks :run))

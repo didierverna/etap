@@ -126,10 +126,7 @@ and start index (the stop index being the harray's length).
 Greedy algorithms may extend this class in order to memoize various aspects of
 line computation (see `next-boundary'), essentially because all boundaries
 subject to comparison at one point in time relate to the same beginning of
-line. Non-greedy algorithms should not.
-
-All boundaries respond to the following pseudo-accessors, which see:
-- `hyphenated'."))
+line. Non-greedy algorithms should not."))
 
 (defmethod hyphenated ((boundary boundary))
   "Return BOUNDARY's hyphenation status."
@@ -216,26 +213,3 @@ All primary methods must return a (possibly modified) HLIST.")
   (make-instance 'lineup
     :harray (make-array (length processed-hlist)
 	      :initial-contents processed-hlist)))
-
-;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
-;; argument on purpose: it's more convenient to provide access to TEXT and
-;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
-(defun make-lineup
-    (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
-	  (disposition (if context (disposition context) :flush-left))
-	  (algorithm (if context (algorithm context) :fixed))
-	  (hlist (%make-hlist text language font kerning ligatures
-			      hyphenation)))
-  "Make a new lineup.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
-global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
-  (%make-lineup hlist disposition algorithm))

@@ -1,6 +1,5 @@
 (in-package :etap)
 
-
 ;; ==========================================================================
 ;; Specification
 ;; ==========================================================================
@@ -8,7 +7,8 @@
 (defparameter *paragraph-min-width* 142 ;; 142.26378pt = 5cm
   "The paragraph's minimum width in points.")
 
-;; #### NOTE: *paragraph-width* is defined in context.lisp
+(defvar *paragraph-width* 284 ;; 284.52756pt = 10cm
+  "The default paragraph width.")
 
 (defparameter *paragraph-max-width* 569 ;; 569.0551pt = 20cm
   "The paragraph's maximum width in points.")
@@ -42,6 +42,11 @@
 	    :initarg :breakup
 	    :reader breakup))
   (:documentation "The PARAGRAPH class."))
+
+(defun %make-paragraph (width hlist lineup breakup)
+  "Make a new paragraph of WIDTH, for HLIST, LINEUP, and BREAKUP."
+  (make-instance 'paragraph
+    :width width :hlist hlist :lineup lineup :breakup breakup))
 
 (defmethod pinned-lines ((paragraph paragraph))
   "Return PARAGRAPH's pinned lines."
@@ -86,30 +91,3 @@ Currently, these are the ones not visible on the GUI:
 		      (break-points-# paragraph)
 		      (theoretical-solutions-# paragraph))
 	      (properties (breakup paragraph)))))
-
-(defun make-paragraph
-    (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
-	  (beds (when context (beds context)))
-	  (disposition (if context (disposition context) :flush-left))
-	  (algorithm (if context (algorithm context) :fixed))
-	  (width (if context (paragraph-width context) *paragraph-width*))
-	  ;; #### WARNING: no mutual coherency checks for these three.
-	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
-	  (lineup (%make-lineup hlist disposition algorithm))
-	  (breakup (%make-breakup lineup disposition width beds algorithm)))
-  "Make a new paragraph.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
-corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
-defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
-ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
-subsequently computed."
-  (make-instance 'paragraph
-    :width width :hlist hlist :lineup lineup :breakup breakup))

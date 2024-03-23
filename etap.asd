@@ -33,7 +33,6 @@
 		 (:file "hyphenate")))
        (:file "language")
        (:file "text")))
-     (:file "context")
      (:module "typesetting"
       :serial t
       :components
@@ -57,6 +56,7 @@
 			   (:file "kp" :depends-on  ("graph"))))
 		 (:file "paragraph")
 		 (:file "rivers")))))
+     (:file "context")
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))
