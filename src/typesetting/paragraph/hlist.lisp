@@ -28,21 +28,19 @@
 
 
 ;; ==========================================================================
-;; General Utilities
+;; Specification
 ;; ==========================================================================
-
-;; -----------------
-;; For the interface
-;; -----------------
 
 (defparameter *typesetting-features*
   '((:kerning t) (:ligatures t) (:hyphenation t))
   "The typesetting features, as advertised by the interface.")
 
 
-;; --------------------
-;; HList items geometry
-;; --------------------
+
+
+;; ==========================================================================
+;; Geometry
+;; ==========================================================================
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -254,9 +252,9 @@ Glues represent breakable, elastic space."))
 ;; that every time we want to poll the size of various harray chunks. This
 ;; could be rather expensive (although I haven't tried it).
 
-;; -------
-;; Kerning
-;; -------
+;; ----------------
+;; Kerns processing
+;; ----------------
 
 (defun kerning (elt1 elt2)
   "Return kerning information for ELT1 and ELT2, or NIL."
@@ -463,9 +461,9 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 	 (map 'list (lambda (char) (get-character char font)) word))))
 
 
-;; --------------
+;; ------------
 ;; Text slicing
-;; --------------
+;; ------------
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
   "The list of blank characters.")
