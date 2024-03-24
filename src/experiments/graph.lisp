@@ -40,10 +40,13 @@ width2 no-fulls-size-2 fallback-fulls-size-2 preventive-fulls-size-2
 			       (make-graph (harray lineup) width))
 	  :for (nil hash2) := (multiple-value-list
 			       (make-graph (harray lineup) width
-					   :fulls t))
+					   :next-boundaries
+					   '(next-boundaries :fulls t)))
 	  :for (nil hash3) := (multiple-value-list
 			       (make-graph (harray lineup) width
-					   :fulls :preventive))
+					   :next-boundaries
+					   '(next-boundaries
+					     :fulls :preventive)))
 	  :do (format t "~&~S ~S ~S ~S~%"
 		width
 		(hash-table-count-non-null hash1)
@@ -75,10 +78,12 @@ width2 strict2 strict/hyphens2 regular2 regular/hyphens2
 	  :for width :from *paragraph-min-width* :to *paragraph-max-width*
 	  :for stricts
 	    := (graph-layouts (make-graph (harray lineup) width
-					  :strict t))
+					  :next-boundaries
+					  '(next-boundaries :strict t)))
 	  :for hyphenated-stricts
 	    := (graph-layouts (make-graph (harray hyphenated-lineup) width
-					  :strict t))
+					  :next-boundaries
+					  '(next-boundaries :strict t)))
 	  :for regulars
 	    := (graph-layouts (make-graph (harray lineup) width))
 	  :for hyphenated-regulars
