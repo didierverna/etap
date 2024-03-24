@@ -329,7 +329,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (if (zerop (length harray))
-    (make-instance 'kp-graph-breakup)
+    (make-instance 'graph-breakup)
     (let ((threshold *pre-tolerance*)
 	  (pass 1)
 	  graph layouts breakup)
@@ -364,7 +364,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					(< (abs (- size1 ideal-size))
 					   (abs (- size2 ideal-size))))
 			  :key #'size))))
-      (setq breakup (make-instance 'kp-graph-breakup
+      (setq breakup (make-instance 'graph-breakup
 		      :pass pass :graph graph :layouts layouts))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
