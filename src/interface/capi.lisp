@@ -411,14 +411,14 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     (when pinned-lines (decf y (height (first (pinned-lines paragraph)))))
     (if (and (<= x 0) (<= y (depth paragraph)))
-      (display-tooltip pane :text (paragraph-properties paragraph))
+      (display-tooltip pane :text (properties paragraph))
       (let ((line (when (and (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))
 				    (<= y (+ (y line) (depth line)))))
 			     (pinned-lines paragraph)))))
 	(if line
-	  (display-tooltip pane :text (line-properties (line line)))
+	  (display-tooltip pane :text (properties (line line)))
 	  (display-tooltip pane))))))
 
 ;; Rivers detection
