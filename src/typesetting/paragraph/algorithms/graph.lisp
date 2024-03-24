@@ -250,13 +250,14 @@ form (CLASS-NAME INITARGS...)."
 (defclass graph-breakup (breakup)
   ((graph :documentation "The breakup's original graph."
 	  :initform nil :initarg :graph :reader graph)
+   (nodes :documentation "The breakup's nodes hash table."
+	  :initform nil :initarg :nodes :reader nodes)
    (layouts :documentation "The breakup's sorted layouts array."
 	    :initform nil :reader layouts)
    (renditions :documentation "The breakup's sorted layout renditions array."
 	       :initform nil :reader renditions))
   (:documentation "The Graph Breakup class.
-This class is used by graph based algorithms. It allows the storage of a
-breaking solutions graph, the corresponding layouts, and layout renditions."))
+This class is used by graph based algorithms."))
 
 (defmethod initialize-instance :after ((breakup graph-breakup) &key layouts)
   "Convert the layouts list to an array and create the renditions array."
@@ -276,6 +277,9 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
     ((breakup graph-breakup) &aux (layouts (layouts breakup)))
   "Advertise graph BREAKUP's number of initial layouts."
   (when layouts
-    (strnlcat (format nil "From ~A layout~:P." (length layouts))
-	      (unless (zerop (length layouts))
-		(properties (aref layouts 0))))))
+    (multiple-value-bind (non-null null) (hash-table-counts (nodes breakup))
+      (strnlcat (format nil "From ~A layout~:P.~@
+			     ~A break points~:P, ~A dead-end~:P."
+		  (length layouts) non-null null)
+		(unless (zerop (length layouts))
+		  (properties (aref layouts 0)))))))

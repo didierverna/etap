@@ -1,5 +1,13 @@
 (in-package :etap)
 
+(defun hash-table-counts (hash)
+  "Count the numbers of non-null (resp. null) entries in HASH table.
+Return those as two values."
+  (loop :with non-null := 0 :with null := 0
+	:for value :being :the :hash-values :in hash
+	:if value :do (incf non-null) :else :do (incf null)
+	:finally (return (values non-null null))))
+
 (defun retain (object list &key (test #'eq) key pre-test)
   "Return a copy of LIST from which only OBJECT is retained.
 Each item in LIST is TESTed with EQ by default. TEST is performed on the item
