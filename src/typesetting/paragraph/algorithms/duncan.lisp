@@ -199,7 +199,7 @@ This class keeps track of the line's weight."))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
   (if (zerop (length harray))
-    (make-instance 'duncan-breakup)
+    (make-instance 'graph-breakup)
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -209,7 +209,9 @@ This class keeps track of the line's weight."))
     ;; of fit, we reduce the number of subsequent *fulls. I hope that if it's
     ;; possible, it would only affect very rare cases. But this should be
     ;; experimented.
-    (let* ((graph (make-graph harray width :edge-type 'duncan-edge :fulls t))
+    (let* ((graph (make-graph harray width
+		    :edge-type 'duncan-edge
+		    :next-boundaries '(next-boundaries :fulls t)))
 	   (layouts (graph-layouts graph 'duncan-layout))
 	 breakup)
     (labels ((perfect (layout)
@@ -242,7 +244,7 @@ This class keeps track of the line's weight."))
 			(< (+ (underfulls l1) (overfulls l1))
 			   (+ (underfulls l2) (overfulls l2)))))))
       (setq layouts (sort layouts #'better)))
-    (setq breakup (make-instance 'duncan-breakup
+    (setq breakup (make-instance 'graph-breakup
 		    :graph graph :layouts layouts))
     (unless (zerop (length layouts))
       (setf (aref (renditions breakup) 0)

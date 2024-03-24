@@ -335,24 +335,26 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  graph layouts breakup)
       (when ($<= 0 threshold)
 	(setq graph (make-graph harray width
-				:edge-type 'kp-edge
-				:next-boundaries #'kp-next-boundaries
-				:threshold threshold)))
+		      :edge-type 'kp-edge
+		      :next-boundaries `(kp-next-boundaries
+					 :threshold ,threshold))))
       (unless (edges graph)
 	(incf pass)
 	(setq threshold *tolerance*)
 	(setq graph (make-graph harray width
-				:edge-type 'kp-edge
-				:next-boundaries #'kp-next-boundaries
-				:hyphenate t :threshold threshold
-				:final (zerop *emergency-stretch*))))
+		      :edge-type 'kp-edge
+		      :next-boundaries `(kp-next-boundaries
+					 :hyphenate t
+					 :threshold ,threshold
+					 :final ,(zerop *emergency-stretch*)))))
       (unless (edges graph)
 	(incf pass)
 	(setq graph (make-graph harray width
-				:edge-type 'kp-edge
-				:next-boundaries #'kp-next-boundaries
-				:hyphenate t :threshold threshold
-				:final *emergency-stretch*)))
+		      :edge-type 'kp-edge
+		      :next-boundaries `(kp-next-boundaries
+					 :hyphenate t
+					 :threshold ,threshold
+					 :final ,*emergency-stretch*))))
       (setq layouts (graph-layouts graph 'kp-layout))
       (mapc #'kp-postprocess-layout layouts)
       (setq layouts (sort layouts #'$< :key #'demerits))

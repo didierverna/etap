@@ -111,7 +111,8 @@ The possible endings are listed in reverse order (from last to first)."
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
 (defun make-subgraph
-    (harray width boundary edge-type next-boundaries graph &rest options)
+    (harray boundary width graph edge-type
+     next-boundaries-fn next-boundaries-args)
   "Make a solutions subgraph for breaking HARRAY's remainder starting at
 BOUNDARY into a paragraph of WIDTH.
 
@@ -129,14 +130,15 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 	    ;; #### NOTE: this may turn out to be NIL. See comment above.
 	    (if (last-boundary-p boundary)
 	      (make-node boundary)
-	      (let ((nodes (loop :for next-boundary
-				   :in (apply next-boundaries
+	      (let ((nodes (loop :for boundary
+				   :in (apply next-boundaries-fn
 					 harray (start-idx boundary) width
-					 options)
-				 :when (apply #'make-subgraph
-					 harray width next-boundary
-					 edge-type next-boundaries graph
-					 options)
+					 next-boundaries-args)
+				 :when (make-subgraph
+					harray boundary width graph
+					edge-type
+					next-boundaries-fn
+					next-boundaries-args)
 				   :collect :it)))
 		(when nodes
 		  (make-node
@@ -150,18 +152,20 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 ;; #### NOTE: this function is not supposed to be called on empty harrays.
 ;; This should be checked by BREAK-HARRAY beforehand.
 (defun make-graph
-    (harray width
-     &rest keys &key (edge-type 'edge) (next-boundaries #'next-boundaries)
-     &allow-other-keys
-     &aux (options (remove-keys keys :edge-type :next-boundaries)))
+    (harray width &key (edge-type 'edge) (next-boundaries #'next-boundaries))
   "Make a solutions graph for breaking HARRAY into a paragraph of WIDTH.
 Return two values: the graph's root node, and the nodes hash table. Note that
 if no breaking solution is found, the root node will have no edges."
+  (unless (consp next-boundaries)
+    (setq next-boundaries (list next-boundaries)))
   (let* ((graph (make-hash-table))
-	 (nodes (loop :for next-boundary
-			:in (apply next-boundaries harray 0 width options)
-		      :when (apply #'make-subgraph harray width next-boundary
-				   edge-type next-boundaries graph options)
+	 (nodes (loop :for boundary
+			:in (apply (car next-boundaries) harray 0 width
+				   (cdr next-boundaries))
+		      :when (make-subgraph harray boundary width graph
+					   edge-type
+					   (car next-boundaries)
+					   (cdr next-boundaries))
 			:collect :it)))
     (values
      (make-node nil
