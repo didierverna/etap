@@ -13,6 +13,11 @@
 ;; Specification
 ;; ==========================================================================
 
+;; #### NOTE: in theory, when only the looseness changes, we don't have to run
+;; the algorithm again: we only need to sort the solutions found previously in
+;; a different order and select another one. We currently don't go that far,
+;; and the GUI doesn't know that anyway.
+
 (defparameter *kp-variants*
   '(:graph :dynamic))
 
@@ -326,10 +331,14 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Breakup specialization
 ;; ----------------------
 
+(defclass kp-graph-breakup (kp-breakup-mixin graph-breakup)
+  ()
+  (:documentation "The Knuth-Plass Graph Breakup class."))
+
 (defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (if (zerop (length harray))
-    (make-instance 'graph-breakup)
+    (make-instance 'kp-graph-breakup)
     (let ((threshold *pre-tolerance*)
 	  (pass 1)
 	  graph layouts breakup)
@@ -360,11 +369,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       (setq layouts (sort layouts #'$< :key #'demerits))
       (unless (zerop *looseness*)
 	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
-	  (setq layouts (sort layouts (lambda (size1 size2)
-					(< (abs (- size1 ideal-size))
-					   (abs (- size2 ideal-size))))
-			  :key #'size))))
-      (setq breakup (make-instance 'graph-breakup
+	  (setq layouts (stable-sort layouts (lambda (size1 size2)
+					       (< (abs (- size1 ideal-size))
+						  (abs (- size2 ideal-size))))
+				     :key #'size))))
+      (setq breakup (make-instance 'kp-graph-breakup
 		      :pass pass :graph graph :layouts layouts))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
@@ -643,27 +652,39 @@ through the algorithm in the TeX jargon).
 ;; Breakup specialization
 ;; ------------------------
 
-;; #### FIXME: this is good enough for now, but we want to keep around all
-;; possible solutions for the remaining active nodes, just like what we do for
-;; graph based breakups. In fact, since the dynamic optimization is
-;; essentially just a way to keep only pruned graphs in memory, we should
-;; still get layouts in the end.
-(defclass kp-dynamic-breakup (kp-breakup-mixin simple-breakup)
-  ((nodes-# :documentation "The number of remaining active nodes."
-	    :initform 0 :initarg :nodes-# :reader nodes-#)
-   (demerits :documentation "The total demerits."
-	     :initform 0 :initarg :demerits :reader demerits))
+;; #### FIXME: since the dynamic optimization is essentially just a way to
+;; keep only pruned graphs in memory, we should arrange to use a graph breakup
+;; here.
+(defclass kp-dynamic-breakup (kp-breakup-mixin breakup)
+  ((nodes :documentation "The breakup's sorted nodes array."
+	  :initform nil :reader nodes)
+   (renditions :documentation "The breakups' sorted renditions array."
+	       :initform nil :reader renditions))
   (:documentation "The KP-DYNAMIC-BREAKUP class."))
+
+(defmethod initialize-instance :after
+    ((breakup kp-dynamic-breakup) &key nodes)
+  "Convert the ndoes list to an array and create the renditions array."
+  (setf (slot-value breakup 'nodes)
+	(make-array (length nodes) :initial-contents nodes))
+  (setf (slot-value breakup 'renditions)
+	(make-array (length nodes) :initial-element nil)))
+
+(defmethod pinned-lines
+    ((breakup kp-dynamic-breakup) &aux (renditions (renditions breakup)))
+  (when (and renditions (not (zerop (length renditions))))
+    (aref renditions 0)))
 
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
 ;; of 0 means that the harray was empty.
 (defmethod properties strnlcat
-    ((breakup kp-dynamic-breakup) &aux (nodes-# (nodes-# breakup)))
+    ((breakup kp-dynamic-breakup)
+     &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
   "Advertise the number of remaining active nodes."
   (unless (zerop nodes-#)
     (format nil "Demerits: ~A~@
 	       From ~A remaining active node~:P."
-      ($float (demerits breakup))
+      ($float (kp-node-total-demerits (aref nodes 0)))
       nodes-#)))
 
 (defun kp-dynamic-break-harray
@@ -675,37 +696,27 @@ through the algorithm in the TeX jargon).
 			(kp-create-nodes harray width pass))
 		      (kp-create-nodes harray width (incf pass))
 		      (kp-create-nodes harray width (incf pass))))
-	   (best (loop :with total-demerits := +∞ :with best :with last
-		       :for node :being :the :hash-values :in nodes
-			 :using (hash-key key)
-		       :do (setq last (cons (key-line key) node))
-		       :when ($< (kp-node-total-demerits node) total-demerits)
-			 :do (setq best (cons (key-line key) node)
-				   total-demerits (kp-node-total-demerits node))
-		       :finally (return (or best last)))))
-      (if (zerop *looseness*)
-	(setq best (cdr best))
-	(setq best
-	      (loop :with ideal-size := (+ (car best) *looseness*)
-		    :with closer := (cdr best)
-		    :with delta := (abs *looseness*)
-		    :for node :being :the :hash-values :in nodes
-		      :using (hash-key key)
-		    :do (cond ((< (abs (- ideal-size (key-line key))) delta)
-			       (setq closer node
-				     delta (abs (- ideal-size (key-line key)))))
-			      ((and (= (abs (- ideal-size (key-line key)))
-				       delta)
-				    (< (kp-node-total-demerits node)
-				       (kp-node-total-demerits closer)))
-			       (setq closer node)))
-		    :finally (return closer))))
-      (make-instance 'kp-dynamic-breakup
-	:nodes-# (hash-table-count nodes)
-	:demerits (kp-node-total-demerits best)
-	:pass pass
-	:pinned-lines (kp-dynamic-pin-node
-		       harray disposition width beds best pass)))))
+	   nodes-list
+	   breakup)
+      (maphash (lambda (key node)
+		 (push (cons (key-line key) node) nodes-list))
+	       nodes)
+      (setq nodes-list
+	    (sort nodes-list #'$<
+	      :key (lambda (elt) (kp-node-total-demerits (cdr elt)))))
+      (unless (zerop *looseness*)
+	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
+	  (setq nodes-list
+		(stable-sort nodes-list (lambda (elt1 elt2)
+					  (< (abs (- elt1 ideal-size))
+					     (abs (- elt2 ideal-size))))
+			     :key #'car))))
+      (setq breakup (make-instance 'kp-dynamic-breakup
+		      :pass pass :nodes (mapcar #'cdr nodes-list)))
+      (setf (aref (renditions breakup) 0)
+	    (kp-dynamic-pin-node
+	     harray disposition width beds (aref (nodes breakup) 0) pass))
+      breakup)))
 
 
 
