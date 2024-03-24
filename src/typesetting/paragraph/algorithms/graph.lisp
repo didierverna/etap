@@ -269,7 +269,7 @@ breaking solutions graph, the corresponding layouts, and layout renditions."))
 (defmethod pinned-lines
     ((breakup graph-breakup) &aux (renditions (renditions breakup)))
   (when (and renditions (not (zerop (length renditions))))
-    (aref (renditions breakup) 0)))
+    (aref renditions 0)))
 
 ;; #### TODO: provide information on the graph.
 (defmethod properties strnlcat
