@@ -180,6 +180,34 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   kp-looseness)
 
 
+;; KPX
+(defun set-kpx-algorithm (value interface)
+  "Set the current algorithm to KPX in INTERFACE's context."
+  (declare (ignore value))
+  (setf (algorithm (context interface))
+	(cons :kpx
+	      (append
+	       (radio-selection kpx :variant interface)
+	       (slider-value kpx :line-penalty interface)
+	       (slider-value kpx :hyphen-penalty interface)
+	       (slider-value kpx :explicit-hyphen-penalty interface)
+	       (slider-value kpx :adjacent-demerits interface)
+	       (slider-value kpx :double-hyphen-demerits interface)
+	       (slider-value kpx :final-hyphen-demerits interface)
+	       (slider-value kpx :pre-tolerance interface)
+	       (slider-value kpx :tolerance interface)
+	       (slider-value kpx :emergency-stretch interface)
+	       (slider-value kpx :looseness interface))))
+  (update interface))
+
+(define-slider-callbacks kpx-line-penalty
+  kpx-hyphen-penalty kpx-explicit-hyphen-penalty
+  kpx-adjacent-demerits kpx-double-hyphen-demerits kpx-final-hyphen-demerits
+  kpx-pre-tolerance kpx-tolerance
+  kpx-emergency-stretch
+  kpx-looseness)
+
+
 (defun set-algorithm (value interface)
   "Select algorithm specified by VALUE in INTERFACE."
   (case (car value)
@@ -187,7 +215,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (:fit (set-fit-algorithm value interface))
     (:barnett (set-barnett-algorithm value interface))
     (:duncan (set-duncan-algorithm value interface))
-    (:knuth-plass (set-kp-algorithm value interface))))
+    (:knuth-plass (set-kp-algorithm value interface))
+    (:kpx (set-kpx-algorithm value interface))))
 
 
 ;; Other actions
@@ -387,7 +416,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 ;; Tooltips
 (defparameter *tooltips*
-  `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
+  `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips* ,@*kpx-tooltips*
     ,@*disposition-options-tooltips*)
   "The GUI's tooltips.")
 
@@ -525,7 +554,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	      (:fit fit-settings)
 	      (:barnett barnett-settings)
 	      (:duncan duncan-settings)
-	      (:knuth-plass kp-settings))
+	      (:knuth-plass kp-settings)
+	      (:kpx kpx-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
@@ -763,6 +793,124 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-kp-looseness
      :reader kp-looseness)
+   (kpx-variant radio-button-panel
+     :layout-class 'column-layout
+     :visible-max-height nil
+     :title "Variant" :title-position :frame
+     :items *kpx-variants*
+     :help-keys *kpx-variants-help-keys*
+     :print-function 'title-capitalize
+     :selection-callback 'set-kpx-algorithm
+     :reader kpx-variant)
+   (kpx-line-penalty slider
+     :title (format nil "Line Penalty: ~D"
+	      (caliber-default *kpx-line-penalty*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-line-penalty*)
+     :end (caliber-max *kpx-line-penalty*)
+     :slug-start (caliber-default *kpx-line-penalty*)
+     :tick-frequency 0
+     :callback 'set-kpx-line-penalty
+     :reader kpx-line-penalty)
+   (kpx-hyphen-penalty slider
+     :title (format nil "Hyphen Penalty: ~D"
+	      (caliber-default *kpx-hyphen-penalty*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-hyphen-penalty*)
+     :end (caliber-max *kpx-hyphen-penalty*)
+     :slug-start (caliber-default *kpx-hyphen-penalty*)
+     :tick-frequency 0
+     :callback 'set-kpx-hyphen-penalty
+     :reader kpx-hyphen-penalty)
+   (kpx-explicit-hyphen-penalty slider
+     :title (format nil "Explicit Hyphen Penalty: ~D"
+	      (caliber-default *kpx-explicit-hyphen-penalty*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-explicit-hyphen-penalty*)
+     :end (caliber-max *kpx-explicit-hyphen-penalty*)
+     :slug-start (caliber-default *kpx-explicit-hyphen-penalty*)
+     :tick-frequency 0
+     :callback 'set-kpx-explicit-hyphen-penalty
+     :reader kpx-explicit-hyphen-penalty)
+   (kpx-adjacent-demerits slider
+     :title (format nil "Adjacent Demerits: ~D"
+	      (caliber-default *kpx-adjacent-demerits*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-adjacent-demerits*)
+     :end (caliber-max *kpx-adjacent-demerits*)
+     :slug-start (caliber-default *kpx-adjacent-demerits*)
+     :tick-frequency 0
+     :callback 'set-kpx-adjacent-demerits
+     :reader kpx-adjacent-demerits)
+   (kpx-double-hyphen-demerits slider
+     :title (format nil "Double Hyphen Demerits: ~D"
+	      (caliber-default *kpx-double-hyphen-demerits*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-double-hyphen-demerits*)
+     :end (caliber-max *kpx-double-hyphen-demerits*)
+     :slug-start (caliber-default *kpx-double-hyphen-demerits*)
+     :tick-frequency 0
+     :callback 'set-kpx-double-hyphen-demerits
+     :reader kpx-double-hyphen-demerits)
+   (kpx-final-hyphen-demerits slider
+     :title (format nil "Final Hyphen Demerits: ~D"
+	      (caliber-default *kpx-final-hyphen-demerits*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-final-hyphen-demerits*)
+     :end (caliber-max *kpx-final-hyphen-demerits*)
+     :slug-start (caliber-default *kpx-final-hyphen-demerits*)
+     :tick-frequency 0
+     :callback 'set-kpx-final-hyphen-demerits
+     :reader kpx-final-hyphen-demerits)
+   (kpx-pre-tolerance slider
+     :title (format nil "Pre Tolerance: ~D"
+	      (caliber-default *kpx-pre-tolerance*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-pre-tolerance*)
+     :end (caliber-max *kpx-pre-tolerance*)
+     :slug-start (caliber-default *kpx-pre-tolerance*)
+     :tick-frequency 0
+     :callback 'set-kpx-pre-tolerance
+     :reader kpx-pre-tolerance)
+   (kpx-tolerance slider
+     :title (format nil "Tolerance: ~D" (caliber-default *kpx-tolerance*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-tolerance*)
+     :end (caliber-max *kpx-tolerance*)
+     :slug-start (caliber-default *kpx-tolerance*)
+     :tick-frequency 0
+     :callback 'set-kpx-tolerance
+     :reader kpx-tolerance)
+   (kpx-emergency-stretch slider
+     :title (format nil "Emergency Stretch: ~D"
+	      (caliber-default *kpx-emergency-stretch*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-emergency-stretch*)
+     :end (caliber-max *kpx-emergency-stretch*)
+     :slug-start (caliber-default *kpx-emergency-stretch*)
+     :tick-frequency 0
+     :callback 'set-kpx-emergency-stretch
+     :reader kpx-emergency-stretch)
+   (kpx-looseness slider
+     :title (format nil "Looseness: ~D"
+	      (caliber-default *kpx-looseness*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-looseness*)
+     :end (caliber-max *kpx-looseness*)
+     :slug-start (caliber-default *kpx-looseness*)
+     :tick-frequency 0
+     :callback 'set-kpx-looseness
+     :reader kpx-looseness)
    (disposition radio-button-panel
      :layout-class 'column-layout
      :title "Disposition" :title-position :frame
@@ -874,6 +1022,14 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      '(kp-line-penalty kp-hyphen-penalty kp-explicit-hyphen-penalty
        kp-adjacent-demerits kp-double-hyphen-demerits kp-final-hyphen-demerits
        kp-pre-tolerance kp-tolerance kp-emergency-stretch kp-looseness)
+     :orientation :horizontal
+     :columns 3)
+   (kpx-settings row-layout '(kpx-variant kpx-sliders))
+   (kpx-sliders grid-layout
+     '(kpx-line-penalty kpx-hyphen-penalty kpx-explicit-hyphen-penalty
+       kpx-adjacent-demerits kpx-double-hyphen-demerits
+       kpx-final-hyphen-demerits
+       kpx-pre-tolerance kpx-tolerance kpx-emergency-stretch kpx-looseness)
      :orientation :horizontal
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
@@ -992,6 +1148,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	 (setf (choice-selection (algorithms etap)) 4)
 	 (set-variant kp)
 	 (set-sliders kp
+	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
+	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
+	   :pre-tolerance :tolerance :emergency-stretch :looseness))
+	(:kpx
+	 (setf (choice-selection (algorithms etap)) 5)
+	 (set-variant kpx)
+	 (set-sliders kpx
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
