@@ -1019,11 +1019,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (duncan-settings row-layout '(duncan-discriminating-function))
    (kp-settings row-layout '(kp-variant kp-sliders))
    (kp-sliders grid-layout
-     '(kp-line-penalty kp-hyphen-penalty kp-explicit-hyphen-penalty
-       kp-adjacent-demerits kp-double-hyphen-demerits kp-final-hyphen-demerits
-       kp-pre-tolerance kp-tolerance kp-emergency-stretch kp-looseness)
-     :orientation :horizontal
-     :columns 3)
+     '(kp-line-penalty            kp-adjacent-demerits      kp-pre-tolerance
+       kp-hyphen-penalty          kp-double-hyphen-demerits kp-tolerance
+       kp-explicit-hyphen-penalty kp-final-hyphen-demerits  kp-emergency-stretch
+       nil                        nil                       kp-looseness))
    (kpx-settings row-layout '(kpx-variant kpx-sliders))
    (kpx-sliders grid-layout
      '(kpx-line-penalty kpx-hyphen-penalty kpx-explicit-hyphen-penalty

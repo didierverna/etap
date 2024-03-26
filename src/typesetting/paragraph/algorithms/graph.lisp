@@ -279,7 +279,7 @@ This class is used by graph based algorithms."))
   (when layouts
     (multiple-value-bind (non-null null) (hash-table-counts (nodes breakup))
       (strnlcat (format nil "From ~A layout~:P.~@
-			     ~A break points~:P, ~A dead-end~:P."
+			     ~A break point~:P, ~A dead-end~:P."
 		  (length layouts) non-null null)
 		(unless (zerop (length layouts))
 		  (properties (aref layouts 0)))))))
