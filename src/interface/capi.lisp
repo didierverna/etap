@@ -194,6 +194,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	       (slider-value kpx :adjacent-demerits interface)
 	       (slider-value kpx :double-hyphen-demerits interface)
 	       (slider-value kpx :final-hyphen-demerits interface)
+	       (slider-value kpx :similar-demerits interface)
 	       (slider-value kpx :pre-tolerance interface)
 	       (slider-value kpx :tolerance interface)
 	       (slider-value kpx :emergency-stretch interface)
@@ -203,6 +204,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (define-slider-callbacks kpx-line-penalty
   kpx-hyphen-penalty kpx-explicit-hyphen-penalty
   kpx-adjacent-demerits kpx-double-hyphen-demerits kpx-final-hyphen-demerits
+  kpx-similar-demerits
   kpx-pre-tolerance kpx-tolerance
   kpx-emergency-stretch
   kpx-looseness)
@@ -868,6 +870,17 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-kpx-final-hyphen-demerits
      :reader kpx-final-hyphen-demerits)
+   (kpx-similar-demerits slider
+     :title (format nil "Similar Demerits: ~D"
+	      (caliber-default *kpx-similar-demerits*))
+     :orientation :horizontal
+     :visible-min-width 220
+     :start (caliber-min *kpx-similar-demerits*)
+     :end (caliber-max *kpx-similar-demerits*)
+     :slug-start (caliber-default *kpx-similar-demerits*)
+     :tick-frequency 0
+     :callback 'set-kpx-similar-demerits
+     :reader kpx-similar-demerits)
    (kpx-pre-tolerance slider
      :title (format nil "Pre Tolerance: ~D"
 	      (caliber-default *kpx-pre-tolerance*))
@@ -1029,7 +1042,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      '(kpx-line-penalty            kpx-adjacent-demerits      kpx-pre-tolerance
        kpx-hyphen-penalty          kpx-double-hyphen-demerits kpx-tolerance
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
-       nil                        nil                       kpx-looseness)
+       nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
@@ -1156,6 +1169,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	 (set-sliders kpx
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
+	   :similar-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
   (setf (choice-selected-item (disposition etap))
 	(disposition-type (disposition context)))

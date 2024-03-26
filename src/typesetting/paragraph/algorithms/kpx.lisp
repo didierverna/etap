@@ -37,6 +37,7 @@
 (define-kpx-caliber adjacent-demerits 0 10000 10000)
 (define-kpx-caliber double-hyphen-demerits 0 10000 10000)
 (define-kpx-caliber final-hyphen-demerits 0 5000 10000)
+(define-kpx-caliber similar-demerits 0 5000 10000)
 (define-kpx-caliber pre-tolerance -1 100 10000)
 (define-kpx-caliber tolerance 0 200 10000)
 (define-kpx-caliber emergency-stretch 0 0 20)
@@ -46,6 +47,7 @@
 (define-global-variables variant
   line-penalty hyphen-penalty explicit-hyphen-penalty
   adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+  similar-demerits
   pre-tolerance tolerance emergency-stretch looseness)
 
 
@@ -733,6 +735,7 @@ through the algorithm in the TeX jargon).
 	  ((:adjacent-demerits *adjacent-demerits*))
 	  ((:double-hyphen-demerits *double-hyphen-demerits*))
 	  ((:final-hyphen-demerits *final-hyphen-demerits*))
+	  ((:similar-demerits *similar-demerits*))
 	  ((:pre-tolerance *pre-tolerance*))
 	  ((:tolerance *tolerance*))
 	  ((:emergency-stretch *emergency-stretch*))
@@ -743,6 +746,7 @@ through the algorithm in the TeX jargon).
   (calibrate-kpx adjacent-demerits)
   (calibrate-kpx double-hyphen-demerits)
   (calibrate-kpx final-hyphen-demerits)
+  (calibrate-kpx similar-demerits)
   (calibrate-kpx pre-tolerance :positive)
   (calibrate-kpx tolerance :positive)
   (calibrate-kpx emergency-stretch)
