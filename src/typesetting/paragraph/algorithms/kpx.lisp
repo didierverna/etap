@@ -43,8 +43,9 @@
 (define-kpx-caliber looseness -10 0 10)
 
 
-(define-global-variables variant hyphen-penalty explicit-hyphen-penalty
-  line-penalty adjacent-demerits double-hyphen-demerits final-hyphen-demerits
+(define-global-variables variant
+  line-penalty hyphen-penalty explicit-hyphen-penalty
+  adjacent-demerits double-hyphen-demerits final-hyphen-demerits
   pre-tolerance tolerance emergency-stretch looseness)
 
 
