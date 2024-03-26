@@ -1025,12 +1025,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
        nil                        nil                       kp-looseness))
    (kpx-settings row-layout '(kpx-variant kpx-sliders))
    (kpx-sliders grid-layout
-     '(kpx-line-penalty kpx-hyphen-penalty kpx-explicit-hyphen-penalty
-       kpx-adjacent-demerits kpx-double-hyphen-demerits
-       kpx-final-hyphen-demerits
-       kpx-pre-tolerance kpx-tolerance kpx-emergency-stretch kpx-looseness)
-     :orientation :horizontal
-     :columns 3))
+     '(kpx-line-penalty            kpx-adjacent-demerits      kpx-pre-tolerance
+       kpx-hyphen-penalty          kpx-double-hyphen-demerits kpx-tolerance
+       kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
+       nil                        nil                       kpx-looseness)))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
 
