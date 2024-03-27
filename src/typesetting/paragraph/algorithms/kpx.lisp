@@ -211,8 +211,7 @@ point, in reverse order."
 	 (setq idx (1- (stop-idx boundary)))))
   (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
 	:for item := (aref harray i)
-	:until (or (and (hyphenation-point-p item) ($< (penalty item) +∞))
-		   (break-point-p item))
+	:until (break-point-p item)
 	:when (eq (type-of item) 'tfm:character-metrics) :do (push item eol))
   (nreverse eol))
 
