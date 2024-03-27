@@ -163,26 +163,37 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; Similarity (homeoarchy)
 ;; -----------------------
 
+;; #### NOTE: the dynamic variant cannot check for beginning-of-line
+;; similarities, unless we make different nodes for different beginnings of
+;; line, just like we make different nodes for different fitness classes. This
+;; would probably ruin the optimization.
+
 ;; #### WARNING: this is good enough for now, but there are many limitations
-;; to this approach to similarity.
+;; to our approach to similarity.
 ;; 1. Comparing character metrics works only because we use a single font.
 ;; 2. Discarding kerns is probably not such a big deal, especially since we
 ;;    have a single font: the same sequence of characters would entail the
 ;;    same sequence of kerns.
-;; 3. We stop at the first potential break point back because we can't
-;;    remember whether it's been used by the previous line or not (although
-;;    it's very unlikely); see comment above about the dynamic optimization
-;;    constraint. This means that at least in theory, we might miss a longer
-;;    similarity sequence containing hyphenation points.
-;; 4. The only exception to this is hyphenation points with an infinite
-;;    penalty, because these are not potential break points anymore.
-;; 5. On the other hand, we also stop at blanks, including unbreakable ones.
-;;    That is because the only completely correct solution to similarity would
-;;    be to compare vertical alignments as well, and this can only be done on
-;;    lines (pinned objects) when scaling has been applied.
-;; 6. In particular, this means that similarity doesn't currently work on the
-;;    last two lines (which, at least in theory, could be both completely
-;;    justified), because of the final infinite and unbreakable glue.
+;; 3. We stop at the first potential break point for several reasons (see
+;;    below). This means that at least in theory, we might miss longer
+;;    similarity sequences containing hyphenation points for instance. The
+;;    reasons are the following:
+;;    a. in the end-of-line case dynamic version, we can't remember whether
+;;       it's been used by the previous line or not (although it's very
+;;       unlikely). One exception would be hyphenation points with an infinite
+;;       penalty, because these are not potential break points anymore.
+;;       However,
+;;    b. going through unused breakpoints requires recursively digging into
+;;       the no-break constituents, hence some form of flattening. This is not
+;;       currently implemented, but should probably be.
+;; 5. We also stop at blanks, including unbreakable ones. That is because the
+;;    only completely correct solution to similarity would be to compare
+;;    vertical alignments as well, and this can only be done on lines (pinned
+;;    objects) when scaling has been applied.
+;; 6. In particular, this means that the end-of-line similarity doesn't
+;;    currently work on the last two lines (which, at least in theory, could
+;;    be both completely justified), because of the final infinite and
+;;    unbreakable glue.
 ;;    #### TODO: in fact, I'm likely to remove this hack and treat the last
 ;;    line in a special way, so this might render this point obsolete.
 ;; 7. Finally, this approach works only on rectangular paragraphs.
@@ -204,15 +215,6 @@ point, in reverse order."
 		   (break-point-p item))
 	:when (eq (type-of item) 'tfm:character-metrics) :do (push item eol))
   (nreverse eol))
-
-(defun eol-eq (eol1 eol2)
-  "Return the number of consecutive identical elements in EOL1 and EOL2."
-  (loop :with i := 0
-	:for elt1 :in eol1
-	:for elt2 :in eol2
-	:when (eq elt1 elt2)
-	  :do (incf i)
-	:finally (return i)))
 
 
 
@@ -295,7 +297,7 @@ such as hyphen adjacency and fitness class differences between lines."
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
-	  :when ($> (eol-eq (eol edge1) (eol edge2)) 2)
+	  :when ($> (compare (eol edge1) (eol edge2)) 2)
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *similar-demerits*))
 	  :when (and (hyphenated edge1) (hyphenated edge2))
@@ -462,11 +464,6 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Dynamic Variant
 ;; ==========================================================================
 
-;; #### NOTE: the dynamic variant cannot check for beginning-of-line
-;; similarities, unless we make different nodes for different bol's, just like
-;; we make different nodes for different fitness classes. This would probably
-;; ruin the optimization.
-
 (defstruct (kpx-node (:constructor kpx-make-node))
   eol boundary scale fitness-class badness demerits total-demerits previous)
 
@@ -530,7 +527,7 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 	     ;; similarities are even worse than regular ones, so we will
 	     ;; apply both similar and double-hyphen demerits.
 	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
-	     (when (> (eol-eq eol (kpx-node-eol node)) 2)
+	     (when (> (compare eol (kpx-node-eol node)) 2)
 	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
 	     ;; #### NOTE: according to #859, TeX doesn't consider the
 	     ;; admittedly very rare and weird case where a paragraph would
