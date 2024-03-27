@@ -159,6 +159,62 @@ This class is mixed in both the graph and dynamic breakup classes."))
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
 
+;; -----------------------
+;; Similarity (homeoarchy)
+;; -----------------------
+
+;; #### WARNING: this is good enough for now, but there are many limitations
+;; to this approach to similarity.
+;; 1. Comparing character metrics works only because we use a single font.
+;; 2. Discarding kerns is probably not such a big deal, especially since we
+;;    have a single font: the same sequence of characters would entail the
+;;    same sequence of kerns.
+;; 3. We stop at the first potential break point back because we can't
+;;    remember whether it's been used by the previous line or not (although
+;;    it's very unlikely); see comment above about the dynamic optimization
+;;    constraint. This means that at least in theory, we might miss a longer
+;;    similarity sequence containing hyphenation points.
+;; 4. The only exception to this is hyphenation points with an infinite
+;;    penalty, because these are not potential break points anymore.
+;; 5. On the other hand, we also stop at blanks, including unbreakable ones.
+;;    That is because the only completely correct solution to similarity would
+;;    be to compare vertical alignments as well, and this can only be done on
+;;    lines (pinned objects) when scaling has been applied.
+;; 6. In particular, this means that similarity doesn't currently work on the
+;;    last two lines (which, at least in theory, could be both completely
+;;    justified), because of the final infinite and unbreakable glue.
+;;    #### TODO: in fact, I'm likely to remove this hack and treat the last
+;;    line in a special way, so this might render this point obsolete.
+;; 7. Finally, this approach works only on rectangular paragraphs.
+
+(defun boundary-eol (boundary harray &aux idx eol)
+  "Return the end-of-line items for an HARRAY line ending at BOUNDARY.
+This is the list of the last visible characters (including a final hyphen if
+the line is hyphenated) that lie between BOUNDARY and the previous break
+point, in reverse order."
+  (cond ((hyphenation-point-p (item boundary))
+	 (setq idx (1- (start-idx boundary)))
+	 (setq eol (retain 'tfm:character-metrics (pre-break (item boundary))
+			   :key #'type-of)))
+	(t
+	 (setq idx (1- (stop-idx boundary)))))
+  (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
+	:for item := (aref harray i)
+	:until (or (and (hyphenation-point-p item) ($< (penalty item) +∞))
+		   (break-point-p item))
+	:when (eq (type-of item) 'tfm:character-metrics) :do (push item eol))
+  (nreverse eol))
+
+(defun eol-eq (eol1 eol2)
+  "Return the number of consecutive identical elements in EOL1 and EOL2."
+  (loop :with i := 0
+	:for elt1 :in eol1
+	:for elt2 :in eol2
+	:when (eq elt1 elt2)
+	  :do (incf i)
+	:finally (return i)))
+
+
 
 
 ;; ==========================================================================
@@ -170,7 +226,9 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -----
 
 (defclass kpx-edge (edge)
-  ((scale :documentation "This edge's scale."
+  ((eol :documentation "This edge's end-of-line items."
+	:reader eol)
+   (scale :documentation "This edge's scale."
 	  :reader scale)
    (fitness-class :documentation "This edge's fitness class."
 		  :reader fitness-class)
@@ -183,8 +241,8 @@ This class is mixed in both the graph and dynamic breakup classes."))
 (defmethod initialize-instance :after
     ((edge kpx-edge)
      &key harray start width
-     &aux (stop (stop-idx (boundary (destination edge)))))
-  "Initialize EDGE's scale, fitness class, badness, and local demerits."
+     &aux (boundary (boundary (destination edge))) (stop (stop-idx boundary)))
+  "Initialize EDGE's eol, scale, fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -193,13 +251,13 @@ This class is mixed in both the graph and dynamic breakup classes."))
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
+  (setf (slot-value edge 'eol) (boundary-eol boundary harray))
   (setf (slot-value edge 'scale) (harray-scale harray start stop width))
   (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
   (setf (slot-value edge 'badness) (scale-badness (scale edge)))
-  (setf (slot-value edge 'demerits)
-	(local-demerits (badness edge)
-			(penalty (item (boundary (destination edge))))
-			*line-penalty*)))
+  (setf (slot-value edge 'demerits) (local-demerits (badness edge)
+						    (penalty (item boundary))
+						    *line-penalty*)))
 
 
 ;; -------
@@ -237,6 +295,9 @@ such as hyphen adjacency and fitness class differences between lines."
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
+	  :when ($> (eol-eq (eol edge1) (eol edge2)) 2)
+	    :do (setf (demerits layout)
+		      ($+ (demerits layout) *similar-demerits*))
 	  :when (and (hyphenated edge1) (hyphenated edge2))
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *double-hyphen-demerits*))
@@ -401,6 +462,11 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Dynamic Variant
 ;; ==========================================================================
 
+;; #### NOTE: the dynamic variant cannot check for beginning-of-line
+;; similarities, unless we make different nodes for different bol's, just like
+;; we make different nodes for different fitness classes. This would probably
+;; ruin the optimization.
+
 (defstruct (kpx-node (:constructor kpx-make-node))
   eol boundary scale fitness-class badness demerits total-demerits previous)
 
@@ -410,63 +476,6 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun key-boundary (key) (first key))
 (defun key-line (key) (second key))
 (defun key-fitness (key) (third key))
-
-
-;; #### NOTE: the dynamic variant cannot check for beginning-of-line
-;; similarities, unless we make different nodes for different bol's, just like
-;; we make different nodes for different fitness classes. This would probably
-;; ruin the optimization.
-
-;; #### WARNING: this is good enough for now, but there are many limitations
-;; to this approach to similarity.
-;; 1. Comparing character metrics works only because we use a single font.
-;; 2. Discarding kerns is probably not such a big deal, especially since we
-;;    have a single font: the same sequence of characters would entail the
-;;    same sequence of kerns.
-;; 3. We stop at the first potential break point back because we can't
-;;    remember whether it's been used by the previous line or not (although
-;;    it's very unlikely); see comment above about the dynamic optimization
-;;    constraint. This means that at least in theory, we might miss a longer
-;;    similarity sequence containing hyphenation points.
-;; 4. The only exception to this is hyphenation points with an infinite
-;;    penalty, because these are not potential break points anymore.
-;; 5. On the other hand, we also stop at blanks, including unbreakable ones.
-;;    That is because the only completely correct solution to similarity would
-;;    be to compare vertical alignments as well, and this can only be done on
-;;    lines (pinned objects) when scaling has been applied.
-;; 6. In particular, this means that similarity doesn't currently work on the
-;;    last two lines (which, at least in theory, could be both completely
-;;    justified), because of the final infinite and unbreakable glue.
-;;    #### TODO: in fact, I'm likely to remove this hack and treat the last
-;;    line in a special way, so this might render this point obsolete.
-;; 7. Finally, this approach works only on rectangular paragraphs.
-
-(defun eol (harray boundary &aux idx eol)
-  "Return the end-of-line items for an HARRAY line ending at BOUNDARY.
-This is the list of the last visible characters (including a final hyphen if
-the line is hyphenated) that lie between BOUNDARY and the previous break
-point, in reverse order."
-  (cond ((hyphenation-point-p (item boundary))
-	 (setq idx (1- (start-idx boundary)))
-	 (setq eol (retain 'tfm:character-metrics (pre-break (item boundary))
-			   :key #'type-of)))
-	(t
-	 (setq idx (1- (stop-idx boundary)))))
-  (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
-	:for item := (aref harray i)
-	:until (or (and (hyphenation-point-p item) ($< (penalty item) +∞))
-		   (break-point-p item))
-	:when (eq (type-of item) 'tfm:character-metrics) :do (push item eol))
-  (nreverse eol))
-
-(defun eol-eq (eol1 eol2)
-  "Return the number of consecutive identical elements in EOL1 and EOL2."
-  (loop :with i := 0
-	:for elt1 :in eol1
-	:for elt2 :in eol2
-	:when (eq elt1 elt2)
-	  :do (incf i)
-	:finally (return i)))
 
 
 ;; ---------------
@@ -504,7 +513,7 @@ point, in reverse order."
 				       width emergency-stretch)
 			 scale))))
 	 (when ($<= badness threshold)
-	   (let* ((eol (eol harray boundary))
+	   (let* ((eol (boundary-eol boundary harray))
 		  (fitness (scale-fitness-class scale))
 		  (demerits (local-demerits badness (penalty (item boundary))
 					    *line-penalty*))
@@ -584,7 +593,7 @@ point, in reverse order."
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
 			     fitness-class)
-		   (kpx-make-node :eol (eol harray boundary)
+		   (kpx-make-node :eol (boundary-eol boundary harray)
 				  :boundary boundary
 				  :scale scale
 				  :fitness-class fitness-class
