@@ -198,16 +198,37 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;;    line in a special way, so this might render this point obsolete.
 ;; 7. Finally, this approach works only on rectangular paragraphs.
 
+;; #### FIXME: I don't like the asymmetry between BOL and EOL here. Perhaps
+;; edges should be instantiated with a start boundary rather than just an
+;; index.
+(defun harray-bol (start harray &aux (item (aref harray start)) idx bol)
+  "Return the beginning-of-line items for an HARRAY line starting at START.
+This is the list of the first visible characters that lie between START and
+the next break point."
+  (cond ((discretionaryp item)
+	 (setq idx (1+ start))
+	 (setq bol (retain 'tfm:character-metrics (post-break item)
+			   :key #'type-of)))
+	(t
+	 (setq idx start)))
+  (append bol
+	  (loop :for i :from idx :upto (1- (length harray))
+		;;                ╰► probably terminated sooner by :until
+		:for item := (aref harray i)
+		:until (break-point-p item)
+		:when (eq (type-of item) 'tfm:character-metrics)
+		  :collect item)))
+
 (defun boundary-eol (boundary harray &aux idx eol)
   "Return the end-of-line items for an HARRAY line ending at BOUNDARY.
 This is the list of the last visible characters (including a final hyphen if
 the line is hyphenated) that lie between BOUNDARY and the previous break
 point, in reverse order."
-  (cond ((hyphenation-point-p (item boundary))
-	 (setq idx (1- (start-idx boundary)))
+  (cond ((discretionaryp (item boundary))
+	 (setq idx (- (stop-idx boundary) 2))
 	 (setq eol (retain 'tfm:character-metrics (pre-break (item boundary))
 			   :key #'type-of)))
-	(t
+	(t ; glue
 	 (setq idx (1- (stop-idx boundary)))))
   (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
 	:for item := (aref harray i)
@@ -227,7 +248,9 @@ point, in reverse order."
 ;; -----
 
 (defclass kpx-edge (edge)
-  ((eol :documentation "This edge's end-of-line items."
+  ((bol :documentation "This edge's beginning-of-line items."
+	:reader bol)
+   (eol :documentation "This edge's end-of-line items."
 	:reader eol)
    (scale :documentation "This edge's scale."
 	  :reader scale)
@@ -243,7 +266,7 @@ point, in reverse order."
     ((edge kpx-edge)
      &key harray start width
      &aux (boundary (boundary (destination edge))) (stop (stop-idx boundary)))
-  "Initialize EDGE's eol, scale, fitness class, badness, and local demerits."
+  "Initialize KPX EDGE's properties."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -252,6 +275,7 @@ point, in reverse order."
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
+  (setf (slot-value edge 'bol) (harray-bol start harray))
   (setf (slot-value edge 'eol) (boundary-eol boundary harray))
   (setf (slot-value edge 'scale) (harray-scale harray start stop width))
   (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
@@ -296,6 +320,9 @@ such as hyphen adjacency and fitness class differences between lines."
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
+	  :when ($> (compare (bol edge1) (bol edge2)) 2)
+	    :do (setf (demerits layout)
+		      ($+ (demerits layout) *similar-demerits*))
 	  :when ($> (compare (eol edge1) (eol edge2)) 2)
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *similar-demerits*))

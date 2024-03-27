@@ -23,7 +23,7 @@ items satisfying PRE-TEST are considered."
 (defun compare (seq1 seq2)
   "Compare SEQ1 and SEQ2. Return the number of consecutive identical elements."
   (loop :with i := 0
-	:for elt1 :in seq1 :for elt2 :in seq22
+	:for elt1 :in seq1 :for elt2 :in seq2
 	:when (eq elt1 elt2) :do (incf i)
 	:finally (return i)))
 
