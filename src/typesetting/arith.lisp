@@ -60,11 +60,26 @@
 	((and (eq x -∞) (eq y +∞)) -∞)
 	(t (error "Can't compute ∞ - ∞."))))
 
+(defun $* (x y)
+  "Infinity handling *."
+  (cond ((or (and (eq x +∞) (eq y +∞)) (and (eq x -∞) (eq y -∞)))
+	 +∞)
+	((or (and (eq x +∞) (eq y -∞)) (and (eq x -∞) (eq y +∞)))
+	 -∞)
+	((or (and (not (numberp x)) (zerop y))
+	     (and (zerop x) (not (numberp y))))
+	 (error "Can't compute 0 * ∞."))
+	((and (eq x +∞) (numberp y)) (if (>= y 0) +∞ -∞))
+	((and (eq x -∞) (numberp y)) (if (>= y 0) -∞ +∞))
+	((and (numberp x) (eq y +∞)) (if (>= x 0) +∞ -∞))
+	((and (numberp x) (eq y -∞)) (if (>= x 0) -∞ +∞))
+	(t (* x y))))
+
 (defun $/ (x y)
   "Infinity handling /."
   (cond ((and (not (numberp x)) (not (numberp y)))
 	 (error "Don't know how to divide ∞ by ∞."))
-	((and (numberp x) (not (numberp y))) 0) ;; note that (eql -0 0).
+	((and (numberp x) (not (numberp y))) 0) ; note that (eql -0 0)
 	((and (eq x +∞) (numberp y)) (if (>= y 0) +∞ -∞))
 	((and (eq x -∞) (numberp y)) (if (>= y 0) -∞ +∞))
 	((zerop y) (if (>= x 0) +∞ -∞))

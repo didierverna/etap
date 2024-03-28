@@ -254,6 +254,8 @@ point, in reverse order."
 	:reader eol)
    (scale :documentation "This edge's scale."
 	  :reader scale)
+   ;; #### NOTE: we're keeping this only for comparison with the dynamic
+   ;; variant which doesn't have continuous adjacency demerits computation.
    (fitness-class :documentation "This edge's fitness class."
 		  :reader fitness-class)
    (badness :documentation "This edge's badness."
@@ -314,9 +316,18 @@ point, in reverse order."
 When this function is called, LAYOUT's demerits contain only the sum of each
 line's local ones. This function handles the remaining contextual information,
 such as hyphen adjacency and fitness class differences between lines."
-  ;; See warning in KPX-CREATE-NODES about that.
-  (when (= (fitness-class (first (edges layout))) 0)
-    (setf (demerits layout) ($+ (demerits layout) *adjacent-demerits*)))
+  ;; #### NOTE: in order to stay close to the original philosophy about
+  ;; adjacency of the first line (see warning in KPX-CREATE-NODES about that),
+  ;; we do it by comparison with a scale of 0. This makes sense because the
+  ;; last line of previous paragraph would most often not be scaled.
+  ;; #### TODO: on the other hand, if we change the last line adjustment in
+  ;; KPX, as I intend to do, to equal the scaling of one-before-last line,
+  ;; the above assumption will not be true anymore. In theory, we should
+  ;; remember if there's a previous paragraph, if so, what's the scaling of
+  ;; the last line, and eventually compare to that.
+  (setf (demerits layout)
+	($+ (demerits layout)
+	    ($* ($abs (scale (first (edges layout)))) *adjacent-demerits*)))
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
@@ -329,9 +340,10 @@ such as hyphen adjacency and fitness class differences between lines."
 	  :when (and (hyphenated edge1) (hyphenated edge2))
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *double-hyphen-demerits*))
-	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
-	    :do (setf (demerits layout)
-		      ($+ (demerits layout) *adjacent-demerits*)))
+	  :do (setf (demerits layout)
+		    ($+ (demerits layout)
+			($* ($abs ($- (scale edge1) (scale edge2)))
+			    *adjacent-demerits*))))
     (when (hyphenated (nth (- (size layout) 2) (edges layout)))
       (setf (demerits layout) ($+ *final-hyphen-demerits* (demerits layout))))))
 
