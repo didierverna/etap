@@ -78,35 +78,53 @@ The weight is computed according to the discriminating function."
 	      (:minimize-scaling ($abs (scale edge))))))))
 
 
+;; ------
+;; Ledges
+;; ------
+
+(defclass duncan-ledge (ledge)
+  ((weight :documentation "The total weight so far in the layout."
+	   :reader weight))
+  (:documentation "The Duncan Ledge class."))
+
+
 ;; -------
 ;; Layouts
 ;; -------
 
+
+;; #### TODO: I'm keeping this around because those are properties we don't
+;; want to advertise, contrary to cumulative weights: the layout's total
+;; weight is in fact the weight of the last ledge. But I haven't given this a
+;; lot of thought yet.
 (defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
 	    :initform 0 :reader hyphens)
    (underfulls :documentation "This layout's number of underfull lines."
 	       :initform 0 :reader underfulls)
    (overfulls :documentation "This layout's number of overfull lines."
-	      :initform 0 :reader overfulls)
-   (weight :documentation "This layout's weight."
-	   :initform 0 :reader weight))
+	      :initform 0 :reader overfulls))
   (:documentation "The DUNCAN-LAYOUT class."))
 
+(defmethod weight ((layout duncan-layout))
+  "Return Duncan LAYOUT's weight."
+  (weight (car (last (ledges layout)))))
+
 (defmethod properties strnlcat ((layout duncan-layout))
-  "Advertise Duncan LAYOUT's weight."
+  "Advertise Duncan LAYOUT's total weight."
   (format nil "Weight: ~A." ($float (weight layout))))
 
 (defun duncan-postprocess-layout (layout)
   "Compute LAYOUT's properties."
-  (loop :for ledge :in (ledges layout)
+  (loop :with total-weight := 0
+	:for ledge :in (ledges layout)
+	:do (setq total-weight ($+ total-weight (weight (edge ledge))))
+	:do (setf (slot-value ledge 'weight) total-weight)
 	:when (hyphenated (edge ledge))
 	  :do (incf (slot-value layout 'hyphens))
 	:do (case (fitness (edge ledge))
 	      (:underfull (incf (slot-value layout 'underfulls)))
-	      (:overfull  (incf (slot-value layout 'overfulls))))
-	:do (setf (slot-value layout 'weight)
-		  ($+ (weight layout) (weight (edge ledge))))))
+	      (:overfull  (incf (slot-value layout 'overfulls))))))
 
 
 
@@ -116,15 +134,16 @@ The weight is computed according to the discriminating function."
 ;; ==========================================================================
 
 (defclass duncan-line (line)
-  ((weight :documentation "This line's weight."
-	   :initarg :weight
-	   :reader weight))
-  (:documentation "The Duncan line class.
-This class keeps track of the line's weight."))
+  ((ledge :documentation "This line's layout ledge."
+	  :initarg :ledge
+	  :reader ledge))
+  (:documentation "The Duncan line class."))
 
 (defmethod properties strnlcat ((line duncan-line))
-  "Advertise LINE's weight."
-  (format nil "Weight: ~A." ($float (weight line))))
+  "Advertise LINE's weights."
+  (format nil "Weights: ~A (line), ~A (cumulative)."
+    ($float (weight (edge (ledge line))))
+    ($float (weight (ledge line)))))
 
 
 ;; -----------------
@@ -163,7 +182,7 @@ This class keeps track of the line's weight."))
 			      :beds beds
 			      :scale theoretical
 			      :effective-scale effective
-			      :weight (weight edge))))
+			      :ledge ledge)))
 			 (t ;; just switch back to normal spacing.
 			  (make-instance 'line
 			    :harray harray :start-idx start :stop-idx stop
@@ -201,7 +220,8 @@ This class keeps track of the line's weight."))
     (multiple-value-bind (root nodes)
 	(make-graph harray width
 	  :edge-type 'duncan-edge :next-boundaries '(next-boundaries :fulls t))
-      (let ((layouts (make-layouts root :layout-type 'duncan-layout))
+      (let ((layouts (make-layouts root
+		       :layout-type 'duncan-layout :ledge-type 'duncan-ledge))
 	    breakup)
 	(mapc #'duncan-postprocess-layout layouts)
 	(labels ((perfect (layout)
