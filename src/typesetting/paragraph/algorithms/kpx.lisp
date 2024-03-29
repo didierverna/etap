@@ -331,21 +331,25 @@ such as hyphen adjacency and fitness class differences between lines."
   (when (> (length (edges layout)) 1)
     (loop :for edge1 :in (edges layout)
 	  :for edge2 :in (cdr (edges layout))
+	  :for finalp := (last-boundary-p (boundary (destination edge2)))
 	  :when ($> (compare (bol edge1) (bol edge2)) 2)
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *similar-demerits*))
-	  :when ($> (compare (eol edge1) (eol edge2)) 2)
+	  :when (and (not finalp) ($> (compare (eol edge1) (eol edge2)) 2))
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *similar-demerits*))
-	  :when (and (hyphenated edge1) (hyphenated edge2))
+	  ;; See comment in dynamic version. Do not consider very rare case
+	  ;; where the paragraph ends with an explicit hyphen.
+	  :when (and (not finalp) (hyphenated edge1) (hyphenated edge2))
 	    :do (setf (demerits layout)
 		      ($+ (demerits layout) *double-hyphen-demerits*))
+	  :when (and finalp (hyphenated edge1))
+	    :do (setf (demerits layout)
+		      ($+ *final-hyphen-demerits* (demerits layout)))
 	  :do (setf (demerits layout)
 		    ($+ (demerits layout)
 			($* ($abs ($- (scale edge1) (scale edge2)))
-			    *adjacent-demerits*))))
-    (when (hyphenated (nth (- (size layout) 2) (edges layout)))
-      (setf (demerits layout) ($+ *final-hyphen-demerits* (demerits layout))))))
+			    *adjacent-demerits*))))))
 
 
 ;; ---------------
