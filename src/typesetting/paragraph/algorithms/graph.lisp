@@ -110,23 +110,19 @@ The possible endings are listed in reverse order (from last to first)."
 ;; whistles like \parshape, the subsequent solutions would differ, depending
 ;; on the line number at which a break occurs. Therefore, the sharing would
 ;; need to take the line number as well as the boundary into account.
-(defun make-subgraph
-    (harray boundary width graph edge-type
-     next-boundaries-fn next-boundaries-args)
-  "Make a solutions subgraph for breaking HARRAY's remainder starting at
-BOUNDARY into a paragraph of WIDTH.
-
-If no line breaking solution is found, return NIL. Otherwise, return the
-subgraph's root node.
-
-This function memoizes the computed subgraphs into a GRAPH hash table."
+(defun make-subgraph (harray boundary width hash edge-type
+		      next-boundaries-fn next-boundaries-args)
+  "Make a solutions subgraph for breaking HARRAY into a paragraph of WIDTH.
+The subgraph deals with HARRAY's remainder starting at BOUNDARY. If no line
+breaking solution is found, return NIL. Otherwise, return the subgraph's root
+node. This function memoizes nodes into HASH table."
   ;; #### NOTE: the hash table may contain purposely null entries for some
   ;; keys. This indicates that an attempt at creating a sub-graph was made but
   ;; failed, so there's no point in trying again.
-  (multiple-value-bind (value found) (gethash (stop-idx boundary) graph)
+  (multiple-value-bind (value found) (gethash (stop-idx boundary) hash)
     (if found
       value
-      (setf (gethash (stop-idx boundary) graph)
+      (setf (gethash (stop-idx boundary) hash)
 	    ;; #### NOTE: this may turn out to be NIL. See comment above.
 	    (if (last-boundary-p boundary)
 	      (make-node boundary)
@@ -135,10 +131,8 @@ This function memoizes the computed subgraphs into a GRAPH hash table."
 					 harray (start-idx boundary) width
 					 next-boundaries-args)
 				 :when (make-subgraph
-					harray boundary width graph
-					edge-type
-					next-boundaries-fn
-					next-boundaries-args)
+					harray boundary width hash edge-type
+					next-boundaries-fn next-boundaries-args)
 				   :collect :it)))
 		(when nodes
 		  (make-node
@@ -158,14 +152,13 @@ Return two values: the graph's root node, and the nodes hash table. Note that
 if no breaking solution is found, the root node will have no edges."
   (unless (consp next-boundaries)
     (setq next-boundaries (list next-boundaries)))
-  (let* ((graph (make-hash-table))
+  (let* ((hash (make-hash-table))
 	 (nodes (loop :for boundary
-			:in (apply (car next-boundaries) harray 0 width
-				   (cdr next-boundaries))
-		      :when (make-subgraph harray boundary width graph
-					   edge-type
-					   (car next-boundaries)
-					   (cdr next-boundaries))
+			:in (apply (car next-boundaries)
+			      harray 0 width (cdr next-boundaries))
+		      :when (make-subgraph
+			     harray boundary width hash edge-type
+			     (car next-boundaries) (cdr next-boundaries))
 			:collect :it)))
     (values
      (make-node nil
@@ -173,7 +166,7 @@ if no breaking solution is found, the root node will have no edges."
 		 (make-instance edge-type
 		   :harray harray :start 0 :width width :destination node))
 	 nodes))
-     graph)))
+     hash)))
 
 
 
@@ -209,27 +202,26 @@ A layout represents one path from the root to the leaf node of a graph."))
     "Perform the pushing."
     (push edge (edges layout))))
 
-(defun %graph-layouts (graph layout-class layout-initargs)
-  "Return GRAPH's layouts of LAYOUT-CLASS initialized with LAYOUT-INITARGS."
+(defun %make-layouts (node layout-class layout-initargs)
+  "Make LAYOUT-CLASS layouts for a graph starting at NODE."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
 	      (mapc (lambda (layout) (push-edge edge layout))
-		(%graph-layouts
-		 (destination edge) layout-class layout-initargs))
+		(%make-layouts (destination edge) layout-class layout-initargs))
 	      (list (apply #'make-instance layout-class :edge edge
 			   layout-initargs))))
-    (edges graph)))
+    (edges node)))
 
-;; #### NOTE: this function is not supposed to be called on null graphs
+;; #### NOTE: this function is not supposed to be called on null root nodes
 ;; (coming from empty harrays), but might still return null layouts when the
 ;; graph got no solution.
-(defun graph-layouts (graph &optional (layout-type 'layout)
-			    &aux (layout-class (car-or-symbol layout-type))
-				 (layout-initargs (cdr-or-nil layout-type)))
-  "Return GRAPH's layouts of LAYOUT-TYPE.
+(defun make-layouts (root &optional (layout-type 'layout)
+			  &aux (layout-class (car-or-symbol layout-type))
+			       (layout-initargs (cdr-or-nil layout-type)))
+  "Create LAYOUT-TYPE layouts for a graph starting at ROOT node.
 LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
 form (CLASS-NAME INITARGS...)."
-  (%graph-layouts graph layout-class layout-initargs))
+  (%make-layouts root layout-class layout-initargs))
 
 
 
@@ -239,17 +231,17 @@ form (CLASS-NAME INITARGS...)."
 ;; ==========================================================================
 
 ;; #### NOTE: MAKE-GRAPH won't even be called on empty harrays. In such a
-;; case, a graph breakup (which needs to exist anyway) will have its graph,
-;; layouts, and renditions slots set to NIL. On the contrary, if the harray is
-;; not empty but no solution is found, the graph will just be an empty root
-;; node, and the layouts and renditions slots will contain arrays of size 0.
-;; In fact, the distinction between empty harrays and empty graphs is
-;; preventive only, because currently, no algorithm refuses to typeset (they
-;; all fall back to an emergency solution). But we never know...
+;; case, a graph breakup (which needs to exist anyway) will have all its slots
+;; slots set to NIL. On the contrary, if the harray is not empty but no
+;; solution is found, there will be an empty root node, and the layouts and
+;; renditions slots will contain arrays of size 0. In fact, the distinction
+;; between empty harrays and empty graphs is preventive only, because
+;; currently, no algorithm refuses to typeset (they all fall back to an
+;; emergency solution). But we never know...
 
 (defclass graph-breakup (breakup)
-  ((graph :documentation "The breakup's original graph."
-	  :initform nil :initarg :graph :reader graph)
+  ((root :documentation "The breakup's graph root node."
+	 :initform nil :initarg :root :reader root)
    (nodes :documentation "The breakup's nodes hash table."
 	  :initform nil :initarg :nodes :reader nodes)
    (layouts :documentation "The breakup's sorted layouts array."
@@ -261,7 +253,7 @@ This class is used by graph based algorithms."))
 
 (defmethod initialize-instance :after ((breakup graph-breakup) &key layouts)
   "Convert the layouts list to an array and create the renditions array."
-  (when (graph breakup)
+  (when (root breakup)
     (setf (slot-value breakup 'layouts)
 	  (make-array (length layouts) :initial-contents layouts))
     (setf (slot-value breakup 'renditions)

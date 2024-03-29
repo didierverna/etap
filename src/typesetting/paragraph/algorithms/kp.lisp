@@ -346,32 +346,32 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (make-instance 'kp-graph-breakup)
     (let ((threshold *pre-tolerance*)
 	  (pass 1)
-	  graph nodes layouts breakup)
+	  root nodes layouts breakup)
       (when ($<= 0 threshold)
-	(multiple-value-setq (graph nodes)
+	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kp-edge
 	    :next-boundaries `(kp-next-boundaries :threshold ,threshold))))
-      (unless (edges graph)
+      (unless (edges root)
 	(incf pass)
 	(setq threshold *tolerance*)
-	(multiple-value-setq (graph nodes)
+	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kp-edge
 	    :next-boundaries `(kp-next-boundaries
 			       :hyphenate t
 			       :threshold ,threshold
 			       :final ,(zerop *emergency-stretch*)))))
-      (unless (edges graph)
+      (unless (edges root)
 	(incf pass)
-	(multiple-value-setq (graph nodes)
+	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kp-edge
 	    :next-boundaries `(kp-next-boundaries
 			       :hyphenate t
 			       :threshold ,threshold
 			       :final ,*emergency-stretch*))))
-      (setq layouts (graph-layouts graph 'kp-layout))
+      (setq layouts (make-layouts root 'kp-layout))
       (mapc #'kp-postprocess-layout layouts)
       (setq layouts (sort layouts #'$< :key #'demerits))
       (unless (zerop *looseness*)
@@ -381,7 +381,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 						  (abs (- size2 ideal-size))))
 				     :key #'size))))
       (setq breakup (make-instance 'kp-graph-breakup
-		      :pass pass :graph graph :nodes nodes :layouts layouts))
+		      :root root :nodes nodes :layouts layouts :pass pass))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
       ;; could instead check for multiple such layouts and take the last one.
