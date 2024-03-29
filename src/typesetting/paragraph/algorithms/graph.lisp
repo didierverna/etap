@@ -202,26 +202,21 @@ A layout represents one path from the root to the leaf node of a graph."))
     "Perform the pushing."
     (push edge (edges layout))))
 
-(defun %make-layouts (node layout-class layout-initargs)
-  "Make LAYOUT-CLASS layouts for a graph starting at NODE."
+(defun %make-layouts (node layout-type)
+  "Make all LAYOUT-TYPE layouts for a graph starting at ROOT node."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
 	      (mapc (lambda (layout) (push-edge edge layout))
-		(%make-layouts (destination edge) layout-class layout-initargs))
-	      (list (apply #'make-instance layout-class :edge edge
-			   layout-initargs))))
+		(%make-layouts (destination edge) layout-type))
+	      (list (make-instance layout-type :edge edge))))
     (edges node)))
 
 ;; #### NOTE: this function is not supposed to be called on null root nodes
 ;; (coming from empty harrays), but might still return null layouts when the
 ;; graph got no solution.
-(defun make-layouts (root &optional (layout-type 'layout)
-			  &aux (layout-class (car-or-symbol layout-type))
-			       (layout-initargs (cdr-or-nil layout-type)))
-  "Create LAYOUT-TYPE layouts for a graph starting at ROOT node.
-LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
-form (CLASS-NAME INITARGS...)."
-  (%make-layouts root layout-class layout-initargs))
+(defun make-layouts (root &optional (layout-type 'layout))
+  "Make all layouts for a graph starting at ROOT node."
+  (%make-layouts root layout-type))
 
 
 
