@@ -209,10 +209,10 @@ This class keeps track of the line's weight."))
     ;; of fit, we reduce the number of subsequent *fulls. I hope that if it's
     ;; possible, it would only affect very rare cases. But this should be
     ;; experimented.
-    (multiple-value-bind (graph nodes)
+    (multiple-value-bind (root nodes)
 	(make-graph harray width
 	  :edge-type 'duncan-edge :next-boundaries '(next-boundaries :fulls t))
-      (let ((layouts (graph-layouts graph 'duncan-layout))
+      (let ((layouts (make-layouts root 'duncan-layout))
 	    breakup)
 	(labels ((perfect (layout)
 		   (and (zerop (hyphens layout))
@@ -246,9 +246,8 @@ This class keeps track of the line's weight."))
 			    (< (+ (underfulls l1) (overfulls l1))
 			       (+ (underfulls l2) (overfulls l2)))))))
 	  (setq layouts (sort layouts #'better)))
-	(setq breakup
-	      (make-instance 'graph-breakup
-		:nodes nodes :graph graph :layouts layouts))
+	(setq breakup (make-instance 'graph-breakup
+			:root root :nodes nodes :layouts layouts))
 	(unless (zerop (length layouts))
 	  (setf (aref (renditions breakup) 0)
 		(duncan-pin-layout harray disposition width beds
