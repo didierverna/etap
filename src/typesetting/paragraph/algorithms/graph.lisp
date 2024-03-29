@@ -179,11 +179,24 @@ if no breaking solution is found, the root node will have no edges."
 ;; Layouts
 ;; ==========================================================================
 
+;; ------
+;; Ledges
+;; ------
+
 ;; A "ledge" is a Layout Edge. That's convenient ;-)
 (defclass ledge ()
   ((edge :documentation "The corresponding graph edge."
 	 :initarg :edge :reader edge))
   (:documentation "The LEDGE class."))
+
+(defmethod hyphenated ((ledge ledge))
+  "Return LEDGE's hyphenation status."
+  (hyphenated (edge ledge)))
+
+
+;; -------
+;; Layouts
+;; -------
 
 (defclass layout ()
   ((ledges :documentation "The list of ledges from one break to the next."
@@ -214,6 +227,22 @@ A layout represents one path from the root to the leaf node of a graph."))
 (defun make-layouts (root &key (layout-type 'layout) (ledge-type 'ledge))
   "Make all layouts for a graph starting at ROOT node."
   (%make-layouts root layout-type ledge-type))
+
+
+
+
+;; ==========================================================================
+;; Graph Lines
+;; ==========================================================================
+
+(defclass graph-line (line)
+  ((ledge :documentation "This line's corresponding ledge."
+	  :initarg :ledge :reader ledge))
+  (:documentation "The Graph Line class."))
+
+(defmethod properties strnlcat ((line graph-line))
+  "Advertise LINE's ledge properties."
+  (properties (ledge line)))
 
 
 

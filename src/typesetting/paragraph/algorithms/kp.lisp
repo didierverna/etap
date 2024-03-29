@@ -179,6 +179,16 @@ This class is mixed in both the graph and dynamic breakup classes."))
 	     :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
 
+(defmethod properties strnlcat ((ledge kp-ledge))
+  "Advertise Knuth-Plass LEDGE properties."
+  (format nil "Fitness class: ~A.~@
+	       Badness: ~A.~@
+	       Demerits: ~A (local), ~A (cumulative)."
+    (fitness-class-name (fitness-class (edge ledge)))
+    ($float (badness (edge ledge)))
+    ($float (demerits (edge ledge)))
+    ($float (demerits ledge))))
+
 
 ;; -------
 ;; Layouts
@@ -215,12 +225,10 @@ such as hyphen adjacency and fitness class differences between lines."
 	  ;; See comment in dynamic version. Do not consider very rare case
 	  ;; where the paragraph ends with an explicit hyphen.
 	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
-	  :when (and (not finalp)
-		     (hyphenated (edge ledge1))
-		     (hyphenated (edge ledge2)))
+	  :when (and (not finalp) (hyphenated ledge1) (hyphenated ledge2))
 	    :do (setq total-demerits
 		      ($+ total-demerits *double-hyphen-demerits*))
-	  :when (and finalp (hyphenated (edge ledge1)))
+	  :when (and finalp (hyphenated ledge1))
 	    :do (setf total-demerits
 		      ($+ total-demerits *final-hyphen-demerits*))
 	  :when (> (abs (- (fitness-class (edge ledge1))
@@ -270,22 +278,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines computation
 ;; -----------------
 
-(defclass kp-graph-line (line)
-  ((ledge :documentation "This line's layout ledge."
-	  :initarg :ledge
-	  :reader ledge))
-  (:documentation "The Knuth-Plass Graph Line class."))
-
-(defmethod properties strnlcat ((line kp-graph-line))
-  "Advertise LINE's fitness class, badness, and local / total demerits."
-  (format nil "Fitness class: ~A.~@
-	       Badness: ~A.~@
-	       Demerits: ~A (local), ~A (cumulative)."
-    (fitness-class-name (fitness-class (edge (ledge line))))
-    ($float (badness (edge (ledge line))))
-    ($float (demerits (edge (ledge line))))
-    ($float (demerits (ledge line)))))
-
 (defun kp-pin-layout (harray disposition width beds layout pass)
   "Pin Knuth-Plass LAYOUT from HARRAY for a DISPOSITION paragraph."
   (when layout
@@ -315,7 +307,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				:stretch-tolerance stretch-tolerance
 				:overshrink overshrink
 				:overstretch t)
-			    (make-instance 'kp-graph-line
+			    (make-instance 'graph-line
 			      :harray harray :start-idx start :stop-idx stop
 			      :beds beds
 			      :scale theoretical :effective-scale effective

@@ -87,6 +87,12 @@ The weight is computed according to the discriminating function."
 	   :reader weight))
   (:documentation "The Duncan Ledge class."))
 
+(defmethod properties strnlcat ((ledge duncan-ledge))
+  "Advertise Duncan LEDGE properties."
+  (format nil "Weights: ~A (line), ~A (cumulative)."
+    ($float (weight (edge ledge)))
+    ($float (weight ledge))))
+
 
 ;; -------
 ;; Layouts
@@ -111,7 +117,7 @@ The weight is computed according to the discriminating function."
   (weight (car (last (ledges layout)))))
 
 (defmethod properties strnlcat ((layout duncan-layout))
-  "Advertise Duncan LAYOUT's total weight."
+  "Advertise Duncan LAYOUT properties."
   (format nil "Weight: ~A." ($float (weight layout))))
 
 (defun duncan-postprocess-layout (layout)
@@ -120,7 +126,7 @@ The weight is computed according to the discriminating function."
 	:for ledge :in (ledges layout)
 	:do (setq total-weight ($+ total-weight (weight (edge ledge))))
 	:do (setf (slot-value ledge 'weight) total-weight)
-	:when (hyphenated (edge ledge))
+	:when (hyphenated ledge)
 	  :do (incf (slot-value layout 'hyphens))
 	:do (case (fitness (edge ledge))
 	      (:underfull (incf (slot-value layout 'underfulls)))
@@ -132,23 +138,6 @@ The weight is computed according to the discriminating function."
 ;; ==========================================================================
 ;; Lines
 ;; ==========================================================================
-
-(defclass duncan-line (line)
-  ((ledge :documentation "This line's layout ledge."
-	  :initarg :ledge
-	  :reader ledge))
-  (:documentation "The Duncan line class."))
-
-(defmethod properties strnlcat ((line duncan-line))
-  "Advertise LINE's weights."
-  (format nil "Weights: ~A (line), ~A (cumulative)."
-    ($float (weight (edge (ledge line))))
-    ($float (weight (ledge line)))))
-
-
-;; -----------------
-;; Lines computation
-;; -----------------
 
 (defun duncan-pin-layout (harray disposition width beds layout)
   "Pin Duncan LAYOUT from HARRAY for a DISPOSITION paragraph."
@@ -177,7 +166,7 @@ The weight is computed according to the discriminating function."
 				(actual-scales scale
 				  :overshrink overshrink
 				  :overstretch overstretch))
-			    (make-instance 'duncan-line
+			    (make-instance 'graph-line
 			      :harray harray :start-idx start :stop-idx stop
 			      :beds beds
 			      :scale theoretical
@@ -192,7 +181,6 @@ The weight is computed according to the discriminating function."
 		      (:centered (/ (- width (width line)) 2))
 		      (:flush-right (- width (width line))))
 	  :collect (pin-line line x y))))
-
 
 
 
