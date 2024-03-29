@@ -508,6 +508,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					 (car last-deactivated-node)))
 				       (stop-idx boundary)
 				       width))
+		  (badness (scale-badness scale))
 		  (fitness-class (scale-fitness-class scale)))
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
@@ -515,11 +516,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		   (kp-make-node :boundary boundary
 				 :scale scale
 				 :fitness-class fitness-class
+				 :badness badness
 				 ;; #### NOTE: in this situation, TeX sets the
 				 ;; local demerits to 0 (#855) by checking the
 				 ;; artificial_demerits flag. So we just
 				 ;; re-use the previous total.
-				 :badness 0
 				 :demerits 0
 				 :total-demerits (kp-node-total-demerits
 						  (cdr last-deactivated-node))
