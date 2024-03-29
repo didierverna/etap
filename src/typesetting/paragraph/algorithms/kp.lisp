@@ -170,9 +170,12 @@ This class is mixed in both the graph and dynamic breakup classes."))
   (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
   (setf (slot-value edge 'badness) (scale-badness (scale edge)))
   (setf (slot-value edge 'demerits)
-	(local-demerits (badness edge)
-			(penalty (item (boundary (destination edge))))
-			*line-penalty*)))
+	;; See comment in the dynamic version about this.
+	(if (numberp (badness edge))
+	  (local-demerits (badness edge)
+			  (penalty (item (boundary (destination edge))))
+			  *line-penalty*)
+	  0)))
 
 (defclass kp-ledge (ledge)
   ((demerits :documentation "The total demerits so far in the layout."
@@ -195,7 +198,9 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -------
 
 (defclass kp-layout (layout)
-  ((size :documentation "This layout's size (i.e. the number of lines)."
+  ((bads :documentation "The number of bad lines in this layout."
+	 :initform 0 :reader bads)
+   (size :documentation "This layout's size (i.e. the number of lines)."
 	 :accessor size))
   (:documentation "The KP-LAYOUT class."))
 
@@ -209,19 +214,20 @@ This class is mixed in both the graph and dynamic breakup classes."))
 
 (defun kp-postprocess-layout
     (layout &aux (total-demerits (demerits (edge (first (ledges layout))))))
-  "Finish computing LAYOUT's total demerits.
-When this function is called, LAYOUT's demerits contain only the sum of each
-line's local ones. This function handles the remaining contextual information,
-such as hyphen adjacency and fitness class differences between lines."
+  "Compute LAYOUT's properties."
   ;; See warning in KP-CREATE-NODES about that.
   (when (= (fitness-class (edge (first (ledges layout)))) 0)
     (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
   (setf (slot-value (first (ledges layout)) 'demerits) total-demerits)
+  (unless (numberp (badness (edge (first (ledges layout)))))
+    (incf (slot-value layout 'bads)))
   (when (> (length (ledges layout)) 1)
     (loop :for ledge1 :in (ledges layout)
 	  :for ledge2 :in (cdr (ledges layout))
 	  :for finalp
 	    := (last-boundary-p (boundary (destination (edge ledge2))))
+	  :unless (numberp (badness (edge ledge2)))
+	    :do (incf (slot-value layout 'bads))
 	  ;; See comment in dynamic version. Do not consider very rare case
 	  ;; where the paragraph ends with an explicit hyphen.
 	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
@@ -365,7 +371,18 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       (setq layouts (make-layouts root
 		      :layout-type 'kp-layout :ledge-type 'kp-ledge))
       (mapc #'kp-postprocess-layout layouts)
-      (setq layouts (sort layouts #'$< :key #'demerits))
+      ;; #### WARNING: in order to remain consistent with TeX, and as in the
+      ;; dynamic version, an unfit line will have its demerits set to 0.
+      ;; Contrary to the dynamic version however, the final pass may offer a
+      ;; graph in which there are both fit and unfit possibilities, and it may
+      ;; even turn out that an unfit one has fewer demerits than a fit one
+      ;; (because of the zero'ed lines). Consequently, the layouts must be
+      ;; sorted by number of bads first, and demerits next.
+      (setq layouts
+	    (sort layouts (lambda (l1 l2)
+			    (or (< (bads l1) (bads l2))
+				(and (= (bads l1) (bads l2))
+				     (< (demerits l1) (demerits l2)))))))
       (unless (zerop *looseness*)
 	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
 	  (setq layouts (stable-sort layouts (lambda (size1 size2)
@@ -375,13 +392,16 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       (setq breakup (make-instance 'kp-graph-breakup
 		      :root root :nodes nodes :layouts layouts :pass pass))
       ;; #### WARNING: by choosing the first layout here, we're doing the
-      ;; opposite of what TeX does in case of total demerits equality. We
-      ;; could instead check for multiple such layouts and take the last one.
-      ;; On the other hand, while we're using a hash table in the dynamic
-      ;; programming implementation, we're not doing exactly what TeX does
-      ;; either, so there's no rush. It's still important to keep that in mind
-      ;; however, because that explains while we may end up with different
-      ;; solutions between the graph and the dynamic versions.
+      ;; opposite of what TeX does in case of total demerits equality
+      ;; (extremely rare), or when there's no solution and we resort to
+      ;; overfulls, because TeX restores the last deactivated node (so the
+      ;; last seen (im)possibility. We could instead check for multiple
+      ;; equivalent layouts and take the last one. On the other hand, while
+      ;; we're using a hash table in the dynamic programming implementation,
+      ;; we're not doing exactly what TeX does either, so there's no rush.
+      ;; It's still important to keep that in mind however, because that
+      ;; explains while we may end up with different solutions between the
+      ;; graph and the dynamic versions.
       (setf (aref (renditions breakup) 0)
 	    (kp-pin-layout harray disposition width beds (first layouts)
 			   pass))
