@@ -49,6 +49,10 @@ representation of paragraph breaking."))
 ;; Edges
 ;; -----
 
+;; #### NOTE: because graphs share nodes across different solutions, edges
+;; cannot make assumptions about the whole path, previous or next edge. That
+;; is why layouts use another data structure to represent edges.
+
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
 		:initarg :destination
@@ -175,48 +179,41 @@ if no breaking solution is found, the root node will have no edges."
 ;; Layouts
 ;; ==========================================================================
 
-;; #### FIXME: it is not powerful enough to use graph edges when creating
-;; layouts. An edge can be used in multiple graph paths, so it cannot store
-;; path-specific information. In a layout however, an edge is "frozen" to a
-;; particular path.
-
-;; In the KP algorithm for example, edges can only contain local demerits,
-;; including line penalties but no adjacent, double, or final hyphen demerits.
-;; Not even KP-POSTPOCESS-LAYOUT can handle those, as the edges are still
-;; shared. As a result, the graph code creating kp lines can only advertise
-;; local demerits, without the aforementioned contextual penalties.
+;; A "ledge" is a Layout Edge. That's convenient ;-)
+(defclass ledge ()
+  ((edge :documentation "The corresponding graph edge."
+	 :initarg :edge :reader edge))
+  (:documentation "The LEDGE class."))
 
 (defclass layout ()
-  ((edges :documentation "The list of edges from one break to the next."
-	  :accessor edges))
+  ((ledges :documentation "The list of ledges from one break to the next."
+	   :accessor ledges))
   (:documentation "The LAYOUT class.
 A layout represents one path from the root to the leaf node of a graph."))
 
-(defmethod initialize-instance :before ((layout layout) &key edge)
-  "Initialize LAYOUT's edges with the the first EDGE."
-  (setf (slot-value layout 'edges) (list edge)))
+(defmethod initialize-instance :before ((layout layout) &key edge ledge-type)
+  "Initialize LAYOUT's ledges with the terminal EDGE."
+  (setf (slot-value layout 'ledges)
+	(list (make-instance ledge-type :edge edge))))
 
-(defgeneric push-edge (edge layout)
-  (:documentation "Push EDGE on LAYOUT.")
-  (:method (edge layout)
-    "Perform the pushing."
-    (push edge (edges layout))))
-
-(defun %make-layouts (node layout-type)
-  "Make all LAYOUT-TYPE layouts for a graph starting at ROOT node."
+(defun %make-layouts (node layout-type ledge-type)
+  "Make all LAYOUT-TYPE / LEDGE-TYPE layouts for a graph starting at ROOT node."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
-	      (mapc (lambda (layout) (push-edge edge layout))
-		(%make-layouts (destination edge) layout-type))
-	      (list (make-instance layout-type :edge edge))))
+	      (mapc (lambda (layout)
+		      (push (make-instance ledge-type :edge edge)
+			    (ledges layout)))
+		(%make-layouts (destination edge) layout-type ledge-type))
+	      (list (make-instance layout-type
+		      :edge edge :ledge-type ledge-type))))
     (edges node)))
 
 ;; #### NOTE: this function is not supposed to be called on null root nodes
 ;; (coming from empty harrays), but might still return null layouts when the
 ;; graph got no solution.
-(defun make-layouts (root &optional (layout-type 'layout))
+(defun make-layouts (root &key (layout-type 'layout) (ledge-type 'ledge))
   "Make all layouts for a graph starting at ROOT node."
-  (%make-layouts root layout-type))
+  (%make-layouts root layout-type ledge-type))
 
 
 

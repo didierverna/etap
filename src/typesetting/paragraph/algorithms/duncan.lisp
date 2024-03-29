@@ -84,33 +84,29 @@ The weight is computed according to the discriminating function."
 
 (defclass duncan-layout (layout)
   ((hyphens :documentation "This layout's number of hyphenated lines."
-	    :accessor hyphens)
+	    :initform 0 :reader hyphens)
    (underfulls :documentation "This layout's number of underfull lines."
-	       :accessor underfulls)
+	       :initform 0 :reader underfulls)
    (overfulls :documentation "This layout's number of overfull lines."
-	      :accessor overfulls)
+	      :initform 0 :reader overfulls)
    (weight :documentation "This layout's weight."
-	   :accessor weight))
+	   :initform 0 :reader weight))
   (:documentation "The DUNCAN-LAYOUT class."))
-
-(defmethod initialize-instance :after ((layout duncan-layout) &key edge)
-  "Initialize Duncan LAYOUT's properties."
-  (setf (hyphens layout) (if (hyphenated edge) 1 0)
-	(underfulls layout) (if (eq (fitness edge) :underfull) 1 0)
-	(overfulls layout) (if (eq (fitness edge) :overfull) 1 0)
-	(weight layout) (weight edge)))
 
 (defmethod properties strnlcat ((layout duncan-layout))
   "Advertise Duncan LAYOUT's weight."
   (format nil "Weight: ~A." ($float (weight layout))))
 
-(defmethod push-edge :after (edge (layout duncan-layout))
-  "Update Duncan LAYOUT's properties after pushing EDGE to it."
-  (when (hyphenated edge) (incf (hyphens layout)))
-  (case (fitness edge)
-    (:underfull (incf (underfulls layout)))
-    (:overfull (incf (overfulls layout))))
-  (setf (weight layout) ($+ (weight layout) (weight edge))))
+(defun duncan-postprocess-layout (layout)
+  "Compute LAYOUT's properties."
+  (loop :for ledge :in (ledges layout)
+	:when (hyphenated (edge ledge))
+	  :do (incf (slot-value layout 'hyphens))
+	:do (case (fitness (edge ledge))
+	      (:underfull (incf (slot-value layout 'underfulls)))
+	      (:overfull  (incf (slot-value layout 'overfulls))))
+	:do (setf (slot-value layout 'weight)
+		  ($+ (weight layout) (weight (edge ledge))))))
 
 
 
@@ -144,7 +140,8 @@ This class keeps track of the line's weight."))
 	  :with disposition := (disposition-type disposition)
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
-	  :for edge :in (edges layout)
+	  :for ledge :in (ledges layout)
+	  :for edge := (edge ledge)
 	  :and start := 0 :then (start-idx (boundary (destination edge)))
 	  :for stop := (stop-idx (boundary (destination edge)))
 	  :for scale = (scale edge)
@@ -204,8 +201,9 @@ This class keeps track of the line's weight."))
     (multiple-value-bind (root nodes)
 	(make-graph harray width
 	  :edge-type 'duncan-edge :next-boundaries '(next-boundaries :fulls t))
-      (let ((layouts (make-layouts root 'duncan-layout))
+      (let ((layouts (make-layouts root :layout-type 'duncan-layout))
 	    breakup)
+	(mapc #'duncan-postprocess-layout layouts)
 	(labels ((perfect (layout)
 		   (and (zerop (hyphens layout))
 			(zerop (underfulls layout))
@@ -217,9 +215,9 @@ This class keeps track of the line's weight."))
 		 (misfit (layout)
 		   (or (not (zerop (underfulls layout)))
 		       (not (zerop (overfulls layout)))))
-		 (better (l1 l2) ;; The Almighty Duncan Sorting Function! ####
-		   ;; NOTE: no need for extended arithmetic when comparing
-		   ;; weights below.
+		 (better (l1 l2) ;; The Almighty Duncan Sorting Function!
+		   ;; #### NOTE: no need for extended arithmetic when
+		   ;; comparing weights below.
 		   (or (and (perfect l1)
 			    (perfect l2)
 			    (< (weight l1) (weight l2)))
