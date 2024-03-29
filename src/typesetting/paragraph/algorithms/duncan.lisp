@@ -41,10 +41,6 @@
 ;; Edges
 ;; -----
 
-;; #### NOTE: we handle the weights below with extended arithmetic, but this
-;; is in fact not necessary because they're only used with actual solutions
-;; (hence, for which the scaling would be numerical).
-
 (defclass duncan-edge (edge)
   ((fitness :documentation "This edge's fitness status.
 Possible values are :underfull, :fit, and :overfull."
@@ -69,17 +65,13 @@ The weight is computed according to the discriminating function."
 		((> min width) :overfull)
 		(t :fit)))
     (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
+    ;; #### NOTE: a fit last line (which, in fact, can be underfull as
+    ;; mentioned above) needs a special treatment here. We won't consider its
+    ;; weight at all because it's not justified. On the other hand, if the
+    ;; last line is overfull, then it's bad and we need to take its weight
+    ;; into account.
     (setf (slot-value edge 'weight)
 	  (if (and last-line-p (eq (fitness edge) :fit))
-	    ;; #### NOTE: a fit last line (which, in fact, can be underfull as
-	    ;; mentioned above) needs a special treatment here. We won't
-	    ;; consider its weight at all because it's not justified. We
-	    ;; /could/ consider a "Minimize Distance" weight, meaning that we
-	    ;; would favor solutions with a last line as close to the
-	    ;; paragraph width as possible. But that is not necessarily a good
-	    ;; thing as it would affect the choice of the other lines. On the
-	    ;; other hand, if the last line is overfull, then it's bad and we
-	    ;; need to take its weight into account.
 	    0
 	    (ecase *discriminating-function*
 	      (:minimize-distance (abs (- width natural)))
@@ -110,7 +102,7 @@ The weight is computed according to the discriminating function."
 
 (defmethod properties strnlcat ((layout duncan-layout))
   "Advertise Duncan LAYOUT's weight."
-  (format nil "Weight: ~A." (float (weight layout))))
+  (format nil "Weight: ~A." ($float (weight layout))))
 
 (defmethod push-edge :after (edge (layout duncan-layout))
   "Update Duncan LAYOUT's properties after pushing EDGE to it."
