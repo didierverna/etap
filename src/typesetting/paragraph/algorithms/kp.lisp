@@ -157,7 +157,8 @@ This class is mixed in both the graph and dynamic breakup classes."))
     ((edge kp-edge)
      &key harray start width
      &aux (stop (stop-idx (boundary (destination edge)))))
-  "Initialize EDGE's scale, fitness class, badness, and local demerits."
+  "Initialize Knuth-Plass EDGE's properties.
+These are scale, fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -228,14 +229,14 @@ This class is mixed in both the graph and dynamic breakup classes."))
 	    := (last-boundary-p (boundary (destination (edge ledge2))))
 	  :unless (numberp (badness (edge ledge2)))
 	    :do (incf (slot-value layout 'bads))
+	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
 	  ;; See comment in dynamic version. Do not consider very rare case
 	  ;; where the paragraph ends with an explicit hyphen.
-	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
 	  :when (and (not finalp) (hyphenated ledge1) (hyphenated ledge2))
 	    :do (setq total-demerits
 		      ($+ total-demerits *double-hyphen-demerits*))
 	  :when (and finalp (hyphenated ledge1))
-	    :do (setf total-demerits
+	    :do (setq total-demerits
 		      ($+ total-demerits *final-hyphen-demerits*))
 	  :when (> (abs (- (fitness-class (edge ledge1))
 			   (fitness-class (edge ledge2))))
@@ -465,11 +466,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					    *line-penalty*))
 		  (total-demerits ($+ (kp-node-total-demerits node)
 				      demerits)))
-	     ;; #### FIXME: for now, all contextual penalties affect the total
-	     ;; demerits only below. This is to remain consistent with the
-	     ;; graph implementation, and is due to a limitation in the
-	     ;; layouts design. See the related comment in the layouts section
-	     ;; of graph.lisp.
 	     (when (> (abs (- fitness previous-fitness)) 1)
 	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
 	     ;; #### NOTE: according to #859, TeX doesn't consider the
@@ -624,7 +620,7 @@ through the algorithm in the TeX jargon).
   (:documentation "The Knuth-Plass Dynamic Line class."))
 
 (defmethod properties strnlcat ((line kp-dynamic-line))
-  "Advertise Knuth-Plass dynamci LINE's fitness class, badness, and demerits."
+  "Advertise Knuth-Plass dynamic LINE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~@
 	       Badness: ~A.~@
 	       Demerits: ~A (local), ~A (cunulative)."
