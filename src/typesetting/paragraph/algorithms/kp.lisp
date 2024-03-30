@@ -128,7 +128,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; 0 means that the harray was empty.
 (defmethod properties strnlcat
     ((mixin kp-breakup-mixin) &aux (pass (pass mixin)))
-  "Advertise TeX's algorithm pass number and total demerits."
+  "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
 
@@ -183,7 +183,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
   (:documentation "The Knuth-Plass Ledge class."))
 
 (defmethod properties strnlcat ((ledge kp-ledge))
-  "Advertise Knuth-Plass LEDGE properties."
+  "Advertise Knuth-Plass LEDGE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~@
 	       Badness: ~A.~@
 	       Demerits: ~A (local), ~A (cumulative)."
@@ -617,15 +617,21 @@ through the algorithm in the TeX jargon).
 	    :reader badness)
    (demerits :documentation "This line's local demerits."
 	     :initarg :demerits
-	     :reader demerits))
+	     :reader demerits)
+   (total-demerits :documentation "The total demerits so far."
+		   :initarg :total-demerits
+		   :reader total-demerits))
   (:documentation "The Knuth-Plass Dynamic Line class."))
 
 (defmethod properties strnlcat ((line kp-dynamic-line))
-  "Advertise LINE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
+  "Advertise Knuth-Plass dynamci LINE's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A.~@
+	       Badness: ~A.~@
+	       Demerits: ~A (local), ~A (cunulative)."
     (fitness-class-name (fitness-class line))
     ($float (badness line))
-    ($float (demerits line))))
+    ($float (demerits line))
+    ($float (total-demerits line))))
 
 (defun kp-dynamic-pin-node (harray disposition width beds node pass)
   "Pin Knuth-Plass NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
@@ -671,7 +677,8 @@ through the algorithm in the TeX jargon).
 			:effective-scale effective
 			:fitness-class (kp-node-fitness-class end)
 			:badness (kp-node-badness end)
-			:demerits (kp-node-demerits end)))
+			:demerits (kp-node-demerits end)
+			:total-demerits (kp-node-total-demerits end)))
 		    (make-instance 'line
 		      :harray harray :start-idx start :stop-idx stop
 		      :beds beds))
@@ -719,10 +726,10 @@ through the algorithm in the TeX jargon).
 (defmethod properties strnlcat
     ((breakup kp-dynamic-breakup)
      &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
-  "Advertise the number of remaining active nodes."
+  "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
   (unless (zerop nodes-#)
     (format nil "Demerits: ~A~@
-	       From ~A remaining active node~:P."
+		 Remaining active nodes: ~A."
       ($float (kp-node-total-demerits (aref nodes 0)))
       nodes-#)))
 
