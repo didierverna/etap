@@ -114,30 +114,6 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
 
 
-;; -------------------
-;; Line specialization
-;; -------------------
-
-(defclass kp-line (line)
-  ((fitness-class :documentation "This line's fitness class."
-		  :initarg :fitness-class
-		  :reader fitness-class)
-   (badness :documentation "This line's badness."
-	    :initarg :badness
-	    :reader badness)
-   (demerits :documentation "This line's local demerits."
-	     :initarg :demerits
-	     :reader demerits))
-  (:documentation "The Knuth-Plass line class."))
-
-(defmethod properties strnlcat ((line kp-line))
-  "Advertise LINE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~%Badness: ~A.~%Demerits: ~A."
-    (fitness-class-name (fitness-class line))
-    ($float (badness line))
-    ($float (demerits line))))
-
-
 ;; ----------------------
 ;; Breakup specialization
 ;; ----------------------
@@ -152,7 +128,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; 0 means that the harray was empty.
 (defmethod properties strnlcat
     ((mixin kp-breakup-mixin) &aux (pass (pass mixin)))
-  "Advertise TeX's algorithm pass number and total demerits."
+  "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
 
@@ -194,9 +170,27 @@ This class is mixed in both the graph and dynamic breakup classes."))
   (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
   (setf (slot-value edge 'badness) (scale-badness (scale edge)))
   (setf (slot-value edge 'demerits)
-	(local-demerits (badness edge)
-			(penalty (item (boundary (destination edge))))
-			*line-penalty*)))
+	;; See comment in the dynamic version about this.
+	(if (numberp (badness edge))
+	  (local-demerits (badness edge)
+			  (penalty (item (boundary (destination edge))))
+			  *line-penalty*)
+	  0)))
+
+(defclass kp-ledge (ledge)
+  ((demerits :documentation "The total demerits so far in the layout."
+	     :reader demerits))
+  (:documentation "The Knuth-Plass Ledge class."))
+
+(defmethod properties strnlcat ((ledge kp-ledge))
+  "Advertise Knuth-Plass LEDGE's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A.~@
+	       Badness: ~A.~@
+	       Demerits: ~A (local), ~A (cumulative)."
+    (fitness-class-name (fitness-class (edge ledge)))
+    ($float (badness (edge ledge)))
+    ($float (demerits (edge ledge)))
+    ($float (demerits ledge))))
 
 
 ;; -------
@@ -204,48 +198,52 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -------
 
 (defclass kp-layout (layout)
-  ((size :documentation "This layout's size (i.e. the number of lines)."
-	 :accessor size)
-   (demerits :documentation "This layout's total demerits."
-	     :accessor demerits))
+  ((bads :documentation "The number of bad lines in this layout."
+	 :initform 0 :reader bads)
+   (size :documentation "This layout's size (i.e. the number of lines)."
+	 :accessor size))
   (:documentation "The KP-LAYOUT class."))
 
-(defmethod initialize-instance :after ((layout kp-layout)  &key edge)
-  "Initialize LAYOUT's size to 1 and demerits to its last EDGE's."
-  (setf (size layout) 1 (demerits layout) (demerits edge)))
+(defmethod demerits ((layout kp-layout))
+  "Return Knuth-Plass LAYOUT's demerits."
+  (demerits (car (last (ledges layout)))))
 
 (defmethod properties strnlcat ((layout kp-layout))
   "Advertise Knuth-Plass LAYOUT's demerits."
   (format nil "Demerits: ~A." ($float (demerits layout))))
 
-(defmethod push-edge :after (edge (layout kp-layout))
-  "Increase LAYOUT size by 1 and demerits with EDGE's."
-  (incf (size layout))
-  (setf (demerits layout) ($+ (demerits layout) (demerits edge))))
-
-(defun kp-postprocess-layout (layout)
-  "Finish computing LAYOUT's total demerits.
-When this function is called, LAYOUT's demerits contain only the sum of each
-line's local ones. This function handles the remaining contextual information,
-such as hyphen adjacency and fitness class differences between lines."
+(defun kp-postprocess-layout
+    (layout &aux (total-demerits (demerits (edge (first (ledges layout))))))
+  "Compute LAYOUT's properties."
   ;; See warning in KP-CREATE-NODES about that.
-  (when (= (fitness-class (first (edges layout))) 0)
-    (setf (demerits layout) ($+ (demerits layout) *adjacent-demerits*)))
-  (when (> (length (edges layout)) 1)
-    (loop :for edge1 :in (edges layout)
-	  :for edge2 :in (cdr (edges layout))
-	  :for finalp := (last-boundary-p (boundary (destination edge2)))
+  (when (= (fitness-class (edge (first (ledges layout)))) 0)
+    (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
+  (setf (slot-value (first (ledges layout)) 'demerits) total-demerits)
+  (unless (numberp (badness (edge (first (ledges layout)))))
+    (incf (slot-value layout 'bads)))
+  (when (> (length (ledges layout)) 1)
+    (loop :for ledge1 :in (ledges layout)
+	  :for ledge2 :in (cdr (ledges layout))
+	  :for finalp
+	    := (last-boundary-p (boundary (destination (edge ledge2))))
+	  :unless (numberp (badness (edge ledge2)))
+	    :do (incf (slot-value layout 'bads))
 	  ;; See comment in dynamic version. Do not consider very rare case
 	  ;; where the paragraph ends with an explicit hyphen.
-	  :when (and (not finalp) (hyphenated edge1) (hyphenated edge2))
-	    :do (setf (demerits layout)
-		      ($+ (demerits layout) *double-hyphen-demerits*))
-	  :when (and finalp (hyphenated edge1))
-	    :do (setf (demerits layout)
-		      ($+ *final-hyphen-demerits* (demerits layout)))
-	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
-	    :do (setf (demerits layout)
-		      ($+ (demerits layout) *adjacent-demerits*)))))
+	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
+	  :when (and (not finalp) (hyphenated ledge1) (hyphenated ledge2))
+	    :do (setq total-demerits
+		      ($+ total-demerits *double-hyphen-demerits*))
+	  :when (and finalp (hyphenated ledge1))
+	    :do (setf total-demerits
+		      ($+ total-demerits *final-hyphen-demerits*))
+	  :when (> (abs (- (fitness-class (edge ledge1))
+			   (fitness-class (edge ledge2))))
+		   1)
+	    :do (setq total-demerits
+		      ($+ total-demerits *adjacent-demerits*))
+	  :do (setf (slot-value ledge2 'demerits) total-demerits)))
+  (setf (slot-value layout 'size) (length (ledges layout))))
 
 
 ;; ---------------
@@ -304,7 +302,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	    := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
-	  :for edge :in (edges layout)
+	  :for ledge :in (ledges layout)
+	  :for edge := (edge ledge)
 	  :and start := 0 :then (start-idx (boundary (destination edge)))
 	  :for stop := (stop-idx (boundary (destination edge)))
 	  :for line := (case disposition
@@ -314,13 +313,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				:stretch-tolerance stretch-tolerance
 				:overshrink overshrink
 				:overstretch t)
-			    (make-instance 'kp-line
+			    (make-instance 'graph-line
 			      :harray harray :start-idx start :stop-idx stop
 			      :beds beds
 			      :scale theoretical :effective-scale effective
-			      :fitness-class (fitness-class edge)
-			      :badness (badness edge)
-			      :demerits (demerits edge))))
+			      :ledge ledge)))
 			 (t ;; just switch back to normal spacing.
 			  (make-instance 'line
 			    :harray harray :start-idx start :stop-idx stop
@@ -371,9 +368,21 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			       :hyphenate t
 			       :threshold ,threshold
 			       :final ,*emergency-stretch*))))
-      (setq layouts (make-layouts root 'kp-layout))
+      (setq layouts (make-layouts root
+		      :layout-type 'kp-layout :ledge-type 'kp-ledge))
       (mapc #'kp-postprocess-layout layouts)
-      (setq layouts (sort layouts #'$< :key #'demerits))
+      ;; #### WARNING: in order to remain consistent with TeX, and as in the
+      ;; dynamic version, an unfit line will have its demerits set to 0.
+      ;; Contrary to the dynamic version however, the final pass may offer a
+      ;; graph in which there are both fit and unfit possibilities, and it may
+      ;; even turn out that an unfit one has fewer demerits than a fit one
+      ;; (because of the zero'ed lines). Consequently, the layouts must be
+      ;; sorted by number of bads first, and demerits next.
+      (setq layouts
+	    (sort layouts (lambda (l1 l2)
+			    (or (< (bads l1) (bads l2))
+				(and (= (bads l1) (bads l2))
+				     (< (demerits l1) (demerits l2)))))))
       (unless (zerop *looseness*)
 	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
 	  (setq layouts (stable-sort layouts (lambda (size1 size2)
@@ -383,13 +392,16 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       (setq breakup (make-instance 'kp-graph-breakup
 		      :root root :nodes nodes :layouts layouts :pass pass))
       ;; #### WARNING: by choosing the first layout here, we're doing the
-      ;; opposite of what TeX does in case of total demerits equality. We
-      ;; could instead check for multiple such layouts and take the last one.
-      ;; On the other hand, while we're using a hash table in the dynamic
-      ;; programming implementation, we're not doing exactly what TeX does
-      ;; either, so there's no rush. It's still important to keep that in mind
-      ;; however, because that explains while we may end up with different
-      ;; solutions between the graph and the dynamic versions.
+      ;; opposite of what TeX does in case of total demerits equality
+      ;; (extremely rare), or when there's no solution and we resort to
+      ;; overfulls, because TeX restores the last deactivated node (so the
+      ;; last seen (im)possibility. We could instead check for multiple
+      ;; equivalent layouts and take the last one. On the other hand, while
+      ;; we're using a hash table in the dynamic programming implementation,
+      ;; we're not doing exactly what TeX does either, so there's no rush.
+      ;; It's still important to keep that in mind however, because that
+      ;; explains while we may end up with different solutions between the
+      ;; graph and the dynamic versions.
       (setf (aref (renditions breakup) 0)
 	    (kp-pin-layout harray disposition width beds (first layouts)
 			   pass))
@@ -516,6 +528,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					 (car last-deactivated-node)))
 				       (stop-idx boundary)
 				       width))
+		  (badness (scale-badness scale))
 		  (fitness-class (scale-fitness-class scale)))
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
@@ -523,11 +536,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		   (kp-make-node :boundary boundary
 				 :scale scale
 				 :fitness-class fitness-class
+				 :badness badness
 				 ;; #### NOTE: in this situation, TeX sets the
 				 ;; local demerits to 0 (#855) by checking the
 				 ;; artificial_demerits flag. So we just
 				 ;; re-use the previous total.
-				 :badness 0
 				 :demerits 0
 				 :total-demerits (kp-node-total-demerits
 						  (cdr last-deactivated-node))
@@ -595,6 +608,31 @@ through the algorithm in the TeX jargon).
 ;; Lines computation
 ;; -----------------
 
+(defclass kp-dynamic-line (line)
+  ((fitness-class :documentation "This line's fitness class."
+		  :initarg :fitness-class
+		  :reader fitness-class)
+   (badness :documentation "This line's badness."
+	    :initarg :badness
+	    :reader badness)
+   (demerits :documentation "This line's local demerits."
+	     :initarg :demerits
+	     :reader demerits)
+   (total-demerits :documentation "The total demerits so far."
+		   :initarg :total-demerits
+		   :reader total-demerits))
+  (:documentation "The Knuth-Plass Dynamic Line class."))
+
+(defmethod properties strnlcat ((line kp-dynamic-line))
+  "Advertise Knuth-Plass dynamci LINE's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A.~@
+	       Badness: ~A.~@
+	       Demerits: ~A (local), ~A (cunulative)."
+    (fitness-class-name (fitness-class line))
+    ($float (badness line))
+    ($float (demerits line))
+    ($float (total-demerits line))))
+
 (defun kp-dynamic-pin-node (harray disposition width beds node pass)
   "Pin Knuth-Plass NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition-options := (disposition-options disposition)
@@ -631,7 +669,7 @@ through the algorithm in the TeX jargon).
 			(actual-scales (kp-node-scale end)
 			  :stretch-tolerance stretch-tolerance
 			  :overshrink overshrink :overstretch t)
-		      (make-instance 'kp-line
+		      (make-instance 'kp-dynamic-line
 			:harray harray
 			:start-idx start :stop-idx stop
 			:beds beds
@@ -639,7 +677,8 @@ through the algorithm in the TeX jargon).
 			:effective-scale effective
 			:fitness-class (kp-node-fitness-class end)
 			:badness (kp-node-badness end)
-			:demerits (kp-node-demerits end)))
+			:demerits (kp-node-demerits end)
+			:total-demerits (kp-node-total-demerits end)))
 		    (make-instance 'line
 		      :harray harray :start-idx start :stop-idx stop
 		      :beds beds))
@@ -687,10 +726,10 @@ through the algorithm in the TeX jargon).
 (defmethod properties strnlcat
     ((breakup kp-dynamic-breakup)
      &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
-  "Advertise the number of remaining active nodes."
+  "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
   (unless (zerop nodes-#)
     (format nil "Demerits: ~A~@
-	       From ~A remaining active node~:P."
+		 Remaining active nodes: ~A."
       ($float (kp-node-total-demerits (aref nodes 0)))
       nodes-#)))
 

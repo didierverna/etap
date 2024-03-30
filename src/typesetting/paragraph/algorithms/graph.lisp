@@ -49,6 +49,10 @@ representation of paragraph breaking."))
 ;; Edges
 ;; -----
 
+;; #### NOTE: because graphs share nodes across different solutions, edges
+;; cannot make assumptions about the whole path, previous or next edge. That
+;; is why layouts use another data structure to represent edges.
+
 (defclass edge ()
   ((destination :documentation "The node this edge points to."
 		:initarg :destination
@@ -175,53 +179,70 @@ if no breaking solution is found, the root node will have no edges."
 ;; Layouts
 ;; ==========================================================================
 
-;; #### FIXME: it is not powerful enough to use graph edges when creating
-;; layouts. An edge can be used in multiple graph paths, so it cannot store
-;; path-specific information. In a layout however, an edge is "frozen" to a
-;; particular path.
+;; ------
+;; Ledges
+;; ------
 
-;; In the KP algorithm for example, edges can only contain local demerits,
-;; including line penalties but no adjacent, double, or final hyphen demerits.
-;; Not even KP-POSTPOCESS-LAYOUT can handle those, as the edges are still
-;; shared. As a result, the graph code creating kp lines can only advertise
-;; local demerits, without the aforementioned contextual penalties.
+;; A "ledge" is a Layout Edge. That's convenient ;-)
+(defclass ledge ()
+  ((edge :documentation "The corresponding graph edge."
+	 :initarg :edge :reader edge))
+  (:documentation "The LEDGE class."))
+
+(defmethod hyphenated ((ledge ledge))
+  "Return LEDGE's hyphenation status."
+  (hyphenated (edge ledge)))
+
+
+;; -------
+;; Layouts
+;; -------
 
 (defclass layout ()
-  ((edges :documentation "The list of edges from one break to the next."
-	  :accessor edges))
+  ((ledges :documentation "The list of ledges from one break to the next."
+	   :accessor ledges))
   (:documentation "The LAYOUT class.
 A layout represents one path from the root to the leaf node of a graph."))
 
-(defmethod initialize-instance :before ((layout layout) &key edge)
-  "Initialize LAYOUT's edges with the the first EDGE."
-  (setf (slot-value layout 'edges) (list edge)))
+(defmethod initialize-instance :before ((layout layout) &key edge ledge-type)
+  "Initialize LAYOUT's ledges with the terminal EDGE."
+  (setf (slot-value layout 'ledges)
+	(list (make-instance ledge-type :edge edge))))
 
-(defgeneric push-edge (edge layout)
-  (:documentation "Push EDGE on LAYOUT.")
-  (:method (edge layout)
-    "Perform the pushing."
-    (push edge (edges layout))))
-
-(defun %make-layouts (node layout-class layout-initargs)
-  "Make LAYOUT-CLASS layouts for a graph starting at NODE."
+(defun %make-layouts (node layout-type ledge-type)
+  "Make all LAYOUT-TYPE / LEDGE-TYPE layouts for a graph starting at ROOT node."
   (mapcan (lambda (edge)
 	    (if (edges (destination edge))
-	      (mapc (lambda (layout) (push-edge edge layout))
-		(%make-layouts (destination edge) layout-class layout-initargs))
-	      (list (apply #'make-instance layout-class :edge edge
-			   layout-initargs))))
+	      (mapc (lambda (layout)
+		      (push (make-instance ledge-type :edge edge)
+			    (ledges layout)))
+		(%make-layouts (destination edge) layout-type ledge-type))
+	      (list (make-instance layout-type
+		      :edge edge :ledge-type ledge-type))))
     (edges node)))
 
 ;; #### NOTE: this function is not supposed to be called on null root nodes
 ;; (coming from empty harrays), but might still return null layouts when the
 ;; graph got no solution.
-(defun make-layouts (root &optional (layout-type 'layout)
-			  &aux (layout-class (car-or-symbol layout-type))
-			       (layout-initargs (cdr-or-nil layout-type)))
-  "Create LAYOUT-TYPE layouts for a graph starting at ROOT node.
-LAYOUT-TYPE may be a layout class name (LAYOUT by default), or a list of the
-form (CLASS-NAME INITARGS...)."
-  (%make-layouts root layout-class layout-initargs))
+(defun make-layouts (root &key (layout-type 'layout) (ledge-type 'ledge))
+  "Make all layouts for a graph starting at ROOT node."
+  (%make-layouts root layout-type ledge-type))
+
+
+
+
+;; ==========================================================================
+;; Graph Lines
+;; ==========================================================================
+
+(defclass graph-line (line)
+  ((ledge :documentation "This line's corresponding ledge."
+	  :initarg :ledge :reader ledge))
+  (:documentation "The Graph Line class."))
+
+(defmethod properties strnlcat ((line graph-line))
+  "Advertise LINE's ledge properties."
+  (properties (ledge line)))
 
 
 
@@ -270,8 +291,8 @@ This class is used by graph based algorithms."))
   "Advertise graph BREAKUP's number of initial layouts."
   (when layouts
     (multiple-value-bind (non-null null) (hash-table-counts (nodes breakup))
-      (strnlcat (format nil "From ~A layout~:P.~@
-			     ~A break point~:P, ~A dead-end~:P."
-		  (length layouts) non-null null)
-		(unless (zerop (length layouts))
-		  (properties (aref layouts 0)))))))
+      (strnlcat (unless (zerop (length layouts))
+		  (properties (aref layouts 0)))
+		(format nil "Break points: ~A (~A dead-end~:P).~@
+			     Layouts: ~A."
+		  non-null null (length layouts))))))
