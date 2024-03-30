@@ -1,5 +1,7 @@
 ;; This is my Knuth-Plass Extended, aka, KPX algorithm
 
+;; #### FIXME: this code is still too redundant with the Knuth-Plass one.
+
 ;; #### FIXME: my implementation of the 3 passes is probably not correct. It
 ;; seems that TeX goes into the 2nd pass, not only when the first fails, but
 ;; also when it succeeds with a non-zero looseness, and the number of lines
@@ -90,54 +92,8 @@
 
 
 ;; ==========================================================================
-;; Utilities
-;; ==========================================================================
-
-;; #### WARNING: the logic is ACTUAL-SCALES is to establish scaling
-;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
-;; back (from a float to a ratio), which is not very nice.
-(defun stretch-tolerance (badness-tolerance)
-  "Return the stretch tolerance corresponding to BADNESS-TOLERANCE."
-  ;; #### NOTE: we don't get a negative pre-tolerance here because pass 1
-  ;; would be skipped. So we only need to handle the $>= 0 case.
-  (if ($= badness-tolerance +∞)
-    +∞
-    (rationalize (expt (/ badness-tolerance 100) 1/3))))
-
-(defun scale-fitness-class (scale)
-  "Return SCALE's fitness class.
-This is an integer ranging from 0 (very loose) to 3 (tight)."
-  (cond (($< scale -1/2) 3)
-	(($< 1 scale) 0)
-	((<= -1/2 scale 1/2) 2)
-	(t 1)))
-
-(defun fitness-class-name (fitness-class)
-  "Return FITNESS-CLASS's name (a string)."
-  (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
-
-
-;; ----------------------
-;; Breakup specialization
-;; ----------------------
-
-(defclass kpx-breakup-mixin ()
-  ((pass :documentation "Which of the 3 passes produced this breakup."
-	 :initform 0 :initarg :pass :reader pass))
-  (:documentation "The KPX-BREAKUP-MIXIN class.
-This class is mixed in both the graph and dynamic breakup classes."))
-
-;; #### NOTE: the KPX algorithm never refuses to typeset, so a pass of
-;; 0 means that the harray was empty.
-(defmethod properties strnlcat
-    ((mixin kpx-breakup-mixin) &aux (pass (pass mixin)))
-  "Advertise KPX breakup MIXIN's pass number."
-  (unless (zerop pass) (format nil "Pass: ~A." pass)))
-
-
-;; -----------------------
 ;; Similarity (homeoarchy)
-;; -----------------------
+;; ==========================================================================
 
 ;; #### NOTE: the dynamic variant cannot check for beginning-of-line
 ;; similarities, unless we make different nodes for different beginnings of
@@ -223,86 +179,25 @@ point, in reverse order."
 ;; Edges
 ;; -----
 
-(defclass kpx-edge (edge)
+(defclass kpx-edge (kp-edge)
   ((bol :documentation "This edge's beginning-of-line items."
 	:reader bol)
    (eol :documentation "This edge's end-of-line items."
-	:reader eol)
-   (scale :documentation "This edge's scale."
-	  :reader scale)
-   ;; #### NOTE: we're keeping this only for comparison with the dynamic
-   ;; variant which doesn't have continuous adjacency demerits computation.
-   (fitness-class :documentation "This edge's fitness class."
-		  :reader fitness-class)
-   (badness :documentation "This edge's badness."
-	    :reader badness)
-   (demerits :documentation "This edge's local demerits."
-	     :reader demerits))
+	:reader eol))
   (:documentation "The KPX-EDGE class."))
 
 (defmethod initialize-instance :after
     ((edge kpx-edge)
-     &key harray start width
-     &aux (boundary (boundary (destination edge))) (stop (stop-idx boundary)))
-  "Initialize KPX EDGE's properties.
-These are scale, fitness class, badness, local demerits, and beginning and end
-of line items."
-  ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
-  ;; only an overfull one. For example, we could have collected an hyphenated
-  ;; beginning of word thanks to an infinite tolerance, and this would result
-  ;; in a rigid underfull. This probably doesn't happen in TeX with its
-  ;; dynamic programming implementation. But the problem is that we can't
-  ;; define a sensible fitness class in such a case. So we consider those
-  ;; lines to be very tight (as overfulls) even if they are actually
-  ;; underfull.
+     &key harray start
+     &aux (boundary (boundary (destination edge))))
+  "Initialize KPX EDGE's beginning and end of line items."
   (setf (slot-value edge 'bol) (harray-bol start harray))
-  (setf (slot-value edge 'eol) (boundary-eol boundary harray))
-  (setf (slot-value edge 'scale) (harray-scale harray start stop width))
-  (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
-  (setf (slot-value edge 'badness) (scale-badness (scale edge)))
-  (setf (slot-value edge 'demerits)
-	;; See comment in the dynamic version about this.
-	(if (numberp (badness edge))
-	  (local-demerits (badness edge)
-			  (penalty (item (boundary (destination edge))))
-			  *line-penalty*)
-	  0)))
-
-
-(defclass kpx-ledge (ledge)
-  ((demerits :documentation "The total demerits so far in the layout."
-	     :reader demerits))
-  (:documentation "The KPX Ledge class."))
-
-(defmethod properties strnlcat ((ledge kpx-ledge))
-  "Advertise KPX LEDGE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~@
-	       Badness: ~A.~@
-	       Demerits: ~A (local), ~A (cumulative)."
-    (fitness-class-name (fitness-class (edge ledge)))
-    ($float (badness (edge ledge)))
-    ($float (demerits (edge ledge)))
-    ($float (demerits ledge))))
+  (setf (slot-value edge 'eol) (boundary-eol boundary harray)))
 
 
 ;; -------
 ;; Layouts
 ;; -------
-
-(defclass kpx-layout (layout)
-  ((bads :documentation "The number of bad lines in this layout."
-	 :initform 0 :reader bads)
-   (size :documentation "This layout's size (i.e. the number of lines)."
-	 :accessor size))
-  (:documentation "The KPX-LAYOUT class."))
-
-(defmethod demerits ((layout kpx-layout))
-  "Return KPX LAYOUT's demerits."
-  (demerits (car (last (ledges layout)))))
-
-(defmethod properties strnlcat ((layout kpx-layout))
-  "Advertise KPX LAYOUT's demerits."
-  (format nil "Demerits: ~A." ($float (demerits layout))))
 
 (defun kpx-postprocess-layout
     (layout &aux (total-demerits (demerits (edge (first (ledges layout))))))
@@ -352,45 +247,12 @@ of line items."
   (setf (slot-value layout 'size) (length (ledges layout))))
 
 
-
-;; ---------------
-;; Boundary lookup
-;; ---------------
-
-(defun kpx-next-boundaries
-    (harray start width
-     &key hyphenate threshold final
-     &aux (emergency-stretch (when (numberp final) final)))
-  "KPX graph implementation version of `next-boundaries'.
-See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
-  (loop :with boundaries :with overfull :with emergency-boundary
-	:with continue := t
-	:for boundary := (next-boundary harray start)
-	  :then (next-boundary harray (stop-idx boundary))
-	:while continue
-	:for min-width := (harray-min-width harray start (stop-idx boundary))
-	:do (when (and ($< (penalty (item boundary)) +∞)
-		       (or hyphenate
-			   (not (hyphenation-point-p (item boundary)))))
-	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond ((> min-width width)
-		     (setq overfull boundary continue nil))
-		    (($<= (scale-badness
-			   (harray-scale harray start (stop-idx boundary)
-					 width emergency-stretch))
-			  threshold)
-		     (push boundary boundaries))
-		    (t
-		     (setq emergency-boundary boundary))))
-	:finally (return (or boundaries
-			     (when final
-			       (list (or overfull emergency-boundary)))))))
-
-
 ;; -----------------
 ;; Lines computation
 ;; -----------------
 
+;; #### NOTE: I'm keeping this for now, in anticipation for last line
+;; adjustment changes (probably need to modify this function).
 (defun kpx-pin-layout (harray disposition width beds layout pass)
   "Pin KPX LAYOUT from HARRAY for a DISPOSITION paragraph."
   (when layout
@@ -440,14 +302,10 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Breakup specialization
 ;; ----------------------
 
-(defclass kpx-graph-breakup (kpx-breakup-mixin graph-breakup)
-  ()
-  (:documentation "The Knuth-Plass Graph Breakup class."))
-
 (defun kpx-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the KPX algorithm, graph version."
   (if (zerop (length harray))
-    (make-instance 'kpx-graph-breakup)
+    (make-instance 'kp-graph-breakup)
     (let ((threshold *pre-tolerance*)
 	  (pass 1)
 	  root nodes layouts breakup)
@@ -455,14 +313,14 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kpx-edge
-	    :next-boundaries `(kpx-next-boundaries :threshold ,threshold))))
+	    :next-boundaries `(kp-next-boundaries :threshold ,threshold))))
       (unless (edges root)
 	(incf pass)
 	(setq threshold *tolerance*)
 	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kpx-edge
-	    :next-boundaries `(kpx-next-boundaries
+	    :next-boundaries `(kp-next-boundaries
 			       :hyphenate t
 			       :threshold ,threshold
 			       :final ,(zerop *emergency-stretch*)))))
@@ -471,12 +329,12 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 	(multiple-value-setq (root nodes)
 	  (make-graph harray width
 	    :edge-type 'kpx-edge
-	    :next-boundaries `(kpx-next-boundaries
+	    :next-boundaries `(kp-next-boundaries
 			       :hyphenate t
 			       :threshold ,threshold
 			       :final ,*emergency-stretch*))))
-      (setq layouts (make-layouts root
-		      :layout-type 'kpx-layout :ledge-type 'kpx-ledge))
+      (setq layouts
+	    (make-layouts root :layout-type 'kp-layout :ledge-type 'kp-ledge))
       (mapc #'kpx-postprocess-layout layouts)
       ;; #### WARNING: in order to remain consistent with TeX, and as in the
       ;; dynamic version, an unfit line will have its demerits set to 0.
@@ -496,7 +354,7 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 					       (< (abs (- size1 ideal-size))
 						  (abs (- size2 ideal-size))))
 				     :key #'size))))
-      (setq breakup (make-instance 'kpx-graph-breakup
+      (setq breakup (make-instance 'kp-graph-breakup
 		      :root root :nodes nodes :layouts layouts :pass pass))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality. We
@@ -518,15 +376,7 @@ See `kpx-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Dynamic Variant
 ;; ==========================================================================
 
-(defstruct (kpx-node (:constructor kpx-make-node))
-  eol boundary scale fitness-class badness demerits total-demerits previous)
-
-;; The active nodes hash table is accessed by
-;; key = (boundary line-number fitness-class)
-(defun make-key (boundary line fitness) (list boundary line fitness))
-(defun key-boundary (key) (first key))
-(defun key-line (key) (second key))
-(defun key-fitness (key) (third key))
+(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) eol)
 
 
 ;; ---------------
@@ -716,31 +566,8 @@ through the algorithm in the TeX jargon).
 ;; Lines computation
 ;; -----------------
 
-(defclass kpx-dynamic-line (line)
-  ((fitness-class :documentation "This line's fitness class."
-		  :initarg :fitness-class
-		  :reader fitness-class)
-   (badness :documentation "This line's badness."
-	    :initarg :badness
-	    :reader badness)
-   (demerits :documentation "This line's local demerits."
-	     :initarg :demerits
-	     :reader demerits)
-   (total-demerits :documentation "The total demerits so far."
-		   :initarg :total-demerits
-		   :reader total-demerits))
-  (:documentation "The KPX Dynamic Line class."))
-
-(defmethod properties strnlcat ((line kpx-dynamic-line))
-  "Advertise KPX dynamic LINE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~@
-	       Badness: ~A.~@
-	       Demerits: ~A (local), ~A (cunulative)."
-    (fitness-class-name (fitness-class line))
-    ($float (badness line))
-    ($float (demerits line))
-    ($float (total-demerits line))))
-
+;; #### NOTE: I'm keeping this for now, in anticipation for last line
+;; adjustment changes (probably need to modify this function).
 (defun kpx-dynamic-pin-node (harray disposition width beds node pass)
   "Pin KPX NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition-options := (disposition-options disposition)
@@ -777,7 +604,7 @@ through the algorithm in the TeX jargon).
 			(actual-scales (kpx-node-scale end)
 			  :stretch-tolerance stretch-tolerance
 			  :overshrink overshrink :overstretch t)
-		      (make-instance 'kpx-dynamic-line
+		      (make-instance 'kp-dynamic-line
 			:harray harray
 			:start-idx start :stop-idx stop
 			:beds beds
@@ -806,46 +633,11 @@ through the algorithm in the TeX jargon).
 ;; Breakup specialization
 ;; ------------------------
 
-;; #### FIXME: since the dynamic optimization is essentially just a way to
-;; keep only pruned graphs in memory, we should arrange to use a graph breakup
-;; here.
-(defclass kpx-dynamic-breakup (kpx-breakup-mixin breakup)
-  ((nodes :documentation "The breakup's sorted nodes array."
-	  :initform nil :reader nodes)
-   (renditions :documentation "The breakups' sorted renditions array."
-	       :initform nil :reader renditions))
-  (:documentation "The KPX-DYNAMIC-BREAKUP class."))
-
-(defmethod initialize-instance :after
-    ((breakup kpx-dynamic-breakup) &key nodes)
-  "Convert the ndoes list to an array and create the renditions array."
-  (setf (slot-value breakup 'nodes)
-	(make-array (length nodes) :initial-contents nodes))
-  (setf (slot-value breakup 'renditions)
-	(make-array (length nodes) :initial-element nil)))
-
-(defmethod pinned-lines
-    ((breakup kpx-dynamic-breakup) &aux (renditions (renditions breakup)))
-  (when (and renditions (not (zerop (length renditions))))
-    (aref renditions 0)))
-
-;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
-;; of 0 means that the harray was empty.
-(defmethod properties strnlcat
-    ((breakup kpx-dynamic-breakup)
-     &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
-  "Advertise KPX dynamic BREAKUP's demerits and remaining active nodes."
-  (unless (zerop nodes-#)
-    (format nil "Demerits: ~A~@
-		 Remaining active nodes: ~A."
-      ($float (kpx-node-total-demerits (aref nodes 0)))
-      nodes-#)))
-
 (defun kpx-dynamic-break-harray
     (harray disposition width beds &aux (pass 1))
   "Break HARRAY with the KPX algorithm, dynamic programming version."
   (if (zerop (length harray))
-    (make-instance 'kpx-dynamic-breakup)
+    (make-instance 'kp-dynamic-breakup)
     (let* ((nodes (or (when ($>= *pre-tolerance* 0)
 			(kpx-create-nodes harray width pass))
 		      (kpx-create-nodes harray width (incf pass))
@@ -865,7 +657,7 @@ through the algorithm in the TeX jargon).
 					  (< (abs (- elt1 ideal-size))
 					     (abs (- elt2 ideal-size))))
 			     :key #'car))))
-      (setq breakup (make-instance 'kpx-dynamic-breakup
+      (setq breakup (make-instance 'kp-dynamic-breakup
 		      :pass pass :nodes (mapcar #'cdr nodes-list)))
       (setf (aref (renditions breakup) 0)
 	    (kpx-dynamic-pin-node
