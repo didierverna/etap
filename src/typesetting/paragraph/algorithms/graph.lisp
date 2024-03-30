@@ -291,8 +291,8 @@ This class is used by graph based algorithms."))
   "Advertise graph BREAKUP's number of initial layouts."
   (when layouts
     (multiple-value-bind (non-null null) (hash-table-counts (nodes breakup))
-      (strnlcat (format nil "From ~A layout~:P.~@
-			     ~A break point~:P, ~A dead-end~:P."
-		  (length layouts) non-null null)
-		(unless (zerop (length layouts))
-		  (properties (aref layouts 0)))))))
+      (strnlcat (unless (zerop (length layouts))
+		  (properties (aref layouts 0)))
+		(format nil "Break points: ~A (~A dead-end~:P).~@
+			     Layouts: ~A."
+		  non-null null (length layouts))))))
