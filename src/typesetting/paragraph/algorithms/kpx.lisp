@@ -194,6 +194,19 @@ point, in reverse order."
   (setf (slot-value edge 'bol) (harray-bol start harray))
   (setf (slot-value edge 'eol) (boundary-eol boundary harray)))
 
+;; Last line ledge
+(defclass kpx-last-ledge (kp-ledge)
+  ((scale :documentation "The adapted last line scale."
+	  :reader scale))
+  (:documentation "The KPX Last LEDGE class.
+This class allows to override the last line scale (on a per-layout basis)
+in order to make it as close as possible to that of the the one-before-last."))
+
+(defmethod update-instance-for-different-class :after
+    ((old kp-ledge) (new kpx-last-ledge) &key)
+  "Initialize the scale slot to the edge's one."
+  (setf (slot-value new 'scale) (scale (edge old))))
+
 
 ;; -------
 ;; Layouts
@@ -222,6 +235,8 @@ point, in reverse order."
 	  :for ledge2 :in (cdr (ledges layout))
 	  :for finalp
 	    := (last-boundary-p (boundary (destination (edge ledge2))))
+	  :when finalp
+	    :do (change-class ledge2 'kpx-last-ledge)
 	  :unless (numberp (badness (edge ledge2)))
 	    :do (incf (slot-value layout 'bads))
 	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
@@ -240,8 +255,10 @@ point, in reverse order."
 		      ($+ total-demerits *final-hyphen-demerits*))
 	  :do (setq total-demerits
 		    ($+ total-demerits
-			($* ($abs ($- (scale (edge ledge1))
-				      (scale (edge ledge2))))
+			;; #### WARNING: we access the scale through the
+			;; ledge, not the edge, because of the last line
+			;; override.
+			($* ($abs ($- (scale ledge1) (scale ledge2)))
 			    *adjacent-demerits*)))
 	  :do (setf (slot-value ledge2 'demerits) total-demerits)))
   (setf (slot-value layout 'size) (length (ledges layout))))
@@ -272,13 +289,16 @@ point, in reverse order."
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for ledge :in (ledges layout)
-	  :for edge := (edge ledge)
-	  :and start := 0 :then (start-idx (boundary (destination edge)))
-	  :for stop := (stop-idx (boundary (destination edge)))
+	  :for boundary := (boundary (destination (edge ledge)))
+	  :and start := 0 :then (start-idx boundary)
+	  :for stop := (stop-idx boundary)
 	  :for line := (case disposition
 			 (:justified
 			  (multiple-value-bind (theoretical effective)
-			      (actual-scales (scale edge)
+			      ;; #### WARNING: we access the scale through the
+			      ;; ledge, not the edge, because of the last line
+			      ;; override.
+			      (actual-scales (scale ledge)
 				:stretch-tolerance stretch-tolerance
 				:overshrink overshrink
 				:overstretch t)

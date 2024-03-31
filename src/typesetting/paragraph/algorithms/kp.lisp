@@ -193,6 +193,12 @@ These are scale, fitness class, badness, and local demerits."
     ($float (demerits (edge ledge)))
     ($float (demerits ledge))))
 
+;; #### WARNING: this method is currently unused here, but the KPX algorithm
+;; uses it because. See the KPX-LAST-LEDGE class.
+(defmethod scale ((ledge kp-ledge))
+  "Return Knuth-Plass LEDGE's scale."
+  (scale (edge ledge)))
+
 
 ;; -------
 ;; Layouts
