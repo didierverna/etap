@@ -498,6 +498,16 @@ one-before-last."))
 					    *line-penalty*))
 		  (total-demerits ($+ (kpx-node-total-demerits node)
 				      demerits)))
+	     ;; Last line adjustment: see comments in the graph variant.
+	     (when (last-boundary-p boundary)
+	       (let ((max-scale (harray-scale harray
+					      (start-idx previous-boundary)
+					      (1- (stop-idx boundary))
+					      width)))
+		 (setq scale (if ($< (kpx-node-scale node) scale)
+			       (kpx-node-scale node)
+			       ($min (kpx-node-scale node) max-scale)))
+		 (setq fitness (scale-fitness-class scale))))
 	     (when (> (abs (- fitness previous-fitness)) 1)
 	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
 	     ;; #### NOTE: for now, I'm considering that hyphenated
@@ -557,30 +567,40 @@ one-before-last."))
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
     (setq new-nodes
 	  (list
-	   (let* ((scale (harray-scale harray
-				       (start-idx
-					(key-boundary
-					 (car last-deactivated-node)))
+	   (let* ((node (cdr last-deactivated-node))
+		  (previous-boundary (key-boundary (car last-deactivated-node)))
+		  (scale (harray-scale harray
+				       (start-idx previous-boundary)
 				       (stop-idx boundary)
 				       width))
 		  (badness (scale-badness scale))
-		  (fitness-class (scale-fitness-class scale)))
+		  (fitness (scale-fitness-class scale)))
+	     ;; Last line adjustment.
+	     (when (last-boundary-p boundary)
+	       (let ((max-scale (harray-scale harray
+					      (start-idx previous-boundary)
+					      (1- (stop-idx boundary))
+					      width)))
+		 (setq scale (if ($< (kpx-node-scale node) scale)
+			       (kpx-node-scale node)
+			       ($min (kpx-node-scale node) max-scale)))
+		 (setq fitness (scale-fitness-class scale))))
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
-			     fitness-class)
+			     fitness)
 		   (kpx-make-node :eol (boundary-eol boundary harray)
 				  :boundary boundary
 				  :scale scale
-				  :fitness-class fitness-class
+				  :fitness-class fitness
 				  :badness badness
 				  ;; #### NOTE: in this situation, TeX sets
 				  ;; the local demerits to 0 (#855) by
 				  ;; checking the artificial_demerits flag. So
 				  ;; we just re-use the previous total.
 				  :demerits 0
-				  :total-demerits (kpx-node-total-demerits
-						   (cdr last-deactivated-node))
-				  :previous (cdr last-deactivated-node)))))))
+				  :total-demerits
+				  (kpx-node-total-demerits node)
+				  :previous node))))))
   (mapc (lambda (new-node)
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
@@ -684,7 +704,12 @@ through the algorithm in the TeX jargon).
 			  :overshrink overshrink :overstretch t)
 		      (make-instance 'kp-dynamic-line
 			:harray harray
-			:start-idx start :stop-idx stop
+			:start-idx start
+			;; #### HACK ALERT: don't count the final glue for
+			;; last lines with non zero scaling !
+			:stop-idx (if (last-boundary-p (kp-node-boundary end))
+				    (1- stop)
+				    stop)
 			:beds beds
 			:scale theoretical
 			:effective-scale effective
