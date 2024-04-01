@@ -167,10 +167,10 @@ These are scale, fitness class, badness, and local demerits."
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf (slot-value edge 'scale) (harray-scale harray start stop width))
-  (setf (slot-value edge 'fitness-class) (scale-fitness-class (scale edge)))
-  (setf (slot-value edge 'badness) (scale-badness (scale edge)))
-  (setf (slot-value edge 'demerits)
+  (setf (slot-value edge 'scale) (harray-scale harray start stop width)
+	(slot-value edge 'fitness-class) (scale-fitness-class (scale edge))
+	(slot-value edge 'badness) (scale-badness (scale edge))
+	(slot-value edge 'demerits)
 	;; See comment in the dynamic version about this.
 	(if (numberp (badness edge))
 	  (local-demerits (badness edge)

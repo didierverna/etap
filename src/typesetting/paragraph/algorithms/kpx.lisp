@@ -191,8 +191,8 @@ point, in reverse order."
      &key harray start width
      &aux (boundary (boundary (destination edge))))
   "Initialize KPX EDGE's beginning and end of line items, adjust the scale."
-  (setf (slot-value edge 'bol) (harray-bol start harray))
-  (setf (slot-value edge 'eol) (boundary-eol boundary harray))
+  (setf (slot-value edge 'bol) (harray-bol start harray)
+	(slot-value edge 'eol) (boundary-eol boundary harray))
   ;; #### HACK ALERT: at that point, the last edge is initialized normally for
   ;; a last line, that is, without the need for justification. The scaling
   ;; will thus be <= 0, and the other properties computed accordingly. If we
