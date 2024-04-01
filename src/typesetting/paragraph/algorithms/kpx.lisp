@@ -259,9 +259,15 @@ one-before-last."))
   ;; the above assumption will not be true anymore. In theory, we should
   ;; remember if there's a previous paragraph, if so, what's the scaling of
   ;; the last line, and eventually compare to that.
-  (setq total-demerits ($+ total-demerits
-			   ($* ($abs (scale (edge (first (ledges layout)))))
-			       *adjacent-demerits*)))
+  ;; #### WARNING: with a continuous function for adjacency demerits, we get
+  ;; the risk of doing +∞ * 0 twice below, with infinite scaling differences
+  ;; and no adjacent demerits. Fortunately, we have a way to protect
+  ;; ourselves against that: without adjacent demerits, we don't even need to
+  ;; compute a product at all (in other words, +∞ * 0 = 0 in this context).
+  (unless (zerop *adjacent-demerits*)
+    (setq total-demerits ($+ total-demerits
+			     ($* ($abs (scale (edge (first (ledges layout)))))
+				 *adjacent-demerits*))))
   (setf (slot-value (first (ledges layout)) 'demerits) total-demerits)
   (unless (numberp (badness (edge (first (ledges layout)))))
     (incf (slot-value layout 'bads)))
@@ -298,13 +304,14 @@ one-before-last."))
 	  :when (and finalp (hyphenated ledge1))
 	    :do (setq total-demerits
 		      ($+ total-demerits *final-hyphen-demerits*))
-	  :do (setq total-demerits
-		    ($+ total-demerits
-			;; #### WARNING: we access the scale through the
-			;; ledge, not the edge, because of the last line
-			;; override.
-			($* ($abs ($- (scale ledge1) (scale ledge2)))
-			    *adjacent-demerits*)))
+	  :unless (zerop *adjacent-demerits*)
+	    :do (setq total-demerits
+		      ($+ total-demerits
+			  ;; #### WARNING: we access the scale through the
+			  ;; ledge, not the edge, because of the last line
+			  ;; override.
+			  ($* ($abs ($- (scale ledge1) (scale ledge2)))
+			      *adjacent-demerits*)))
 	  :do (setf (slot-value ledge2 'demerits) total-demerits)))
   (setf (slot-value layout 'size) (length (ledges layout))))
 
