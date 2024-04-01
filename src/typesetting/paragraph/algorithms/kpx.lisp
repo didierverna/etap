@@ -455,6 +455,9 @@ one-before-last."))
 ;; ==========================================================================
 
 (defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) eol)
+(defstruct (kpx-last-node (:constructor kpx-make-last-node)
+			  (:include kpx-node))
+  original-scale original-fitness-class)
 
 
 ;; ---------------
@@ -497,17 +500,20 @@ one-before-last."))
 		  (demerits (local-demerits badness (penalty (item boundary))
 					    *line-penalty*))
 		  (total-demerits ($+ (kpx-node-total-demerits node)
-				      demerits)))
+				      demerits))
+		  original-scale original-fitness)
 	     ;; Last line adjustment: see comments in the graph variant.
 	     (when (last-boundary-p boundary)
 	       (let ((max-scale (harray-scale harray
 					      (start-idx previous-boundary)
 					      (1- (stop-idx boundary))
 					      width)))
-		 (setq scale (if ($< (kpx-node-scale node) scale)
+		 (setq original-scale scale
+		       original-fitness fitness
+		       scale (if ($< (kpx-node-scale node) scale)
 			       (kpx-node-scale node)
-			       ($min (kpx-node-scale node) max-scale)))
-		 (setq fitness (scale-fitness-class scale))))
+			       ($min (kpx-node-scale node) max-scale))
+		       fitness (scale-fitness-class scale))))
 	     (when (> (abs (- fitness previous-fitness)) 1)
 	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
 	     ;; #### NOTE: for now, I'm considering that hyphenated
@@ -552,16 +558,34 @@ one-before-last."))
 			 (kpx-node-demerits (cdr previous)) demerits
 			 (kpx-node-total-demerits (cdr previous))
 			 total-demerits
-			 (kpx-node-previous (cdr previous)) node))
+			 (kpx-node-previous (cdr previous)) node)
+		   (when (last-boundary-p boundary)
+		     (setf (kpx-last-node-original-scale (cdr previous))
+			   original-scale
+			   (kpx-last-node-original-fitness-class (cdr previous))
+			   original-fitness)))
 		 (push (cons new-key
-			     (kpx-make-node :eol eol
-					    :boundary boundary
-					    :scale scale
-					    :fitness-class fitness
-					    :badness badness
-					    :demerits demerits
-					    :total-demerits total-demerits
-					    :previous node))
+			     (if (last-boundary-p boundary)
+			       (kpx-make-last-node
+				:eol eol
+				:boundary boundary
+				:scale scale
+				:original-scale original-scale
+				:fitness-class fitness
+				:original-fitness-class original-fitness
+				:badness badness
+				:demerits demerits
+				:total-demerits total-demerits
+				:previous node)
+			       (kpx-make-node
+				:eol eol
+				:boundary boundary
+				:scale scale
+				:fitness-class fitness
+				:badness badness
+				:demerits demerits
+				:total-demerits total-demerits
+				:previous node)))
 		       new-nodes))))))))
    nodes)
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
@@ -574,33 +598,54 @@ one-before-last."))
 				       (stop-idx boundary)
 				       width))
 		  (badness (scale-badness scale))
-		  (fitness (scale-fitness-class scale)))
+		  (fitness (scale-fitness-class scale))
+		  original-scale original-fitness)
 	     ;; Last line adjustment.
 	     (when (last-boundary-p boundary)
 	       (let ((max-scale (harray-scale harray
 					      (start-idx previous-boundary)
 					      (1- (stop-idx boundary))
 					      width)))
-		 (setq scale (if ($< (kpx-node-scale node) scale)
+		 (setq original-scale scale
+		       original-fitness fitness
+		       scale (if ($< (kpx-node-scale node) scale)
 			       (kpx-node-scale node)
-			       ($min (kpx-node-scale node) max-scale)))
-		 (setq fitness (scale-fitness-class scale))))
+			       ($min (kpx-node-scale node) max-scale))
+		       fitness (scale-fitness-class scale))))
 	     (cons (make-key boundary
 			     (1+ (key-line (car last-deactivated-node)))
 			     fitness)
-		   (kpx-make-node :eol (boundary-eol boundary harray)
-				  :boundary boundary
-				  :scale scale
-				  :fitness-class fitness
-				  :badness badness
-				  ;; #### NOTE: in this situation, TeX sets
-				  ;; the local demerits to 0 (#855) by
-				  ;; checking the artificial_demerits flag. So
-				  ;; we just re-use the previous total.
-				  :demerits 0
-				  :total-demerits
-				  (kpx-node-total-demerits node)
-				  :previous node))))))
+		   (if (last-boundary-p boundary)
+		     (kpx-make-last-node
+		      :eol (boundary-eol boundary harray)
+		      :boundary boundary
+		      :scale scale
+		      :original-scale original-scale
+		      :fitness-class fitness
+		      :original-fitness-class original-fitness
+		      :badness badness
+		      ;; #### NOTE: in this situation, TeX sets the local
+		      ;; demerits to 0 (#855) by checking the
+		      ;; artificial_demerits flag. So we just re-use the
+		      ;; previous total.
+		      :demerits 0
+		      :total-demerits
+		      (kpx-node-total-demerits node)
+		      :previous node)
+		     (kpx-make-node
+		      :eol (boundary-eol boundary harray)
+		      :boundary boundary
+		      :scale scale
+		      :fitness-class fitness
+		      :badness badness
+		      ;; #### NOTE: in this situation, TeX sets the local
+		      ;; demerits to 0 (#855) by checking the
+		      ;; artificial_demerits flag. So we just re-use the
+		      ;; previous total.
+		      :demerits 0
+		      :total-demerits
+		      (kpx-node-total-demerits node)
+		      :previous node)))))))
   (mapc (lambda (new-node)
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
@@ -664,6 +709,23 @@ through the algorithm in the TeX jargon).
 ;; Lines computation
 ;; -----------------
 
+(defclass kpx-last-dynamic-line (kp-dynamic-line)
+  ((original-scale :documentation "The last line's original scale."
+		   :initarg :original-scale
+		   :reader original-scale)
+   (original-fitness-class
+    :documentation "The last line's original fitness class."
+    :initarg :original-fitness-class
+    :reader original-fitness-class))
+  (:documentation "The KPX Last Dynamic Line class."))
+
+(defmethod properties strnlcat ((line kpx-last-dynamic-line))
+  "Advertise KPX last dynamic LINE's original scale and fitness class."
+  (format nil "Original scale: ~A.~@
+	       Original fitness class: ~A."
+    (original-scale line)
+    (fitness-class-name (original-fitness-class line))))
+
 ;; #### NOTE: I'm keeping this for now, in anticipation for last line
 ;; adjustment changes (probably need to modify this function).
 (defun kpx-dynamic-pin-node (harray disposition width beds node pass)
@@ -702,21 +764,34 @@ through the algorithm in the TeX jargon).
 			(actual-scales (kpx-node-scale end)
 			  :stretch-tolerance stretch-tolerance
 			  :overshrink overshrink :overstretch t)
-		      (make-instance 'kp-dynamic-line
-			:harray harray
-			:start-idx start
-			;; #### HACK ALERT: don't count the final glue for
-			;; last lines with non zero scaling !
-			:stop-idx (if (last-boundary-p (kp-node-boundary end))
-				    (1- stop)
-				    stop)
-			:beds beds
-			:scale theoretical
-			:effective-scale effective
-			:fitness-class (kpx-node-fitness-class end)
-			:badness (kpx-node-badness end)
-			:demerits (kpx-node-demerits end)
-			:total-demerits (kpx-node-total-demerits end)))
+		      (if (last-boundary-p (kp-node-boundary end))
+			(make-instance 'kpx-last-dynamic-line
+			  :harray harray
+			  :start-idx start
+			  ;; #### HACK ALERT: don't count the final glue for
+			  ;; last lines with non zero scaling !
+			  :stop-idx (1- stop)
+			  :beds beds
+			  :scale theoretical
+			  :original-scale (kpx-last-node-original-scale end)
+			  :effective-scale effective
+			  :fitness-class (kpx-node-fitness-class end)
+			  :original-fitness-class
+			  (kpx-last-node-original-fitness-class end)
+			  :badness (kpx-node-badness end)
+			  :demerits (kpx-node-demerits end)
+			  :total-demerits (kpx-node-total-demerits end))
+			(make-instance 'kp-dynamic-line
+			  :harray harray
+			  :start-idx start
+			  :stop-idx stop
+			  :beds beds
+			  :scale theoretical
+			  :effective-scale effective
+			  :fitness-class (kpx-node-fitness-class end)
+			  :badness (kpx-node-badness end)
+			  :demerits (kpx-node-demerits end)
+			  :total-demerits (kpx-node-total-demerits end))))
 		    (make-instance 'line
 		      :harray harray :start-idx start :stop-idx stop
 		      :beds beds))
