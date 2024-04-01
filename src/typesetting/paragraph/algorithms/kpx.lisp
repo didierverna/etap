@@ -254,18 +254,17 @@ one-before-last."))
   "Compute LAYOUT's properties."
   ;; #### NOTE: in order to stay close to the original philosophy about
   ;; adjacency of the first line (see warning in KPX-CREATE-NODES about that),
-  ;; we do it by comparison with a scale of 0. This makes sense because the
-  ;; last line of previous paragraph would most often not be scaled.
-  ;; #### TODO: on the other hand, if we change the last line adjustment in
-  ;; KPX, as I intend to do, to equal the scaling of one-before-last line,
-  ;; the above assumption will not be true anymore. In theory, we should
-  ;; remember if there's a previous paragraph, if so, what's the scaling of
-  ;; the last line, and eventually compare to that.
+  ;; we do it by comparison with a scale of 0. This originally made sense in
+  ;; TeX because the last line of previous paragraph would most often not be
+  ;; scaled. On the other hand, with our last line adjustment feature in KPX,
+  ;; this is not a validd assumption anymore. In theory, we should remember if
+  ;; there's a previous paragraph, if so, what's the scaling of the last line,
+  ;; and eventually compare to that.
   ;; #### WARNING: with a continuous function for adjacency demerits, we get
   ;; the risk of doing +∞ * 0 twice below, with infinite scaling differences
-  ;; and no adjacent demerits. Fortunately, we have a way to protect
-  ;; ourselves against that: without adjacent demerits, we don't even need to
-  ;; compute a product at all (in other words, +∞ * 0 = 0 in this context).
+  ;; and no adjacent demerits. Fortunately, we have a way to protect ourselves
+  ;; against that: without adjacent demerits, we don't even need to compute a
+  ;; product at all (in other words, +∞ * 0 = 0 in this context).
   (unless (zerop *adjacent-demerits*)
     (setq total-demerits ($+ total-demerits
 			     ($* ($abs (scale (edge (first (ledges layout)))))
