@@ -218,9 +218,9 @@ point, in reverse order."
 
 ;; Last line ledge
 (defclass kpx-last-ledge (kp-ledge)
-  ((scale :documentation "The adapted last line scale."
+  ((scale :documentation "The adjusted last line scale."
 	  :reader scale)
-   (fitness-class :documentation "The adapted last line fitness class."
+   (fitness-class :documentation "The adjusted last line fitness class."
 		  :reader fitness-class))
   (:documentation "The KPX Last LEDGE class.
 This class allows to override the last line scale and fitness-class on a
@@ -234,11 +234,12 @@ one-before-last."))
   "Initialize the scale slot to the edge's one."
   (setf (slot-value new 'scale) (scale (edge old))))
 
+;; No need to advertise the adjusted scale here because that's what the
+;; advertised line properties contain. Also, the adjusted fitness class is
+;; likely to not be very different from the original one.
 (defmethod properties strnlcat ((ledge kpx-last-ledge))
-  "Advertise KPX last LEDGE's adjusted scale and fitness class."
-  (format nil "Adjusted scale: ~A.~@
-	       Adjusted fitness class: ~A."
-    ($float (scale ledge))
+  "Advertise KPX last LEDGE's adjusted fitness class."
+  (format nil "Adjusted fitness class: ~A."
     (fitness-class-name (fitness-class ledge))))
 
 

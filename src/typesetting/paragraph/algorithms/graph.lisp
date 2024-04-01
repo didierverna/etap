@@ -235,6 +235,9 @@ A layout represents one path from the root to the leaf node of a graph."))
 ;; Graph Lines
 ;; ==========================================================================
 
+;; #### FIXME: the line design is currently broken. All lines store their
+;; scale, but in the case of graph lines, that information is available in the
+;; ledge. The line hierarchy should be refined.
 (defclass graph-line (line)
   ((ledge :documentation "This line's corresponding ledge."
 	  :initarg :ledge :reader ledge))
