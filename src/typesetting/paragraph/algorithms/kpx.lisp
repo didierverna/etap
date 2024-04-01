@@ -723,7 +723,7 @@ through the algorithm in the TeX jargon).
   "Advertise KPX last dynamic LINE's original scale and fitness class."
   (format nil "Original scale: ~A.~@
 	       Original fitness class: ~A."
-    (original-scale line)
+    ($float (original-scale line))
     (fitness-class-name (original-fitness-class line))))
 
 ;; #### NOTE: I'm keeping this for now, in anticipation for last line
