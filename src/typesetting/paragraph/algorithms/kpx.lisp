@@ -188,11 +188,19 @@ point, in reverse order."
 
 (defmethod initialize-instance :after
     ((edge kpx-edge)
-     &key harray start
+     &key harray start width
      &aux (boundary (boundary (destination edge))))
-  "Initialize KPX EDGE's beginning and end of line items."
+  "Initialize KPX EDGE's beginning and end of line items, adjust the scale."
   (setf (slot-value edge 'bol) (harray-bol start harray))
-  (setf (slot-value edge 'eol) (boundary-eol boundary harray)))
+  (setf (slot-value edge 'eol) (boundary-eol boundary harray))
+  ;; #### HACK ALERT: at that point, the last boundary is initialized as in
+  ;; the Knuth-Plass algorithm: scale = 0, etc. Now we override the scaling to
+  ;; the value required to justify the line anyway, since later on, this will
+  ;; serve as the maximum authorized scaling for adjustment. In order to do
+  ;; that, we want to just just before the final glue.
+  (when (last-boundary-p boundary)
+    (setf (slot-value edge 'scale)
+	  (harray-scale harray start (1- (stop-idx boundary)) width))))
 
 ;; Last line ledge
 (defclass kpx-last-ledge (kp-ledge)
@@ -237,6 +245,14 @@ in order to make it as close as possible to that of the the one-before-last."))
 	    := (last-boundary-p (boundary (destination (edge ledge2))))
 	  :when finalp
 	    :do (change-class ledge2 'kpx-last-ledge)
+	    :and :do (setf (slot-value ledge2 'scale)
+			   (if ($< (scale ledge1) (scale ledge2))
+			     ;; we can always shrink the last line as much as
+			     ;; we want.
+			     (scale ledge1)
+			     ;; otherwise, we don't want to stretch more than
+			     ;; required to justify
+			     ($min (scale ledge1) (scale ledge2))))
 	  :unless (numberp (badness (edge ledge2)))
 	    :do (incf (slot-value layout 'bads))
 	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
@@ -303,7 +319,12 @@ in order to make it as close as possible to that of the the one-before-last."))
 				:overshrink overshrink
 				:overstretch t)
 			    (make-instance 'graph-line
-			      :harray harray :start-idx start :stop-idx stop
+			      :harray harray :start-idx start
+			      ;; #### HACK ALERT: don't count the final glue
+			      ;; for last lines with non zero scaling !
+			      :stop-idx (if (last-boundary-p boundary)
+					  (1- stop)
+					  stop)
 			      :beds beds
 			      :scale theoretical :effective-scale effective
 			      :ledge ledge)))
