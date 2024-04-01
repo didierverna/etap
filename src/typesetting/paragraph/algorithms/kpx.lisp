@@ -205,16 +205,17 @@ point, in reverse order."
   ;; line now, because this value will serve as the maximum authorized scaling
   ;; for later adjustment (we can shrink as much as we want, but if we want to
   ;; stretch, we still don't want to make the last line overfull. In order to
-  ;; do that (and this is where the hack is), we re-use the SCALE slot, and
-  ;; compute that new value by calling HARRAY-SCALE again, but not counting
-  ;; the final (infinitely stretchable glue). Another, less hackish
-  ;; possibility would be to have a KPX-LAST-EDGE class with an additional
-  ;; slot, but we can't CHANGE-CLASS here because we're within a method
-  ;; accessing the instance's slots... so that would require additional
+  ;; do that (and this is where the hack is), we re-use the SCALE slot to push
+  ;; that new value on top of the original one, by calling HARRAY-SCALE again,
+  ;; but not counting the final (infinitely stretchable) glue. Another, less
+  ;; hackish possibility would be to have a KPX-LAST-EDGE class with an
+  ;; additional slot, but we can't CHANGE-CLASS here because we're within a
+  ;; method accessing the instance's slots... so that would require additional
   ;; modifications elsewhere.
   (when (last-boundary-p boundary)
     (setf (slot-value edge 'scale)
-	  (harray-scale harray start (1- (stop-idx boundary)) width))))
+	  (cons (harray-scale harray start (1- (stop-idx boundary)) width)
+		(slot-value edge 'scale)))))
 
 ;; Last line ledge
 (defclass kpx-last-ledge (kp-ledge)
@@ -234,9 +235,10 @@ one-before-last."))
   "Initialize the scale slot to the edge's one."
   (setf (slot-value new 'scale) (scale (edge old))))
 
-;; No need to advertise the adjusted scale here because that's what the
-;; advertised line properties contain. Also, the adjusted fitness class is
-;; likely to not be very different from the original one.
+;; #### FIXME: no need to advertise the adjusted scale here because that's
+;; what the advertised line properties contain (hence, the design of the LINE
+;; hierarchy is broken; see comment atop GRAPH-LINE). Also, the adjusted
+;; fitness class is likely to not be very different from the original one.
 (defmethod properties strnlcat ((ledge kpx-last-ledge))
   "Advertise KPX last LEDGE's adjusted fitness class."
   (format nil "Adjusted fitness class: ~A."
@@ -279,13 +281,13 @@ one-before-last."))
 	  :when finalp
 	    :do (change-class ledge2 'kpx-last-ledge)
 	    :and :do (setf (slot-value ledge2 'scale)
-			   (if ($< (scale ledge1) (scale ledge2))
+			   (if ($< (scale ledge1) (car (scale ledge2)))
 			     ;; we can always shrink the last line as much as
 			     ;; we want.
 			     (scale ledge1)
 			     ;; otherwise, we don't want to stretch more than
 			     ;; required to justify
-			     ($min (scale ledge1) (scale ledge2))))
+			     ($min (scale ledge1) (car (scale ledge2)))))
 	    :and :do (setf (slot-value ledge2 'fitness-class)
 			   (scale-fitness-class (scale ledge2)))
 	  :unless (numberp (badness (edge ledge2)))

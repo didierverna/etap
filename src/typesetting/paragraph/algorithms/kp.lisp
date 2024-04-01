@@ -183,14 +183,25 @@ These are scale, fitness class, badness, and local demerits."
 	     :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
 
-(defmethod properties strnlcat ((ledge kp-ledge))
+;; #### FIXME: this method handles by anticipation the KPX last line
+;; adjustment feature in which we turn the scale value into a list of two
+;; values. This is very bad. What's more, the edge's scale may not even
+;; reflect the actual original one. For example, in case of an overfull last
+;; line, the Knuth-Plass algorithm sets the line's scale to -1 (that the best
+;; we can do) through a call to ACTUAL-SCALES. But this occurs when creating
+;; the line, so the edge's scale does in fact contain the ideal one, which may
+;; be < -1. Again, this whole line protocol needs to be refined.
+(defmethod properties strnlcat
+    ((ledge kp-ledge) &aux (edge (edge ledge)) (scale (scale edge)))
   "Advertise Knuth-Plass LEDGE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~@
+  (format nil "~@[Original scale: ~A.~%~]~:[Original f~;F~]itness class: ~A.~@
 	       Badness: ~A.~@
 	       Demerits: ~A (local), ~A (cumulative)."
-    (fitness-class-name (fitness-class (edge ledge)))
-    ($float (badness (edge ledge)))
-    ($float (demerits (edge ledge)))
+    (when (consp scale) ($float (cdr scale)))
+    (numberp scale)
+    (fitness-class-name (fitness-class edge))
+    ($float (badness edge))
+    ($float (demerits edge))
     ($float (demerits ledge))))
 
 ;; #### WARNING: this method is currently unused here, but the KPX algorithm
