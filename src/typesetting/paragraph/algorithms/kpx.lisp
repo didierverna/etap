@@ -193,11 +193,25 @@ point, in reverse order."
   "Initialize KPX EDGE's beginning and end of line items, adjust the scale."
   (setf (slot-value edge 'bol) (harray-bol start harray))
   (setf (slot-value edge 'eol) (boundary-eol boundary harray))
-  ;; #### HACK ALERT: at that point, the last boundary is initialized as in
-  ;; the Knuth-Plass algorithm: scale = 0, etc. Now we override the scaling to
-  ;; the value required to justify the line anyway, since later on, this will
-  ;; serve as the maximum authorized scaling for adjustment. In order to do
-  ;; that, we want to just just before the final glue.
+  ;; #### HACK ALERT: at that point, the last edge is initialized normally for
+  ;; a last line, that is, without the need for justification. The scaling
+  ;; will thus be <= 0, and the other properties computed accordingly. If we
+  ;; consider that adjusting the scaling of the last line a-posteriori
+  ;; improves the quality, we don't want to also consider that as a local
+  ;; deterioration of the quality (for example: slightly stretching an
+  ;; underfull last line shouldn't be considered "bad"). Because of that, we
+  ;; just leave the badness and local demerits as they are now. On the other
+  ;; hand, we need to remember the scaling required to properly justify the
+  ;; line now, because this value will serve as the maximum authorized scaling
+  ;; for later adjustment (we can shrink as much as we want, but if we want to
+  ;; stretch, we still don't want to make the last line overfull. In order to
+  ;; do that (and this is where the hack is), we re-use the SCALE slot, and
+  ;; compute that new value by calling HARRAY-SCALE again, but not counting
+  ;; the final (infinitely stretchable glue). Another, less hackish
+  ;; possibility would be to have a KPX-LAST-EDGE class with an additional
+  ;; slot, but we can't CHANGE-CLASS here because we're within a method
+  ;; accessing the instance's slots... so that would require additional
+  ;; modifications elsewhere.
   (when (last-boundary-p boundary)
     (setf (slot-value edge 'scale)
 	  (harray-scale harray start (1- (stop-idx boundary)) width))))
@@ -205,15 +219,27 @@ point, in reverse order."
 ;; Last line ledge
 (defclass kpx-last-ledge (kp-ledge)
   ((scale :documentation "The adapted last line scale."
-	  :reader scale))
+	  :reader scale)
+   (fitness-class :documentation "The adapted last line fitness class."
+		  :reader fitness-class))
   (:documentation "The KPX Last LEDGE class.
-This class allows to override the last line scale (on a per-layout basis)
-in order to make it as close as possible to that of the the one-before-last."))
+This class allows to override the last line scale and fitness-class on a
+per-layout basis, in order to make it as close as possible to that of the the
+one-before-last."))
 
+;; #### NOTE: technically, this is not required, but it makes the code in
+;; KPX-POSTPROCESS-LAYOUT more pleasant to read.
 (defmethod update-instance-for-different-class :after
     ((old kp-ledge) (new kpx-last-ledge) &key)
   "Initialize the scale slot to the edge's one."
   (setf (slot-value new 'scale) (scale (edge old))))
+
+(defmethod properties strnlcat ((ledge kpx-last-ledge))
+  "Advertise KPX last LEDGE's adjusted scale and fitness class."
+  (format nil "Adjusted scale: ~A.~@
+	       Adjusted fitness class: ~A."
+    ($float (scale ledge))
+    (fitness-class-name (fitness-class ledge))))
 
 
 ;; -------
@@ -253,6 +279,8 @@ in order to make it as close as possible to that of the the one-before-last."))
 			     ;; otherwise, we don't want to stretch more than
 			     ;; required to justify
 			     ($min (scale ledge1) (scale ledge2))))
+	    :and :do (setf (slot-value ledge2 'fitness-class)
+			   (scale-fitness-class (scale ledge2)))
 	  :unless (numberp (badness (edge ledge2)))
 	    :do (incf (slot-value layout 'bads))
 	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
