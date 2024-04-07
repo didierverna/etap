@@ -92,13 +92,8 @@
 
 
 ;; ==========================================================================
-;; Similarity (homeoarchy)
+;; Similarity (homeoteleutons and homeoarchies)
 ;; ==========================================================================
-
-;; #### NOTE: the dynamic variant cannot check for beginning-of-line
-;; similarities, unless we make different nodes for different beginnings of
-;; line, just like we make different nodes for different fitness classes. This
-;; would probably ruin the optimization.
 
 ;; #### WARNING: this is good enough for now, but there are many limitations
 ;; to our approach to similarity.
@@ -454,7 +449,8 @@ one-before-last."))
 ;; Dynamic Variant
 ;; ==========================================================================
 
-(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) eol)
+(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) bol eol)
+
 (defstruct (kpx-last-node (:constructor kpx-make-last-node)
 			  (:include kpx-node))
   original-scale original-fitness-class)
@@ -496,6 +492,11 @@ one-before-last."))
 			 scale))))
 	 (when ($<= badness threshold)
 	   (let* ((eol (boundary-eol boundary harray))
+		  (bol (unless (last-boundary-p boundary)
+			 (harray-bol (if (discretionaryp (item boundary))
+				       (start-idx boundary)
+				       (1+ (start-idx boundary)))
+				     harray)))
 		  (fitness (scale-fitness-class scale))
 		  (demerits (local-demerits badness (penalty (item boundary))
 					    *line-penalty*))
@@ -520,6 +521,8 @@ one-before-last."))
 	     ;; similarities are even worse than regular ones, so we will
 	     ;; apply both similar and double-hyphen demerits.
 	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
+	     (when (> (compare bol (kpx-node-bol node)) 2)
+	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
 	     (when (> (compare eol (kpx-node-eol node)) 2)
 	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
 	     ;; #### NOTE: according to #859, TeX doesn't consider the
@@ -578,6 +581,7 @@ one-before-last."))
 				:total-demerits total-demerits
 				:previous node)
 			       (kpx-make-node
+				:bol bol
 				:eol eol
 				:boundary boundary
 				:scale scale
@@ -633,6 +637,10 @@ one-before-last."))
 		      (kpx-node-total-demerits node)
 		      :previous node)
 		     (kpx-make-node
+		      :bol (harray-bol (if (discretionaryp (item boundary))
+					 (start-idx boundary)
+					 (1+ (start-idx boundary)))
+				       harray)
 		      :eol (boundary-eol boundary harray)
 		      :boundary boundary
 		      :scale scale
@@ -682,6 +690,7 @@ through the algorithm in the TeX jargon).
   ;; - the fake root boundary, unused because we use the key to get it,
   ;; - a fitness class of 2 (see above), here for consistency but unused
   ;;   because we use the key to get it,
+  ;; - a null eol and the correct bol so as to compute similar demerits,
   ;; - an initial total demerits of 0.
   ;; The other slots (scale, badness, and demerits are not initialized).
   (let ((hyphenate (> pass 1))
@@ -694,6 +703,7 @@ through the algorithm in the TeX jargon).
 	(nodes (make-hash-table :test #'equal)))
     (setf (gethash (make-key root-boundary 0 2) nodes)
 	  (kpx-make-node :boundary root-boundary :fitness-class 2
+			 :bol (harray-bol 0 harray)
 			:total-demerits 0))
     (loop :for boundary := (next-boundary harray 0)
 	    :then (next-boundary harray (stop-idx boundary))
