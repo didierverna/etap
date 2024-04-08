@@ -77,17 +77,17 @@ width2 strict2 strict/hyphens2 regular2 regular/hyphens2
       (format t "~&Width Strict Strict/Hyphens Regular Regular/Hyphens~%")
 	  :for width :from *paragraph-min-width* :to *paragraph-max-width*
 	  :for stricts
-	    := (graph-layouts (make-graph (harray lineup) width
+	    := (make-layouts (make-graph (harray lineup) width
 					  :next-boundaries
 					  '(next-boundaries :strict t)))
 	  :for hyphenated-stricts
-	    := (graph-layouts (make-graph (harray hyphenated-lineup) width
+	    := (make-layouts (make-graph (harray hyphenated-lineup) width
 					  :next-boundaries
 					  '(next-boundaries :strict t)))
 	  :for regulars
-	    := (graph-layouts (make-graph (harray lineup) width))
+	    := (make-layouts (make-graph (harray lineup) width))
 	  :for hyphenated-regulars
-	    := (graph-layouts (make-graph (harray hyphenated-lineup) width))
+	    := (make-layouts (make-graph (harray hyphenated-lineup) width))
 	  :do (format t "~S ~S ~S ~S ~S~%"
 		width
 		(length stricts) (length hyphenated-stricts)
