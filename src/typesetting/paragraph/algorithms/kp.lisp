@@ -367,7 +367,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  (make-graph harray width
 	    :edge-type 'kp-edge
 	    :next-boundaries `(kp-next-boundaries :threshold ,threshold))))
-      (unless (edges root)
+      (unless (and root (edges root))
 	(incf pass)
 	(setq threshold *tolerance*)
 	(multiple-value-setq (root nodes)
