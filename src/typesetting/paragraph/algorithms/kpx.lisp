@@ -260,10 +260,12 @@ one-before-last."))
   ;; and no adjacent demerits. Fortunately, we have a way to protect ourselves
   ;; against that: without adjacent demerits, we don't even need to compute a
   ;; product at all (in other words, +∞ * 0 = 0 in this context).
-  (unless (zerop *adjacent-demerits*)
-    (setq total-demerits ($+ total-demerits
-			     ($* ($abs (scale (edge (first (ledges layout)))))
-				 *adjacent-demerits*))))
+  #+()(unless (zerop *adjacent-demerits*)
+	(setq total-demerits ($+ total-demerits
+				 ($* ($abs (scale (edge (first (ledges layout)))))
+				     *adjacent-demerits*))))
+  (when (= (fitness-class (edge (first (ledges layout)))) 0)
+    (setf total-demerits ($+ total-demerits *adjacent-demerits*)))
   (setf (slot-value (first (ledges layout)) 'demerits) total-demerits)
   (unless (numberp (badness (edge (first (ledges layout)))))
     (incf (slot-value layout 'bads)))
@@ -300,6 +302,9 @@ one-before-last."))
 	  :when (and finalp (hyphenated ledge1))
 	    :do (setq total-demerits
 		      ($+ total-demerits *final-hyphen-demerits*))
+	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
+	    :do (setf total-demerits ($+ total-demerits *adjacent-demerits*))
+	  #|
 	  :unless (zerop *adjacent-demerits*)
 	    :do (setq total-demerits
 		      ($+ total-demerits
@@ -307,7 +312,8 @@ one-before-last."))
 			  ;; ledge, not the edge, because of the last line
 			  ;; override.
 			  ($* ($abs ($- (scale ledge1) (scale ledge2)))
-			      *adjacent-demerits*)))
+	  *adjacent-demerits*)))
+	  |#
 	  :do (setf (slot-value ledge2 'demerits) total-demerits)))
   (setf (slot-value layout 'size) (length (ledges layout))))
 
