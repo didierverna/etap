@@ -270,8 +270,9 @@ one-before-last."))
   (when (> (length (ledges layout)) 1)
     (loop :for ledge1 :in (ledges layout)
 	  :for ledge2 :in (cdr (ledges layout))
-	  :for finalp
-	    := (last-boundary-p (boundary (destination (edge ledge2))))
+	  :for edge1 := (edge ledge1)
+	  :for edge2 := (edge ledge2)
+	  :for finalp := (last-boundary-p (boundary (destination edge2)))
 	  :when finalp
 	    :do (change-class ledge2 'kpx-last-ledge)
 	    :and :do (setf (slot-value ledge2 'scale)
@@ -284,13 +285,12 @@ one-before-last."))
 			     ($min (scale ledge1) (car (scale ledge2)))))
 	    :and :do (setf (slot-value ledge2 'fitness-class)
 			   (scale-fitness-class (scale ledge2)))
-	  :unless (numberp (badness (edge ledge2)))
+	  :unless (numberp (badness edge2))
 	    :do (incf (slot-value layout 'bads))
-	  :do (setq total-demerits ($+ total-demerits (demerits (edge ledge2))))
-	  :when ($> (compare (bol (edge ledge1)) (bol (edge ledge2))) 2)
+	  :do (setq total-demerits ($+ total-demerits (demerits edge2)))
+	  :when (>= (compare (bol edge1) (bol edge2)) 2)
 	    :do (setq total-demerits ($+ total-demerits *similar-demerits*))
-	  :when (and (not finalp)
-		     ($> (compare (eol (edge ledge1)) (eol (edge ledge2))) 2))
+	  :when (and (not finalp) (>= (compare (eol edge1) (eol edge2)) 2))
 	    :do (setq total-demerits ($+ total-demerits *similar-demerits*))
 	  ;; See comment in dynamic version. Do not consider very rare case
 	  ;; where the paragraph ends with an explicit hyphen.
@@ -521,9 +521,9 @@ one-before-last."))
 	     ;; similarities are even worse than regular ones, so we will
 	     ;; apply both similar and double-hyphen demerits.
 	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
-	     (when (> (compare bol (kpx-node-bol node)) 2)
+	     (when (>= (compare bol (kpx-node-bol node)) 2)
 	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
-	     (when (> (compare eol (kpx-node-eol node)) 2)
+	     (when (>= (compare eol (kpx-node-eol node)) 2)
 	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
 	     ;; #### NOTE: according to #859, TeX doesn't consider the
 	     ;; admittedly very rare and weird case where a paragraph would
