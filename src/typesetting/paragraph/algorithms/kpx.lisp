@@ -58,7 +58,7 @@
 
 (defmacro calibrate-kpx (name &optional infinity)
   "Calibrate NAMEd KPX variable."
-  `(calibrate kpx ,name ,infinity))
+  `(calibrate kpx ,name :infinity ,infinity))
 
 (defmacro default-kpx (name)
   "Default KPX NAMEd variable."
