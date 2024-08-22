@@ -973,11 +973,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :callback 'set-paragraph-width
      :reader paragraph-width)
    (zoom slider
-     :title "Paragraph zoom: 100%"
+     :title "Paragraph zoom: XXX%"
      :orientation :horizontal
      :start (caliber-min *gui-zoom*)
      :end (caliber-max *gui-zoom*)
-     :slug-start (caliber-default *gui-zoom*)
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
