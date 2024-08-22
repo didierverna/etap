@@ -828,7 +828,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	      :paragraph-box :line-boxes :character-boxes :baselines
 	      :over/underfull-boxes :overshrunk/stretched-boxes
 	      :properties-tooltips :river-beds)
-     :selected-items '(:characters)
      :print-function 'title-capitalize
      :selection-callback 'set-clues
      :retract-callback 'set-clues
@@ -889,12 +888,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod initialize-instance :after ((etap etap) &key zoom)
+(defmethod initialize-instance :after ((etap etap) &key zoom clues)
   "Adjust some creation-time GUI options.
-This currently includes the initial ZOOM factor."
+This currently includes the initial ZOOMing factor and CLUES."
   (setf (titled-object-title (zoom etap))
 	(format nil "Paragraph zoom: ~3D%" zoom))
-  (setf (range-slug-start (zoom etap)) zoom))
+  (setf (range-slug-start (zoom etap)) zoom)
+  (setf (choice-selected-items (clues etap)) clues))
 
 
 ;; Interface display
@@ -1042,13 +1042,15 @@ This currently includes the initial ZOOM factor."
 ;; Entry Point
 ;; ===========
 
-(defun run (&key (context *context*) zoom)
+(defun run (&key (context *context*) zoom (clues :characters))
   "Run ETAP's GUI for CONTEXT (the global context by default).
-Optionally provide initial ZOOMing."
+Optionally provide initial ZOOMing and CLUES (characters by default)."
   (calibrate-gui zoom)
+  (unless (listp clues) (setq clues (list clues)))
   (display (make-instance 'etap
 	     :context context
 	     :zoom zoom
+	     :clues clues
 	     :help-callback 'show-help
 	     :destroy-callback (lambda (interface)
 				 (destroy (rivers-interface interface))))))
