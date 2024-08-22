@@ -4,6 +4,18 @@
 ;; Utilities
 ;; =========
 
+(defmacro define-gui-caliber (name min default max)
+  "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber gui ,name ,min ,default ,max))
+
+(define-gui-caliber zoom 100 100 999)
+
+
+(defmacro calibrate-gui (name)
+  "Calibrate NAMEd GUI variable."
+  `(calibrate gui ,name :earmuffs nil))
+
+
 (defun remake-rivers
     (interface &aux (rivers-interface (rivers-interface interface)))
   "Remake INTERFACE's rivers."
@@ -802,9 +814,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
    (zoom slider
      :title "Paragraph zoom: 100%"
      :orientation :horizontal
-     :start 100
-     :end 999
-     :slug-start 100
+     :start (caliber-min *gui-zoom*)
+     :end (caliber-max *gui-zoom*)
+     :slug-start (caliber-default *gui-zoom*)
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
@@ -877,6 +889,13 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
        nil                        nil                       kp-looseness)
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
+
+(defmethod initialize-instance :after ((etap etap) &key zoom)
+  "Adjust some creation-time GUI options.
+This currently includes the initial ZOOM factor."
+  (setf (titled-object-title (zoom etap))
+	(format nil "Paragraph zoom: ~3D%" zoom))
+  (setf (range-slug-start (zoom etap)) zoom))
 
 
 ;; Interface display
@@ -1019,14 +1038,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
       `(:visible-min-height ,(cadr size) :visible-max-height t))))
 
 
+
 ;; ===========
 ;; Entry Point
 ;; ===========
 
-(defun run (&optional (context *context*))
-  "Run ETAP's GUI for CONTEXT (the global context by default)."
+(defun run (&key (context *context*) zoom)
+  "Run ETAP's GUI for CONTEXT (the global context by default).
+Optionally provide initial ZOOMing."
+  (calibrate-gui zoom)
   (display (make-instance 'etap
 	     :context context
+	     :zoom zoom
 	     :help-callback 'show-help
 	     :destroy-callback (lambda (interface)
 				 (destroy (rivers-interface interface))))))

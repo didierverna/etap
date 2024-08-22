@@ -100,9 +100,9 @@ the underfull one."))
   "Default Fixed NAMEd variable."
   `(default fixed ,name))
 
-(defmacro calibrate-fixed (name &optional infinity)
+(defmacro calibrate-fixed (name)
   "Calibrate NAMEd Fixed variable."
-  `(calibrate fixed ,name ,infinity))
+  `(calibrate fixed ,name))
 
 
 

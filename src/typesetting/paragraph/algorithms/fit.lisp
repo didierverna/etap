@@ -149,7 +149,7 @@ for equally good solutions."))
 
 (defmacro calibrate-fit (name &optional infinity)
   "Calibrate NAMEd Fit variable."
-  `(calibrate fit ,name ,infinity))
+  `(calibrate fit ,name :infinity ,infinity))
 
 
 
