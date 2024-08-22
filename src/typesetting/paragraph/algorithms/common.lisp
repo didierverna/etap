@@ -432,39 +432,6 @@ ALGORITHM is either a symbol, or a list of the form (NAME OPTIONS...)."
   (cdr-or-nil algorithm))
 
 
-(defstruct (caliber (:constructor make-caliber (min default max)))
-  "The CALIBER structure.
-A caliber represents values that have a mininum, a maximum, and a default."
-  min default max)
-
-(defmacro define-caliber (prefix name min default max)
-  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values."
-  `(defparameter ,(intern (format nil "*~A-~A*" prefix name))
-     (make-caliber ,min ,default, max)))
-
-(defmacro calibrate
-    (prefix name
-     &optional infinity
-     &aux (variable (intern (format nil "*~A*" name)))
-	  (caliber (intern (format nil "*~A-~A*" prefix name))))
-  "Calibrate *NAME* according to the *PREFIX-NAME* caliber.
-- If *NAME* is null, set it to the caliber's default.
-- If *NAME* is already properly calibrated, leave it be.
-- If *NAME* is out of bounds (large inequality), clamp it or set it to an
-  infinity value of the same sign, according to INFINITY. INFINITY may be NIL
-  (the default), T, :positive, or :negative."
-  `(cond ((null ,variable)
-	  (setq ,variable (caliber-default ,caliber)))
-	 ((<= ,variable (caliber-min ,caliber))
-	  (setq ,variable ,(if (member infinity '(t :negative))
-			     -∞
-			     `(caliber-min ,caliber))))
-	 ((>= ,variable (caliber-max ,caliber))
-	  (setq ,variable ,(if (member infinity '(t :positive))
-			     +∞
-			     `(caliber-max ,caliber))))))
-
-
 (defmacro default
     (prefix name
      &aux (variable (intern (format nil "*~A*" name)))

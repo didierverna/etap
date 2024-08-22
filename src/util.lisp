@@ -75,3 +75,42 @@ Before concatenation, STRINGS is rid of null elements or empty strings."
 (define-method-combination strnlcat
   :documentation "The STRNLCAT method combination."
   :operator strnlcat :identity-with-one-argument t)
+
+
+;; Calibers
+
+(defstruct (caliber (:constructor make-caliber (min default max)))
+  "The CALIBER structure.
+A caliber represents values that have a mininum, a maximum, and a default."
+  min default max)
+
+(defmacro define-caliber (prefix name min default max)
+  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values."
+  `(defparameter ,(intern (format nil "*~A-~A*" prefix name))
+     (make-caliber ,min ,default, max)))
+
+(defmacro calibrate
+    (prefix name
+     &key infinity (earmuffs t)
+     &aux (earmuff (if earmuffs "*" ""))
+	  (variable (intern (format nil "~A~A~A" earmuff name earmuff)))
+	  (caliber (intern (format nil "*~A-~A*" prefix name))))
+  "Calibrate variable according to the *PREFIX-NAME* caliber.
+The variable's name is NAME or *NAME* depending on EARMUFFS (T by default).
+- If variable is null, set it to the caliber's default.
+- If variable is already properly calibrated, leave it be.
+- If variable is out of bounds (large inequality), clamp it or set it to an
+  infinity value of the same sign, according to INFINITY. INFINITY may be NIL
+  (the default), T, :positive, or :negative."
+  `(cond ((null ,variable)
+	  (setq ,variable (caliber-default ,caliber)))
+	 ((<= ,variable (caliber-min ,caliber))
+	  (setq ,variable ,(if (member infinity '(t :negative))
+			     -∞
+			     `(caliber-min ,caliber))))
+	 ((>= ,variable (caliber-max ,caliber))
+	  (setq ,variable ,(if (member infinity '(t :positive))
+			     +∞
+			     `(caliber-max ,caliber))))))
+
+

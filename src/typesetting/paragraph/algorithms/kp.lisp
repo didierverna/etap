@@ -53,7 +53,7 @@
 
 (defmacro calibrate-kp (name &optional infinity)
   "Calibrate NAMEd Knuth-Plass variable."
-  `(calibrate kp ,name ,infinity))
+  `(calibrate kp ,name :infinity ,infinity))
 
 (defmacro default-kp (name)
   "Default Knuth-Plass NAMEd variable."
