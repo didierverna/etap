@@ -22,7 +22,7 @@
 ;;   stretchable one at the end),
 ;; - the only discretionaries that we have come from the hyphenation step, so
 ;;   they originally appear only in the middle of words. However, they may
-;;   turn out to be anywhere after processing ligatures and kerning.
+;;   turn out to be anywhere after processing ligatures and kerns.
 
 (in-package :etap)
 
@@ -239,61 +239,60 @@ Glues represent breakable, elastic space."))
 ;; HList Creation
 ;; ==========================================================================
 
-;; #### NOTE: the procedures handling ligatures and kerning below are aware of
+;; #### NOTE: the procedures handling ligatures and kerns below are aware of
 ;; discretionaries, but they are really meant for those inserted automatically
 ;; during the hyphenation process, that is, \discretionary{-}{}{} in the
 ;; middle of a word. They may be useful in the future, for some more general
-;; cases, but combining ligatures, kerning, and discretionaries is impossible
-;; to do statically in general. For example, if we end up with different
+;; cases, but combining ligatures, kerns, and discretionaries is impossible to
+;; do statically in general. For example, if we end up with different
 ;; potential ligatures starting from a post-break element and going to both a
 ;; no-break and a pre-break later on, we can't represent that statically. The
-;; only truly general solution is to delay ligature and kerning processing
-;; until the harray is flattened. But then, this means that we also need to do
-;; that every time we want to poll the size of various harray chunks. This
-;; could be rather expensive (although I haven't tried it).
+;; only truly general solution is to delay ligature and kerns processing until
+;; the harray is flattened. But then, this means that we also need to do that
+;; every time we want to poll the size of various harray chunks. This could be
+;; rather expensive (although I haven't tried it).
 
 ;; ----------------
 ;; Kerns processing
 ;; ----------------
 
-(defun kerning (elt1 elt2)
-  "Return kerning information for ELT1 and ELT2, or NIL."
+(defun get-kern (elt1 elt2)
+  "Return kern for ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
-       (tfm:kerning elt1 elt2)))
+       (tfm:get-kern elt1 elt2)))
 
 (defgeneric collect-kern (elt1 elt2 remainder)
-  (:documentation
-   "Collect kerning information for (ELT1 ELT2 . REMAINDER).")
+  (:documentation "Collect kern for (ELT1 ELT2 . REMAINDER).")
   (:method (elt1 elt2 remainder)
     "Return NIL. This is the default method."
     nil)
   (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
-	    remainder &aux (kerning (tfm:kerning elt1 elt2)))
+	    remainder &aux (kern (tfm:get-kern elt1 elt2)))
     "Return a kern for characters ELT1 and ELT2, or nil."
-    (when kerning (make-kern kerning)))
+    (when kern (make-kern kern)))
   (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder)
     "Add kerns to discretionary ELT2 if needed."
     (when (pre-break elt2)
-      (let ((kerning (kerning elt1 (car (pre-break elt2)))))
-	(when kerning (push (make-kern kerning) (pre-break elt2)))))
+      (let ((kern (get-kern elt1 (car (pre-break elt2)))))
+	(when kern (push (make-kern kern) (pre-break elt2)))))
     (if (no-break elt2)
-      (let ((kerning (kerning elt1 (car (no-break elt2)))))
-	(when kerning (push (make-kern kerning) (no-break elt2))))
-      (let ((kerning (kerning elt1 (car remainder))))
-	(when kerning (setf (no-break elt2) (list (make-kern kerning))))))
+      (let ((kern (get-kern elt1 (car (no-break elt2)))))
+	(when kern (push (make-kern kern) (no-break elt2))))
+      (let ((kern (get-kern elt1 (car remainder))))
+	(when kern (setf (no-break elt2) (list (make-kern kern))))))
     nil)
   (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder)
     "Add kerns to discretionary ELT1 if needed."
     (when (no-break elt1)
-      (let ((kerning (kerning (car (last (no-break elt1))) elt2)))
-	(when kerning (endpush (make-kern kerning) (no-break elt1)))))
+      (let ((kern (get-kern (car (last (no-break elt1))) elt2)))
+	(when kern (endpush (make-kern kern) (no-break elt1)))))
     (when (post-break elt1)
-      (let ((kerning (kerning (car (last (post-break elt1))) elt2)))
-	(when kerning (endpush (make-kern kerning) (post-break elt1)))))
+      (let ((kern (get-kern (car (last (post-break elt1))) elt2)))
+	(when kern (endpush (make-kern kern) (post-break elt1)))))
     nil))
 
-(defun process-kerning (hlist)
+(defun process-kerns (hlist)
   "Return an new HLIST with kerns."
   (loop :for elements :on hlist
 	:for elt1 := (car elements)
@@ -308,11 +307,11 @@ Glues represent breakable, elastic space."))
 ;; Ligatures processing
 ;; --------------------
 
-(defun ligature (elt1 elt2)
+(defun get-ligature (elt1 elt2)
   "Return a ligature for ELT1 and ELT2, or NIL."
   (and (typep elt1 'tfm:character-metrics)
        (typep elt2 'tfm:character-metrics)
-       (tfm:ligature elt1 elt2)))
+       (tfm:get-ligature elt1 elt2)))
 
 (defgeneric next-characters-1 (elt remainder)
   (:documentation
@@ -349,7 +348,7 @@ to the new hlist, and the unprocessed new remainder.")
     (list (list elt1) (cons elt2 remainder)))
   (:method ((elt1 tfm:character-metrics) (elt2 tfm:character-metrics)
 	    remainder
-	    &aux (ligature (tfm:ligature elt1 elt2)) composition)
+	    &aux (ligature (tfm:get-ligature elt1 elt2)) composition)
     "Process ligatures between ELT1 and ELT2 characters."
     (cond (ligature
 	   (unless (tfm:delete-after ligature) (push elt2 composition))
@@ -365,9 +364,10 @@ to the new hlist, and the unprocessed new remainder.")
 	  (t
 	   (list (list elt1) (cons elt2 remainder)))))
   (:method ((elt1 tfm:character-metrics) (elt2 discretionary) remainder
-	    &aux (eat-elt1 (some
-			    (lambda (character) (tfm:ligature elt1 character))
-			    (next-characters (cons elt2 remainder)))))
+	    &aux (eat-elt1
+		  (some
+		   (lambda (character) (tfm:get-ligature elt1 character))
+		   (next-characters (cons elt2 remainder)))))
     "Process ligatures between ELT1 character and ELT2 discretionary."
     (cond (eat-elt1
 	   (setf (pre-break elt2)
@@ -378,8 +378,9 @@ to the new hlist, and the unprocessed new remainder.")
 	  (t
 	   (list (list elt1) (cons elt2 remainder)))))
   (:method ((elt1 discretionary) (elt2 tfm:character-metrics) remainder
-	    &aux (eat-elt2 (or (ligature (car (last (no-break elt1))) elt2)
-			       (ligature (car (last (post-break elt1))) elt2))))
+	    &aux (eat-elt2
+		  (or (get-ligature (car (last (no-break elt1))) elt2)
+		      (get-ligature (car (last (post-break elt1))) elt2))))
     "Process ligatures between ELT1 character and ELT2 discretionary."
     (cond (eat-elt2
 	   (setf (no-break elt1)
@@ -528,7 +529,7 @@ When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
       ;; we must add hyphenation clues only after everything else has been
       ;; done.
       (when ligatures (setq hlist (process-ligatures hlist)))
-      (when kerning (setq hlist (process-kerning hlist)))
+      (when kerning (setq hlist (process-kerns hlist)))
       (when hyphenation
 	(mapc (lambda (element)
 		(when (hyphenation-point-p element)
