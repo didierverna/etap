@@ -13,7 +13,11 @@
     :serial t
     :components
     ((:file "meta")
-     (:file "util")
+     (:module "util"
+      :serial t
+      :components
+      ((:file "misc")
+       (:file "arith")))
      (:module "font"
       :serial t
       :components
@@ -36,8 +40,7 @@
      (:module "typesetting"
       :serial t
       :components
-      ((:file "arith")
-       (:file "common")
+      ((:file "common")
        (:module "paragraph"
 	:serial t
 	:components
