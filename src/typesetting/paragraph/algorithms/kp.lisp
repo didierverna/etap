@@ -260,7 +260,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (loop :with boundaries :with overfull :with emergency-boundary
 	:with continue := t
 	:for boundary := (next-boundary harray start)
-	  :then (next-boundary harray (stop-idx boundary))
+	  :then (next-boundary harray (idx boundary))
 	:while continue
 	:for min-width := (harray-min-width harray start (stop-idx boundary))
 	:do (when (and ($< (penalty (item boundary)) +∞)
@@ -591,7 +591,7 @@ through the algorithm in the TeX jargon).
 	  (kp-make-node :boundary root-boundary :fitness-class 2
 			:total-demerits 0))
     (loop :for boundary := (next-boundary harray 0)
-	    :then (next-boundary harray (stop-idx boundary))
+	    :then (next-boundary harray (idx boundary))
 	  :while boundary
 	  :when (and ($< (penalty (item boundary)) +∞)
 		     (or hyphenate

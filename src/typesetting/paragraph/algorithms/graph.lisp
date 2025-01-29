@@ -85,7 +85,7 @@ found. If STRICT, consider that even the last line must fit exactly. Otherwise
 The possible endings are listed in reverse order (from last to first)."
   (loop :with underfull :with fits := (list) :with overfull
 	:for boundary := (next-boundary harray start)
-	  :then (next-boundary harray (stop-idx boundary))
+	  :then (next-boundary harray (idx boundary))
 	:while (and boundary (not overfull))
 	:for (nil max min)
 	  := (multiple-value-list

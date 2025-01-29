@@ -199,7 +199,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
   (loop :with underfull :with fit :with overfull
 	:for boundary
 	  := (next-boundary harray start 'fixed-boundary :start start)
-	    :then (next-boundary harray (stop-idx boundary) 'fixed-boundary
+	    :then (next-boundary harray (idx boundary) 'fixed-boundary
 				 :start start)
 	:while (and boundary (not overfull))
 	:do (cond ((< (width boundary) width) (setq underfull boundary))
@@ -228,7 +228,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	:with continue := t
 	:for boundary := (next-boundary harray start 'fixed-boundary
 					:start start :width-kind width-kind)
-	  :then (next-boundary harray (stop-idx boundary) 'fixed-boundary
+	  :then (next-boundary harray (idx boundary) 'fixed-boundary
 			       :start start :width-kind width-kind)
 	:while continue
 	:do (when ($< (penalty (item boundary)) +∞)

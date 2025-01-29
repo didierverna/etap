@@ -203,10 +203,21 @@ See `scaling' for more information."
 ;; Boundaries
 ;; ----------
 
+;; #### TODO: in production, this should perhaps be reviewed. The concept of
+;; boundary is reified as a data structure for two reasons. The first one is
+;; for greedy algorithms to be able to extend it with line information, which
+;; already is a bit borderline in terms of design. The second reason is to
+;; memoize harray indices and the corresponding item. Whether this is actually
+;; useful remains to be seen, especially since creating boundary instances has
+;; a cost, and so do calling accessors.
+
 (defclass boundary ()
   ((item
     :documentation "The harray item at that boundary."
-    :initarg :item :reader item)
+     :initarg :item :reader item)
+   (idx
+    :documentation "The harray index at that boundary."
+    :initarg :idx :reader idx)
    (stop-idx
     :documentation "The harray index for an end of line at that boundary."
     :initarg :stop-idx :reader stop-idx)
@@ -217,7 +228,7 @@ See `scaling' for more information."
   (:documentation "Base class for boundaries.
 A boundary represents a possible break point in an harray.
 The end of the harray is represented by a special boundary with a null item
-and start index (the stop index being the harray's length).
+and start index (the index and stop index being the harray's length).
 
 Greedy algorithms may extend this class in order to memoize various aspects of
 line computation (see `next-boundary'), essentially because all boundaries
@@ -235,7 +246,7 @@ line. Non-greedy algorithms should not."))
 (defun next-boundary (harray from &optional (boundary-class 'boundary)
 				  &rest keys &key &allow-other-keys
 				  &aux (length (length harray)))
-  "Return the next boundary in HARRAY FROM position, or NIL.
+  "Return the next boundary in HARRAY FROM position (excluded), or NIL.
 The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
 This function understands the terminal case where FROM = HARRAY's length
 (possibly coming from the end of harray special boundary), in which case it
@@ -247,9 +258,10 @@ signals that there is no more boundary to find by returning NIL."
       (etypecase item
 	(glue (setq stop-idx idx start-idx (1+ idx)))
 	(discretionary (setq stop-idx (1+ idx) start-idx idx))
-	(null (setq stop-idx length)))
+	(null (setq idx length stop-idx length)))
       (apply #'make-instance boundary-class
-	     :item item :stop-idx stop-idx :start-idx start-idx :harray harray
+	     :item item :idx idx :stop-idx stop-idx :start-idx start-idx
+	     :harray harray
 	     keys))))
 
 

@@ -230,7 +230,7 @@ This function returns three values:
 	:with continue := t
 	:for boundary := (next-boundary harray start 'fit-boundary
 					:start start :width width)
-	  :then (next-boundary harray (stop-idx boundary) 'fit-boundary
+	  :then (next-boundary harray (idx boundary) 'fit-boundary
 			       :start start :width width)
 	:while continue
 	:do (when ($< (penalty (item boundary)) +∞)
@@ -355,9 +355,8 @@ LINE class."))
    "Make a Fit line from HARRAY chunk between START and BOUNDARY.")
   (:method (harray start boundary disposition beds (variant (eql :first))
 	    &key width
-	    &aux (stop (stop-idx boundary))
 		 ;; By default, lines are stretched as much as possible.
-		 (scale 1))
+	    &aux (scale 1))
     "Make a first-fit ragged line from HARRAY chunk between START and BOUNDARY."
     (when *relax*
       (setq scale
@@ -366,14 +365,16 @@ LINE class."))
 	      0
 	      ;; On the other hand, do not destretch any other line so much
 	      ;; that another chunk would fit in.
-	      (let ((scale (scale (next-boundary harray stop 'fit-boundary
+	      (let ((scale (scale (next-boundary harray (idx boundary)
+						 'fit-boundary
 						 :start start :width width))))
 		;; A positive scale means that another chunk would fit in, and
 		;; still be underfull (possibly not even elastic), so we can
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
 		(if ($> scale 0) scale 0)))))
-    (make-instance 'line :harray harray :start-idx start :stop-idx stop
+    (make-instance 'line :harray harray :start-idx start
+		   :stop-idx (stop-idx boundary)
 		   :beds beds :scale scale))
   (:method (harray start boundary disposition beds (variant (eql :best)) &key)
     "Make a best-fit ragged line from HARRAY chunk between START and BOUNDARY."
