@@ -709,7 +709,7 @@ through the algorithm in the TeX jargon).
 			 :bol (harray-bol 0 harray)
 			:total-demerits 0))
     (loop :for boundary := (next-boundary harray 0)
-	    :then (next-boundary harray (stop-idx boundary))
+	    :then (next-boundary harray (idx boundary))
 	  :while boundary
 	  :when (and ($< (penalty (item boundary)) +∞)
 		     (or hyphenate
