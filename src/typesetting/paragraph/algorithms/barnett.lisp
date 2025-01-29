@@ -59,7 +59,7 @@
   (loop :with underword :with hyphens := (list) :with overword
 	:for boundary := (next-boundary harray start 'barnett-boundary
 					:start start :width width)
-	  :then (next-boundary harray (stop-idx boundary) 'barnett-boundary
+	  :then (next-boundary harray (idx boundary) 'barnett-boundary
 			       :start start :width width)
 	:while (and boundary (not overword))
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
