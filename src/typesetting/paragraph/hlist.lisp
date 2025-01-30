@@ -122,7 +122,10 @@ Kerns represent inter-letter horizontal spacing."))
     -∞))
 
 (defclass break-point ()
-  ((penalty :documentation "The penalty for breaking here."
+  ((idx
+    :documentation "This break point's harray index."
+    :reader idx)
+   (penalty :documentation "The penalty for breaking here."
 	    :initform 0 :initarg :penalty :accessor penalty))
   (:documentation "The BREAK-POINT class.
 This is the base class for all objects at which lines can be broken."))
@@ -130,6 +133,14 @@ This is the base class for all objects at which lines can be broken."))
 (defun break-point-p (object)
   "Return T if OBJECT is a break point."
   (typep object 'break-point))
+
+(defgeneric bol-idx (break-point)
+  (:documentation
+   "Return the harray index for a beginning of line at that break point."))
+
+(defgeneric eol-idx (break-point)
+  (:documentation
+   "Return the harray index for an end of line at that break point."))
 
 
 ;; Discretionaries
@@ -155,6 +166,14 @@ depending on whether the break occurs or not."))
   "Make a new discretionary out of PRE-BREAK, POST-BREAK, and NO-BREAK."
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
+
+(defmethod bol-idx ((discretionary discretionary))
+  "Return DISCRETIONARY's IDX."
+  (idx discretionary))
+
+(defmethod eol-idx ((discretionary discretionary))
+  "Return DISCRETIONARY's IDX + 1."
+  (1+ (idx discretionary)))
 
 
 ;; Hyphenation points
@@ -231,6 +250,14 @@ Glues represent breakable, elastic space."))
   (make-glue :width (tfm:interword-space font)
 	     :shrink (tfm:interword-shrink font)
 	     :stretch (tfm:interword-stretch font)))
+
+(defmethod bol-idx ((glue glue))
+  "Return GLUE's IDX + 1."
+  (1+ (idx discretionary)))
+
+(defmethod eol-idx ((glue glue))
+  "Return DISCRETIONARY's IDX."
+  (idx discretionary))
 
 
 
