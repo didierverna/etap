@@ -123,10 +123,10 @@ node. This function memoizes nodes into HASH table."
   ;; #### NOTE: the hash table may contain purposely null entries for some
   ;; keys. This indicates that an attempt at creating a sub-graph was made but
   ;; failed, so there's no point in trying again.
-  (multiple-value-bind (value found) (gethash (stop-idx boundary) hash)
+  (multiple-value-bind (value found) (gethash (idx boundary) hash)
     (if found
       value
-      (setf (gethash (stop-idx boundary) hash)
+      (setf (gethash (idx boundary) hash)
 	    ;; #### NOTE: this may turn out to be NIL. See comment above.
 	    (if (last-boundary-p boundary)
 	      (make-node boundary)
