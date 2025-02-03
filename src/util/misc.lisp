@@ -41,6 +41,21 @@ items satisfying PRE-TEST are considered."
   `(setf ,place (nconc ,place (list ,object))))
 
 
+;; Based on public domain Alexandria / Quickutil version
+(defmacro when-let (bindings &body body)
+  "Execute BODY only when all BINDINGS are non-nil.
+BINDINGS must be either a single binding of the form (VARIABLE VALUE),
+or a list of such. VALUEs are computed sequentially in the specified order,
+and then VARIABLEs are bound to the corresponding VALUEs. If all VALUEs are
+non-nil, BODY is executed."
+  (when (and (consp bindings) (symbolp (car bindings)))
+    (setq bindings (list bindings)))
+  (let ((variables (mapcar #'car bindings)))
+    `(let ,bindings
+       (when (and ,@variables)
+	 ,@body))))
+
+
 ;; These two make it more readable to handle interface and keyword arguments
 ;; which can be of the form STUFF, or (STUFF OPTIONS...).
 
