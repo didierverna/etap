@@ -253,11 +253,11 @@ Glues represent breakable, elastic space."))
 
 (defmethod bol-idx ((glue glue))
   "Return GLUE's IDX + 1."
-  (1+ (idx discretionary)))
+  (1+ (idx glue)))
 
 (defmethod eol-idx ((glue glue))
   "Return DISCRETIONARY's IDX."
-  (idx discretionary))
+  (idx glue))
 
 
 
