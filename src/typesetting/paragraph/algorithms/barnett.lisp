@@ -54,17 +54,19 @@
 ;; Boundary lookup
 ;; ---------------
 
-(defun barnett-line-boundary (harray start width)
-  "Return the Barnett algorithm's view of the end of line boundary."
+(defun barnett-get-boundary (harray bol width)
+  "Return the boundary for an HARRAY LINE of WIDTH starting at BOL.
+This is the Barnett algorithm version."
   (loop :with underword :with hyphens := (list) :with overword
-	:for boundary := (next-boundary harray start 'barnett-boundary
-					:start start :width width)
-	  :then (next-boundary harray (idx boundary) 'barnett-boundary
-			       :start start :width width)
-	:while (and boundary (not overword))
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol (not overword))
+	:for boundary := (make-instance 'barnett-boundary
+			   :harray harray :bol bol :break-point eol
+			   :width width)
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.
-	:do (cond ((hyphenation-point-p (item boundary))
+	:do (cond ((hyphenated boundary)
 		   (push boundary hyphens))
 		  ((<= (width boundary) width)
 		   (setq underword boundary hyphens nil))
@@ -105,15 +107,19 @@
   (loop :with overshrink := (getf (disposition-options disposition) :overshrink)
 	:with disposition := (disposition-type disposition)
 	:with baseline-skip := (baseline-skip harray)
+	:with get-boundary
+	  := (lambda (bol) (barnett-get-boundary harray bol width))
 	:for y := 0 :then (+ y baseline-skip)
-	:for start := 0 :then (start-idx boundary) :while start
-	:for boundary := (barnett-line-boundary harray start width)
-	:for stop := (stop-idx boundary)
+	:for bol := *bop* :then (break-point boundary)
+	:for boundary := (funcall get-boundary bol)
+	:while boundary
+	:for bol-idx := (bol-idx bol)
+	:for eol-idx := (eol-idx (break-point boundary))
 	:for scale := (scale boundary)
 	:for line := (case disposition
 		       (:justified
 			(multiple-value-bind (theoretical effective)
-			    (if (last-boundary-p boundary)
+			    (if (eopp (break-point boundary))
 			      ;; Justified last line: maybe shrink it but
 			      ;; don't stretch it.
 			      (actual-scales scale
@@ -123,12 +129,17 @@
 			      (actual-scales scale
 				:overshrink overshrink :stretch-tolerance +∞))
 			  (make-instance 'line
-			    :harray harray :start-idx start :stop-idx stop
+			    :harray harray
+			    :start-idx bol-idx
+			    :stop-idx eol-idx
 			    :beds beds
-			    :scale theoretical :effective-scale effective)))
+			    :scale theoretical
+			    :effective-scale effective)))
 		       (t ;; just switch back to normal spacing.
 			(make-instance 'line
-			  :harray harray :start-idx start :stop-idx stop
+			  :harray harray
+			  :start-idx bol-idx
+			  :stop-idx eol-idx
 			  :beds beds)))
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
