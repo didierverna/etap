@@ -297,12 +297,15 @@ This is the Fixed algorithm version."
   "Make fixed pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition := (disposition-type disposition)
 	:with baseline-skip := (baseline-skip harray)
-	:with get-boundary := (case disposition
-				(:justified #'fixed-justified-get-boundary)
-				(t #'fixed-ragged-get-boundary))
+	:with get-boundary
+	  := (case disposition
+	       (:justified
+		(lambda (bol) (fixed-justified-get-boundary harray bol width)))
+	       (t
+		(lambda (bol) (fixed-ragged-get-boundary harray bol width))))
 	:for y := 0 :then (+ y baseline-skip)
 	:for bol := *bop* :then (break-point boundary)
-	:for boundary := (funcall get-boundary harray bol width)
+	:for boundary := (funcall get-boundary bol)
 	:while boundary
 	:for line := (make-instance 'line
 		       :harray harray
