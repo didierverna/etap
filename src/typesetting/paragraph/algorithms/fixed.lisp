@@ -178,14 +178,12 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     ;; Equidistance.
     ;; If we have two, or no hyphen, the Avoid Hyphens option has no effect,
     ;; but we might still prefer overfulls.
-    ((or (and (hyphenation-point-p (item underfull))
-	      (hyphenation-point-p (item overfull)))
-	 (and (not (hyphenation-point-p (item underfull)))
-	      (not (hyphenation-point-p (item overfull)))))
+    ((or (and (hyphenated underfull) (hyphenated overfull))
+	 (and (not (hyphenated underfull)) (not (hyphenated overfull))))
      (if *prefer-overfulls* overfull underfull))
     ;; Exactly one hyphen. If we care, choose the other solution.
     (*avoid-hyphens*
-     (if (hyphenation-point-p (item underfull)) overfull underfull))
+     (if (hyphenated underfull) overfull underfull))
     ;; Finally, we might still prefer overfulls.
     (t (if *prefer-overfulls* overfull underfull))))
 
