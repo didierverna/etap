@@ -140,6 +140,23 @@ If element is a discretionary, return the appropriate pre/no/post break part."
 	:for elt := (haref harray i start stop)
 	:if (consp elt) :append elt :else :collect elt))
 
+;; #### FIXME: according to the glossary entry in the CLHS, I think it's
+;; permissible for a pair of bounding index designators to be (<array's
+;; length>, NIL). This means that we can safely do the 1+ below if BREAK-POINT
+;; is the last harray item. However, Lisp implementations seem to diverge in
+;; the handling of out-of-bounds errors (maybe not in that case), so this
+;; should be checked and perhaps harmonized.
+(defun next-break-point
+    (harray &optional (break-point *bop*) &aux (start (1+ (idx break-point))))
+  "Return the next break point in HARRAY after previous BREAK-POINT.
+If BREAK-POINT is NIL (the default), search from the beginning of HARRAY.
+If no further break point is found, return a special break point indicating
+the end of the paragraph (an EOP instance).
+If BREAK-POINT is an EOP one, return NIL."
+  (unless (typep break-point 'eop)
+    (or (find-if #'break-point-p harray :start start)
+	(make-instance 'eop :idx (length harray)))))
+
 
 ;; --------
 ;; Geometry
@@ -203,27 +220,10 @@ See `scaling' for more information."
 ;; Boundaries
 ;; ----------
 
-;; #### TODO: in production, this should perhaps be reviewed. The concept of
-;; boundary is reified as a data structure for two reasons. The first one is
-;; for greedy algorithms to be able to extend it with line information, which
-;; already is a bit borderline in terms of design. The second reason is to
-;; memoize harray indices and the corresponding item. Whether this is actually
-;; useful remains to be seen, especially since creating boundary instances has
-;; a cost, and so do calling accessors.
-
 (defclass boundary ()
-  ((item
-    :documentation "The harray item at that boundary."
-     :initarg :item :reader item)
-   (idx
-    :documentation "The harray index at that boundary."
-    :initarg :idx :reader idx)
-   (stop-idx
-    :documentation "The harray index for an end of line at that boundary."
-    :initarg :stop-idx :reader stop-idx)
-   (start-idx
-    :documentation "The harray index for a beginning of line at that boundary."
-    :initarg :start-idx :reader start-idx))
+  ((break-point
+    :documentation "This boundary's break point."
+     :initarg :break-point :reader break-point))
   (:default-initargs :allow-other-keys t) ;; allow :harray
   (:documentation "Base class for boundaries.
 A boundary represents a possible break point in an harray.
@@ -237,11 +237,11 @@ line. Non-greedy algorithms should not."))
 
 (defmethod hyphenated ((boundary boundary))
   "Return BOUNDARY's hyphenation status."
-  (hyphenated (item boundary)))
+  (hyphenation-point-p (break-point boundary)))
 
 (defun last-boundary-p (boundary)
   "Return T if BOUNDARY is the last one."
-  (null (item boundary)))
+  (null (break-point boundary)))
 
 (defun next-boundary (harray from &optional (boundary-class 'boundary)
 				  &rest keys &key &allow-other-keys
@@ -260,7 +260,7 @@ signals that there is no more boundary to find by returning NIL."
 	(discretionary (setq stop-idx (1+ idx) start-idx idx))
 	(null (setq idx length stop-idx length)))
       (apply #'make-instance boundary-class
-	     :item item :idx idx :stop-idx stop-idx :start-idx start-idx
+	     :break-point item :idx idx :stop-idx stop-idx :start-idx start-idx
 	     :harray harray
 	     keys))))
 

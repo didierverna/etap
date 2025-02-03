@@ -121,13 +121,13 @@ Kerns represent inter-letter horizontal spacing."))
     "Return -∞."
     -∞))
 
-(defclass break-point ()
+(defabstract break-point ()
   ((idx
     :documentation "This break point's harray index."
     :reader idx)
    (penalty :documentation "The penalty for breaking here."
 	    :initform 0 :initarg :penalty :accessor penalty))
-  (:documentation "The BREAK-POINT class.
+  (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 
 (defun break-point-p (object)
@@ -136,11 +136,17 @@ This is the base class for all objects at which lines can be broken."))
 
 (defgeneric bol-idx (break-point)
   (:documentation
-   "Return the harray index for a beginning of line at that break point."))
+   "Return the harray index for a beginning of line at that break point.")
+  (:method (break-point)
+    "Return BREAK-POINT's IDX + 1. This is the default method."
+    (1+ (idx break-point))))
 
 (defgeneric eol-idx (break-point)
   (:documentation
-   "Return the harray index for an end of line at that break point."))
+   "Return the harray index for an end of line at that break point.")
+  (:method (break-point)
+    "Return BREAK-POINT's IDX. This is the default method."
+    (idx break-point)))
 
 
 ;; Discretionaries
@@ -181,7 +187,7 @@ depending on whether the break occurs or not."))
 ;; #### NOTE: we use T as the default here because it allows simple calls to
 ;; MAKE-HYPHENATION-POINT without arguments (the pre, post, and no-breaks are
 ;; empty in that case).
-(defclass hyphenation-mixin ()
+(defabstract hyphenation-mixin ()
   ((explicitp
     :initform t :initarg :explicit :reader explicitp
     :documentation
@@ -195,8 +201,10 @@ This is a mixin for hyphenation points."))
 This class represents hyphenation point discretionaries."))
 
 (defun hyphenation-point-p (object)
-  "Return T if OBJECT is a hyphenation point."
-  (typep object 'hyphenation-point))
+  "Check whether OBJECT is a hyphenation point.
+return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
+  (when (typep object 'hyphenation-point)
+    (if (explicitp object) :explicit :implicit)))
 
 (defun make-hyphenation-point
     (&rest initargs &key pre-break post-break no-break explicit)
@@ -206,13 +214,10 @@ This class represents hyphenation point discretionaries."))
 
 (defgeneric hyphenated (object)
   (:documentation "Return OBJECT's hyphenation status.
-Possible values are nil, :explicit, or :implicit.")
+Possible values are :explicit, :implicit, or nil.")
   (:method (object)
-    "Return NIL. This is the default method."
-    nil)
-  (:method ((object hyphenation-mixin))
-    "Return hyphenation mixin OBJECT's status (:explicit or :implicit)."
-    (if (explicitp object) :explicit :implicit)))
+    "Call `hyphenation-point-p' on OBJECT. This is the default method."
+    (hyphenation-point-p object)))
 
 
 ;; Glues
@@ -251,13 +256,29 @@ Glues represent breakable, elastic space."))
 	     :shrink (tfm:interword-shrink font)
 	     :stretch (tfm:interword-stretch font)))
 
-(defmethod bol-idx ((glue glue))
-  "Return GLUE's IDX + 1."
-  (1+ (idx glue)))
 
-(defmethod eol-idx ((glue glue))
-  "Return DISCRETIONARY's IDX."
-  (idx glue))
+;; Special break points
+
+(defsingleton bop (break-point)
+  ((idx :initform -1)) ;; slot override
+  (:documentation "The BOP (Beginning of Paragraph) singleton class."))
+
+(defmethod eol-idx ((bop bop))
+  "Return NIL."
+  nil)
+
+(defvar *bop* (make-instance 'bop))
+
+
+;; #### NOTE: contrary to BOP, there can't be a single EOP instance because
+;; the IDX value depends on the corresponding harray.
+(defclass eop (break-point)
+  ((idx :initarg :idx)) ;; slot override
+  (:documentation "The EOP (End of Paragraph) class."))
+
+(defmethod bol-idx ((eop eop))
+  "Return NIL."
+  nil)
 
 
 
