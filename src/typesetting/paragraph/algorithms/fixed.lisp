@@ -126,10 +126,10 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; #### NOTE: since HARRAY-WIDTH computes the whole line properties, we might
 ;; just as well remember those values for other boundary classes.
 (defmethod initialize-instance :around
-    ((boundary fixed-boundary) &rest keys &key harray start stop-idx)
+    ((boundary fixed-boundary) &rest keys &key harray bol break-point)
   "Compute and propagate BOUNDARY's line properties to subsequent methods."
   (multiple-value-bind (natural max min stretch shrink)
-      (harray-width harray start stop-idx)
+      (harray-width harray (bol-idx bol) (eol-idx break-point))
     (apply #'call-next-method boundary
 	   :natural-width natural :max-width max :min-width min
 	   :stretch stretch :shrink shrink
@@ -192,21 +192,22 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fixed-justified-line-boundary (harray start width)
-  "Return the Fixed algorithm's view of the end of a justified line boundary."
+(defun fixed-justified-get-boundary (harray bol width)
+  "Return the boundary for a justified HARRAY line of WIDTH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the Fixed algorithm version."
   (loop :with underfull :with fit :with overfull
-	:for boundary
-	  := (next-boundary harray start 'fixed-boundary :start start)
-	    :then (next-boundary harray (idx boundary) 'fixed-boundary
-				 :start start)
-	:while (and boundary (not overfull))
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol (not overfull))
+	:for boundary := (make-instance 'fixed-boundary
+			   :harray harray :bol bol :break-point eol)
 	:do (cond ((< (width boundary) width) (setq underfull boundary))
 		  ((= (width boundary) width) (setq fit boundary))
 		  (t (setq overfull boundary)))
-	:finally
-	   (return (or fit
-		       (fixed-fallback-boundary
-			underfull overfull (+ width *width-offset*))))))
+	:finally (return (or fit
+			     (fixed-fallback-boundary
+			      underfull overfull (+ width *width-offset*))))))
 
 
 ;; #### NOTE: the function below handles infinite penalties and understands a
@@ -219,24 +220,30 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; effect. On the other hand, if we already have an hyphen overfull, it's
 ;; still important to collect a word overfull if possible, because of that
 ;; very same option.
-(defun fixed-ragged-line-boundary
-    (harray start width &optional (width-kind :natural))
-  "Return the Fixed algorithm's view of the end of a ragged line boundary."
+(defun fixed-ragged-get-boundary
+    (harray bol width &optional (width-kind :natural))
+  "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
+The line's WIDTH-KIND is considered. It may be either :natural (the default),
+:min-width, or :max-width.
+This is the Fixed algorithm version."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
-	:for boundary := (next-boundary harray start 'fixed-boundary
-					:start start :width-kind width-kind)
-	  :then (next-boundary harray (idx boundary) 'fixed-boundary
-			       :start start :width-kind width-kind)
-	:while continue
-	:do (when ($< (penalty (item boundary)) +∞)
-	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (let ((hyphenp (hyphenation-point-p (item boundary))))
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol continue)
+	:do (when ($< (penalty eol) +∞)
+	      (when (eq (penalty eol) -∞) (setq continue nil))
+	      (let* ((boundary (make-instance 'fixed-boundary
+				 :harray harray :bol bol :break-point eol
+				 :width-kind width-kind))
+		     ;; Note that we already had EOL to figure this out, but
+		     ;; it's more readable like that.
+		     (hyphenated (hyphenated boundary)))
 		(cond (($< (width boundary) width)
 		       ;; Track the last underfulls because they're the
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
-		       (unless hyphenp (setq underword boundary)))
+		       (unless hyphenated (setq underword boundary)))
 		      (($= (width boundary) width) (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
@@ -244,14 +251,14 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 		       (unless overfull (setq overfull boundary))
 		       ;; No check required here because we stop at the first
 		       ;; word overfull anyway.
-		       (unless hyphenp
+		       (unless hyphenated
 			 (setq overword boundary continue nil))))))
 	:finally
 	   (return
-	     (cond ((and fit (hyphenation-point-p (item fit)) *avoid-hyphens*)
-		    ;; We have a hyphen fit but we prefer to avoid hyphens.
-		    ;; Choose a word solution if possible. Otherwise, fallback
-		    ;; to the hyphen fit.
+	     (cond ((and fit (hyphenated fit) *avoid-hyphens*)
+		    ;; We have a hyphenated fit but we prefer to avoid
+		    ;; hyphens. Choose a word solution if possible. Otherwise,
+		    ;; fallback to the fit.
 		    (ecase *fallback*
 		      (:underfull (or underword fit))
 		      (:anyfull (or (fixed-fallback-boundary
@@ -289,16 +296,18 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 (defun fixed-break-harray (harray disposition width beds)
   "Make fixed pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition := (disposition-type disposition)
-	:with line-boundary := (case disposition
-				 (:justified #'fixed-justified-line-boundary)
-				 (t #'fixed-ragged-line-boundary))
 	:with baseline-skip := (baseline-skip harray)
+	:with get-boundary := (case disposition
+				(:justified #'fixed-justified-get-boundary)
+				(t #'fixed-ragged-get-boundary))
 	:for y := 0 :then (+ y baseline-skip)
-	:for start := 0 :then (start-idx boundary) :while start
-	:for boundary := (funcall line-boundary harray start width)
+	:for bol := *bop* :then (break-point boundary)
+	:for boundary := (funcall get-boundary harray bol width)
+	:while boundary
 	:for line := (make-instance 'line
 		       :harray harray
-		       :start-idx start :stop-idx (stop-idx boundary)
+		       :start-idx (bol-idx bol)
+		       :stop-idx (eol-idx (break-point boundary))
 		       :beds beds)
 	:for x := (case disposition
 		    ((:flush-left :justified) 0)
