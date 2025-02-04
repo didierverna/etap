@@ -293,25 +293,6 @@ This is the Fixed algorithm version."
 ;; Breakup
 ;; ==========================================================================
 
-(defun fixed-get-lines (harray disposition width beds)
-  "Get fixed lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with disposition := (disposition-type disposition)
-	:with get-boundary
-	  := (case disposition
-	       (:justified
-		(lambda (bol) (fixed-justified-get-boundary harray bol width)))
-	       (t
-		(lambda (bol) (fixed-ragged-get-boundary harray bol width))))
-	:for bol := *bop* :then (break-point boundary)
-	:for boundary := (funcall get-boundary bol)
-	:while boundary
-	:collect (make-instance 'line
-		   :harray harray
-		   :start-idx (bol-idx bol)
-		   :stop-idx (eol-idx (break-point boundary))
-		   :beds beds)))
-
-
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fixed))
      &key ((:fallback *fallback*))
@@ -321,8 +302,10 @@ This is the Fixed algorithm version."
   "Break HARRAY with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (make-instance 'simple-breakup
-    :disposition disposition
-    :width width
-    :lines (unless (zerop (length harray))
-	     (fixed-get-lines harray disposition width beds))))
+  (let ((get-boundary (case (disposition-type disposition)
+			(:justified #'fixed-justified-get-boundary)
+			(t          #'fixed-ragged-get-boundary))))
+    (make-instance 'greedy-breakup
+      :disposition disposition
+      :width width
+      :lines (greedy-get-lines harray width beds get-boundary #'make-line))))

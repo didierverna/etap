@@ -339,6 +339,18 @@ Maybe also include river BEDS."
 		       :collect (make-bed line (+ x (/ w 2)) w) :end
 		:and :do (incf x w))))
 
+(defun make-line
+    (harray bol boundary beds &rest keys &key scale effective-scale)
+  "Make an HARRAY line from BOL to BOUNDARY, possibly including river BEDS.
+Optionally preset SCALE and EFFECTIVE-SCALE."
+  (declare (ignore scale effective-scale))
+  (apply #'make-instance 'line
+	 :harray harray
+	 :start-idx (bol-idx bol)
+	 :stop-idx (eol-idx (break-point boundary))
+	 :beds beds
+	 keys))
+
 
 (defmethod hyphenated ((line line))
   "Return LINE's hyphenation status."

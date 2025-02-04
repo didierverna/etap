@@ -102,49 +102,35 @@ This is the Barnett algorithm version."
 ;; algorithms, but I think that by construction, the only overfulls that we
 ;; can get are when there is no elasticity, so this option should have no
 ;; effect.
-(defun barnett-get-lines (harray disposition width beds)
-  "Make Barnett pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with overshrink := (getf (disposition-options disposition) :overshrink)
-	:with disposition := (disposition-type disposition)
-	:with get-boundary
-	  := (lambda (bol) (barnett-get-boundary harray bol width))
-	:for bol := *bop* :then (break-point boundary)
-	:for boundary := (funcall get-boundary bol)
-	:while boundary
-	:for bol-idx := (bol-idx bol)
-	:for eol-idx := (eol-idx (break-point boundary))
-	:for scale := (scale boundary)
-	:collect (case disposition
-		   (:justified
-		    (multiple-value-bind (theoretical effective)
-			(if (eopp (break-point boundary))
-			  ;; Justified last line: maybe shrink it but
-			  ;; don't stretch it.
-			  (actual-scales scale
-			    :overshrink overshrink :stretch-tolerance 0)
-			  ;; Justified regular line: always stretch as
-			  ;; needed, and maybe overshrink.
-			  (actual-scales scale
-			    :overshrink overshrink :stretch-tolerance +∞))
-		      (make-instance 'line
-			:harray harray
-			:start-idx bol-idx
-			:stop-idx eol-idx
-			:beds beds
-			:scale theoretical
-			:effective-scale effective)))
-		   (t ;; just switch back to normal spacing.
-		    (make-instance 'line
-		      :harray harray
-		      :start-idx bol-idx
-		      :stop-idx eol-idx
-		      :beds beds)))))
+(defun barnett-make-justified-line (harray bol boundary beds overshrink)
+  "Barnett version of `make-line' for justified disposition."
+  (multiple-value-bind (theoretical effective)
+      (if (eopp (break-point boundary))
+	;; Justified last line: maybe shrink it but don't stretch it.
+	(actual-scales (scale boundary)
+	  :overshrink overshrink :stretch-tolerance 0)
+	;; Justified regular line: always stretch as needed, and maybe
+	;; overshrink.
+	(actual-scales (scale boundary)
+	  :overshrink overshrink :stretch-tolerance +∞))
+    (make-line harray bol boundary beds
+      :scale theoretical
+      :effective-scale effective)))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :barnett)) &key)
   "Break HARRAY with the Barnett algorithm."
-  (make-instance 'simple-breakup
+  (let ((make-line
+	  (case (disposition-type disposition)
+	    (:justified
+	     (let ((overshrink
+		     (getf (disposition-options disposition) :overshrink)))
+	       (lambda (harray bol boundary beds)
+		 (barnett-make-justified-line
+		  harray bol boundary beds overshrink))))
+	    (t #'make-line))))
+  (make-instance 'greedy-breakup
     :disposition disposition
     :width width
-    :lines (unless (zerop (length harray))
-	     (barnett-get-lines harray disposition width beds))))
+    :lines (greedy-get-lines
+	    harray width beds #'barnett-get-boundary make-line))))

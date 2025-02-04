@@ -467,28 +467,6 @@ LINE class."))
 ;; Breakup
 ;; ==========================================================================
 
-(defun fit-get-lines (harray disposition width beds)
-  "Get fit lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with disposition := (disposition-type disposition)
-	:with disposition-options := (disposition-options disposition)
-	:with get-boundary
-	  := (case disposition
-	       (:justified
-		(lambda (bol)
-		  (fit-justified-get-boundary harray bol width *variant*)))
-	       (t
-		(lambda (bol)
-		  (fixed-ragged-get-boundary harray bol width
-					     (ecase *variant*
-					       (:first :max)
-					       (:best :natural)
-					       (:last :min))))))
-	:for bol := *bop* :then (break-point boundary)
-	:for boundary := (funcall get-boundary bol)
-	:while boundary
-	:collect (apply #'fit-make-line harray bol boundary disposition
-			beds *variant* :width width disposition-options)))
-
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fit))
      &key ((:variant *variant*))
@@ -499,15 +477,32 @@ LINE class."))
 	  ((:prefer-overfulls *prefer-overfulls*))
 	  ((:relax *relax*))
 	  ((:prefer-shrink *prefer-shrink*))
-	  ((:discriminating-function *discriminating-function*)))
+	  ((:discriminating-function *discriminating-function*))
+     &aux (disposition-type (disposition-type disposition)))
   "Break HARRAY with the Fit algorithm."
   (default-fit variant)
   (calibrate-fit line-penalty)
   (default-fit fallback)
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
-  (make-instance 'simple-breakup
-    :disposition disposition
-    :width width
-    :lines (unless (zerop (length harray))
-	     (fit-get-lines harray disposition width beds))))
+  (let ((get-boundary
+	  (case disposition-type
+	    (:justified
+	     (lambda (harray bol width)
+	       (fit-justified-get-boundary harray bol width *variant*)))
+	    (t
+	     (lambda (harray bol width)
+	       (fixed-ragged-get-boundary harray bol width
+					  (ecase *variant*
+					    (:first :max)
+					    (:best :natural)
+					    (:last :min)))))))
+	(make-line (lambda (harray bol boundary beds)
+		     (apply #'fit-make-line harray bol boundary
+			    disposition-type beds *variant*
+			    :width width
+			    (disposition-options disposition)))))
+    (make-instance 'greedy-breakup
+      :disposition disposition
+      :width width
+      :lines (greedy-get-lines harray width beds get-boundary make-line))))
