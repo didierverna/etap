@@ -37,6 +37,10 @@
   (make-instance 'paragraph :hlist hlist :lineup lineup :breakup breakup))
 
 
+(defmethod disposition ((paragraph paragraph))
+  "Return PARAGRAPH's disposition."
+  (disposition (breakup paragraph)))
+
 (defmethod pinned-lines ((paragraph paragraph))
   "Return PARAGRAPH's pinned lines."
   (pinned-lines (breakup paragraph)))

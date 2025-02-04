@@ -195,7 +195,7 @@ The weight is computed according to the discriminating function."
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
   (if (zerop (length harray))
-    (make-instance 'graph-breakup :width width)
+    (make-instance 'graph-breakup :disposition disposition :width width)
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -245,7 +245,8 @@ The weight is computed according to the discriminating function."
 			       (+ (underfulls l2) (overfulls l2)))))))
 	  (setq layouts (sort layouts #'better)))
 	(setq breakup (make-instance 'graph-breakup
-			:width width :root root :nodes nodes :layouts layouts))
+			:disposition disposition :width width
+			:root root :nodes nodes :layouts layouts))
 	(unless (zerop (length layouts))
 	  (setf (aref (renditions breakup) 0)
 		(duncan-pin-layout harray disposition width beds

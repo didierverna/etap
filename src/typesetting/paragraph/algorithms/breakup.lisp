@@ -1,7 +1,11 @@
 (in-package :etap)
 
 (defabstract breakup ()
-  ((width :documentation "The breakup's width." :initarg :width :reader width))
+  ((disposition
+    :documentation "The breakup's disposition."
+    :initarg :disposition :reader disposition)
+   (width :documentation "The breakup's width."
+	  :initarg :width :reader width))
   (:documentation "The BREAKUP class.
 A breakup is the result of running a paragraph formatting algorithm on an
 harray for a specific paragraph width."))

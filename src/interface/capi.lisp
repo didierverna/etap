@@ -251,7 +251,6 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
-	  (context (context interface))
 	  (paragraph (paragraph interface))
 	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
@@ -293,7 +292,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			:foreground :orange
 			:scale-thickness nil :filled t)
 		:else :if (and (cdr pinned-lines) ;; not the last one
-			       (eq (disposition-type (disposition context))
+			       (eq (disposition-type (disposition paragraph))
 				   :justified)
 			       (< (width pinned-line) (width paragraph)))
 		  :do (gp:draw-rectangle pane
