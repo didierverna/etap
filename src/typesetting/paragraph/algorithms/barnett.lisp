@@ -151,5 +151,6 @@ This is the Barnett algorithm version."
     (harray disposition width beds (algorithm (eql :barnett)) &key)
   "Break HARRAY with the Barnett algorithm."
   (make-instance 'simple-breakup
+    :width width
     :pinned-lines (unless (zerop (length harray))
 		    (barnett-break-harray harray disposition width beds))))

@@ -20,19 +20,8 @@
 ;; Paragraphs
 ;; ==========================================================================
 
-;; #### NOTE: contrary to other parameters that were used to generate the
-;; paragraph (disposition, etc.), and even though it's not necessary for
-;; drawing, we remember the width in the class below. That's because we
-;; consider the paragraph's bounding box to be an inherent part of it, and we
-;; need to remember the paragraph's width to get it. GUIs use other parameters
-;; from the original context in order to draw various clues on top of the
-;; actual paragraph's contents. The paragraph width is in fact also available
-;; in the original context, but GUIs are still invited to use the slot below
-;; instead, for consistency.
 (defclass paragraph ()
-  ((width :documentation "The paragraph's width."
-	  :initarg :width :reader width)
-   (hlist :documentation "The paragraph's original hlist."
+  ((hlist :documentation "The paragraph's original hlist."
 	  :initform nil :initarg :hlist
 	  :reader hlist)
    (lineup :documentation "The paragraph's lineup."
@@ -43,14 +32,18 @@
 	    :reader breakup))
   (:documentation "The PARAGRAPH class."))
 
-(defun %make-paragraph (width hlist lineup breakup)
-  "Make a new paragraph of WIDTH, for HLIST, LINEUP, and BREAKUP."
-  (make-instance 'paragraph
-    :width width :hlist hlist :lineup lineup :breakup breakup))
+(defun %make-paragraph (hlist lineup breakup)
+  "Make a new paragraph out of HLIST, LINEUP, and BREAKUP."
+  (make-instance 'paragraph :hlist hlist :lineup lineup :breakup breakup))
+
 
 (defmethod pinned-lines ((paragraph paragraph))
   "Return PARAGRAPH's pinned lines."
   (pinned-lines (breakup paragraph)))
+
+(defmethod width ((paragraph paragraph))
+  "Return PARAGRAPH's width."
+  (width (breakup paragraph)))
 
 (defmethod height ((paragraph paragraph))
   "Return paragraph's height.

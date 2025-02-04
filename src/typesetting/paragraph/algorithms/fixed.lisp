@@ -329,5 +329,6 @@ This is the Fixed algorithm version."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
   (make-instance 'simple-breakup
+    :width width
     :pinned-lines (unless (zerop (length harray))
 		    (fixed-break-harray harray disposition width beds))))

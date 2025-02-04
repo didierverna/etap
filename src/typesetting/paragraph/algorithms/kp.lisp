@@ -341,7 +341,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defun kp-graph-break-harray (harray disposition width beds)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (if (zerop (length harray))
-    (make-instance 'kp-graph-breakup)
+    (make-instance 'kp-graph-breakup :width width)
     (let ((threshold *pre-tolerance*)
 	  (pass 1)
 	  root nodes layouts breakup)
@@ -390,8 +390,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 					       (< (abs (- size1 ideal-size))
 						  (abs (- size2 ideal-size))))
 				     :key #'size))))
-      (setq breakup (make-instance 'kp-graph-breakup
-		      :root root :nodes nodes :layouts layouts :pass pass))
+      (setq breakup
+	    (make-instance 'kp-graph-breakup
+	      :width width :root root :nodes nodes :layouts layouts :pass pass))
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality
       ;; (extremely rare), or when there's no solution and we resort to
@@ -733,7 +734,7 @@ through the algorithm in the TeX jargon).
     (harray disposition width beds &aux (pass 1))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length harray))
-    (make-instance 'kp-dynamic-breakup)
+    (make-instance 'kp-dynamic-breakup :width width)
     (let* ((nodes (or (when ($>= *pre-tolerance* 0)
 			(kp-create-nodes harray width pass))
 		      (kp-create-nodes harray width (incf pass))
@@ -753,8 +754,9 @@ through the algorithm in the TeX jargon).
 					  (< (abs (- elt1 ideal-size))
 					     (abs (- elt2 ideal-size))))
 			     :key #'car))))
-      (setq breakup (make-instance 'kp-dynamic-breakup
-		      :pass pass :nodes (mapcar #'cdr nodes-list)))
+      (setq breakup
+	    (make-instance 'kp-dynamic-breakup
+	      :width width :pass pass :nodes (mapcar #'cdr nodes-list)))
       (setf (aref (renditions breakup) 0)
 	    (kp-dynamic-pin-node
 	     harray disposition width beds (aref (nodes breakup) 0) pass))

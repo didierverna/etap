@@ -147,4 +147,4 @@ corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
 ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
 subsequently computed."
-  (%make-paragraph width hlist lineup breakup))
+  (%make-paragraph hlist lineup breakup))

@@ -1,9 +1,10 @@
 (in-package :etap)
 
-(defclass breakup ()
-  ()
+(defabstract breakup ()
+  ((width :documentation "The breakup's width." :initarg :width :reader width))
   (:documentation "The BREAKUP class.
-This is the base class for breakups."))
+A breakup is the result of running a paragraph formatting algorithm on an
+harray for a specific paragraph width."))
 
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to
@@ -14,7 +15,8 @@ This is the base class for breakups."))
     (harray disposition width beds algorithm &key &allow-other-keys)
   (:documentation
    "Break HARRAY as a DISPOSITION paragraph of WIDTH with ALGORITHM.
-Maybe include river BEDS."))
+Maybe include river BEDS.
+Return the resulting breakup."))
 
 (defun %make-breakup (lineup disposition width beds algorithm)
   "Make a new breakup out of LINEUP for a DISPOSITION paragraph of WITH.
@@ -49,4 +51,4 @@ Use ALGORITHM to do so. Maybe include river BEDS."
   (:documentation "The Simple Breakup class.
 This class allows the storage of a single breaking solution. It is thus
 adequate for greedy algorithms making only discrete choices. Current
-algorithms using it are Fixed and Barnett."))
+algorithms using it are Fixed, Fit, and Barnett."))
