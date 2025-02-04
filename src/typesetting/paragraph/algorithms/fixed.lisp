@@ -192,7 +192,7 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fixed-justified-get-boundary (harray bol width)
+(defun fixed-get-justified-boundary (harray bol width)
   "Return the boundary for a justified HARRAY line of WIDTH starting at BOL.
 Return NIL if BOL is already at the end of HARRAY.
 This is the Fixed algorithm version."
@@ -220,7 +220,7 @@ This is the Fixed algorithm version."
 ;; effect. On the other hand, if we already have an hyphen overfull, it's
 ;; still important to collect a word overfull if possible, because of that
 ;; very same option.
-(defun fixed-ragged-get-boundary
+(defun fixed-get-ragged-boundary
     (harray bol width &optional (width-kind :natural))
   "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
 The line's WIDTH-KIND is considered. It may be either :natural (the default),
@@ -304,6 +304,6 @@ This is the Fixed algorithm version."
   (calibrate-fixed width-offset)
   (make-greedy-breakup harray disposition width beds
 		       (case (disposition-type disposition)
-			 (:justified #'fixed-justified-get-boundary)
-			 (t          #'fixed-ragged-get-boundary))
+			 (:justified #'fixed-get-justified-boundary)
+			 (t          #'fixed-get-ragged-boundary))
 		       #'make-line))

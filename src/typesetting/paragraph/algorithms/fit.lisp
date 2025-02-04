@@ -218,7 +218,7 @@ for equally good solutions."))
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fit-justified-get-boundaries (harray bol width)
+(defun fit-get-justified-boundaries (harray bol width)
   "Return the boundaries for a justified HARRAY line of WIDTH starting at BOL.
 This function is used by the Fit algorithm and returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
@@ -243,12 +243,12 @@ This function is used by the Fit algorithm and returns three values:
 	:finally (return (values fits underfull overfull))))
 
 
-(defun first/last-fit-justified-get-boundary (harray bol width)
+(defun first/last-fit-get-justified-boundary (harray bol width)
   "Return the boundary for a justified HARRAY line of WITH starting at BOL.
 Return NIL if BOL is already at the end of HARRAY.
 This is the First/Last Fit algorithm version."
   (multiple-value-bind (fits underfull overfull)
-      (fit-justified-get-boundaries harray bol width)
+      (fit-get-justified-boundaries harray bol width)
     (cond (fits
 	   (when *avoid-hyphens*
 	     (setq fits (loop :for boundary :in fits
@@ -264,12 +264,12 @@ This is the First/Last Fit algorithm version."
 	   (fixed-fallback-boundary
 	    underfull overfull (+ width *width-offset*))))))
 
-(defun best-fit-justified-get-boundary (harray bol width)
+(defun best-fit-get-justified-boundary (harray bol width)
   "Return the boundary for a justified HARRAY line of WITH starting at BOL.
 Return NIL if BOL is already at the end of HARRAY.
 This is the  best-fit version."
   (multiple-value-bind (fits underfull overfull)
-      (fit-justified-get-boundaries harray bol width)
+      (fit-get-justified-boundaries harray bol width)
     (cond ((and fits (null (cdr fits)))
 	   (first fits))
 	  (fits
@@ -455,15 +455,15 @@ LINE class."))
 	  (case disposition-type
 	    (:justified
 	     (case *variant*
-	       (:best #'best-fit-justified-get-boundary)
-	       (t     #'first/last-fit-justified-get-boundary)))
+	       (:best #'best-fit-get-justified-boundary)
+	       (t     #'first/last-fit-get-justified-boundary)))
 	    (t
 	     (let ((width-kind (ecase *variant*
 				 (:first :max)
 				 (:best :natural)
 				 (:last :min))))
 	       (lambda (harray bol width)
-		 (fixed-ragged-get-boundary harray bol width width-kind))))))
+		 (fixed-get-ragged-boundary harray bol width width-kind))))))
 	(make-line
 	  (case disposition-type
 	    (:justified
