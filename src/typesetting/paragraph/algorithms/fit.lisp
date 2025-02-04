@@ -358,8 +358,7 @@ LINE class."))
   (:method (harray bol boundary disposition beds (variant (eql :first))
 	    &key width
 		 ;; By default, lines are stretched as much as possible.
-	    &aux (bol-idx (bol-idx bol))
-		 (scale 1))
+	    &aux (scale 1))
     "Make a first-fit ragged line from HARRAY chunk between BOL and BOUNDARY."
     (when *relax*
       (setq scale
@@ -371,7 +370,7 @@ LINE class."))
 	      (let ((scale
 		      (harray-scale
 		       harray
-		       bol-idx
+		       (bol-idx bol)
 		       (eol-idx
 			(next-break-point harray (break-point boundary)))
 		       width)))
@@ -380,32 +379,25 @@ LINE class."))
 		;; destretch only up to that (infinity falling back to 0).
 		;; Otherwise, we can destretch completely.
 		(if ($> scale 0) scale 0)))))
-    (make-instance 'line
-      :harray harray
-      :start-idx bol-idx
-      :stop-idx (eol-idx (break-point boundary))
-      :scale scale
-      :beds beds))
+    (make-line harray bol boundary beds :scale scale))
   (:method (harray bol boundary disposition beds (variant (eql :best)) &key)
     "Make a best-fit ragged line from HARRAY chunk between BOL and BOUNDARY."
-    (make-instance 'line
-      :harray harray
-      :start-idx (bol-idx bol)
-      :stop-idx (eol-idx (break-point boundary))
-      :beds beds))
+    (make-line harray bol boundary beds))
   (:method (harray bol boundary disposition beds (variant (eql :last))
 	    &key width
-	    &aux (bol-idx (bol-idx bol))
-		 (eol-idx (eol-idx (break-point boundary)))
 		 ;; By default, lines are shrunk as much as possible.
-		 (scale -1))
+	    &aux (scale -1))
     "Make a last-fit ragged line from HARRAY chunk between BOL and BOUNDARY."
     (when *relax*
       ;; There is no specific case for the last line here, because we only
       ;; deshrink up to the line's natural width.
       ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
       ;; calling (SCALE BOUNDARY).
-      (setq scale (let ((scale (harray-scale harray bol-idx eol-idx width)))
+      (setq scale (let ((scale (harray-scale
+				harray
+				(bol-idx bol)
+				(eol-idx (break-point boundary))
+				width)))
 		    ;; - A positive scale means that the line is naturally
 		    ;;   underfull (maybe not even elastic), so we can
 		    ;;   deshrink  completely.
@@ -414,12 +406,7 @@ LINE class."))
 		    ;; - Finally, a scale < -1 means that the line cannot fit
 		    ;;   at all, so we must stay at our original -1.
 		    (if ($>= scale 0) 0 ($max scale -1)))))
-    (make-instance 'line
-      :harray harray
-      :start-idx bol-idx
-      :stop-idx eol-idx
-      :scale scale
-      :beds beds))
+    (make-line harray bol boundary beds :scale scale))
   (:method (harray bol boundary (disposition (eql :justified)) beds variant
 	    &key overstretch overshrink
 	    &aux (eol-idx (eol-idx (break-point boundary)))
