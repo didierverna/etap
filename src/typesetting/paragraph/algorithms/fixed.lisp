@@ -302,10 +302,8 @@ This is the Fixed algorithm version."
   "Break HARRAY with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (let ((get-boundary (case (disposition-type disposition)
-			(:justified #'fixed-justified-get-boundary)
-			(t          #'fixed-ragged-get-boundary))))
-    (make-instance 'greedy-breakup
-      :disposition disposition
-      :width width
-      :lines (greedy-get-lines harray width beds get-boundary #'make-line))))
+  (make-greedy-breakup harray disposition width beds
+		       (case (disposition-type disposition)
+			 (:justified #'fixed-justified-get-boundary)
+			 (t          #'fixed-ragged-get-boundary))
+		       #'make-line))

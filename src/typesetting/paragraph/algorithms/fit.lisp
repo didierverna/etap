@@ -502,7 +502,5 @@ LINE class."))
 			    disposition-type beds *variant*
 			    :width width
 			    (disposition-options disposition)))))
-    (make-instance 'greedy-breakup
-      :disposition disposition
-      :width width
-      :lines (greedy-get-lines harray width beds get-boundary make-line))))
+    (make-greedy-breakup harray disposition width beds
+			 get-boundary make-line)))

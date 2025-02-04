@@ -129,8 +129,5 @@ This is the Barnett algorithm version."
 		 (barnett-make-justified-line
 		  harray bol boundary beds overshrink))))
 	    (t #'make-line))))
-  (make-instance 'greedy-breakup
-    :disposition disposition
-    :width width
-    :lines (greedy-get-lines
-	    harray width beds #'barnett-get-boundary make-line))))
+    (make-greedy-breakup harray disposition width beds
+			 #'barnett-get-boundary make-line)))
