@@ -219,13 +219,11 @@ for equally good solutions."))
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
 (defun fit-justified-get-boundaries (harray bol width)
-  "Return possible boundaries for justification by the Fit algorithm.
-Boundaries are collected for a HARRAY line beginning at BOL, and for a
-paragraph of WIDTH.
-This function returns three values:
+  "Return the boundaries for a justified HARRAY line of WIDTH starting at BOL.
+This function is used by the Fit algorithm and returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
-- the last underfull boundary or NIL,
-- the first overfull boundary or NIL."
+- the last underfull boundary, or NIL,
+- the first overfull boundary, or NIL."
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
 	:for eol := (next-break-point harray bol)
@@ -245,78 +243,76 @@ This function returns three values:
 	:finally (return (values fits underfull overfull))))
 
 
-;; #### NOTE: even though the value is dynamically scoped, we're still passing
-;; VARIANT explicitly to this function for specialization purposes.
-(defgeneric fit-justified-get-boundary (harray bol width variant)
-  (:documentation
-   "Return the boundary for a justified HARRAY line of WIDTH starting at BOL.
-This is the Fit algorithm version.")
-  (:method (harray bol width variant)
-    "Find a first-/last-fit boundary for the justified disposition."
-    (multiple-value-bind (fits underfull overfull)
-	(fit-justified-get-boundaries harray bol width)
-      (cond (fits
-	     (when *avoid-hyphens*
-	       (setq fits
-		     (loop :for boundary :in fits
-			   :if (hyphenated boundary)
-			     :collect boundary :into hyphens
-			   :else
-			     :collect boundary :into others
-			   :finally (return (or others hyphens)))))
-	     (ecase variant
-	       (:first (car (last fits)))
-	       (:last (first fits))))
-	    (t
-	     (fixed-fallback-boundary
-	      underfull overfull (+ width *width-offset*))))))
-  (:method (harray bol width (variant (eql :best)))
-    "Find a best-fit boundary for the justified disposition."
-    (multiple-value-bind (fits underfull overfull)
-	(fit-justified-get-boundaries harray bol width)
-      (cond ((and fits (null (cdr fits)))
-	     (first fits))
-	    (fits
-	     ;; #### NOTE: since we're only working with fits here, the
-	     ;; badness can only be numerical (not infinite). Also, there is
-	     ;; at most one boundary with a penalty of -∞ (because of the way
-	     ;; we collect boundaries). This means that we can end up with at
-	     ;; most one infinitely negative weight below.
-	     (let ((possibilities (length fits)))
+(defun first/last-fit-justified-get-boundary (harray bol width)
+  "Return the boundary for a justified HARRAY line of WITH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the First/Last Fit algorithm version."
+  (multiple-value-bind (fits underfull overfull)
+      (fit-justified-get-boundaries harray bol width)
+    (cond (fits
+	   (when *avoid-hyphens*
+	     (setq fits (loop :for boundary :in fits
+			      :if (hyphenated boundary)
+				:collect boundary :into hyphens
+			      :else
+				:collect boundary :into others
+			      :finally (return (or others hyphens)))))
+	   (ecase *variant*
+	     (:first (car (last fits)))
+	     (:last (first fits))))
+	  (t
+	   (fixed-fallback-boundary
+	    underfull overfull (+ width *width-offset*))))))
+
+(defun best-fit-justified-get-boundary (harray bol width)
+  "Return the boundary for a justified HARRAY line of WITH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the  best-fit version."
+  (multiple-value-bind (fits underfull overfull)
+      (fit-justified-get-boundaries harray bol width)
+    (cond ((and fits (null (cdr fits)))
+	   (first fits))
+	  (fits
+	   ;; #### NOTE: since we're only working with fits here, the badness
+	   ;; can only be numerical (not infinite). Also, there is at most one
+	   ;; boundary with a penalty of -∞ (because of the way we collect
+	   ;; boundaries). This means that we can end up with at most one
+	   ;; infinitely negative weight below.
+	   (let ((possibilities (length fits)))
+	     (mapc (lambda (fit)
+		     (change-class fit 'fit-weighted-boundary
+		       :weight (local-demerits (scale-badness (scale fit))
+					       (penalty (break-point fit))
+					       *line-penalty*)
+		       :possibilities possibilities))
+	       fits))
+	   ;; Note the use of $< and EQL here, because we can have (at most)
+	   ;; one infinitely negative weight.
+	   (setq fits (stable-sort fits #'$< :key #'weight))
+	   (setq fits (retain (weight (first fits)) fits
+			:test #'eql :key #'weight))
+	   (when (cdr fits)
+	     ;; We have two or more equal weights, so they can only be
+	     ;; numerical.
+	     (let ((new-weight
+		     (ecase *discriminating-function*
+		       (:minimize-distance
+			(lambda (fit) (abs (- width (width fit)))))
+		       (:minimize-scaling
+			(lambda (fit) (abs (scale fit)))))))
 	       (mapc (lambda (fit)
-		       (change-class fit 'fit-weighted-boundary
-			 :weight (local-demerits (scale-badness (scale fit))
-						 (penalty (break-point fit))
-						 *line-penalty*)
-			 :possibilities possibilities))
+		       (setf (weight fit) (funcall new-weight fit)))
 		 fits))
-	     ;; Note the use of $< and EQL here, because we can have (at most)
-	     ;; one infinitely negative weight.
-	     (setq fits (stable-sort fits #'$< :key #'weight))
+	     (setq fits (stable-sort fits #'< :key #'weight))
 	     (setq fits (retain (weight (first fits)) fits
-			  :test #'eql :key #'weight))
-	     (when (cdr fits)
-	       ;; We have two or more equal weights, so they can only be
-	       ;; numerical.
-	       (let ((new-weight
-		       (ecase *discriminating-function*
-			 (:minimize-distance
-			  (lambda (fit) (abs (- width (width fit)))))
-			 (:minimize-scaling
-			  (lambda (fit) (abs (scale fit)))))))
-		 (mapc (lambda (fit)
-			 (setf (weight fit) (funcall new-weight fit)))
-		   fits))
-	       (setq fits (stable-sort fits #'< :key #'weight))
-	       (setq fits (retain (weight (first fits)) fits
-			    :test #'= :key #'weight)))
-	     (cond ((cdr fits)
-		    (assert (= (length fits) 2))
-		    (if *prefer-shrink* (first fits) (second fits)))
-		   (t (first fits))))
-	    (t
-	     (fixed-fallback-boundary
-	      underfull overfull (+ width *width-offset*)))))))
+				:test #'= :key #'weight)))
+	   (cond ((cdr fits)
+		  (assert (= (length fits) 2))
+		  (if *prefer-shrink* (first fits) (second fits)))
+		 (t (first fits))))
+	  (t
+	   (fixed-fallback-boundary
+	    underfull overfull (+ width *width-offset*))))))
 
 
 
@@ -475,15 +471,16 @@ LINE class."))
   (let ((get-boundary
 	  (case disposition-type
 	    (:justified
-	     (lambda (harray bol width)
-	       (fit-justified-get-boundary harray bol width *variant*)))
+	     (case *variant*
+	       (:best #'best-fit-justified-get-boundary)
+	       (t     #'first/last-fit-justified-get-boundary)))
 	    (t
-	     (lambda (harray bol width)
-	       (fixed-ragged-get-boundary harray bol width
-					  (ecase *variant*
-					    (:first :max)
-					    (:best :natural)
-					    (:last :min)))))))
+	     (let ((width-kind (ecase *variant*
+				 (:first :max)
+				 (:best :natural)
+				 (:last :min))))
+	       (lambda (harray bol width)
+		 (fixed-ragged-get-boundary harray bol width width-kind))))))
 	(make-line (lambda (harray bol boundary beds)
 		     (apply #'fit-make-line harray bol boundary
 			    disposition-type beds *variant*
