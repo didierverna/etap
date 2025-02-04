@@ -33,7 +33,7 @@ Use ALGORITHM to do so. Maybe include river BEDS."
 ;; the ability to visualize different breakup results.
 
 (defgeneric pinned-lines (breakup)
-  (:documentation "Return BREAKUP's number of pinned lines."))
+  (:documentation "Return BREAKUP's pinned lines."))
 
 (defun lines-# (breakup)
   "Return BREAKUP's number of lines."
@@ -51,8 +51,25 @@ Use ALGORITHM to do so. Maybe include river BEDS."
 
 (defclass simple-breakup (breakup)
   ((pinned-lines :documentation "The pinned lines."
-		 :initform nil :initarg :pinned-lines :reader pinned-lines))
+		 :initform nil :reader pinned-lines))
   (:documentation "The Simple Breakup class.
 This class allows the storage of a single breaking solution. It is thus
 adequate for greedy algorithms making only discrete choices. Current
 algorithms using it are Fixed, Fit, and Barnett."))
+
+(defmethod initialize-instance :after ((breakup simple-breakup) &key lines)
+  "Pin LINES in BREAKUP."
+  (when lines
+    (setf (slot-value breakup 'pinned-lines)
+	  (loop :with width := (width breakup)
+		:with baseline-skip := (baseline-skip (harray (car lines)))
+		:with x := (case (disposition-type (disposition breakup))
+			     ((:flush-left :justified)
+			      (lambda (line) (declare (ignore line)) 0))
+			     (:centered
+			      (lambda (line) (/ (- width (width line)) 2)))
+			     (:flush-right
+			      (lambda (line) (- width (width line)))))
+		:for y := 0 :then (+ y baseline-skip)
+		:for line :in lines
+		:collect (pin-line line (funcall x line) y)))))

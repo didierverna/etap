@@ -467,11 +467,10 @@ LINE class."))
 ;; Breakup
 ;; ==========================================================================
 
-(defun fit-break-harray (harray disposition width beds)
-  "Make fit pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+(defun fit-get-lines (harray disposition width beds)
+  "Get fit lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition := (disposition-type disposition)
 	:with disposition-options := (disposition-options disposition)
-	:with baseline-skip := (baseline-skip harray)
 	:with get-boundary
 	  := (case disposition
 	       (:justified
@@ -484,17 +483,11 @@ LINE class."))
 					       (:first :max)
 					       (:best :natural)
 					       (:last :min))))))
-	:for y := 0 :then (+ y baseline-skip)
 	:for bol := *bop* :then (break-point boundary)
 	:for boundary := (funcall get-boundary bol)
 	:while boundary
-	:for line := (apply #'fit-make-line harray bol boundary disposition
-			    beds *variant* :width width disposition-options)
-	:for x := (case disposition
-		    ((:flush-left :justified) 0)
-		    (:centered (/ (- width (width line)) 2))
-		    (:flush-right (- width (width line))))
-	:collect (pin-line line x y)))
+	:collect (apply #'fit-make-line harray bol boundary disposition
+			beds *variant* :width width disposition-options)))
 
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :fit))
@@ -516,5 +509,5 @@ LINE class."))
   (make-instance 'simple-breakup
     :disposition disposition
     :width width
-    :pinned-lines (unless (zerop (length harray))
-		    (fit-break-harray harray disposition width beds))))
+    :lines (unless (zerop (length harray))
+	     (fit-get-lines harray disposition width beds))))

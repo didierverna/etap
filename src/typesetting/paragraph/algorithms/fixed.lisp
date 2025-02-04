@@ -293,30 +293,23 @@ This is the Fixed algorithm version."
 ;; Breakup
 ;; ==========================================================================
 
-(defun fixed-break-harray (harray disposition width beds)
-  "Make fixed pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
+(defun fixed-get-lines (harray disposition width beds)
+  "Get fixed lines from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition := (disposition-type disposition)
-	:with baseline-skip := (baseline-skip harray)
 	:with get-boundary
 	  := (case disposition
 	       (:justified
 		(lambda (bol) (fixed-justified-get-boundary harray bol width)))
 	       (t
 		(lambda (bol) (fixed-ragged-get-boundary harray bol width))))
-	:for y := 0 :then (+ y baseline-skip)
 	:for bol := *bop* :then (break-point boundary)
 	:for boundary := (funcall get-boundary bol)
 	:while boundary
-	:for line := (make-instance 'line
-		       :harray harray
-		       :start-idx (bol-idx bol)
-		       :stop-idx (eol-idx (break-point boundary))
-		       :beds beds)
-	:for x := (case disposition
-		    ((:flush-left :justified) 0)
-		    (:centered (/ (- width (width line)) 2))
-		    (:flush-right (- width (width line))))
-	:collect (pin-line line x y)))
+	:collect (make-instance 'line
+		   :harray harray
+		   :start-idx (bol-idx bol)
+		   :stop-idx (eol-idx (break-point boundary))
+		   :beds beds)))
 
 
 (defmethod break-harray
@@ -331,5 +324,5 @@ This is the Fixed algorithm version."
   (make-instance 'simple-breakup
     :disposition disposition
     :width width
-    :pinned-lines (unless (zerop (length harray))
-		    (fixed-break-harray harray disposition width beds))))
+    :lines (unless (zerop (length harray))
+	     (fixed-get-lines harray disposition width beds))))
