@@ -72,6 +72,7 @@
 
 (in-package :etap)
 
+
 ;; ==========================================================================
 ;; Specification
 ;; ==========================================================================
@@ -341,9 +342,9 @@ LINE class."))
     (possibilities line)))
 
 
-;; -----------------
-;; Lines computation
-;; -----------------
+;; -----------
+;; Line lookup
+;; -----------
 
 (defun first-fit-make-ragged-line
     (harray bol boundary beds width
