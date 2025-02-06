@@ -197,8 +197,9 @@ for equally good solutions."))
     ((boundary fit-boundary) &key natural-width width stretch shrink)
   "Initialize BOUNDARY's scale."
   (setf (slot-value boundary 'scale)
-	;; #### NOTE: the WIDTH slot is already initialized by now, but we're
-	;; still saving an reader call by using the NATURAL-WIDTH argument.
+	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
+	;; already initialized by now, but we're still saving a reader call
+	;; by using the propagated NATURAL-WIDTH keyword argument.
 	(scaling natural-width width stretch shrink)))
 
 
