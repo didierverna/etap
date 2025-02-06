@@ -1,5 +1,6 @@
 (in-package :etap)
 
+
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -226,14 +227,12 @@ See `scaling' for more information."
      :initarg :break-point :reader break-point))
   (:default-initargs :allow-other-keys t) ;; allow :harray
   (:documentation "Base class for boundaries.
-A boundary represents a possible break point in an harray.
-The end of the harray is represented by a special boundary with a null item
-and start index (the index and stop index being the harray's length).
+A boundary represents a line ending at a certain break point. They do not
+store the position of the beginning of the line. Algorithms may subclass this
+class in order to memoize line properties.
 
-Greedy algorithms may extend this class in order to memoize various aspects of
-line computation (see `next-boundary'), essentially because all boundaries
-subject to comparison at one point in time relate to the same beginning of
-line. Non-greedy algorithms should not."))
+Greedy algorithms use boundaries to figure out the appropriate end of each
+line. Graph algorithms use boundaries to represent edges."))
 
 (defmethod hyphenated ((boundary boundary))
   "Return BOUNDARY's hyphenation status."
