@@ -17,6 +17,7 @@
 
 (in-package :etap)
 
+
 ;; ==========================================================================
 ;; Specification
 ;; ==========================================================================
@@ -34,48 +35,92 @@
 
 
 ;; ==========================================================================
-;; Graph Specialization
+;; Boundaries
 ;; ==========================================================================
 
-;; -----
-;; Edges
-;; -----
-
-(defclass duncan-edge (edge)
-  ((fitness :documentation "This edge's fitness status.
+(defclass duncan-boundary (fit-boundary)
+  ((fitness
+    :documentation "This boundary's fitness status.
 Possible values are :underfull, :fit, and :overfull."
-	    :reader fitness)
-   (scale :documentation "This edge's scale."
-	  :reader scale)
-   (weight :documentation "This edge's weight.
+    :reader fitness)
+   (weight
+    :documentation "This boundary's weight.
 The weight is computed according to the discriminating function."
-	   :reader weight))
-  (:documentation "The DUNCAN-EDGE class."))
+    :reader weight))
+  (:documentation "The DUNCAN-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((edge duncan-edge)
-     &key harray start width
-     &aux (last-line-p (last-boundary-p (boundary (destination edge)))))
-  "Initialize Duncan EDGE's properties."
-  (multiple-value-bind (natural max min stretch shrink)
-      (harray-width harray start (stop-idx (boundary (destination edge))))
-    (setf (slot-value edge 'fitness)
-	  ;; #### NOTE: an underfull last line is actually a fit.
-	  (cond (($< max width) (if last-line-p :fit :underfull))
-		((> min width) :overfull)
-		(t :fit)))
-    (setf (slot-value edge 'scale) (scaling natural width stretch shrink))
-    ;; #### NOTE: a fit last line (which, in fact, can be underfull as
-    ;; mentioned above) needs a special treatment here. We won't consider its
-    ;; weight at all because it's not justified. On the other hand, if the
-    ;; last line is overfull, then it's bad and we need to take its weight
-    ;; into account.
-    (setf (slot-value edge 'weight)
-	  (if (and last-line-p (eq (fitness edge) :fit))
-	    0
-	    (ecase *discriminating-function*
-	      (:minimize-distance (abs (- width natural)))
-	      (:minimize-scaling ($abs (scale edge))))))))
+    ((boundary duncan-boundary)
+     ;; #### NOTE: the slots from the superclasses are already initialized by
+     ;; now, but we're still saving some reader calls by using the propagated
+     ;; keyword arguments.
+     &key natural-width min-width max-width width
+     &aux (eopp (eopp (break-point boundary)))
+	  (fitness ;; #### NOTE: an underfull last line is actually a fit.
+	   (cond (($< max-width width) (if eopp :fit :underfull))
+		 ((>  min-width width) :overfull)
+		 (t :fit))))
+  "Initialize BOUNDARY's fitness and weight."
+  (setf (slot-value boundary 'fitness) fitness)
+  ;; #### NOTE: a fit last line (which, in fact, can be underfull as mentioned
+  ;; above) needs a special treatment here. We won't consider its weight at
+  ;; all because it's not justified. On the other hand, if the last line is
+  ;; overfull, then it's bad and we need to take its weight into account.
+  (setf (slot-value boundary 'weight)
+	(if (and eopp (eq fitness :fit))
+	  0
+	  (ecase *discriminating-function*
+	    (:minimize-distance (abs (- width natural-width)))
+	    (:minimize-scaling ($abs (scale boundary)))))))
+
+
+;; -----------------
+;; Boundaries lookup
+;; -----------------
+
+;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
+;; instead of just a Boolean, for keeping more than 1 *full. On the other
+;; hand, this function (which was originally a general utility) does already
+;; too much as Duncan only uses the default keyword values.
+
+(defun duncan-get-boundaries (harray bol width &key (fulls t) strict)
+  "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
+This is the Duncan algorithm version.
+
+If no boundary is found, return NIL, unless FULLS (the default), in which case
+return the last underfull and the first overfull (if any) as a fallback
+solution. If FULLS is :PREVENTIVE, also return these fulls even if acceptable
+boundaries are found.
+
+If STRICT, consider that even the last line must fit exactly. Otherwise
+(the default), consider a final underfull as a fit.
+
+The possible endings are listed in reverse order (from last to first)."
+  (loop :with underfull :with fits := (list) :with overfull
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol (not overfull))
+	:for boundary := (make-instance 'duncan-boundary
+			   :harray harray :bol bol :break-point eol
+			   :width width)
+	:do (cond (($< (max-width boundary) width)
+		   (if (and (eopp eol) (not strict))
+		     (push boundary fits)
+		     (setq underfull boundary)))
+		  ((> (min-width boundary) width)
+		   (setq overfull boundary))
+		  (t ;; note the reverse order
+		   (push boundary fits)))
+	:finally
+	   (return (cond ((eq fulls :preventive)
+			  (append (when overfull (list overfull))
+				  fits
+				  (when underfull (list underfull))))
+			 (fulls
+			  (or fits
+			      (append (when overfull (list overfull))
+				      (when underfull (list underfull)))))
+			 (t fits)))))
 
 
 ;; ------
@@ -83,14 +128,14 @@ The weight is computed according to the discriminating function."
 ;; ------
 
 (defclass duncan-ledge (ledge)
-  ((weight :documentation "The total weight so far in the layout."
-	   :reader weight))
+  ((weight :documentation "The cumulative weight so far in the layout."
+	   :initarg :weight :reader weight))
   (:documentation "The Duncan Ledge class."))
 
 (defmethod properties strnlcat ((ledge duncan-ledge))
   "Advertise Duncan LEDGE properties."
   (format nil "Weights: ~A (line), ~A (cumulative)."
-    ($float (weight (edge ledge)))
+    ($float (weight (boundary ledge)))
     ($float (weight ledge))))
 
 
@@ -99,38 +144,40 @@ The weight is computed according to the discriminating function."
 ;; -------
 
 
-;; #### TODO: I'm keeping this around because those are properties we don't
-;; want to advertise, contrary to cumulative weights: the layout's total
-;; weight is in fact the weight of the last ledge. But I haven't given this a
-;; lot of thought yet.
+;; #### NOTE: the layout's total weight is in fact the weight of the last
+;; ledge.
 (defclass duncan-layout (layout)
-  ((hyphens :documentation "This layout's number of hyphenated lines."
-	    :initform 0 :reader hyphens)
-   (underfulls :documentation "This layout's number of underfull lines."
-	       :initform 0 :reader underfulls)
-   (overfulls :documentation "This layout's number of overfull lines."
-	      :initform 0 :reader overfulls))
+  ((weight
+    :documentation "This layout's total weight."
+    :initform 0 :reader weight)
+   (hyphens
+    :documentation "This layout's number of hyphenated lines."
+    :initform 0 :reader hyphens)
+   (underfulls
+    :documentation "This layout's number of underfull lines."
+    :initform 0 :reader underfulls)
+   (overfulls
+    :documentation "This layout's number of overfull lines."
+    :initform 0 :reader overfulls))
   (:documentation "The DUNCAN-LAYOUT class."))
 
-(defmethod weight ((layout duncan-layout))
-  "Return Duncan LAYOUT's weight."
-  (weight (car (last (ledges layout)))))
-
+;; #### NOTE: we only advertise the layout's weight for now. The other
+;; properties are here for sorting the layouts from best to worse.
 (defmethod properties strnlcat ((layout duncan-layout))
   "Advertise Duncan LAYOUT properties."
   (format nil "Weight: ~A." ($float (weight layout))))
 
 (defun duncan-postprocess-layout (layout)
   "Compute LAYOUT's properties."
-  (loop :with total-weight := 0
-	:for ledge :in (ledges layout)
-	:do (setq total-weight ($+ total-weight (weight (edge ledge))))
-	:do (setf (slot-value ledge 'weight) total-weight)
-	:when (hyphenated ledge)
-	  :do (incf (slot-value layout 'hyphens))
-	:do (case (fitness (edge ledge))
-	      (:underfull (incf (slot-value layout 'underfulls)))
-	      (:overfull  (incf (slot-value layout 'overfulls))))))
+  (change-class layout 'duncan-layout)
+  (with-slots (weight hyphens underfulls overfulls) layout
+    (loop :for ledge :in (ledges layout)
+	  :do (setf weight ($+ weight (weight (boundary ledge))))
+	  :do (change-class ledge 'duncan-ledge :weight weight)
+	  :when (hyphenated ledge) :do (incf hyphens)
+	    :do (case (fitness (boundary ledge))
+		  (:underfull (incf underfulls))
+		  (:overfull  (incf overfulls))))))
 
 
 
@@ -149,15 +196,13 @@ The weight is computed according to the discriminating function."
 	  :with baseline-skip := (baseline-skip harray)
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for ledge :in (ledges layout)
-	  :for edge := (edge ledge)
-	  :and start := 0 :then (start-idx (boundary (destination edge)))
-	  :for stop := (stop-idx (boundary (destination edge)))
-	  :for scale = (scale edge)
+	  :for bol := *bop* :then (break-point boundary)
+	  :for boundary := (boundary ledge)
+	  :for scale = (scale boundary)
 	  :for line := (case disposition
 			 (:justified
 			  (multiple-value-bind (theoretical effective)
-			      (if (last-boundary-p
-				   (boundary (destination edge)))
+			      (if (eopp (break-point boundary))
 				;; Justified last line: maybe shrink it but
 				;; don't stretch it.
 				(actual-scales scale
@@ -166,16 +211,16 @@ The weight is computed according to the discriminating function."
 				(actual-scales scale
 				  :overshrink overshrink
 				  :overstretch overstretch))
-			    (make-instance 'graph-line
-			      :harray harray :start-idx start :stop-idx stop
-			      :beds beds
+			    (make-instance 'layout-line
+			      :harray harray
+			      :start-idx (bol-idx bol)
+			      :stop-idx (eol-idx (break-point boundary))
 			      :scale theoretical
 			      :effective-scale effective
+			      :beds beds
 			      :ledge ledge)))
 			 (t ;; just switch back to normal spacing.
-			  (make-instance 'line
-			    :harray harray :start-idx start :stop-idx stop
-			    :beds beds)))
+			  (make-line harray bol boundary beds)))
 	  :for x := (case disposition
 		      ((:flush-left :justified) 0)
 		      (:centered (/ (- width (width line)) 2))
@@ -202,53 +247,49 @@ The weight is computed according to the discriminating function."
     ;; fulls leads to an explosion of the graph size. On the other hand, maybe
     ;; it is possible that we miss better solutions like this. For example, it
     ;; could be possible that by making a line arbitrarily underfull instead
-    ;; of fit, we reduce the number of subsequent *fulls. I hope that if it's
-    ;; possible, it would only affect very rare cases. But this should be
-    ;; experimented.
-    (multiple-value-bind (root nodes)
-	(make-graph harray width
-	  :edge-type 'duncan-edge :next-boundaries '(next-boundaries :fulls t))
-      (let ((layouts (make-layouts root
-		       :layout-type 'duncan-layout :ledge-type 'duncan-ledge))
-	    breakup)
-	(mapc #'duncan-postprocess-layout layouts)
-	(labels ((perfect (layout)
-		   (and (zerop (hyphens layout))
-			(zerop (underfulls layout))
-			(zerop (overfulls layout))))
-		 (hyphenated (layout)
-		   (and (not (zerop (hyphens layout)))
-			(zerop (underfulls layout))
-			(zerop (overfulls layout))))
-		 (misfit (layout)
-		   (or (not (zerop (underfulls layout)))
-		       (not (zerop (overfulls layout)))))
-		 (better (l1 l2) ;; The Almighty Duncan Sorting Function!
-		   ;; #### NOTE: no need for extended arithmetic when
-		   ;; comparing weights below.
-		   (or (and (perfect l1)
-			    (perfect l2)
-			    (< (weight l1) (weight l2)))
-		       (and (perfect l1) (not (perfect l2)))
-		       (and (hyphenated l1) (hyphenated l2)
-			    (= (hyphens l1) (hyphens l2))
-			    (< (weight l1) (weight l2)))
-		       (and (hyphenated l1) (hyphenated l2)
-			    (< (hyphens l1) (hyphens l2)))
-		       (and (hyphenated l1) (misfit l2))
-		       (and (misfit l1) (misfit l2)
-			    (= (+ (underfulls l1) (overfulls l1))
-			       (+ (underfulls l2) (overfulls l2)))
-			    (< (hyphens l1) (hyphens l2)))
-		       (and (misfit l1) (misfit l2)
-			    (< (+ (underfulls l1) (overfulls l1))
-			       (+ (underfulls l2) (overfulls l2)))))))
-	  (setq layouts (sort layouts #'better)))
-	(setq breakup (make-instance 'graph-breakup
-			:disposition disposition :width width
-			:root root :nodes nodes :layouts layouts))
-	(unless (zerop (length layouts))
-	  (setf (aref (renditions breakup) 0)
-		(duncan-pin-layout harray disposition width beds
-				   (first layouts))))
-	breakup))))
+    ;; of fit, we reduce the number of subsequent *fulls. Perhaps this should
+    ;; be experimented. On the other hand, if we get even just one full, the
+    ;; solution is unacceptable in theory so it's probably not worth it.
+    (let* ((graph (make-graph harray width #'duncan-get-boundaries))
+	   (layouts (mapc #'duncan-postprocess-layout (make-layouts graph)))
+	   breakup)
+      (labels ((perfect (layout)
+		 (and (zerop (hyphens layout))
+		      (zerop (underfulls layout))
+		      (zerop (overfulls layout))))
+	       (hyphenated (layout)
+		 (and (not (zerop (hyphens layout)))
+		      (zerop (underfulls layout))
+		      (zerop (overfulls layout))))
+	       (misfit (layout)
+		 (or (not (zerop (underfulls layout)))
+		     (not (zerop (overfulls layout)))))
+	       (better (l1 l2) ;; The Almighty Duncan Sorting Function!
+		 ;; #### NOTE: no need for extended arithmetic when comparing
+		 ;; weights below.
+		 (or (and (perfect l1)
+			  (perfect l2)
+			  (< (weight l1) (weight l2)))
+		     (and (perfect l1) (not (perfect l2)))
+		     (and (hyphenated l1) (hyphenated l2)
+			  (= (hyphens l1) (hyphens l2))
+			  (< (weight l1) (weight l2)))
+		     (and (hyphenated l1) (hyphenated l2)
+			  (< (hyphens l1) (hyphens l2)))
+		     (and (hyphenated l1) (misfit l2))
+		     (and (misfit l1) (misfit l2)
+			  (= (+ (underfulls l1) (overfulls l1))
+			     (+ (underfulls l2) (overfulls l2)))
+			  (< (hyphens l1) (hyphens l2)))
+		     (and (misfit l1) (misfit l2)
+			  (< (+ (underfulls l1) (overfulls l1))
+			     (+ (underfulls l2) (overfulls l2)))))))
+	(setq layouts (sort layouts #'better)))
+      (setq breakup (make-instance 'graph-breakup
+		      :disposition disposition :width width
+		      :graph graph :layouts layouts))
+      (unless (zerop (length (layouts breakup)))
+	(setf (aref (renditions breakup) 0)
+	      (duncan-pin-layout harray disposition width beds
+				 (aref (layouts breakup) 0))))
+      breakup)))
