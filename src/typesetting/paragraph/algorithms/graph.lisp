@@ -209,8 +209,9 @@ This class is used by graph based algorithms."))
     (setf (slot-value breakup 'renditions)
 	  (make-array (length layouts) :initial-element nil))))
 
-(defmethod pinned-lines
+(defmethod rendition
     ((breakup graph-breakup) &aux (renditions (renditions breakup)))
+  "Return graph BREAKUP's rendition."
   (when (and renditions (not (zerop (length renditions))))
     (aref renditions 0)))
 

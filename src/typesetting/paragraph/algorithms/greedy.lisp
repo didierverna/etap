@@ -16,14 +16,14 @@ This function processes HARRAY in a greedy way:
 
 
 (defclass greedy-breakup (breakup)
-  ((pinned-lines :documentation "This breakup's pinned lines."
-		 :initform nil :reader pinned-lines))
+  ((rendition :documentation "This breakup's rendition."
+	      :initform nil :reader rendition))
   (:documentation "The Greedy Breakup class.
 This class is used by greedy algorithms to store their only solution."))
 
 (defmethod initialize-instance :after ((breakup greedy-breakup) &key lines)
-  "Pin LINES in BREAKUP."
-  (setf (slot-value breakup 'pinned-lines)
+  "Pin LINES in BREAKUP's rendition."
+  (setf (slot-value breakup 'rendition)
 	(pin-lines lines
 		   (disposition-type (disposition breakup))
 		   (width breakup))))

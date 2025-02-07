@@ -41,9 +41,9 @@
   "Return PARAGRAPH's disposition."
   (disposition (breakup paragraph)))
 
-(defmethod pinned-lines ((paragraph paragraph))
-  "Return PARAGRAPH's pinned lines."
-  (pinned-lines (breakup paragraph)))
+(defmethod rendition ((paragraph paragraph))
+  "Return PARAGRAPH's rendition."
+  (rendition (breakup paragraph)))
 
 (defmethod width ((paragraph paragraph))
   "Return PARAGRAPH's width."
@@ -54,12 +54,12 @@
 This is in fact the height of the first line (or 0), since we consider that
 the paragraph's baseline is the first line's baseline. Not to be confused with
 the height of the whole paragraph."
-  (if (pinned-lines paragraph)
-    (height (first (pinned-lines paragraph)))
+  (if (rendition paragraph)
+    (height (first (rendition paragraph)))
     0))
 
 (defmethod depth
-    ((paragraph paragraph) &aux (last (car (last (pinned-lines paragraph)))))
+    ((paragraph paragraph) &aux (last (car (last (rendition paragraph)))))
   "Return paragraph's depth.
 We consider that the paragraph's baseline is the first line's baseline."
   (if last (+ (y last) (depth last)) 0))

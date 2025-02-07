@@ -30,14 +30,14 @@ Use ALGORITHM to do so. Maybe include river BEDS."
 
 
 ;; #### TODO: the two protocols below will change when we give the interface
-;; the ability to visualize different breakup results.
+;; the ability to visualize different breakup renditions.
 
-(defgeneric pinned-lines (breakup)
-  (:documentation "Return BREAKUP's pinned lines."))
+(defgeneric rendition (breakup)
+  (:documentation "Return BREAKUP's rendition."))
 
 (defun lines-# (breakup)
   "Return BREAKUP's number of lines."
-  (length (pinned-lines breakup)))
+  (length (rendition breakup)))
 
 (defmethod properties strnlcat
     ((breakup breakup) &aux (lines-# (lines-# breakup)))
