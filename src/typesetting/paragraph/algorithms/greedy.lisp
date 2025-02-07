@@ -23,20 +23,10 @@ This class is used by greedy algorithms to store their only solution."))
 
 (defmethod initialize-instance :after ((breakup greedy-breakup) &key lines)
   "Pin LINES in BREAKUP."
-  (when lines
-    (setf (slot-value breakup 'pinned-lines)
-	  (loop :with width := (width breakup)
-		:with baseline-skip := (baseline-skip (harray (car lines)))
-		:with x := (case (disposition-type (disposition breakup))
-			     ((:flush-left :justified)
-			      (lambda (line) (declare (ignore line)) 0))
-			     (:centered
-			      (lambda (line) (/ (- width (width line)) 2)))
-			     (:flush-right
-			      (lambda (line) (- width (width line)))))
-		:for y := 0 :then (+ y baseline-skip)
-		:for line :in lines
-		:collect (pin-line line (funcall x line) y)))))
+  (setf (slot-value breakup 'pinned-lines)
+	(pin-lines lines
+		   (disposition-type (disposition breakup))
+		   (width breakup))))
 
 (defun make-greedy-breakup
     (harray disposition width beds get-boundary make-line)

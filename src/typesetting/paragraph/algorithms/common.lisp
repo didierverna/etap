@@ -441,6 +441,21 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
       (pinned-objects line))
     pinned-line))
 
+(defun pin-lines (lines disposition width)
+  "Pin LINES according to DISPOSITION for a paragraph of WIDTH."
+  (when lines
+    (loop :with baseline-skip := (baseline-skip (harray (car lines)))
+	  :with x := (case disposition
+		       ((:flush-left :justified)
+			(lambda (line) (declare (ignore line)) 0))
+		       (:centered
+			(lambda (line) (/ (- width (width line)) 2)))
+		       (:flush-right
+			(lambda (line) (- width (width line)))))
+	  :for y := 0 :then (+ y baseline-skip)
+	  :for line :in lines
+	  :collect (pin-line line (funcall x line) y))))
+
 
 
 
