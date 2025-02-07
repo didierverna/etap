@@ -361,10 +361,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	(setq graph
 	      (make-graph harray width
 			  (lambda (harray bol width)
-			    (kp-next-boundaries  harray bol width
+			    (kp-get-boundaries  harray bol width
 			      :hyphenate t
 			      :threshold *tolerance*
-			       :final *emergency-stretch*)))))
+			      :final *emergency-stretch*)))))
       (setq layouts (mapc #'kp-postprocess-layout (make-layouts graph)))
       ;; #### WARNING: in order to remain consistent with TeX, and as in the
       ;; dynamic version, an unfit line will have its demerits set to 0.
