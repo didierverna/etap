@@ -319,14 +319,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 			    :stretch-tolerance stretch-tolerance
 			    :overshrink overshrink
 			    :overstretch t)
-			(make-instance 'layout-line
-			  :harray harray
-			  :start-idx (bol-idx bol)
-			  :stop-idx (eol-idx (break-point boundary))
+			(make-ledge-line harray bol ledge beds
 			  :scale theoretical
-			  :effective-scale effective
-			  :beds beds
-			  :ledge ledge)))
+			  :effective-scale effective)))
 		     (t ;; just switch back to normal spacing.
 		      (make-line harray bol boundary beds))))))
 

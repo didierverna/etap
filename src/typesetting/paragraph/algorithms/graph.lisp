@@ -164,15 +164,27 @@ classes into more specific ones."
 
 
 ;; ==========================================================================
-;; Layout Lines
+;; Ledge Lines
 ;; ==========================================================================
 
-(defclass layout-line (line)
+(defclass ledge-line (line)
   ((ledge :documentation "This line's corresponding ledge."
 	  :initarg :ledge :reader ledge))
-  (:documentation "The Layout Line class."))
+  (:documentation "The Ledge Line class."))
 
-(defmethod properties strnlcat ((line layout-line))
+(defun make-ledge-line
+    (harray bol ledge beds &rest keys &key scale effective-scale)
+  "Make an HARRAY line from BOL for LEDGE, possibly including river BEDS."
+  (declare (ignore scale effective-scale))
+  (apply #'make-instance 'ledge-line
+	 :harray harray
+	 :start-idx (bol-idx bol)
+	 :stop-idx (eol-idx (break-point (boundary ledge)))
+	 :beds beds
+	 :ledge ledge
+	 keys))
+
+(defmethod properties strnlcat ((line ledge-line))
   "Advertise LINE's ledge properties."
   (properties (ledge line)))
 

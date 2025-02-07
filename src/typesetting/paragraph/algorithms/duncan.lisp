@@ -213,14 +213,9 @@ The possible endings are listed in reverse order (from last to first)."
 			    (actual-scales scale
 			      :overshrink overshrink
 			      :overstretch overstretch))
-			(make-instance 'layout-line
-			  :harray harray
-			  :start-idx (bol-idx bol)
-			  :stop-idx (eol-idx (break-point boundary))
+			(make-ledge-line harray bol ledge beds
 			  :scale theoretical
-			  :effective-scale effective
-			  :beds beds
-			  :ledge ledge)))
+			  :effective-scale effective)))
 		     (t ;; just switch back to normal spacing.
 		      (make-line harray bol boundary beds))))))
 
