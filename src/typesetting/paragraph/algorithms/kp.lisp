@@ -293,6 +293,18 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines
 ;; -----
 
+(defun kp-make-justified-line
+    (harray bol ledge beds stretch-tolerance overshrink)
+  "KP version of `make-ledge-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (actual-scales (scale (boundary ledge))
+	:stretch-tolerance stretch-tolerance
+	:overshrink overshrink
+	:overstretch t)
+    (make-ledge-line harray bol ledge beds
+      :scale theoretical
+      :effective-scale effective)))
+
 (defun kp-make-lines (harray disposition beds layout pass)
   "Make HARRAY lines from KP LAYOUT for a DISPOSITION paragraph of WIDTH."
   (when layout
@@ -314,14 +326,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  :for boundary := (boundary ledge)
 	  :collect (case disposition
 		     (:justified
-		      (multiple-value-bind (theoretical effective)
-			  (actual-scales (scale boundary)
-			    :stretch-tolerance stretch-tolerance
-			    :overshrink overshrink
-			    :overstretch t)
-			(make-ledge-line harray bol ledge beds
-			  :scale theoretical
-			  :effective-scale effective)))
+		      (kp-make-justified-line harray bol ledge beds
+					      stretch-tolerance
+					      overshrink))
 		     (t ;; just switch back to normal spacing.
 		      (make-line harray bol boundary beds))))))
 
