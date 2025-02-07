@@ -194,8 +194,12 @@ for equally good solutions."))
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary) &key natural-width width stretch shrink)
+    ((boundary fit-boundary)
+     ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
+     ;; EXTRA stretch here.
+     &key natural-width width stretch shrink extra)
   "Initialize BOUNDARY's scale."
+  (when extra (setq stretch ($+ stretch extra)))
   (setf (slot-value boundary 'scale)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call
