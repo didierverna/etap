@@ -190,46 +190,39 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Lines
 ;; ==========================================================================
 
-(defun duncan-pin-layout (harray disposition width beds layout)
-  "Pin Duncan LAYOUT from HARRAY for a DISPOSITION paragraph."
+(defun duncan-make-lines (harray disposition beds layout)
+  "Make HARRAY lines from Duncan LAYOUT for a DISPOSITION paragraph of WIDTH."
   (when layout
     (loop :with disposition-options := (disposition-options disposition)
 	  :with overstretch := (getf disposition-options :overstretch)
 	  :with overshrink := (getf disposition-options :overshrink)
 	  :with disposition := (disposition-type disposition)
-	  :with baseline-skip := (baseline-skip harray)
-	  :for y := 0 :then (+ y baseline-skip)
 	  :for ledge :in (ledges layout)
 	  :for bol := *bop* :then (break-point boundary)
 	  :for boundary := (boundary ledge)
 	  :for scale = (scale boundary)
-	  :for line := (case disposition
-			 (:justified
-			  (multiple-value-bind (theoretical effective)
-			      (if (eopp (break-point boundary))
-				;; Justified last line: maybe shrink it but
-				;; don't stretch it.
-				(actual-scales scale
-				  :overshrink overshrink :stretch-tolerance 0)
-				;; Justified regular line: make it fit.
-				(actual-scales scale
-				  :overshrink overshrink
-				  :overstretch overstretch))
-			    (make-instance 'layout-line
-			      :harray harray
-			      :start-idx (bol-idx bol)
-			      :stop-idx (eol-idx (break-point boundary))
-			      :scale theoretical
-			      :effective-scale effective
-			      :beds beds
-			      :ledge ledge)))
-			 (t ;; just switch back to normal spacing.
-			  (make-line harray bol boundary beds)))
-	  :for x := (case disposition
-		      ((:flush-left :justified) 0)
-		      (:centered (/ (- width (width line)) 2))
-		      (:flush-right (- width (width line))))
-	  :collect (pin-line line x y))))
+	  :collect (case disposition
+		     (:justified
+		      (multiple-value-bind (theoretical effective)
+			  (if (eopp (break-point boundary))
+			    ;; Justified last line: maybe shrink it but
+			    ;; don't stretch it.
+			    (actual-scales scale
+			      :overshrink overshrink :stretch-tolerance 0)
+			    ;; Justified regular line: make it fit.
+			    (actual-scales scale
+			      :overshrink overshrink
+			      :overstretch overstretch))
+			(make-instance 'layout-line
+			  :harray harray
+			  :start-idx (bol-idx bol)
+			  :stop-idx (eol-idx (break-point boundary))
+			  :scale theoretical
+			  :effective-scale effective
+			  :beds beds
+			  :ledge ledge)))
+		     (t ;; just switch back to normal spacing.
+		      (make-line harray bol boundary beds))))))
 
 
 
@@ -294,6 +287,7 @@ The possible endings are listed in reverse order (from last to first)."
 		      :graph graph :layouts layouts))
       (unless (zerop (length (layouts breakup))) ; not happening in Duncan
 	(setf (aref (renditions breakup) 0)
-	      (duncan-pin-layout harray disposition width beds
-				 (aref (layouts breakup) 0))))
+	      (pin-lines (duncan-make-lines harray disposition beds
+					    (aref (layouts breakup) 0))
+			 (disposition-type disposition) width)))
       breakup)))
