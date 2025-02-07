@@ -189,6 +189,13 @@ classes into more specific ones."
   (properties (ledge line)))
 
 
+(defun make-layout-lines (harray beds layout make-line)
+  "Make LAYOUT lines."
+  (loop :for bol := *bop* :then (break-point (boundary ledge))
+	:for ledge :in (ledges layout)
+	:collect (funcall make-line harray bol ledge beds)))
+
+
 
 
 ;; ==========================================================================
