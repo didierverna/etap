@@ -156,7 +156,7 @@ classes into more specific ones."
 	      (mapc (lambda (layout)
 		      (setf (slot-value layout 'ledges)
 			    (cons (make-instance 'ledge :boundary boundary)
-				  (slot-value layout 'ledges))))
+				  (ledges layout))))
 		(make-layouts graph (gethash break-point graph)))))
     boundaries))
 

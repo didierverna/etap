@@ -286,7 +286,7 @@ This is the  best-fit version."
 	     (mapc (lambda (fit)
 		     (change-class fit 'fit-weighted-boundary
 		       :weight (local-demerits (scale-badness (scale fit))
-					       (penalty (break-point fit))
+					       (penalty fit)
 					       *line-penalty*)
 		       :possibilities possibilities))
 	       fits))

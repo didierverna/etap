@@ -123,6 +123,12 @@ The possible endings are listed in reverse order (from last to first)."
 			 (t fits)))))
 
 
+
+
+;; ==========================================================================
+;; Layouts
+;; ==========================================================================
+
 ;; ------
 ;; Ledges
 ;; ------
@@ -143,9 +149,7 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Layouts
 ;; -------
 
-
-;; #### NOTE: the layout's total weight is in fact the weight of the last
-;; ledge.
+;; #### NOTE: the layout's weight is in fact the weight of the last ledge.
 (defclass duncan-layout (layout)
   ((weight
     :documentation "This layout's total weight."
@@ -288,7 +292,7 @@ The possible endings are listed in reverse order (from last to first)."
       (setq breakup (make-instance 'graph-breakup
 		      :disposition disposition :width width
 		      :graph graph :layouts layouts))
-      (unless (zerop (length (layouts breakup)))
+      (unless (zerop (length (layouts breakup))) ; not happening in Duncan
 	(setf (aref (renditions breakup) 0)
 	      (duncan-pin-layout harray disposition width beds
 				 (aref (layouts breakup) 0))))

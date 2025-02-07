@@ -234,8 +234,12 @@ class in order to memoize line properties.
 Greedy algorithms use boundaries to figure out the appropriate end of each
 line. Graph algorithms use boundaries to represent edges."))
 
+(defmethod penalty ((boundary boundary))
+  "Return BOUNDARY's break point penalty."
+  (penalty (break-point boundary)))
+
 (defmethod hyphenated ((boundary boundary))
-  "Return BOUNDARY's hyphenation status."
+  "Return BOUNDARY's break point hyphenation status."
   (hyphenation-point-p (break-point boundary)))
 
 (defun last-boundary-p (boundary)
