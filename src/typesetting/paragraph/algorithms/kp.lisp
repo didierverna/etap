@@ -293,6 +293,14 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines
 ;; -----
 
+;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
+;; underfulls (in case of an impossible layout, it falls back to overfull
+;; boxes). This means that the overstretch option has no effect, but it allows
+;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
+;; an emergency stretch as overstretched, regardless of the option. This is
+;; done by setting the overstretch parameter to T and not counting emergency
+;; stretch in the stretch tolerance below.
+
 (defun kp-make-justified-line
     (harray bol ledge beds stretch-tolerance overshrink)
   "KP version of `make-ledge-line' for justified lines."
@@ -304,33 +312,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (make-ledge-line harray bol ledge beds
       :scale theoretical
       :effective-scale effective)))
-
-(defun kp-make-lines (harray disposition beds layout pass)
-  "Make HARRAY lines from KP LAYOUT for a DISPOSITION paragraph of WIDTH."
-  (when layout
-    (loop :with disposition-options := (disposition-options disposition)
-	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
-	  ;; elastic underfulls (in case of an impossible layout, it falls
-	  ;; back to overfull boxes). This means that the overstretch option
-	  ;; has no effect, but it allows for a nice trick: we can indicate
-	  ;; lines exceeding the tolerance thanks to an emergency stretch as
-	  ;; overstretched, regardless of the option. This is done by setting
-	  ;; the overstretched parameter to T and not counting emergency
-	  ;; stretch in the stretch-tolerance one.
-	  :with overshrink := (getf disposition-options :overshrink)
-	  :with disposition := (disposition-type disposition)
-	  :with stretch-tolerance
-	    := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
-	  :for ledge :in (ledges layout)
-	  :for bol := *bop* :then (break-point boundary)
-	  :for boundary := (boundary ledge)
-	  :collect (case disposition
-		     (:justified
-		      (kp-make-justified-line harray bol ledge beds
-					      stretch-tolerance
-					      overshrink))
-		     (t ;; just switch back to normal spacing.
-		      (make-line harray bol boundary beds))))))
 
 
 ;; -------
@@ -406,11 +387,28 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; explains while we may end up with different solutions between the
       ;; graph and the dynamic versions.
       (unless (zerop (length (layouts breakup))) ; not happening in KP
-	(setf (aref (renditions breakup) 0)
-	      (pin-lines (kp-make-lines harray disposition beds
-					(aref (layouts breakup) 0)
-					pass)
-			 (disposition-type disposition) width)))
+	(let ((disposition-type (disposition-type disposition))
+	      (overshrink (getf (disposition-options disposition)
+				:overshrink))
+	      ;; #### NOTE: no emergency stretch counted here. See comment on
+	      ;; top of KP-MAKE-JUSTIFIED-LINE.
+	      (stretch-tolerance
+		(stretch-tolerance
+		 (if (> pass 1) *tolerance* *pre-tolerance*))))
+	  (setf (aref (renditions breakup) 0)
+		(pin-lines
+		 (make-layout-lines
+		  harray beds (aref (layouts breakup) 0)
+		  (case disposition-type
+		    (:justified
+		     (lambda (harray bol ledge beds)
+		       (kp-make-justified-line
+			harray bol ledge beds stretch-tolerance overshrink)))
+		    (t ;; just switch back to normal spacing.
+		     (lambda (harray bol ledge beds)
+		       (make-line harray bol (boundary ledge) beds)))))
+		 disposition-type
+		 width))))
       breakup)))
 
 
