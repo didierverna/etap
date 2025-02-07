@@ -279,8 +279,8 @@ The possible endings are listed in reverse order (from last to first)."
 		  (case disposition-type
 		    (:justified
 		     (lambda (harray bol ledge beds)
-		       (duncan-make-justified-line harray bol ledge beds
-						   overstretch overshrink)))
+		       (duncan-make-justified-line
+			harray bol ledge beds overstretch overshrink)))
 		    (t  ;; just switch back to normal spacing.
 		     (lambda (harray bol ledge beds)
 		       (make-line harray bol (boundary ledge) beds)))))
