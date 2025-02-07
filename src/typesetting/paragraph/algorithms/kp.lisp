@@ -293,8 +293,8 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Lines
 ;; -----
 
-(defun kp-pin-layout (harray disposition width beds layout pass)
-  "Pin Knuth-Plass LAYOUT from HARRAY for a DISPOSITION paragraph."
+(defun kp-make-lines (harray disposition beds layout pass)
+  "Make HARRAY lines from KP LAYOUT for a DISPOSITION paragraph of WIDTH."
   (when layout
     (loop :with disposition-options := (disposition-options disposition)
 	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
@@ -309,33 +309,26 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  :with disposition := (disposition-type disposition)
 	  :with stretch-tolerance
 	    := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
-	  :with baseline-skip := (baseline-skip harray)
-	  :for y := 0 :then (+ y baseline-skip)
 	  :for ledge :in (ledges layout)
 	  :for bol := *bop* :then (break-point boundary)
 	  :for boundary := (boundary ledge)
-	  :for line := (case disposition
-			 (:justified
-			  (multiple-value-bind (theoretical effective)
-			      (actual-scales (scale boundary)
-				:stretch-tolerance stretch-tolerance
-				:overshrink overshrink
-				:overstretch t)
-			    (make-instance 'layout-line
-			      :harray harray
-			      :start-idx (bol-idx bol)
-			      :stop-idx (eol-idx (break-point boundary))
-			      :scale theoretical
-			      :effective-scale effective
-			      :beds beds
-			      :ledge ledge)))
-			 (t ;; just switch back to normal spacing.
-			  (make-line harray bol boundary beds)))
-	  :for x := (case disposition
-		      ((:flush-left :justified) 0)
-		      (:centered (/ (- width (width line)) 2))
-		      (:flush-right (- width (width line))))
-	  :collect (pin-line line x y))))
+	  :collect (case disposition
+		     (:justified
+		      (multiple-value-bind (theoretical effective)
+			  (actual-scales (scale boundary)
+			    :stretch-tolerance stretch-tolerance
+			    :overshrink overshrink
+			    :overstretch t)
+			(make-instance 'layout-line
+			  :harray harray
+			  :start-idx (bol-idx bol)
+			  :stop-idx (eol-idx (break-point boundary))
+			  :scale theoretical
+			  :effective-scale effective
+			  :beds beds
+			  :ledge ledge)))
+		     (t ;; just switch back to normal spacing.
+		      (make-line harray bol boundary beds))))))
 
 
 ;; -------
@@ -412,9 +405,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; graph and the dynamic versions.
       (unless (zerop (length (layouts breakup))) ; not happening in KP
 	(setf (aref (renditions breakup) 0)
-	      (kp-pin-layout harray disposition width beds
-			     (aref (layouts breakup) 0)
-			     pass)))
+	      (pin-lines (kp-make-lines harray disposition beds
+					(aref (layouts breakup) 0)
+					pass)
+			 (disposition-type disposition) width)))
       breakup)))
 
 
