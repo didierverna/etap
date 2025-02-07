@@ -191,10 +191,10 @@ The possible endings are listed in reverse order (from last to first)."
 ;; ==========================================================================
 
 (defun duncan-make-justified-line
-  "Duncan version of `make-ledge-line' for justified lines."
     (harray bol ledge beds overstretch overshrink
      &aux (boundary (boundary ledge))
 	  (scale (scale boundary)))
+  "Duncan version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
       (if (eopp (break-point boundary))
 	;; Justified last line: maybe shrink it but don't stretch it.
