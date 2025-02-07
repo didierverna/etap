@@ -205,23 +205,6 @@ The possible endings are listed in reverse order (from last to first)."
       :scale theoretical
       :effective-scale effective)))
 
-(defun duncan-make-lines (harray disposition beds layout)
-  "Make HARRAY lines from Duncan LAYOUT for a DISPOSITION paragraph of WIDTH."
-  (when layout
-    (loop :with disposition-options := (disposition-options disposition)
-	  :with overstretch := (getf disposition-options :overstretch)
-	  :with overshrink := (getf disposition-options :overshrink)
-	  :with disposition := (disposition-type disposition)
-	  :for ledge :in (ledges layout)
-	  :for bol := *bop* :then (break-point boundary)
-	  :for boundary := (boundary ledge)
-	  :collect (case disposition
-		     (:justified
-		      (duncan-make-justified-line harray bol ledge beds
-						  overstretch overshrink))
-		     (t ;; just switch back to normal spacing.
-		      (make-line harray bol boundary beds))))))
-
 
 
 
@@ -284,8 +267,23 @@ The possible endings are listed in reverse order (from last to first)."
 		      :disposition disposition :width width
 		      :graph graph :layouts layouts))
       (unless (zerop (length (layouts breakup))) ; not happening in Duncan
-	(setf (aref (renditions breakup) 0)
-	      (pin-lines (duncan-make-lines harray disposition beds
-					    (aref (layouts breakup) 0))
-			 (disposition-type disposition) width)))
+	(let ((disposition-type (disposition-type disposition))
+	      (overstretch (getf (disposition-options disposition)
+				 :overstretch))
+	      (overshrink (getf (disposition-options disposition)
+				:overshrink)))
+	  (setf (aref (renditions breakup) 0)
+		(pin-lines
+		 (make-layout-lines
+		  harray beds (aref (layouts breakup) 0)
+		  (case disposition-type
+		    (:justified
+		     (lambda (harray bol ledge beds)
+		       (duncan-make-justified-line harray bol ledge beds
+						   overstretch overshrink)))
+		    (t  ;; just switch back to normal spacing.
+		     (lambda (harray bol ledge beds)
+		       (make-line harray bol (boundary ledge) beds)))))
+		 disposition-type
+		 width))))
       breakup)))
