@@ -190,6 +190,20 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Lines
 ;; ==========================================================================
 
+(defun duncan-make-justified-line
+    (harray bol ledge beds overstretch overshrink
+     &aux (boundary (boundary ledge))
+	  (scale (scale boundary)))
+  (multiple-value-bind (theoretical effective)
+      (if (eopp (break-point boundary))
+	;; Justified last line: maybe shrink it but don't stretch it.
+	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
+	;; Justified regular line: make it fit.
+	(actual-scales scale :overshrink overshrink :overstretch overstretch))
+    (make-ledge-line harray bol ledge beds
+      :scale theoretical
+      :effective-scale effective)))
+
 (defun duncan-make-lines (harray disposition beds layout)
   "Make HARRAY lines from Duncan LAYOUT for a DISPOSITION paragraph of WIDTH."
   (when layout
@@ -200,22 +214,10 @@ The possible endings are listed in reverse order (from last to first)."
 	  :for ledge :in (ledges layout)
 	  :for bol := *bop* :then (break-point boundary)
 	  :for boundary := (boundary ledge)
-	  :for scale = (scale boundary)
 	  :collect (case disposition
 		     (:justified
-		      (multiple-value-bind (theoretical effective)
-			  (if (eopp (break-point boundary))
-			    ;; Justified last line: maybe shrink it but
-			    ;; don't stretch it.
-			    (actual-scales scale
-			      :overshrink overshrink :stretch-tolerance 0)
-			    ;; Justified regular line: make it fit.
-			    (actual-scales scale
-			      :overshrink overshrink
-			      :overstretch overstretch))
-			(make-ledge-line harray bol ledge beds
-			  :scale theoretical
-			  :effective-scale effective)))
+		      (duncan-make-justified-line harray bol ledge beds
+						  overstretch overshrink))
 		     (t ;; just switch back to normal spacing.
 		      (make-line harray bol boundary beds))))))
 
