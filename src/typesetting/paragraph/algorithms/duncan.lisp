@@ -191,6 +191,7 @@ The possible endings are listed in reverse order (from last to first)."
 ;; ==========================================================================
 
 (defun duncan-make-justified-line
+  "Duncan version of `make-line' for justified lines."
     (harray bol ledge beds overstretch overshrink
      &aux (boundary (boundary ledge))
 	  (scale (scale boundary)))
