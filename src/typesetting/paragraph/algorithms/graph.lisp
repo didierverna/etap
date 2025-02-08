@@ -202,21 +202,31 @@ classes into more specific ones."
 ;; Graph / Layout Breakups
 ;; ==========================================================================
 
+;; #### NOTE: graph breakups remember their harrays in order to be able to
+;; support lazy computation of renditions.
+
 ;; #### NOTE: MAKE-GRAPH won't even be called on empty harrays. In such a
 ;; case, a graph breakup (which needs to exist anyway) will have all its slots
-;; slots set to NIL. On the contrary, if the harray is not empty but no
-;; solution is found, the layouts and renditions slots will contain arrays of
-;; size 0. In fact, the distinction between empty harrays and empty graphs is
-;; preventive only, because currently, no algorithm refuses to typeset (they
-;; all fall back to an emergency solution). But we never know...
+;; slots (but the HARRAY one) set to NIL. On the contrary, if the harray is
+;; not empty but no solution is found, the layouts and renditions slots will
+;; contain arrays of size 0. In fact, the distinction between empty harrays
+;; and empty graphs is preventive only, because currently, no algorithm
+;; refuses to typeset (they all fall back to an emergency solution). But we
+;; never know...
 
 (defclass graph-breakup (breakup)
-  ((graph :documentation "The breakup's graph hash table."
-	  :initform nil :initarg :graph :reader graph)
-   (layouts :documentation "The breakup's sorted layouts array."
-	    :initform nil :reader layouts)
-   (renditions :documentation "The breakup's sorted layout renditions array."
-	       :initform nil :reader renditions))
+  ((harray
+    :documentation "This breakup's harray."
+    :initarg :harray :reader harray)
+   (graph
+    :documentation "This breakup's graph hash table."
+    :initform nil :initarg :graph :reader graph)
+   (layouts
+    :documentation "This breakup's sorted layouts array."
+    :initform nil :reader layouts)
+   (renditions
+    :documentation "This breakup's sorted layout renditions array."
+    :initform nil :reader renditions))
   (:documentation "The Graph Breakup class.
 This class is used by graph based algorithms."))
 

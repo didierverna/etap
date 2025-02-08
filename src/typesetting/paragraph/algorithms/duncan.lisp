@@ -218,7 +218,8 @@ The possible endings are listed in reverse order (from last to first)."
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
   (if (zerop (length harray))
-    (make-instance 'graph-breakup :disposition disposition :width width)
+    (make-instance 'graph-breakup
+      :disposition disposition :width width :harray harray)
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -265,7 +266,7 @@ The possible endings are listed in reverse order (from last to first)."
 	(setq layouts (sort layouts #'better)))
       (setq breakup (make-instance 'graph-breakup
 		      :disposition disposition :width width
-		      :graph graph :layouts layouts))
+		      :harray harray :graph graph :layouts layouts))
       (unless (zerop (length (layouts breakup))) ; not happening in Duncan
 	(let ((disposition-type (disposition-type disposition))
 	      (overstretch (getf (disposition-options disposition)
