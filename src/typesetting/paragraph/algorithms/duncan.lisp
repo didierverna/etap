@@ -281,15 +281,16 @@ The possible endings are listed in reverse order (from last to first)."
 
 (defmethod make-rendition
     (nth (breakup duncan-breakup)
-     &aux (beds (beds breakup))
-	  (disposition (disposition breakup))
+     &aux (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
 	  (disposition-options (disposition-options disposition))
 	  (overstretch (getf disposition-options :overstretch))
 	  (overshrink (getf disposition-options :overshrink)))
   "Render Nth layout from Duncan BREAKUP."
   (pin-lines
-   (make-layout-lines (harray breakup) beds (aref (layouts breakup) nth)
+   (make-layout-lines (harray breakup)
+		      (beds breakup)
+		      (aref (layouts breakup) nth)
 		      (case disposition-type
 			(:justified
 			 (lambda (harray bol ledge beds)
