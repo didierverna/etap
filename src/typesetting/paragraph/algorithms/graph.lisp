@@ -218,6 +218,9 @@ classes into more specific ones."
   ((harray
     :documentation "This breakup's harray."
     :initarg :harray :reader harray)
+   (beds
+    :documentation "Whether to include river beds in renditions."
+    :initarg :beds :reader beds)
    (graph
     :documentation "This breakup's graph hash table."
     :initform nil :initarg :graph :reader graph)
@@ -237,6 +240,21 @@ This class is used by graph based algorithms."))
 	  (make-array (length layouts) :initial-contents layouts))
     (setf (slot-value breakup 'renditions)
 	  (make-array (length layouts) :initial-element nil))))
+
+(defgeneric make-rendition (nth breakup)
+  (:documentation "Make the Nth BREAKUP rendition.")
+  (:method :around (nth (breakup graph-breakup))
+    "Save the rendition in graph BREAKUP's renditions array."
+    (setf (aref (renditions breakup) nth) (call-next-method))))
+
+(defmethod renditions-# ((breakup graph-breakup))
+  "Return graph BREAKUP's renditions number."
+  (length (renditions breakup)))
+
+(defmethod get-rendition (nth (breakup graph-breakup))
+  "Return the Nth graph BREAKUP's rendition."
+  (or (aref (renditions breakup) nth) (make-rendition nth breakup)))
+
 
 (defmethod rendition
     ((breakup graph-breakup) &aux (renditions (renditions breakup)))
