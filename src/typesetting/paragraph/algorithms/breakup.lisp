@@ -29,6 +29,13 @@ Use ALGORITHM to do so. Maybe include river BEDS."
 	 (algorithm-type algorithm) (algorithm-options algorithm)))
 
 
+(defgeneric renditions-# (breakup)
+  (:documentation "Return the number of renditions in BREAKUP."))
+
+(defgeneric get-rendition (nth breakup)
+  (:documentation "Get the Nth rendition from BREAKUP."))
+
+
 ;; #### TODO: the two protocols below will change when we give the interface
 ;; the ability to visualize different breakup renditions.
 
