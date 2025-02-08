@@ -119,8 +119,17 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 ;; ----------------------
 
 (defclass kp-breakup-mixin ()
-  ((pass :documentation "Which of the 3 passes produced this breakup."
-	 :initform 0 :initarg :pass :reader pass))
+  (;; #### TODO: the two slots below are used in the graph version. Not sure
+   ;; yet about the dynamic one, but most likely. If not, move them.
+   (pre-tolerance
+    :documentation "This breakup's pre-tolerance."
+    :initarg :pre-tolerance :reader pre-tolerance)
+   (tolerance
+    :documentation "This breakup's tolerance."
+    :initarg :tolerance :reader tolerance)
+   (pass
+    :documentation "Which of the 3 passes produced this breakup."
+    :initform 0 :initarg :pass :reader pass))
   (:documentation "The KP-BREAKUP-MIXIN class.
 This class is mixed in both the graph and dynamic breakup classes."))
 
@@ -328,8 +337,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (if (zerop (length harray))
     (make-instance 'kp-graph-breakup
-      :disposition disposition :width width :harray harray)
-    (let ((pass 1) graph layouts breakup)
+      :disposition disposition :width width :harray harray :beds beds
+      :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
+    (let ((pass 1) graph layouts)
       (when ($<= 0 *pre-tolerance*)
 	(setq graph
 	      (make-graph harray width
@@ -362,20 +372,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; even turn out that an unfit one has fewer demerits than a fit one
       ;; (because of the zero'ed lines). Consequently, the layouts must be
       ;; sorted by number of bads first, and demerits next.
-      (setq layouts
-	    (sort layouts (lambda (l1 l2)
-			    (or (< (bads l1) (bads l2))
-				(and (= (bads l1) (bads l2))
-				     (< (demerits l1) (demerits l2)))))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
-	  (setq layouts (stable-sort layouts (lambda (size1 size2)
-					       (< (abs (- size1 ideal-size))
-						  (abs (- size2 ideal-size))))
-				     :key #'size))))
-      (setq breakup (make-instance 'kp-graph-breakup
-		      :disposition disposition :width width
-		      :harray harray :graph graph :layouts layouts :pass pass))
+
       ;; #### WARNING: by choosing the first layout here, we're doing the
       ;; opposite of what TeX does in case of total demerits equality
       ;; (extremely rare), or when there's no solution and we resort to
@@ -387,30 +384,52 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
       ;; It's still important to keep that in mind however, because that
       ;; explains while we may end up with different solutions between the
       ;; graph and the dynamic versions.
-      (unless (zerop (length (layouts breakup))) ; not happening in KP
-	(let ((disposition-type (disposition-type disposition))
-	      (overshrink (getf (disposition-options disposition)
-				:overshrink))
-	      ;; #### NOTE: no emergency stretch counted here. See comment on
-	      ;; top of KP-MAKE-JUSTIFIED-LINE.
-	      (stretch-tolerance
-		(stretch-tolerance
-		 (if (> pass 1) *tolerance* *pre-tolerance*))))
-	  (setf (aref (renditions breakup) 0)
-		(pin-lines
-		 (make-layout-lines
-		  harray beds (aref (layouts breakup) 0)
-		  (case disposition-type
-		    (:justified
-		     (lambda (harray bol ledge beds)
-		       (kp-make-justified-line
-			harray bol ledge beds stretch-tolerance overshrink)))
-		    (t ;; just switch back to normal spacing.
-		     (lambda (harray bol ledge beds)
-		       (make-line harray bol (boundary ledge) beds)))))
-		 disposition-type
-		 width))))
-      breakup)))
+      (setq layouts
+	    (sort layouts (lambda (l1 l2)
+			    (or (< (bads l1) (bads l2))
+				(and (= (bads l1) (bads l2))
+				     (< (demerits l1) (demerits l2)))))))
+      (unless (zerop *looseness*)
+	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
+	  (setq layouts (stable-sort layouts (lambda (size1 size2)
+					       (< (abs (- size1 ideal-size))
+						  (abs (- size2 ideal-size))))
+				     :key #'size))))
+      (make-instance 'kp-graph-breakup
+	:disposition disposition :width width
+	:harray harray :beds beds :graph graph :layouts layouts
+	:pre-tolerance *pre-tolerance* :tolerance *tolerance* :pass pass))))
+
+
+;; ----------
+;; Renditions
+;; ----------
+
+(defmethod make-rendition
+    (nth (breakup kp-graph-breakup)
+     &aux (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (overshrink (getf (disposition-options disposition) :overshrink))
+	  (stretch-tolerance (if (> (pass breakup) 1)
+			       (tolerance breakup)
+			       (pre-tolerance breakup))))
+  ;; #### NOTE: no emergency stretch counted here. See comment on top of
+  ;; KP-MAKE-JUSTIFIED-LINE.
+  (pin-lines
+   (make-layout-lines (harray breakup)
+		      (beds breakup)
+		      (aref (layouts breakup) nth)
+		      (case disposition-type
+			(:justified
+			 (lambda (harray bol ledge beds)
+			   (kp-make-justified-line
+			    harray bol ledge beds
+			    stretch-tolerance overshrink)))
+			(t ;; just switch back to normal spacing.
+			 (lambda (harray bol ledge beds)
+			   (make-line harray bol (boundary ledge) beds)))))
+   disposition-type
+   (width breakup)))
 
 
 
