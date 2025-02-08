@@ -36,15 +36,10 @@ Use ALGORITHM to do so. Maybe include river BEDS."
   (:documentation "Get the Nth rendition from BREAKUP."))
 
 
-;; #### TODO: the two protocols below will change when we give the interface
-;; the ability to visualize different breakup renditions.
-
-(defgeneric rendition (breakup)
-  (:documentation "Return BREAKUP's rendition."))
-
 (defun lines-# (breakup)
   "Return BREAKUP's number of lines."
-  (length (rendition breakup)))
+  ;; #### FIXME: this is wrong!
+  (length (aref (layouts breakup) 0)))
 
 (defmethod properties strnlcat
     ((breakup breakup) &aux (lines-# (lines-# breakup)))

@@ -268,9 +268,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	    0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
 	  :foreground :red
 	  :scale-thickness nil))
-      (when (rendition paragraph)
-	(loop :with par-y := (height (first (rendition paragraph)))
-	      :for pinned-lines :on (rendition paragraph)
+      (unless (zerop (renditions-# (breakup paragraph)))
+	(loop :with par-y
+		:= (height (first (get-rendition 0 (breakup paragraph))))
+	      :for pinned-lines :on (get-rendition 0 (breakup paragraph))
 	      :for pinned-line := (car pinned-lines)
 	      :for x := (x pinned-line)
 	      :for y := (+ par-y (y pinned-line))
@@ -383,7 +384,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		      (pinned-objects (line pinned-line))))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when rivers
-	  (let ((par-y (height (first (rendition paragraph)))))
+	  (let ((par-y (height (first (get-rendition 0 (breakup paragraph))))))
 	    (maphash (lambda (source arms)
 		       (mapc (lambda (arm &aux (mouth (mouth arm)))
 			       (gp:draw-line pane
@@ -416,18 +417,18 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
-	  (rendition (rendition paragraph)))
+	  (rendition (get-rendition 0 (breakup paragraph))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    (when rendition (decf y (height (first (rendition paragraph)))))
+    (when rendition (decf y (height (first rendition))))
     (if (and (<= x 0) (<= y (depth paragraph)))
       (display-tooltip pane :text (properties paragraph))
       (let ((line (when (and (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))
 				    (<= y (+ (y line) (depth line)))))
-			     (rendition paragraph)))))
+			     rendition))))
 	(if line
 	  (display-tooltip pane :text (properties (line line)))
 	  (display-tooltip pane))))))

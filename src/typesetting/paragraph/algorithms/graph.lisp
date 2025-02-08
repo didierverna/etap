@@ -241,6 +241,25 @@ This class is used by graph based algorithms."))
     (setf (slot-value breakup 'renditions)
 	  (make-array (length layouts) :initial-element nil))))
 
+
+;; #### TODO: provide information on the graph.
+(defmethod properties strnlcat
+    ((breakup graph-breakup) &aux (layouts (layouts breakup)))
+  "Advertise graph BREAKUP's number of initial layouts."
+  (when layouts
+    (multiple-value-bind (non-null null) (hash-table-counts (graph breakup))
+      (strnlcat (unless (zerop (length layouts))
+		  ;; #### FIXME: this is wrong in multiple renditions support.
+		  (properties (aref layouts 0)))
+		(format nil "Break points: ~A (~A dead-end~:P).~@
+			     Layouts: ~A."
+		  non-null null (length layouts))))))
+
+
+;; ==========================================================================
+;; Renditions
+;; ==========================================================================
+
 (defgeneric make-rendition (nth breakup)
   (:documentation "Make the Nth BREAKUP rendition.")
   (:method :around (nth (breakup graph-breakup))
@@ -254,22 +273,3 @@ This class is used by graph based algorithms."))
 (defmethod get-rendition (nth (breakup graph-breakup))
   "Return the Nth graph BREAKUP's rendition."
   (or (aref (renditions breakup) nth) (make-rendition nth breakup)))
-
-
-(defmethod rendition
-    ((breakup graph-breakup) &aux (renditions (renditions breakup)))
-  "Return graph BREAKUP's rendition."
-  (when (and renditions (not (zerop (length renditions))))
-    (aref renditions 0)))
-
-;; #### TODO: provide information on the graph.
-(defmethod properties strnlcat
-    ((breakup graph-breakup) &aux (layouts (layouts breakup)))
-  "Advertise graph BREAKUP's number of initial layouts."
-  (when layouts
-    (multiple-value-bind (non-null null) (hash-table-counts (graph breakup))
-      (strnlcat (unless (zerop (length layouts))
-		  (properties (aref layouts 0)))
-		(format nil "Break points: ~A (~A dead-end~:P).~@
-			     Layouts: ~A."
-		  non-null null (length layouts))))))

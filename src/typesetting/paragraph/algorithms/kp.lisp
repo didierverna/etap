@@ -735,11 +735,6 @@ through the algorithm in the TeX jargon).
   (setf (slot-value breakup 'renditions)
 	(make-array (length nodes) :initial-element nil)))
 
-(defmethod pinned-lines
-    ((breakup kp-dynamic-breakup) &aux (renditions (renditions breakup)))
-  (when (and renditions (not (zerop (length renditions))))
-    (aref renditions 0)))
-
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
 ;; of 0 means that the harray was empty.
 (defmethod properties strnlcat
