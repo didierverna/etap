@@ -212,6 +212,11 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Breakup
 ;; ==========================================================================
 
+;; #### NOTE: this class only exists to specialize MAKE-RENDITION.
+(defclass duncan-breakup (graph-breakup)
+  ()
+  (:documentation "The Duncan Breakup Class."))
+
 (defmethod break-harray
     (harray disposition width beds (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
@@ -230,8 +235,7 @@ The possible endings are listed in reverse order (from last to first)."
     ;; be experimented. On the other hand, if we get even just one full, the
     ;; solution is unacceptable in theory so it's probably not worth it.
     (let* ((graph (make-graph harray width #'duncan-get-boundaries))
-	   (layouts (mapc #'duncan-postprocess-layout (make-layouts graph)))
-	   breakup)
+	   (layouts (mapc #'duncan-postprocess-layout (make-layouts graph))))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
 		      (zerop (underfulls layout))
@@ -264,27 +268,35 @@ The possible endings are listed in reverse order (from last to first)."
 			  (< (+ (underfulls l1) (overfulls l1))
 			     (+ (underfulls l2) (overfulls l2)))))))
 	(setq layouts (sort layouts #'better)))
-      (setq breakup (make-instance 'graph-breakup
-		      :disposition disposition :width width
-		      :harray harray :graph graph :layouts layouts))
-      (unless (zerop (length (layouts breakup))) ; not happening in Duncan
-	(let ((disposition-type (disposition-type disposition))
-	      (overstretch (getf (disposition-options disposition)
-				 :overstretch))
-	      (overshrink (getf (disposition-options disposition)
-				:overshrink)))
-	  (setf (aref (renditions breakup) 0)
-		(pin-lines
-		 (make-layout-lines
-		  harray beds (aref (layouts breakup) 0)
-		  (case disposition-type
-		    (:justified
-		     (lambda (harray bol ledge beds)
-		       (duncan-make-justified-line
-			harray bol ledge beds overstretch overshrink)))
-		    (t  ;; just switch back to normal spacing.
-		     (lambda (harray bol ledge beds)
-		       (make-line harray bol (boundary ledge) beds)))))
-		 disposition-type
-		 width))))
-      breakup)))
+      (make-instance 'duncan-breakup
+	:disposition disposition :width width
+	:harray harray :beds beds :graph graph :layouts layouts))))
+
+
+
+
+;; ==========================================================================
+;; Renditions
+;; ==========================================================================
+
+(defmethod make-rendition
+    (nth (breakup duncan-breakup)
+     &aux (beds (beds breakup))
+	  (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (disposition-options (disposition-options disposition))
+	  (overstretch (getf disposition-options :overstretch))
+	  (overshrink (getf disposition-options :overshrink)))
+  "Render Nth layout from Duncan BREAKUP."
+  (pin-lines
+   (make-layout-lines (harray breakup) beds (aref (layouts breakup) nth)
+		      (case disposition-type
+			(:justified
+			 (lambda (harray bol ledge beds)
+			   (duncan-make-justified-line
+			    harray bol ledge beds overstretch overshrink)))
+			(t  ;; just switch back to normal spacing.
+			 (lambda (harray bol ledge beds)
+			   (make-line harray bol (boundary ledge) beds)))))
+   disposition-type
+   (width breakup)))
