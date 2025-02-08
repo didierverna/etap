@@ -36,3 +36,13 @@ See `make-greedy-lines' for further information."
     :disposition disposition
     :width width
     :lines (make-greedy-lines harray width beds get-boundary make-line)))
+
+
+(defmethod renditions-# ((breakup greedy-breakup))
+  "Return greedy BREAKUP's renditions number (0 or 1)."
+  (if (rendition breakup) 1 0))
+
+(defmethod get-rendition (nth (breakup greedy-breakup))
+  "Return the only greedy BREAKUP's rendition."
+  (assert (and (rendition breakup) (zerop nth)))
+  (rendition breakup))
