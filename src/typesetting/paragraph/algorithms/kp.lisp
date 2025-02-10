@@ -136,7 +136,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a pass of
 ;; 0 means that the harray was empty.
 (defmethod properties strnlcat
-    ((mixin kp-breakup-mixin) &aux (pass (pass mixin)))
+    ((mixin kp-breakup-mixin) &key &aux (pass (pass mixin)))
   "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
@@ -229,7 +229,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	     :initarg :demerits :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
 
-(defmethod properties strnlcat ((ledge kp-ledge))
+(defmethod properties strnlcat ((ledge kp-ledge) &key)
   "Advertise Knuth-Plass LEDGE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~@
 	       Badness: ~A.~@
@@ -257,7 +257,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 ;; #### NOTE: we only advertise the layout's demerits for now. The other
 ;; properties are here for sorting the layouts from best to worse.
-(defmethod properties strnlcat ((layout kp-layout))
+(defmethod properties strnlcat ((layout kp-layout) &key)
   "Advertise Knuth-Plass LAYOUT's demerits."
   (format nil "Demerits: ~A." ($float (demerits layout))))
 
@@ -642,7 +642,7 @@ through the algorithm in the TeX jargon).
 		   :reader total-demerits))
   (:documentation "The Knuth-Plass Dynamic Line class."))
 
-(defmethod properties strnlcat ((line kp-dynamic-line))
+(defmethod properties strnlcat ((line kp-dynamic-line) &key)
   "Advertise Knuth-Plass dynamic LINE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~@
 	       Badness: ~A.~@
@@ -739,6 +739,7 @@ through the algorithm in the TeX jargon).
 ;; of 0 means that the harray was empty.
 (defmethod properties strnlcat
     ((breakup kp-dynamic-breakup)
+     &key
      &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
   "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
   (unless (zerop nodes-#)

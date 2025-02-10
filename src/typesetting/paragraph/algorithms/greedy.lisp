@@ -1,5 +1,12 @@
 (in-package :etap)
 
+;; #### TODO: until renditions are reified as actual objects of some kind
+;; instead of just lists of pinned lines, a greedy breakup cannot make the
+;; distinction between no rendition because the harray is empty, or no
+;; rendition because no acceptable solution. This is not currently a problem
+;; because our greedy algorithms never refuse to typeset, but could be in the
+;; future.
+
 (defun make-greedy-lines (harray width beds get-boundary make-line)
   "Make HARRAY lines with river BEDS for a paragraph of WIDTH.
 If HARRAY is empty, return NIL.
@@ -36,6 +43,13 @@ See `make-greedy-lines' for further information."
     :disposition disposition
     :width width
     :lines (make-greedy-lines harray width beds get-boundary make-line)))
+
+
+(defmethod properties strnlcat ((breakup greedy-breakup) &key rendition)
+  "Return a string advertising greedy BREAKUP's properties."
+  (when rendition
+    (assert (zerop rendition))
+    (properties (rendition breakup))))
 
 
 (defmethod renditions-# ((breakup greedy-breakup))

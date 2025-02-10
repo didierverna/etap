@@ -342,7 +342,7 @@ This class keeps track of the line's weight, as computed in the best /
 justified disposition. Note that unfit lines are still represented by the base
 LINE class."))
 
-(defmethod properties strnlcat ((line fit-line))
+(defmethod properties strnlcat ((line fit-line) &key)
   "Advertise LINE's weight."
   (format nil "Weight: ~A, out of ~A possible solutions."
     ($float (weight line))

@@ -45,43 +45,7 @@
   "Return PARAGRAPH's width."
   (width (breakup paragraph)))
 
-(defmethod height ((paragraph paragraph))
-  "Return paragraph's height.
-This is in fact the height of the first line (or 0), since we consider that
-the paragraph's baseline is the first line's baseline. Not to be confused with
-the height of the whole paragraph."
-  (if (renditions-# (breakup paragraph))
-    (height (first (get-rendition 0 (breakup paragraph))))
-    0))
-
-(defmethod depth
-    ((paragraph paragraph)
-     &aux (last (car (last (get-rendition 0 (breakup paragraph))))))
-  "Return paragraph's depth.
-We consider that the paragraph's baseline is the first line's baseline."
-  (if last (+ (y last) (depth last)) 0))
-
-(defmethod break-points-# ((paragraph paragraph))
-  "Return PARAGRAPH's number of break points."
-  (break-points-# (lineup paragraph)))
-
-(defmethod theoretical-solutions-# ((paragraph paragraph))
-  "Return PARAGRAPH's number of theoretical break solutions."
-  (theoretical-solutions-# (lineup paragraph)))
-
-(defmethod properties strnlcat ((paragraph paragraph))
-  "Return a string advertising PARAGRAPH's properties.
-Currently, these are the ones not visible on the GUI:
-  - vertical dimensions,
-  - number of break points,
-  - number of theoretical solutions,
-  - [breakup properties...]."
-  (unless (zerop (length (hlist paragraph)))
-    (strnlcat (format nil "Vertical size: ~Apt (height: ~Apt, depth: ~Apt).~@
-			   ~A breakpoints, ~A theoretical solutions (2^n)."
-		      (float (+ (height paragraph) (depth paragraph)))
-		      (float (height paragraph))
-		      (float (depth paragraph))
-		      (break-points-# paragraph)
-		      (theoretical-solutions-# paragraph))
-	      (properties (breakup paragraph)))))
+(defmethod properties strnlcat ((paragraph paragraph) &key rendition)
+  "Return a string advertising PARAGRAPH's properties."
+  (strnlcat (properties (lineup paragraph))
+	    (properties (breakup paragraph) :rendition rendition)))

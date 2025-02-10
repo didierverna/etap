@@ -138,7 +138,7 @@ The possible endings are listed in reverse order (from last to first)."
 	   :initarg :weight :reader weight))
   (:documentation "The Duncan Ledge class."))
 
-(defmethod properties strnlcat ((ledge duncan-ledge))
+(defmethod properties strnlcat ((ledge duncan-ledge) &key)
   "Advertise Duncan LEDGE properties."
   (format nil "Weights: ~A (line), ~A (cumulative)."
     ($float (weight (boundary ledge)))
@@ -167,7 +167,7 @@ The possible endings are listed in reverse order (from last to first)."
 
 ;; #### NOTE: we only advertise the layout's weight for now. The other
 ;; properties are here for sorting the layouts from best to worse.
-(defmethod properties strnlcat ((layout duncan-layout))
+(defmethod properties strnlcat ((layout duncan-layout) &key)
   "Advertise Duncan LAYOUT properties."
   (format nil "Weight: ~A." ($float (weight layout))))
 

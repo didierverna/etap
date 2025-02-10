@@ -44,6 +44,13 @@
 			 (slot-value lineup 'theoretical-solutions-#)
 			 (expt 2 break-points-#)))))
 
+(defmethod properties strnlcat ((lineup lineup) &key)
+  "Return a string advertising LINEUP's properties."
+  (format nil "~A breakpoints, ~A theoretical solutions (2^n)."
+    (break-points-# lineup)
+    (theoretical-solutions-# lineup)))
+
+
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to
 ;; relax keyword argument checking.

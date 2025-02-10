@@ -376,7 +376,7 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
   "Return LINE's depth."
   (loop :for object :in (pinned-objects line) :maximize (depth object)))
 
-(defmethod properties strnlcat ((line line))
+(defmethod properties strnlcat ((line line) &key)
   "Advertise LINE's width. This is the default method."
   (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
     (float (width line))
@@ -455,6 +455,37 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for line :in lines
 	  :collect (pin-line line (funcall x line) y))))
+
+
+;; #### FIXME: this is not cool. Renditions are not currently reified as
+;; objects, only as lists of pinned lines. Hence the kludgy specializations
+;; below.
+
+(defun lines-# (pinned-lines)
+  "Return the number of PINNED-LINES."
+  (length pinned-lines))
+
+(defmethod height ((pinned-lines cons))
+  "Return PINNED-LINES' height, or 0 if there is no pinned line.
+This is in fact the height of the first line, since we consider that the
+paragraph's baseline is the first line's baseline. Not to be confused with the
+height of the whole paragraph."
+  (height (first pinned-lines)))
+
+(defmethod depth ((pinned-lines cons) &aux (last (car (last pinned-lines))))
+  "Return PINNED-LINES's depth, or 0 if there is no pinned line.
+We consider that the paragraph's baseline is the first line's baseline."
+  (+ (y last) (depth last)))
+
+(defmethod properties strnlcat ((pinned-lines list) &key)
+  "Return a string advertising PINNED-LINES properties."
+  (assert pinned-lines)
+  (format nil "~A line~:P.~@
+	       Vertical size: ~Apt (height: ~Apt, depth: ~Apt)."
+    (lines-# pinned-lines)
+    (float (+ (height pinned-lines) (depth pinned-lines)))
+    (float (height pinned-lines))
+    (float (depth pinned-lines))))
 
 
 

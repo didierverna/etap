@@ -27,7 +27,12 @@
 
 (defun remake-paragraph (interface)
   "Remake INTERFACE's paragaph."
-  (setf (paragraph interface) (make-paragraph :context (context interface))))
+  (let* ((paragraph (make-paragraph :context (context interface)))
+	 (renditions-# (renditions-# (breakup paragraph))))
+    (setf (paragraph interface) paragraph)
+    (setf (rendition interface) (if (zerop renditions-#) 0 1))
+    (setf (titled-object-title (view interface))
+	  (format nil "Rendition ~D/~D" (rendition interface) renditions-#))))
 
 (defun update (interface)
   "Update INTERFACE.
@@ -252,6 +257,11 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (paragraph (paragraph interface))
+	  (rendition (rendition interface))
+	  (pinned-lines (unless (zerop rendition)
+			  (get-rendition (1- rendition) (breakup paragraph))))
+	  (par-y (height pinned-lines))
+	  (par-h+d (+ par-y (depth pinned-lines)))
 	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
@@ -260,19 +270,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (set-horizontal-scroll-parameters pane
     :max-range (+ (* (width paragraph) zoom) 40))
   (set-vertical-scroll-parameters pane
-    :max-range (+ (* (+ (height paragraph) (depth paragraph)) zoom) 40))
+    :max-range (+ (* par-h+d zoom) 40))
   (gp:with-graphics-translation (pane 20 20)
     (gp:with-graphics-scale (pane zoom zoom)
       (when (member :paragraph-box clues)
-	(gp:draw-rectangle pane
-	    0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
+	(gp:draw-rectangle pane 0 0 (width paragraph) par-h+d
 	  :foreground :red
 	  :scale-thickness nil))
-      (unless (zerop (renditions-# (breakup paragraph)))
-	(loop :with par-y
-		:= (height (first (get-rendition 0 (breakup paragraph))))
-	      :for pinned-lines :on (get-rendition 0 (breakup paragraph))
-	      :for pinned-line := (car pinned-lines)
+      (when pinned-lines
+	(loop :for rest :on pinned-lines
+	      :for pinned-line := (car rest)
 	      :for x := (x pinned-line)
 	      :for y := (+ par-y (y pinned-line))
 	      :when (member :line-boxes clues)
@@ -292,7 +299,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 			  (+ (height pinned-line) (depth pinned-line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
-		:else :if (and (cdr pinned-lines) ;; not the last one
+		:else :if (and (cdr rest) ;; not the last one
 			       (eq (disposition-type (disposition paragraph))
 				   :justified)
 			       (< (width pinned-line) (width paragraph)))
@@ -384,22 +391,42 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		      (pinned-objects (line pinned-line))))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when rivers
-	  (let ((par-y (height (first (get-rendition 0 (breakup paragraph))))))
-	    (maphash (lambda (source arms)
-		       (mapc (lambda (arm &aux (mouth (mouth arm)))
-			       (gp:draw-line pane
-				   (+ (x (board source)) (x source))
-				   (+ par-y (y (board source)) (y source))
-				   (+ (x (board mouth)) (x mouth))
-				   (+ par-y (y (board mouth)) (y mouth))
-				 :foreground :red :scale-thickness nil))
-			 arms))
-		     rivers)))))))
+	  (maphash (lambda (source arms)
+		     (mapc (lambda (arm &aux (mouth (mouth arm)))
+			     (gp:draw-line pane
+				 (+ (x (board source)) (x source))
+				 (+ par-y (y (board source)) (y source))
+				 (+ (x (board mouth)) (x mouth))
+				 (+ par-y (y (board mouth)) (y mouth))
+			       :foreground :red :scale-thickness nil))
+		       arms))
+		   rivers))))))
+
+
+;; Renditions
+
+(defun next-rendition
+    (op interface
+     &aux (renditions-# (renditions-# (breakup (paragraph interface))))
+	  (rendition (rendition interface)))
+  "Select the next OP rendition."
+  (unless (zerop renditions-#)
+    (setq rendition (1+ (mod (1- (funcall op rendition)) renditions-#)))
+    (setf (rendition interface) rendition)
+    (setf (titled-object-title (view interface))
+	  (format nil "Rendition ~D/~D" rendition renditions-#))
+    (gp:invalidate-rectangle (view interface))))
 
 
 ;; Tooltips
+
+(defparameter *interface-tooltips*
+  '(:rendition-1 "Display previous rendition."
+    :rendition+1 "Display next rendition."))
+
 (defparameter *tooltips*
-  `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
+  `(,@*interface-tooltips*
+    ,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips*
     ,@*disposition-options-tooltips*)
   "The GUI's tooltips.")
 
@@ -417,21 +444,25 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
-	  (rendition (get-rendition 0 (breakup paragraph))))
+	  (rendition (1- (rendition interface)))
+	  (pinned-lines (when (<= 0 rendition)
+			  (get-rendition rendition (breakup paragraph)))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    (when rendition (decf y (height (first rendition))))
-    (if (and (<= x 0) (<= y (depth paragraph)))
-      (display-tooltip pane :text (properties paragraph))
-      (let ((line (when (and (>= x 0) (<= x (width paragraph)))
-		    (find-if (lambda (line)
-			       (and (>= y (- (y line) (height line)))
-				    (<= y (+ (y line) (depth line)))))
-			     rendition))))
-	(if line
-	  (display-tooltip pane :text (properties (line line)))
-	  (display-tooltip pane))))))
+    (decf y (height pinned-lines))
+    (if (and (<= x 0) (<= y (depth pinned-lines)))
+	(display-tooltip pane
+	  :text (properties paragraph
+		  :rendition (when (<= 0 rendition) rendition)))
+	(let ((line (when (and (>= x 0) (<= x (width paragraph)))
+		      (find-if (lambda (line)
+				 (and (>= y (- (y line) (height line)))
+				      (<= y (+ (y line) (depth line)))))
+			       pinned-lines))))
+	  (if line
+	      (display-tooltip pane :text (properties (line line)))
+	      (display-tooltip pane))))))
 
 ;; Rivers detection
 (defun set-rivers-detection
@@ -512,6 +543,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
+   (rendition :initform 0 :accessor rendition)
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
@@ -819,6 +851,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
+   (rendition-1 push-button
+     :text "<"
+     :data #'1-
+     :callback 'next-rendition
+     :help-key :rendition-1)
+   (rendition+1 push-button
+     :text ">"
+     :data #'1+
+     :callback 'next-rendition
+     :help-key :rendition+1)
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
@@ -842,7 +884,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :change-callback 'set-text
      :reader text)
    (view output-pane
-     :title "Typeset paragraph" :title-position :frame
+     :title "Rendition" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
      :visible-min-height 300
@@ -855,9 +897,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom)
+   (settings-1 column-layout '(options paragraph-width zoom renditions)
      :reader settings-1)
-   (options row-layout '(options-1 options-2))
+   (renditions row-layout '(rendition-1 rendition+1))
+    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text-options text)

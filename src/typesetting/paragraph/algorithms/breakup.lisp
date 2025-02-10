@@ -29,19 +29,11 @@ Use ALGORITHM to do so. Maybe include river BEDS."
 	 (algorithm-type algorithm) (algorithm-options algorithm)))
 
 
+;; #### NOTE: this function doesn't make a distinction between no rendition
+;; because of an empty harray, and no rendition because no solution. This is
+;; not currently a problem because our algorithms never refuse to typeset.
 (defgeneric renditions-# (breakup)
   (:documentation "Return the number of renditions in BREAKUP."))
 
 (defgeneric get-rendition (nth breakup)
   (:documentation "Get the Nth rendition from BREAKUP."))
-
-
-(defun lines-# (breakup)
-  "Return BREAKUP's number of lines."
-  ;; #### FIXME: this is wrong!
-  (length (aref (layouts breakup) 0)))
-
-(defmethod properties strnlcat
-    ((breakup breakup) &aux (lines-# (lines-# breakup)))
-  "Addvertise BREAKUP's number of lines."
-  (unless (zerop lines-#) (format nil "~A line~:P." (lines-# breakup))))

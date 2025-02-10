@@ -184,7 +184,7 @@ classes into more specific ones."
 	 :ledge ledge
 	 keys))
 
-(defmethod properties strnlcat ((line ledge-line))
+(defmethod properties strnlcat ((line ledge-line) &key)
   "Advertise LINE's ledge properties."
   (properties (ledge line)))
 
@@ -242,18 +242,18 @@ This class is used by graph based algorithms."))
 	  (make-array (length layouts) :initial-element nil))))
 
 
-;; #### TODO: provide information on the graph.
 (defmethod properties strnlcat
-    ((breakup graph-breakup) &aux (layouts (layouts breakup)))
-  "Advertise graph BREAKUP's number of initial layouts."
+    ((breakup graph-breakup) &key rendition &aux (layouts (layouts breakup)))
+  "Return a string advertising graph BREAKUP's properties."
   (when layouts
     (multiple-value-bind (non-null null) (hash-table-counts (graph breakup))
-      (strnlcat (unless (zerop (length layouts))
-		  ;; #### FIXME: this is wrong in multiple renditions support.
-		  (properties (aref layouts 0)))
-		(format nil "Break points: ~A (~A dead-end~:P).~@
-			     Layouts: ~A."
-		  non-null null (length layouts))))))
+      (strnlcat
+       (format nil "Break points: ~A (~A dead-end~:P).~%Layouts: ~A."
+	 non-null null (length layouts))
+       (when rendition (properties (aref layouts rendition)))
+       (when rendition (properties (get-rendition rendition breakup)))))))
+
+
 
 
 ;; ==========================================================================
@@ -266,6 +266,8 @@ This class is used by graph based algorithms."))
     "Save the rendition in graph BREAKUP's renditions array."
     (setf (aref (renditions breakup) nth) (call-next-method))))
 
+;; #### NOTE: the call to LENGTH below will return 0 when the RENDITIONS slot
+;; is nil, as well as when it's an array of size 0.
 (defmethod renditions-# ((breakup graph-breakup))
   "Return graph BREAKUP's renditions number."
   (length (renditions breakup)))

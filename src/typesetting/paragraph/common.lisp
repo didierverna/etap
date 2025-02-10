@@ -29,7 +29,7 @@ ignoring the algorithm's decision."))
   (cdr-or-nil disposition))
 
 
-(defgeneric properties (object)
+(defgeneric properties (object &key &allow-other-keys)
   (:documentation "Return a string advertising OBJECT's properties.
 Methods may return an empty string or NIL if there is nothing to advertise.")
   (:method-combination strnlcat :most-specific-last))
