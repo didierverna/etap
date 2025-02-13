@@ -18,6 +18,11 @@ This class represents objects which are pinned to a fixed position in 2D
 space, expressed relative to their board."))
 
 
+(defun pin-object (object board x &optional (y 0))
+  "Pin OBJECT on BOARD at position (X, Y)."
+  (make-instance 'pinned :object object :board board :x x :y y))
+
+
 (defmethod width ((pinned pinned))
   "Return PINNED object's width."
   (width (object pinned)))
