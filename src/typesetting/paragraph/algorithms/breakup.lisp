@@ -16,16 +16,15 @@ harray for a specific paragraph width."))
 ;; instantiating the appropriate breakup class, so we cannot short-circuit
 ;; anything here in case of an empty harray.
 (defgeneric break-harray
-    (harray disposition width beds algorithm &key &allow-other-keys)
+    (harray disposition width algorithm &key &allow-other-keys)
   (:documentation
    "Break HARRAY as a DISPOSITION paragraph of WIDTH with ALGORITHM.
-Maybe include river BEDS.
 Return the resulting breakup."))
 
-(defun %make-breakup (lineup disposition width beds algorithm)
+(defun %make-breakup (lineup disposition width algorithm)
   "Make a new breakup out of LINEUP for a DISPOSITION paragraph of WITH.
-Use ALGORITHM to do so. Maybe include river BEDS."
-  (apply #'break-harray (harray lineup) disposition width beds
+Use ALGORITHM to do so."
+  (apply #'break-harray (harray lineup) disposition width
 	 (algorithm-type algorithm) (algorithm-options algorithm)))
 
 

@@ -191,9 +191,8 @@ The possible endings are listed in reverse order (from last to first)."
 ;; ==========================================================================
 
 (defun duncan-make-justified-line
-    (harray bol ledge beds overstretch overshrink
-     &aux (boundary (boundary ledge))
-	  (scale (scale boundary)))
+    (harray bol ledge overstretch overshrink
+     &aux (boundary (boundary ledge)) (scale (scale boundary)))
   "Duncan version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
       (if (eopp (break-point boundary))
@@ -201,7 +200,7 @@ The possible endings are listed in reverse order (from last to first)."
 	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
 	;; Justified regular line: make it fit.
 	(actual-scales scale :overshrink overshrink :overstretch overstretch))
-    (make-ledge-line harray bol ledge beds
+    (make-ledge-line harray bol ledge
       :scale theoretical
       :effective-scale effective)))
 
@@ -218,13 +217,13 @@ The possible endings are listed in reverse order (from last to first)."
   (:documentation "The Duncan Breakup Class."))
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :duncan))
+    (harray disposition width (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
   (if (zerop (length harray))
     (make-instance 'duncan-breakup
-      :disposition disposition :width width :harray harray :beds beds)
+      :disposition disposition :width width :harray harray)
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -270,7 +269,7 @@ The possible endings are listed in reverse order (from last to first)."
 	(setq layouts (sort layouts #'better)))
       (make-instance 'duncan-breakup
 	:disposition disposition :width width
-	:harray harray :beds beds :graph graph :layouts layouts))))
+	:harray harray :graph graph :layouts layouts))))
 
 
 
@@ -289,15 +288,14 @@ The possible endings are listed in reverse order (from last to first)."
   "Render Nth layout from Duncan BREAKUP."
   (pin-lines
    (make-layout-lines (harray breakup)
-		      (beds breakup)
 		      (aref (layouts breakup) nth)
 		      (case disposition-type
 			(:justified
-			 (lambda (harray bol ledge beds)
+			 (lambda (harray bol ledge)
 			   (duncan-make-justified-line
-			    harray bol ledge beds overstretch overshrink)))
+			    harray bol ledge overstretch overshrink)))
 			(t  ;; just switch back to normal spacing.
-			 (lambda (harray bol ledge beds)
-			   (make-line harray bol (boundary ledge) beds)))))
+			 (lambda (harray bol ledge)
+			   (make-line harray bol (boundary ledge))))))
    disposition-type
    (width breakup)))

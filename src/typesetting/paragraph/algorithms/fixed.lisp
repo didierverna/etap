@@ -295,7 +295,7 @@ This is the Fixed algorithm version."
 ;; ==========================================================================
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :fixed))
+    (harray disposition width (algorithm (eql :fixed))
      &key ((:fallback *fallback*))
 	  ((:width-offset *width-offset*))
 	  ((:avoid-hyphens *avoid-hyphens*))
@@ -303,7 +303,7 @@ This is the Fixed algorithm version."
   "Break HARRAY with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (make-greedy-breakup harray disposition width beds
+  (make-greedy-breakup harray disposition width
 		       (case (disposition-type disposition)
 			 (:justified #'fixed-get-justified-boundary)
 			 (t          #'fixed-get-ragged-boundary))

@@ -25,12 +25,12 @@ that is, vector (0, 1)."
 ;; ==========
 
 (defclass arm ()
-  ((mouth :documentation "This river arm's mouth (the bed it leads to)."
+  ((mouth :documentation "This river arm's mouth (the whitespace it leads to)."
 	  :initarg :mouth :reader mouth)
    (orientation :documentation "This river arm's orientation."
 		:reader orientation))
   (:documentation "The river ARM class.
-River arms are relative a source bed."))
+River arms are relative a source whitespace."))
 
 (defmethod initialize-instance :after
     ((arm arm) &key source &aux (mouth (mouth arm)))
@@ -46,26 +46,29 @@ ARM goes from SOURCE to its mouth."
   "Mkae a river arm from SOURCE to MOUTH."
   (make-instance 'arm :source source :mouth mouth))
 
-(defun arms (source line &aux (source-x (+ (x (board source)) (x source))))
-  "Return a list of at most three river arms from SOURCE bed to the next LINE.
-Arms are only considered from SOURCE bed to three possible mouth beds in LINE:
-the closest to SOURCE's left, one directly below it, and the closest to
-SOURCE's right, all of these X-wise."
+(defun arms
+    (source line
+     &aux (source-x (+ (x (board source)) (x source) (/ (width source) 2))))
+  "Return a list of at most three river arms from SOURCE whitespace to the
+next LINE. Arms are only considered from SOURCE whitespace to three possible
+mouth whitespaces in LINE: the closest to SOURCE's left, one directly below
+it, and the closest to SOURCE's right, all of these X-wise."
   (mapcar (lambda (mouth) (make-arm source mouth))
     (loop :with left :with below
-	  :for bed :in (remove-if-not #'bedp (pinned-objects (line line)))
-	  :for bed-x := (+ (x (board bed)) (x bed))
-	  :if (< bed-x source-x) :do (setq left (list bed))
-	  :else :if (= bed-x source-x) :do (setq below (list bed))
-	  :else :do (return (append left below (list bed)))
+	  :for ws :in (remove-if-not #'whitespacep (pinned-objects (line line)))
+	  :for ws-x := (+ (x (board ws)) (x ws) (/ (width ws) 2))
+	  :if (< ws-x source-x) :do (setq left (list ws))
+	  :else :if (= ws-x source-x) :do (setq below (list ws))
+	  :else :do (return (append left below (list ws)))
 	  :finally (return (append left below)))))
 
 (defun detect-rivers (paragraph angle &aux (hash (make-hash-table)))
   "Detect rivers of at most ANGLE threshold in PARAGRAPH.
-The return value is a hash table mapping source beds to a list of arms."
+The return value is a hash table mapping source whitespaces to a list of arms."
   (loop :for line1 :in (get-rendition 0 (breakup paragraph))
 	:for line2 :in (cdr (get-rendition 0 (breakup paragraph)))
-	:for sources := (remove-if-not #'bedp (pinned-objects (line line1)))
+	:for sources
+	  := (remove-if-not #'whitespacep (pinned-objects (line line1)))
 	:when sources
 	  :do (mapc (lambda (source &aux (arms (arms source line2)))
 		      (setq arms (remove-if (lambda (orientation)

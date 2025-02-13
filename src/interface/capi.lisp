@@ -387,19 +387,27 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 							   :hyphenation-clue)
 						     :orange
 						     :blue))))
-				  ((bedp pinned)
+				  ((whitespacep pinned)
 				   (when (member :river-beds clues)
-				     (gp:draw-circle pane (+ x (x pinned)) y 1
+				     (gp:draw-circle
+				      pane
+				      (+ x (x pinned) (/ (width pinned) 2)) y 1
 				      :filled t :foreground :red)))))
 		      (pinned-objects (line pinned-line))))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
-	(when rivers
+	(when (and (button-selected
+		    (rivers-detection (rivers-interface interface)))
+		   rivers)
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
 			     (gp:draw-line pane
-				 (+ (x (board source)) (x source))
+				 (+ (x (board source))
+				    (x source)
+				    (/ (width source) 2))
 				 (+ par-y (y (board source)) (y source))
-				 (+ (x (board mouth)) (x mouth))
+				 (+ (x (board mouth))
+				    (x mouth)
+				    (/ (width mouth) 2))
 				 (+ par-y (y (board mouth)) (y mouth))
 			       :foreground :red :scale-thickness nil))
 		       arms))
@@ -473,9 +481,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (detectionp (button-selected value))
 	  (main-interface (main-interface interface)))
   "Toggle rivers detection."
+  (when (and detectionp (null (rivers main-interface)))
+    (remake-rivers main-interface))
   (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
-  (setf (beds (context main-interface)) detectionp)
-  (update main-interface))
+  (gp:invalidate-rectangle (view main-interface)))
 
 (defun set-rivers-angle
     (pane value status

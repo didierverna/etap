@@ -274,6 +274,29 @@ signals that there is no more boundary to find by returning NIL."
 ;; Lines
 ;; ==========================================================================
 
+;; #### WARNING: do not confuse whitespaces (pinned glues) with blanks
+;; (characters). In fact, newlines are considered blank characters, but they
+;; do not produce whitespaces.
+
+;; #### NOTE: we cannot just use the pinned object class to store glues
+;; because a final space's width is different from the glue's width in
+;; general.
+(defclass whitespace (pinned)
+  ((width
+    :documentation "The whitespace's width."
+    :initarg :width :reader width))
+  (:documentation "The WHITESPACE class.
+This class represents pinned glues and stores their width after scaling."))
+
+(defun whitespacep (object)
+  "Return T if OBJECT is a whitespace."
+  (typep object 'whitespace))
+
+(defun pin-glue (glue width board x)
+  "Pin GLUE of (scaled) WIDTH on BOARD at (X, 0)."
+  (make-instance 'whitespace :width width :object glue :board board :x x))
+
+
 (defclass line ()
   ((harray :documentation "The corresponding harray."
 	   :initarg :harray
@@ -305,9 +328,8 @@ A line contains a list of pinned objects (currently, characters and
 hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
 
-(defmethod initialize-instance :after ((line line) &key beds &aux scale)
-  "Possibly initialize the LINE's effective scale, and pin its objects.
-Maybe also include river BEDS."
+(defmethod initialize-instance :after ((line line) &key &aux scale)
+  "Possibly initialize the LINE's effective scale, and pin its objects."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
@@ -318,7 +340,6 @@ Maybe also include river BEDS."
   (setf (slot-value line 'pinned-objects)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
-	      :with last-elt := (aref harray (1- (length harray)))
 	      :for elt
 		:in (flatten-harray harray (start-idx line) (stop-idx line))
 	      :if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
@@ -335,21 +356,18 @@ Maybe also include river BEDS."
 				     (* scale (stretch elt))
 				     (* scale (shrink elt))))
 		     :end
-		:and :when (and beds (not (eq elt last-elt)))
-		       ;; do not count a final glue as a river bed.
-		       :collect (make-bed line (+ x (/ w 2)) w) :end
+		:and :collect (pin-glue elt w line x)
 		:and :do (incf x w))))
 
 (defun make-line
-    (harray bol boundary beds &rest keys &key scale effective-scale)
-  "Make an HARRAY line from BOL to BOUNDARY, possibly including river BEDS.
+    (harray bol boundary &rest keys &key scale effective-scale)
+  "Make an HARRAY line from BOL to BOUNDARY.
 Optionally preset SCALE and EFFECTIVE-SCALE."
   (declare (ignore scale effective-scale))
   (apply #'make-instance 'line
 	 :harray harray
 	 :start-idx (bol-idx bol)
 	 :stop-idx (eol-idx (break-point boundary))
-	 :beds beds
 	 keys))
 
 
@@ -431,11 +449,11 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
     ;; #### FIXME: gross hack alert. Pinned objects have their line as the
     ;; board. But a line is not a pinned object, so it has no 2D coordinates,
     ;; and there is no back pointer from a line to a pinned line. For rivers
-    ;; detection, I'm thus changing the beds boards to their pinned line for
+    ;; detection, I'm thus changing the blnaks boards to their pinned line for
     ;; now. Of course, this is completely broken.
-    (mapc (lambda (object)
-	    (when (bedp object)
-	      (setf (slot-value object 'board) pinned-line)))
+    (mapc (lambda (pinned)
+	    (when (whitespacep pinned)
+	      (setf (slot-value pinned 'board) pinned-line)))
       (pinned-objects line))
     pinned-line))
 

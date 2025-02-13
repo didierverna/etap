@@ -5,30 +5,26 @@
 ;; ==========================================================================
 
 (defclass context ()
-  ((font :documentation "The TFM font."
-	 :initform *font*
-	 :initarg :font
-	 :accessor font)
-   (algorithm :documentation "The typesetting algorithm."
-	      :initform :fixed
-	      :initarg :algorithm
-	      :accessor algorithm)
-   (disposition :documentation "The paragraph's disposition."
-		:initform :flush-left
-		:initarg :disposition
-		:accessor disposition)
-   (features :documentation "The features."
-	     :initform (list)
-	     :initarg :features
-	     :accessor features)
-   (beds :documentation "Whether to record river beds."
-	 :initform nil :initarg :beds :accessor beds)
-   (paragraph-width :documentation "The requested paragraph width in points."
-		    :initform *paragraph-width*
-		    :initarg :paragraph-width
-		    :accessor paragraph-width)
-   (nlstring :documentation "The paragraph's natural language string."
-	     :accessor nlstring))
+  ((font
+    :documentation "The TFM font."
+    :initform *font* :initarg :font :accessor font)
+   (algorithm
+    :documentation "The typesetting algorithm."
+    :initform :fixed :initarg :algorithm :accessor algorithm)
+   (disposition
+    :documentation "The paragraph's disposition."
+    :initform :flush-left :initarg :disposition :accessor disposition)
+   (features
+    :documentation "The features."
+    :initform (list) :initarg :features :accessor features)
+   (paragraph-width
+    :documentation "The requested paragraph width in points."
+    :initform *paragraph-width*
+    :initarg :paragraph-width
+    :accessor paragraph-width)
+   (nlstring
+    :documentation "The paragraph's natural language string."
+    :accessor nlstring))
   (:documentation "The CONTEXT class.
 A context object stores the requested parameters for one experiment."))
 
@@ -107,7 +103,6 @@ FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation))
-	  (beds (when context (beds context)))
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
 	  (width (if context (paragraph-width context) *paragraph-width*))
@@ -121,7 +116,7 @@ corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
 defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
 ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
 subsequently computed."
-  (%make-breakup lineup disposition width beds algorithm))
+  (%make-breakup lineup disposition width algorithm))
 
 (defun make-paragraph
     (&key (context *context*)
@@ -132,14 +127,13 @@ subsequently computed."
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation))
-	  (beds (when context (beds context)))
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
 	  (width (if context (paragraph-width context) *paragraph-width*))
 	  ;; #### WARNING: no mutual coherency checks for these three.
 	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
 	  (lineup (%make-lineup hlist disposition algorithm))
-	  (breakup (%make-breakup lineup disposition width beds algorithm)))
+	  (breakup (%make-breakup lineup disposition width algorithm)))
   "Make a new paragraph.
 When provided, CONTEXT is used to default the other parameters.
 Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the

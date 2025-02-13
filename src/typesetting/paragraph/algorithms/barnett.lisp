@@ -103,7 +103,7 @@ This is the Barnett algorithm version."
 ;; algorithms, but I think that by construction, the only overfulls that we
 ;; can get are when there is no elasticity, so this option should have no
 ;; effect.
-(defun barnett-make-justified-line (harray bol boundary beds overshrink)
+(defun barnett-make-justified-line (harray bol boundary overshrink)
   "Barnett version of `make-line' for justified disposition."
   (multiple-value-bind (theoretical effective)
       (if (eopp (break-point boundary))
@@ -114,21 +114,20 @@ This is the Barnett algorithm version."
 	;; overshrink.
 	(actual-scales (scale boundary)
 	  :overshrink overshrink :stretch-tolerance +∞))
-    (make-line harray bol boundary beds
-      :scale theoretical
-      :effective-scale effective)))
+    (make-line harray bol boundary
+      :scale theoretical :effective-scale effective)))
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :barnett)) &key)
+    (harray disposition width (algorithm (eql :barnett)) &key)
   "Break HARRAY with the Barnett algorithm."
   (let ((make-line
 	  (case (disposition-type disposition)
 	    (:justified
 	     (let ((overshrink
 		     (getf (disposition-options disposition) :overshrink)))
-	       (lambda (harray bol boundary beds)
+	       (lambda (harray bol boundary)
 		 (barnett-make-justified-line
-		  harray bol boundary beds overshrink))))
+		  harray bol boundary overshrink))))
 	    (t #'make-line))))
-    (make-greedy-breakup harray disposition width beds
+    (make-greedy-breakup harray disposition width
 			 #'barnett-get-boundary make-line)))

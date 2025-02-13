@@ -33,25 +33,3 @@ ignoring the algorithm's decision."))
   (:documentation "Return a string advertising OBJECT's properties.
 Methods may return an empty string or NIL if there is nothing to advertise.")
   (:method-combination strnlcat :most-specific-last))
-
-
-
-
-;; ==========================================================================
-;; Pinned Items
-;; ==========================================================================
-
-;; Always pinned, so no "pinned" prefix.
-(defclass bed (pinned)
-  ((width :documentation "The river bed's width"
-	  :initarg :width :reader width))
-  (:documentation "The river BED class.
-River beds stand in the middle of glue space and are positioned at Y = 0."))
-
-(defun bedp (object)
-  "Return T if OBJECT is a river bed."
-  (typep object 'bed))
-
-(defun make-bed (board x width)
-  "Make a river bed of WIDTH centered at X."
-  (make-instance 'bed :board board :x x :width width))

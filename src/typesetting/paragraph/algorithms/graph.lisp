@@ -173,14 +173,13 @@ classes into more specific ones."
   (:documentation "The Ledge Line class."))
 
 (defun make-ledge-line
-    (harray bol ledge beds &rest keys &key scale effective-scale)
-  "Make an HARRAY line from BOL for LEDGE, possibly including river BEDS."
+    (harray bol ledge &rest keys &key scale effective-scale)
+  "Make an HARRAY line from BOL for LEDGE."
   (declare (ignore scale effective-scale))
   (apply #'make-instance 'ledge-line
 	 :harray harray
 	 :start-idx (bol-idx bol)
 	 :stop-idx (eol-idx (break-point (boundary ledge)))
-	 :beds beds
 	 :ledge ledge
 	 keys))
 
@@ -189,11 +188,11 @@ classes into more specific ones."
   (properties (ledge line)))
 
 
-(defun make-layout-lines (harray beds layout make-line)
+(defun make-layout-lines (harray layout make-line)
   "Make LAYOUT lines."
   (loop :for bol := *bop* :then (break-point (boundary ledge))
 	:for ledge :in (ledges layout)
-	:collect (funcall make-line harray bol ledge beds)))
+	:collect (funcall make-line harray bol ledge)))
 
 
 
@@ -218,9 +217,6 @@ classes into more specific ones."
   ((harray
     :documentation "This breakup's harray."
     :initarg :harray :reader harray)
-   (beds
-    :documentation "Whether to include river beds in renditions."
-    :initarg :beds :reader beds)
    (graph
     :documentation "This breakup's graph hash table."
     :initform nil :initarg :graph :reader graph)

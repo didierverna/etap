@@ -353,10 +353,8 @@ LINE class."))
 ;; Line lookup
 ;; -----------
 
-(defun first-fit-make-ragged-line
-    (harray bol boundary beds width
-     ;; By default, lines are stretched as much as possible.
-     &aux (scale 1))
+;; By default, lines are stretched as much as possible.
+(defun first-fit-make-ragged-line (harray bol boundary width &aux (scale 1))
   "First Fit version of `make-line' for ragged lines."
   (when *relax*
     (setq scale
@@ -376,12 +374,10 @@ LINE class."))
 	      ;; destretch only up to that (infinity falling back to 0).
 	      ;; Otherwise, we can destretch completely.
 	      (if ($> scale 0) scale 0)))))
-  (make-line harray bol boundary beds :scale scale))
+  (make-line harray bol boundary :scale scale))
 
-(defun last-fit-make-ragged-line
-    (harray bol boundary beds width
-     ;; By default, lines are shrunk as much as possible.
-     &aux (scale -1))
+;; By default, lines are shrunk as much as possible.
+(defun last-fit-make-ragged-line (harray bol boundary width &aux (scale -1))
   "Last Fit version of `make-line' for ragged lines."
   (when *relax*
     ;; There is no specific case for the last line here, because we only
@@ -401,10 +397,10 @@ LINE class."))
 		  ;; - Finally, a scale < -1 means that the line cannot fit at
 		  ;;   all, so we must stay at our original -1.
 		  (if ($>= scale 0) 0 ($max scale -1)))))
-  (make-line harray bol boundary beds :scale scale))
+  (make-line harray bol boundary :scale scale))
 
 (defun fit-make-justified-line
-    (harray bol boundary beds overstretch overshrink &aux line)
+    (harray bol boundary overstretch overshrink &aux line)
   "Fit version of `make-line' for justified lines."
   (multiple-value-bind (theoretical effective)
       (if (eopp (break-point boundary))
@@ -426,7 +422,7 @@ LINE class."))
 	   (actual-scales -1 :overshrink overshrink)))
 	(actual-scales (scale boundary)
 	  :overshrink overshrink :overstretch overstretch))
-    (setq line (make-line harray bol boundary beds
+    (setq line (make-line harray bol boundary
 		 :scale theoretical :effective-scale effective)))
   (when (typep boundary 'fit-weighted-boundary)
     (change-class line 'fit-line
@@ -441,7 +437,7 @@ LINE class."))
 ;; ==========================================================================
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :fit))
+    (harray disposition width (algorithm (eql :fit))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:fallback *fallback*))
@@ -477,20 +473,17 @@ LINE class."))
 	    (:justified
 	     (let ((overstretch (getf disposition-options :overstretch))
 		   (overshrink  (getf disposition-options :overshrink)))
-	       (lambda (harray bol boundary beds)
-		 (fit-make-justified-line harray bol boundary beds
-					  overstretch overshrink))))
+	       (lambda (harray bol boundary)
+		 (fit-make-justified-line
+		  harray bol boundary overstretch overshrink))))
 	    (t
 	     (ecase *variant*
 	       (:first
-		(lambda (harray bol boundary beds)
-		  (first-fit-make-ragged-line
-		   harray bol boundary beds width)))
+		(lambda (harray bol boundary)
+		  (first-fit-make-ragged-line harray bol boundary width)))
 	       (:best
 		#'make-line)
 	       (:last
-		(lambda (harray bol boundary beds)
-		  (last-fit-make-ragged-line
-		   harray bol boundary beds width))))))))
-    (make-greedy-breakup harray disposition width beds
-			 get-boundary make-line)))
+		(lambda (harray bol boundary)
+		  (last-fit-make-ragged-line harray bol boundary width))))))))
+    (make-greedy-breakup harray disposition width get-boundary make-line)))

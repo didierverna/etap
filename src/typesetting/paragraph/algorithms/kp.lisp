@@ -311,14 +311,14 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; stretch in the stretch tolerance below.
 
 (defun kp-make-justified-line
-    (harray bol ledge beds stretch-tolerance overshrink)
+    (harray bol ledge stretch-tolerance overshrink)
   "KP version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
       (actual-scales (scale (boundary ledge))
 	:stretch-tolerance stretch-tolerance
 	:overshrink overshrink
 	:overstretch t)
-    (make-ledge-line harray bol ledge beds
+    (make-ledge-line harray bol ledge
       :scale theoretical
       :effective-scale effective)))
 
@@ -333,11 +333,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   ()
   (:documentation "The Knuth-Plass Graph Breakup class."))
 
-(defun kp-graph-break-harray (harray disposition width beds)
+(defun kp-graph-break-harray (harray disposition width)
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (if (zerop (length harray))
     (make-instance 'kp-graph-breakup
-      :disposition disposition :width width :harray harray :beds beds
+      :disposition disposition :width width :harray harray
       :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
     (let ((pass 1) graph layouts)
       (when ($<= 0 *pre-tolerance*)
@@ -397,7 +397,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 				     :key #'size))))
       (make-instance 'kp-graph-breakup
 	:disposition disposition :width width
-	:harray harray :beds beds :graph graph :layouts layouts
+	:harray harray :graph graph :layouts layouts
 	:pre-tolerance *pre-tolerance* :tolerance *tolerance* :pass pass))))
 
 
@@ -417,17 +417,15 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   ;; KP-MAKE-JUSTIFIED-LINE.
   (pin-lines
    (make-layout-lines (harray breakup)
-		      (beds breakup)
 		      (aref (layouts breakup) nth)
 		      (case disposition-type
 			(:justified
-			 (lambda (harray bol ledge beds)
+			 (lambda (harray bol ledge)
 			   (kp-make-justified-line
-			    harray bol ledge beds
-			    stretch-tolerance overshrink)))
+			    harray bol ledge stretch-tolerance overshrink)))
 			(t ;; just switch back to normal spacing.
-			 (lambda (harray bol ledge beds)
-			   (make-line harray bol (boundary ledge) beds)))))
+			 (lambda (harray bol ledge)
+			   (make-line harray bol (boundary ledge))))))
    disposition-type
    (width breakup)))
 
@@ -652,7 +650,7 @@ through the algorithm in the TeX jargon).
     ($float (demerits line))
     ($float (total-demerits line))))
 
-(defun kp-dynamic-pin-node (harray disposition width beds node pass)
+(defun kp-dynamic-pin-node (harray disposition width node pass)
   "Pin Knuth-Plass NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
   (loop :with disposition-options := (disposition-options disposition)
 	;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
@@ -691,7 +689,6 @@ through the algorithm in the TeX jargon).
 		      (make-instance 'kp-dynamic-line
 			:harray harray
 			:start-idx start :stop-idx stop
-			:beds beds
 			:scale theoretical
 			:effective-scale effective
 			:fitness-class (kp-node-fitness-class end)
@@ -699,8 +696,7 @@ through the algorithm in the TeX jargon).
 			:demerits (kp-node-demerits end)
 			:total-demerits (kp-node-total-demerits end)))
 		    (make-instance 'line
-		      :harray harray :start-idx start :stop-idx stop
-		      :beds beds))
+		      :harray harray :start-idx start :stop-idx stop))
 		  lines)
 	:finally
 	   (return (loop :with baseline-skip := (baseline-skip harray)
@@ -748,8 +744,7 @@ through the algorithm in the TeX jargon).
       ($float (kp-node-total-demerits (aref nodes 0)))
       nodes-#)))
 
-(defun kp-dynamic-break-harray
-    (harray disposition width beds &aux (pass 1))
+(defun kp-dynamic-break-harray (harray disposition width &aux (pass 1))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length harray))
     (make-instance 'kp-dynamic-breakup :disposition disposition :width width)
@@ -778,7 +773,7 @@ through the algorithm in the TeX jargon).
 	      :pass pass :nodes (mapcar #'cdr nodes-list)))
       (setf (aref (renditions breakup) 0)
 	    (kp-dynamic-pin-node
-	     harray disposition width beds (aref (nodes breakup) 0) pass))
+	     harray disposition width (aref (nodes breakup) 0) pass))
       breakup)))
 
 
@@ -789,7 +784,7 @@ through the algorithm in the TeX jargon).
 ;; ==========================================================================
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :knuth-plass))
+    (harray disposition width (algorithm (eql :knuth-plass))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
@@ -812,4 +807,4 @@ through the algorithm in the TeX jargon).
   (funcall (ecase *variant*
 	     (:graph #'kp-graph-break-harray)
 	     (:dynamic #'kp-dynamic-break-harray))
-    harray disposition width beds))
+    harray disposition width))
