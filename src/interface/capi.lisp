@@ -374,16 +374,19 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 					       (tfm:code (object pinned)))
 					 (+ x (x pinned))
 					 y)))
-				  ((hyphenation-clue-p pinned)
+				  ((member (object pinned)
+					   '(:explicit-hyphenation-clue
+					     :hyphenation-clue))
 				   (when (member :hyphenation-points clues)
 				     (gp:draw-polygon pane
 				       (list (+ x (x pinned)) y
 					     (+ x (x pinned) -3) (+ y 5)
 					     (+ x (x pinned) +3) (+ y 5))
 				       :filled t
-				       :foreground (if (explicitp pinned)
-						     :blue
-						     :orange))))
+				       :foreground (if (eq (object pinned)
+							   :hyphenation-clue)
+						     :orange
+						     :blue))))
 				  ((bedp pinned)
 				   (when (member :river-beds clues)
 				     (gp:draw-circle pane (+ x (x pinned)) y 1

@@ -321,10 +321,8 @@ Maybe also include river BEDS."
 	      :with last-elt := (aref harray (1- (length harray)))
 	      :for elt
 		:in (flatten-harray harray (start-idx line) (stop-idx line))
-	      :if (eq elt :explicit-hyphenation-clue)
-		:collect (make-hyphenation-clue line x)
-	      :else :if (eq elt :hyphenation-clue)
-		      :collect (make-hyphenation-clue line x nil)
+	      :if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
+		:collect (pin-object elt line x)
 	      :else :if (typep elt 'tfm:character-metrics)
 		      :collect (pin-object elt line x)
 		      :and :do (incf x (width elt))

@@ -42,24 +42,6 @@ Methods may return an empty string or NIL if there is nothing to advertise.")
 ;; ==========================================================================
 
 ;; Always pinned, so no "pinned" prefix.
-(defclass hyphenation-clue (pinned)
-  ((explicitp :documentation
-	      "Whether this hyphenation clue comes from an explicit hyphen."
-	      :initform t :initarg
-	      :explicit :reader explicitp))
-  (:documentation "The HYPHENATION-CLUE class.
-Hyphenation clues are positioned at Y = 0."))
-
-(defun hyphenation-clue-p (object)
-  "Return T if OBJECT is a hyphenation clue."
-  (typep object 'hyphenation-clue))
-
-(defun make-hyphenation-clue (board x &optional (explicit t))
-  "Pin possibly EXPLICIT hyphenation clue at (X, 0)."
-  (make-instance 'hyphenation-clue :board board :x x :explicit explicit))
-
-
-;; Always pinned, so no "pinned" prefix.
 (defclass bed (pinned)
   ((width :documentation "The river bed's width"
 	  :initarg :width :reader width))
