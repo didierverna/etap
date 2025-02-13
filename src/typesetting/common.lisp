@@ -16,3 +16,16 @@
   (:documentation "The PINNED class.
 This class represents objects which are pinned to a fixed position in 2D
 space, expressed relative to their board."))
+
+
+(defmethod width ((pinned pinned))
+  "Return PINNED object's width."
+  (width (object pinned)))
+
+(defmethod height ((pinned pinned))
+  "Return PINNED object's height."
+  (height (object pinned)))
+
+(defmethod depth ((pinned pinned))
+  "Return PINNED object's depth."
+  (depth (object pinned)))
