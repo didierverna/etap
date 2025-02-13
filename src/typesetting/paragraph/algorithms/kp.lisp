@@ -119,9 +119,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 ;; ----------------------
 
 (defclass kp-breakup-mixin ()
-  (;; #### TODO: the two slots below are used in the graph version. Not sure
-   ;; yet about the dynamic one, but most likely. If not, move them.
-   (pre-tolerance
+  ((pre-tolerance
     :documentation "This breakup's pre-tolerance."
     :initarg :pre-tolerance :reader pre-tolerance)
    (tolerance
@@ -439,6 +437,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 (defstruct (kp-node (:constructor kp-make-node))
   boundary scale fitness-class badness demerits total-demerits previous)
 
+(defmethod properties strnlcat ((node kp-node) &key)
+  "Advertise KP dynamic NODE's properties."
+  (format nil "Demerits: ~A" ($float (kp-node-total-demerits node))))
+
+
 ;; The active nodes hash table is accessed by
 ;; key = (boundary line-number fitness-class)
 (defun make-key (boundary line fitness) (list boundary line fitness))
@@ -462,11 +465,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		 (previous-line (key-line key))
 		 (previous-fitness (key-fitness key))
 		 (scale (harray-scale harray
-				      (start-idx previous-boundary)
-				      (stop-idx boundary)
+				      (bol-idx (break-point previous-boundary))
+				      (eol-idx (break-point boundary))
 				      width)))
      (when (or ($< scale -1)
-	       (eq (penalty (item boundary)) -∞)
+	       (eq (penalty boundary) -∞)
 	       ;; #### WARNING: we must deactivate all nodes when we reach
 	       ;; the paragraph's end. TeX does this by adding a forced
 	       ;; break at the end.
@@ -477,13 +480,13 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
        (let ((badness (scale-badness
 		       (if emergency-stretch
 			 (harray-scale harray
-				       (start-idx previous-boundary)
-				       (stop-idx boundary)
+				       (bol-idx (break-point previous-boundary))
+				       (eol-idx (break-point boundary))
 				       width emergency-stretch)
 			 scale))))
 	 (when ($<= badness threshold)
 	   (let* ((fitness (scale-fitness-class scale))
-		  (demerits (local-demerits badness (penalty (item boundary))
+		  (demerits (local-demerits badness (penalty boundary)
 					    *line-penalty*))
 		  (total-demerits ($+ (kp-node-total-demerits node)
 				      demerits)))
@@ -500,11 +503,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	     ;; double-hyphen-demerits when there actually is a final hyphen,
 	     ;; but on the other hand, the final line is rarely justified so
 	     ;; the two hyphens are very unlikely to create a ladder.
-	     (when (discretionaryp (item previous-boundary))
+	     (when (discretionaryp (break-point previous-boundary))
 	       (if (last-boundary-p boundary)
 		 (setq total-demerits
 		       ($+ total-demerits *final-hyphen-demerits*))
-		 (when (discretionaryp (item boundary))
+		 (when (discretionaryp (break-point boundary))
 		   (setq total-demerits
 			 ($+ total-demerits *double-hyphen-demerits*)))))
 	     (let* ((new-key (make-key boundary (1+ previous-line) fitness))
@@ -540,10 +543,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (setq new-nodes
 	  (list
 	   (let* ((scale (harray-scale harray
-				       (start-idx
-					(key-boundary
-					 (car last-deactivated-node)))
-				       (stop-idx boundary)
+				       (bol-idx
+					(break-point
+					 (key-boundary
+					  (car last-deactivated-node))))
+				       (eol-idx (break-point boundary))
 				       width))
 		  (badness (scale-badness scale))
 		  (fitness-class (scale-fitness-class scale)))
@@ -606,19 +610,85 @@ through the algorithm in the TeX jargon).
 		 (1 nil)
 		 (2 (zerop *emergency-stretch*))
 		 (3 *emergency-stretch*)))
-	(root-boundary (make-instance 'boundary :item nil :start-idx 0))
+	(root-boundary (make-instance 'boundary :break-point *bop*))
 	(nodes (make-hash-table :test #'equal)))
     (setf (gethash (make-key root-boundary 0 2) nodes)
 	  (kp-make-node :boundary root-boundary :fitness-class 2
 			:total-demerits 0))
     (loop :for boundary := (next-boundary harray 0)
-	    :then (next-boundary harray (idx boundary))
+	    :then (next-boundary harray (idx (break-point boundary)))
 	  :while boundary
-	  :when (and ($< (penalty (item boundary)) +∞)
+	  :when (and ($< (penalty boundary) +∞)
 		     (or hyphenate
-			 (not (hyphenation-point-p (item boundary)))))
+			 (not (hyphenated boundary))))
 	    :do (kp-try-boundary boundary nodes harray width threshold final))
     (unless (zerop (hash-table-count nodes)) nodes)))
+
+
+;; -------
+;; Breakup
+;; -------
+
+(defclass kp-dynamic-breakup (kp-breakup-mixin breakup)
+  ((harray
+    :documentation "This breakup's harray."
+    :initarg :harray :reader harray)
+   (nodes
+    :documentation "The breakup's sorted nodes array."
+    :initform nil :reader nodes)
+   (renditions
+    :documentation "The breakups' sorted renditions array."
+    :initform nil :reader renditions))
+  (:documentation "The KP-DYNAMIC-BREAKUP class."))
+
+(defmethod initialize-instance :after
+    ((breakup kp-dynamic-breakup) &key nodes)
+  "Convert the nodes list to an array and create the renditions array."
+  (when nodes
+    (setf (slot-value breakup 'nodes)
+	  (make-array (length nodes) :initial-contents nodes))
+    (setf (slot-value breakup 'renditions)
+	  (make-array (length nodes) :initial-element nil))))
+
+
+(defmethod properties strnlcat
+    ((breakup kp-dynamic-breakup) &key rendition &aux (nodes (nodes breakup)))
+  "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
+  (when nodes
+    (strnlcat
+     (format nil "Remaining active nodes: ~A." (length nodes))
+     (when rendition (properties (aref nodes rendition)))
+     (when rendition (properties (get-rendition rendition breakup))))))
+
+
+(defun kp-dynamic-break-harray (harray disposition width &aux (pass 1))
+  "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
+  (if (zerop (length harray))
+    (make-instance 'kp-dynamic-breakup
+      :disposition disposition :width width :harray harray
+      :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
+    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
+			(kp-create-nodes harray width pass))
+		      (kp-create-nodes harray width (incf pass))
+		      (kp-create-nodes harray width (incf pass))))
+	   nodes-list)
+      (maphash (lambda (key node)
+		 (push (cons (key-line key) node) nodes-list))
+	       nodes)
+      (setq nodes-list
+	    (sort nodes-list #'$<
+	      :key (lambda (elt) (kp-node-total-demerits (cdr elt)))))
+      (unless (zerop *looseness*)
+	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
+	  (setq nodes-list
+		(stable-sort nodes-list (lambda (elt1 elt2)
+					  (< (abs (- elt1 ideal-size))
+					     (abs (- elt2 ideal-size))))
+			     :key #'car))))
+      (make-instance 'kp-dynamic-breakup
+	:disposition disposition :width width :harray harray
+	:pre-tolerance *pre-tolerance* :tolerance *tolerance*
+	:pass pass :nodes (mapcar #'cdr nodes-list)))))
 
 
 ;; -----
@@ -650,131 +720,81 @@ through the algorithm in the TeX jargon).
     ($float (demerits line))
     ($float (total-demerits line))))
 
-(defun kp-dynamic-pin-node (harray disposition width node pass)
-  "Pin Knuth-Plass NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with disposition-options := (disposition-options disposition)
-	;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
-	;; elastic underfulls (in case of an impossible layout, it falls back
-	;; to overfull boxes). This means that the overstretch option has no
-	;; effect, but it allows for a nice trick: we can indicate lines
-	;; exceeding the tolerance thanks to an emergency stretch as
-	;; overstretched, regardless of the option. This is done by setting
-	;; the overstretched parameter to T and not counting emergency stretch
-	;; in the stretch-tolerance one.
-	:with overshrink := (getf disposition-options :overshrink)
-	:with disposition := (disposition-type disposition)
-	:with stretch-tolerance
-	  := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
-	:with lines
-	:for end := node :then (kp-node-previous end)
-	:for beg := (kp-node-previous end)
-	:while beg
-	:for start := (start-idx (kp-node-boundary beg))
-	:for stop := (stop-idx (kp-node-boundary end))
-	:do (push (if (eq disposition :justified)
-		    ;; #### NOTE: I think that the Knuth-Plass algorithm
-		    ;; cannot produce elastic underfulls (in case of an
-		    ;; impossible layout, it falls back to overfull boxes).
-		    ;; This means that the overstretch option has no effect,
-		    ;; but it allows for a nice trick: we can indicate lines
-		    ;; exceeding the tolerance thanks to an emergency stretch
-		    ;; as overstretched, regardless of the option. This is
-		    ;; done by setting the overstretched parameter to T and
-		    ;; not counting emergency stretch in the stretch-tolerance
-		    ;; one.
-		    (multiple-value-bind (theoretical effective)
-			(actual-scales (kp-node-scale end)
-			  :stretch-tolerance stretch-tolerance
-			  :overshrink overshrink :overstretch t)
-		      (make-instance 'kp-dynamic-line
-			:harray harray
-			:start-idx start :stop-idx stop
-			:scale theoretical
-			:effective-scale effective
-			:fitness-class (kp-node-fitness-class end)
-			:badness (kp-node-badness end)
-			:demerits (kp-node-demerits end)
-			:total-demerits (kp-node-total-demerits end)))
-		    (make-instance 'line
-		      :harray harray :start-idx start :stop-idx stop))
-		  lines)
-	:finally
-	   (return (loop :with baseline-skip := (baseline-skip harray)
-			 :for y := 0 :then (+ y baseline-skip)
-			 :for line :in lines
-			 :for x := (case disposition
-				     ((:flush-left :justified) 0)
-				     (:centered (/ (- width (width line)) 2))
-				     (:flush-right (- width (width line))))
-			 :collect (pin-line line x y)))))
 
+;; ----------
+;; Renditions
+;; ----------
 
-;; ------------------------
-;; Breakup specialization
-;; ------------------------
+;; #### FIXME: the renditions logic below is a duplicate of the graph one,
+;; essentially because we should have a super-class for multiple-renditions
+;; breakups, split apart from the graph one.
 
-;; #### FIXME: since the dynamic optimization is essentially just a way to
-;; keep only pruned graphs in memory, we should arrange to use a graph breakup
-;; here.
-(defclass kp-dynamic-breakup (kp-breakup-mixin breakup)
-  ((nodes :documentation "The breakup's sorted nodes array."
-	  :initform nil :reader nodes)
-   (renditions :documentation "The breakups' sorted renditions array."
-	       :initform nil :reader renditions))
-  (:documentation "The KP-DYNAMIC-BREAKUP class."))
+;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
+;; underfulls (in case of an impossible layout, it falls back to overfull
+;; boxes). This means that the overstretch option has no effect, but it allows
+;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
+;; an emergency stretch as overstretched, regardless of the option. This is
+;; done by setting the overstretched parameter to T and not counting emergency
+;; stretch in the stretch-tolerance one.
+(defmethod make-rendition
+    (nth (breakup kp-dynamic-breakup)
+     &aux (harray (harray breakup))
+	  (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (disposition-options (disposition-options disposition))
+	  (overshrink (getf disposition-options :overshrink))
+	  (stretch-tolerance (stretch-tolerance
+			      (if (> (pass breakup) 1)
+				(tolerance breakup)
+				(pre-tolerance breakup)))))
+  "Render Nth node from KP Dynamic BREAKUP."
+  (pin-lines
+   (loop :with lines
+	 :for end := (aref (nodes breakup) nth) :then (kp-node-previous end)
+	 :for beg := (kp-node-previous end)
+	 :while beg
+	 :for start := (bol-idx (break-point (kp-node-boundary beg)))
+	 :for stop  := (eol-idx (break-point (kp-node-boundary end)))
+	 :do (push (if (eq disposition-type :justified)
+		     ;; #### NOTE: I think that the Knuth-Plass algorithm
+		     ;; cannot produce elastic underfulls (in case of an
+		     ;; impossible layout, it falls back to overfull boxes).
+		     ;; This means that the overstretch option has no effect,
+		     ;; but it allows for a nice trick: we can indicate lines
+		     ;; exceeding the tolerance thanks to an emergency stretch
+		     ;; as overstretched, regardless of the option. This is
+		     ;; done by setting the overstretched parameter to T and
+		     ;; not counting emergency stretch in the
+		     ;; stretch-tolerance one.
+		     (multiple-value-bind (theoretical effective)
+			 (actual-scales (kp-node-scale end)
+			   :stretch-tolerance stretch-tolerance
+			   :overshrink overshrink :overstretch t)
+		       (make-instance 'kp-dynamic-line
+			 :harray harray
+			 :start-idx start :stop-idx stop
+			 :scale theoretical
+			 :effective-scale effective
+			 :fitness-class (kp-node-fitness-class end)
+			 :badness (kp-node-badness end)
+			 :demerits (kp-node-demerits end)
+			 :total-demerits (kp-node-total-demerits end)))
+		     (make-instance 'line
+		       :harray harray :start-idx start :stop-idx stop))
+		   lines)
+	 :finally (return lines))
+   disposition-type
+   (width breakup)))
 
-(defmethod initialize-instance :after
-    ((breakup kp-dynamic-breakup) &key nodes)
-  "Convert the ndoes list to an array and create the renditions array."
-  (setf (slot-value breakup 'nodes)
-	(make-array (length nodes) :initial-contents nodes))
-  (setf (slot-value breakup 'renditions)
-	(make-array (length nodes) :initial-element nil)))
+;; #### NOTE: the call to LENGTH below will return 0 when the RENDITIONS slot
+;; is nil, as well as when it's an array of size 0.
+(defmethod renditions-# ((breakup kp-dynamic-breakup))
+  "Return KP Dynamic BREAKUP's renditions number."
+  (length (renditions breakup)))
 
-;; #### NOTE: the Knuth-Plass algorithm never refuses to typeset, so a nodes-#
-;; of 0 means that the harray was empty.
-(defmethod properties strnlcat
-    ((breakup kp-dynamic-breakup)
-     &key
-     &aux (nodes (nodes breakup)) (nodes-# (length nodes)))
-  "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
-  (unless (zerop nodes-#)
-    (format nil "Demerits: ~A~@
-		 Remaining active nodes: ~A."
-      ($float (kp-node-total-demerits (aref nodes 0)))
-      nodes-#)))
-
-(defun kp-dynamic-break-harray (harray disposition width &aux (pass 1))
-  "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
-  (if (zerop (length harray))
-    (make-instance 'kp-dynamic-breakup :disposition disposition :width width)
-    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
-			(kp-create-nodes harray width pass))
-		      (kp-create-nodes harray width (incf pass))
-		      (kp-create-nodes harray width (incf pass))))
-	   nodes-list
-	   breakup)
-      (maphash (lambda (key node)
-		 (push (cons (key-line key) node) nodes-list))
-	       nodes)
-      (setq nodes-list
-	    (sort nodes-list #'$<
-	      :key (lambda (elt) (kp-node-total-demerits (cdr elt)))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
-	  (setq nodes-list
-		(stable-sort nodes-list (lambda (elt1 elt2)
-					  (< (abs (- elt1 ideal-size))
-					     (abs (- elt2 ideal-size))))
-			     :key #'car))))
-      (setq breakup
-	    (make-instance 'kp-dynamic-breakup
-	      :disposition disposition :width width
-	      :pass pass :nodes (mapcar #'cdr nodes-list)))
-      (setf (aref (renditions breakup) 0)
-	    (kp-dynamic-pin-node
-	     harray disposition width (aref (nodes breakup) 0) pass))
-      breakup)))
+(defmethod get-rendition (nth (breakup kp-dynamic-breakup))
+  "Return the Nth KP Dynamic BREAKUP's rendition."
+  (or (aref (renditions breakup) nth) (make-rendition nth breakup)))
 
 
 
