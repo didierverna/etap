@@ -17,12 +17,16 @@
 
 
 (defun remake-rivers
-    (interface &aux (rivers-interface (rivers-interface interface)))
+    (interface
+     &aux (rivers-interface (rivers-interface interface))
+	  (rendition (rendition interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
-	(when (button-selected (rivers-detection (rivers-interface interface)))
+	(when (and (button-selected
+		    (rivers-detection (rivers-interface interface)))
+		   (not (zerop rendition)))
 	  (detect-rivers
-	   (paragraph interface)
+	   (get-rendition (1- rendition) (breakup (paragraph interface)))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
 (defun remake-paragraph (interface)
@@ -424,6 +428,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (unless (zerop renditions-#)
     (setq rendition (1+ (mod (1- (funcall op rendition)) renditions-#)))
     (setf (rendition interface) rendition)
+    (when (button-selected (rivers-detection (rivers-interface interface)))
+      (remake-rivers interface))
     (setf (titled-object-title (view interface))
 	  (format nil "Rendition ~D/~D" rendition renditions-#))
     (gp:invalidate-rectangle (view interface))))

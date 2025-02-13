@@ -1,5 +1,11 @@
 (in-package :etap)
 
+;; #### FIXME: there's currently one slot in the interface for storing the
+;; currently detected rivers. This was a quick hack to test the idea but it is
+;; obviously wrong, as rivers are a property of a specific rendition. The
+;; storage should thus be implemented in breakups.
+
+
 ;; =========
 ;; Utilities
 ;; =========
@@ -62,11 +68,11 @@ it, and the closest to SOURCE's right, all of these X-wise."
 	  :else :do (return (append left below (list ws)))
 	  :finally (return (append left below)))))
 
-(defun detect-rivers (paragraph angle &aux (hash (make-hash-table)))
-  "Detect rivers of at most ANGLE threshold in PARAGRAPH.
+(defun detect-rivers (pinned-lines angle &aux (hash (make-hash-table)))
+  "Detect rivers of at most ANGLE threshold in PINNED-LINES.
 The return value is a hash table mapping source whitespaces to a list of arms."
-  (loop :for line1 :in (get-rendition 0 (breakup paragraph))
-	:for line2 :in (cdr (get-rendition 0 (breakup paragraph)))
+  (loop :for line1 :in pinned-lines
+	:for line2 :in (cdr pinned-lines)
 	:for sources
 	  := (remove-if-not #'whitespacep (pinned-objects (line line1)))
 	:when sources
