@@ -298,31 +298,6 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   layout)
 
 
-;; -----
-;; Lines
-;; -----
-
-;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
-;; underfulls (in case of an impossible layout, it falls back to overfull
-;; boxes). This means that the overstretch option has no effect, but it allows
-;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
-;; an emergency stretch as overstretched, regardless of the option. This is
-;; done by setting the overstretch parameter to T and not counting emergency
-;; stretch in the stretch tolerance below.
-
-(defun kp-make-justified-line
-    (harray bol ledge stretch-tolerance overshrink)
-  "KP version of `make-ledge-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
-      (actual-scales (scale (boundary ledge))
-	:stretch-tolerance stretch-tolerance
-	:overshrink overshrink
-	:overstretch t)
-    (make-ledge-line harray bol ledge
-      :scale theoretical
-      :effective-scale effective)))
-
-
 ;; -------
 ;; Breakup
 ;; -------
@@ -399,6 +374,31 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	:disposition disposition :width width
 	:harray harray :graph graph :layouts layouts
 	:pre-tolerance *pre-tolerance* :tolerance *tolerance* :pass pass))))
+
+
+;; -----
+;; Lines
+;; -----
+
+;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
+;; underfulls (in case of an impossible layout, it falls back to overfull
+;; boxes). This means that the overstretch option has no effect, but it allows
+;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
+;; an emergency stretch as overstretched, regardless of the option. This is
+;; done by setting the overstretch parameter to T and not counting emergency
+;; stretch in the stretch tolerance below.
+
+(defun kp-make-justified-line
+    (harray bol ledge stretch-tolerance overshrink)
+  "KP version of `make-ledge-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (actual-scales (scale (boundary ledge))
+	:stretch-tolerance stretch-tolerance
+	:overshrink overshrink
+	:overstretch t)
+    (make-ledge-line harray bol ledge
+      :scale theoretical
+      :effective-scale effective)))
 
 
 ;; ----------
@@ -621,9 +621,9 @@ through the algorithm in the TeX jargon).
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 
-;; -----------------
-;; Lines computation
-;; -----------------
+;; -----
+;; Lines
+;; -----
 
 (defclass kp-dynamic-line (line)
   ((fitness-class :documentation "This line's fitness class."
