@@ -187,27 +187,6 @@ The possible endings are listed in reverse order (from last to first)."
 
 
 ;; ==========================================================================
-;; Lines
-;; ==========================================================================
-
-(defun duncan-make-justified-line
-    (harray bol ledge overstretch overshrink
-     &aux (boundary (boundary ledge)) (scale (scale boundary)))
-  "Duncan version of `make-ledge-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
-      (if (eopp (break-point boundary))
-	;; Justified last line: maybe shrink it but don't stretch it.
-	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
-	;; Justified regular line: make it fit.
-	(actual-scales scale :overshrink overshrink :overstretch overstretch))
-    (make-ledge-line harray bol ledge
-      :scale theoretical
-      :effective-scale effective)))
-
-
-
-
-;; ==========================================================================
 ;; Breakup
 ;; ==========================================================================
 
@@ -270,6 +249,27 @@ The possible endings are listed in reverse order (from last to first)."
       (make-instance 'duncan-breakup
 	:disposition disposition :width width
 	:harray harray :graph graph :layouts layouts))))
+
+
+
+
+;; ==========================================================================
+;; Lines
+;; ==========================================================================
+
+(defun duncan-make-justified-line
+    (harray bol ledge overstretch overshrink
+     &aux (boundary (boundary ledge)) (scale (scale boundary)))
+  "Duncan version of `make-ledge-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (if (eopp (break-point boundary))
+	;; Justified last line: maybe shrink it but don't stretch it.
+	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
+	;; Justified regular line: make it fit.
+	(actual-scales scale :overshrink overshrink :overstretch overstretch))
+    (make-ledge-line harray bol ledge
+      :scale theoretical
+      :effective-scale effective)))
 
 
 
