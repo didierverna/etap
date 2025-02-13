@@ -326,7 +326,7 @@ Maybe also include river BEDS."
 	      :else :if (eq elt :hyphenation-clue)
 		      :collect (make-hyphenation-clue line x nil)
 	      :else :if (typep elt 'tfm:character-metrics)
-		      :collect (pin-character elt line x)
+		      :collect (pin-object elt line x)
 		      :and :do (incf x (width elt))
 	      :else :if (kernp elt)
 		      :do (incf x (width elt))

@@ -41,34 +41,6 @@ Methods may return an empty string or NIL if there is nothing to advertise.")
 ;; Pinned Items
 ;; ==========================================================================
 
-(defclass pinned-character (pinned)
-  ((character-metrics :documentation "The pinned character."
-		      :initarg :character-metrics
-		      :reader character-metrics))
-  (:documentation "The PINNED-CHARACTER class."))
-
-(defun pinned-character-p (object)
-  "Return T if OBJECT is a pinned character."
-  (typep object 'pinned-character))
-
-(defmethod width ((character pinned-character))
-  "Return pinned CHARACTER's width."
-  (width (character-metrics character)))
-
-(defmethod height ((character pinned-character))
-  "Return pinned CHARACTER's height."
-  (height (character-metrics character)))
-
-(defmethod depth ((character pinned-character))
-  "Return pinned CHARACTER's depth."
-  (depth (character-metrics character)))
-
-(defun pin-character (character board x &optional (y 0))
-  "Pin CHARACTER on BOARD at position (X, Y)."
-  (make-instance 'pinned-character
-    :character-metrics character :board board :x x :y y))
-
-
 ;; Always pinned, so no "pinned" prefix.
 (defclass hyphenation-clue (pinned)
   ((explicitp :documentation

@@ -357,36 +357,36 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (object)
-			    (cond ((pinned-character-p object)
+		:do (mapc (lambda (pinned)
+			    (cond ((typep (object pinned)
+					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle pane
-					 (+ x (x object))
-					 (- y (height object))
-					 (width object)
-					 (+ (height object)
-					    (depth object))
+					 (+ x (x pinned))
+					 (- y (height pinned))
+					 (width pinned)
+					 (+ (height pinned)
+					    (depth pinned))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
 					 (aref *lm-ec*
-					       (tfm:code
-						(character-metrics object)))
-					 (+ x (x object))
+					       (tfm:code (object pinned)))
+					 (+ x (x pinned))
 					 y)))
-				  ((hyphenation-clue-p object)
+				  ((hyphenation-clue-p pinned)
 				   (when (member :hyphenation-points clues)
 				     (gp:draw-polygon pane
-				       (list (+ x (x object)) y
-					     (+ x (x object) -3) (+ y 5)
-					     (+ x (x object) +3) (+ y 5))
+				       (list (+ x (x pinned)) y
+					     (+ x (x pinned) -3) (+ y 5)
+					     (+ x (x pinned) +3) (+ y 5))
 				       :filled t
-				       :foreground (if (explicitp object)
+				       :foreground (if (explicitp pinned)
 						     :blue
 						     :orange))))
-				  ((bedp object)
+				  ((bedp pinned)
 				   (when (member :river-beds clues)
-				     (gp:draw-circle pane (+ x (x object)) y 1
+				     (gp:draw-circle pane (+ x (x pinned)) y 1
 				      :filled t :foreground :red)))))
 		      (pinned-objects (line pinned-line))))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
