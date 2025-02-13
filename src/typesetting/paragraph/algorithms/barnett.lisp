@@ -96,7 +96,7 @@ This is the Barnett algorithm version."
 
 
 ;; ==========================================================================
-;; Breakup
+;; Lines
 ;; ==========================================================================
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
@@ -116,6 +116,13 @@ This is the Barnett algorithm version."
 	  :overshrink overshrink :stretch-tolerance +∞))
     (make-line harray bol boundary
       :scale theoretical :effective-scale effective)))
+
+
+
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
 
 (defmethod break-harray
     (harray disposition width (algorithm (eql :barnett)) &key)

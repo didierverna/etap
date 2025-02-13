@@ -349,9 +349,9 @@ LINE class."))
     (possibilities line)))
 
 
-;; -----------
-;; Line lookup
-;; -----------
+;; ----------------
+;; Line computation
+;; ----------------
 
 ;; By default, lines are stretched as much as possible.
 (defun first-fit-make-ragged-line (harray bol boundary width &aux (scale 1))
