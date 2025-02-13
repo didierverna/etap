@@ -6,7 +6,7 @@
     :initarg :object :reader object)
    (board
     :documentation "The pinned object's board."
-    :initform nil :initarg :board :reader board)
+    :initarg :board :reader board)
    (x
     :documentation "The pinned object's X coordinate, relative to its board."
     :initform 0 :initarg :x :reader x)
