@@ -84,7 +84,7 @@
 ;; -----
 
 (defclass kern ()
-  ((width :initarg :width :reader width :documentation "The kern's width."))
+  ((width :documentation "The kern's width." :initarg :width :reader width))
   (:documentation "The KERN class.
 Kerns represent inter-letter horizontal spacing."))
 
@@ -125,8 +125,9 @@ Kerns represent inter-letter horizontal spacing."))
   ((idx
     :documentation "This break point's harray index."
     :reader idx)
-   (penalty :documentation "The penalty for breaking here."
-	    :initform 0 :initarg :penalty :accessor penalty))
+   (penalty
+    :documentation "The penalty for breaking here."
+    :initform 0 :initarg :penalty :accessor penalty))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 
@@ -152,12 +153,15 @@ This is the base class for all objects at which lines can be broken."))
 ;; Discretionaries
 
 (defclass discretionary (break-point)
-  ((pre-break :initform nil :initarg :pre-break :accessor pre-break
-	      :documentation "Contents to insert before the break.")
-   (post-break :initform nil :initarg :post-break :accessor post-break
-	       :documentation "Contents to insert after the break.")
-   (no-break :initform nil :initarg :no-break :accessor no-break
-	     :documentation "Contents to insert when we don't break."))
+  ((pre-break
+    :documentation "Contents to insert before the break."
+    :initform nil :initarg :pre-break :accessor pre-break)
+   (post-break
+    :documentation "Contents to insert after the break."
+    :initform nil :initarg :post-break :accessor post-break)
+   (no-break
+    :documentation "Contents to insert when we don't break."
+    :initform nil :initarg :no-break :accessor no-break))
   (:documentation "The DISCRETIONARY class.
 Discretionaries represent breakable positions with alternative contents,
 depending on whether the break occurs or not."))
@@ -189,9 +193,9 @@ depending on whether the break occurs or not."))
 ;; empty in that case).
 (defabstract hyphenation-mixin ()
   ((explicitp
-    :initform t :initarg :explicit :reader explicitp
     :documentation
-    "Whether this hyphenation point comes from an explicit hyphen."))
+    "Whether this hyphenation point comes from an explicit hyphen."
+    :initform t :initarg :explicit :reader explicitp))
   (:documentation "The HYPHENATION-MIXIN class.
 This is a mixin for hyphenation points."))
 
@@ -223,12 +227,15 @@ Possible values are :explicit, :implicit, or nil.")
 ;; Glues
 
 (defclass glue (break-point)
-  ((width :initform 0 :initarg :width :reader width
-	  :documentation "The glues's natural width.")
-   (shrink :initform 0 :initarg :shrink :reader shrink
-	   :documentation "The glue's shrinkability.")
-   (stretch :initform 0 :initarg :stretch :reader stretch
-	    :documentation "The glue's stretchability."))
+  ((width
+    :documentation "The glues's natural width."
+    :initform 0 :initarg :width :reader width)
+   (shrink
+    :documentation "The glue's shrinkability."
+    :initform 0 :initarg :shrink :reader shrink)
+   (stretch
+    :documentation "The glue's stretchability."
+    :initform 0 :initarg :stretch :reader stretch))
   (:documentation "The GLUE class.
 Glues represent breakable, elastic space."))
 

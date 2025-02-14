@@ -242,6 +242,10 @@ line. Graph algorithms use boundaries to represent edges."))
   "Return BOUNDARY's break point hyphenation status."
   (hyphenation-point-p (break-point boundary)))
 
+(defmethod eol-idx ((boundary boundary))
+  "Return BOUNDARY's break-point end-of-line index."
+  (eol-idx (break-point boundary)))
+
 (defun last-boundary-p (boundary)
   "Return T if BOUNDARY is the last one."
   (null (break-point boundary)))
@@ -365,9 +369,7 @@ origin. A line also remembers its scale factor."))
 Optionally preset SCALE and EFFECTIVE-SCALE."
   (declare (ignore scale effective-scale))
   (apply #'make-instance 'line
-	 :harray harray
-	 :start-idx (bol-idx bol)
-	 :stop-idx (eol-idx (break-point boundary))
+	 :harray harray :start-idx (bol-idx bol) :stop-idx (eol-idx boundary)
 	 keys))
 
 
@@ -433,13 +435,13 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
   "Return pinned LINE's effective scale factor."
   (effective-scale (line line)))
 
-(defmethod hyphenated ((line pinned-line))
-  "Return pinned LINE's hyphenation status."
-  (hyphenated (line line)))
-
 (defmethod penalty ((line pinned-line))
   "Return pinned LINE's penalty."
   (penalty (line line)))
+
+(defmethod hyphenated ((line pinned-line))
+  "Return pinned LINE's hyphenation status."
+  (hyphenated (line line)))
 
 ;; #### NOTE: we don't have having nesting feature right now, so no board for
 ;; pinned lines (toplevel objects).

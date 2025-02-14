@@ -46,6 +46,15 @@ A context object stores the requested parameters for one experiment."))
   "The global context.")
 
 
+(defmethod text ((context context))
+  "Return CONTEXT's nlstring text."
+  (text (nlstring context)))
+
+(defmethod language ((context context))
+  "Return CONTEXT's nlstring language."
+  (language (nlstring context)))
+
+
 
 
 ;; ==========================================================================
@@ -57,8 +66,8 @@ A context object stores the requested parameters for one experiment."))
 ;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
 (defun make-hlist
     (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
+	  (text (if context (text context) *text*))
+	  (language (if context (language context) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -76,8 +85,8 @@ FEATURES."
 ;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
 (defun make-lineup
     (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
+	  (text (if context (text context) *text*))
+	  (language (if context (language context) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -96,8 +105,8 @@ FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
 
 (defun make-breakup
     (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
+	  (text (if context (text context) *text*))
+	  (language (if context (language context) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -120,8 +129,8 @@ subsequently computed."
 
 (defun make-paragraph
     (&key (context *context*)
-	  (text (if context (text (nlstring context)) *text*))
-	  (language (if context (language (nlstring context)) *language*))
+	  (text (if context (text context) *text*))
+	  (language (if context (language context) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))

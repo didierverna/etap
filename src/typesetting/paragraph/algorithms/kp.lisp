@@ -222,18 +222,28 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 ;; Ledges
 
+;; #### TODO: it's probably a bad idea to call the cumulative demerits just
+;; "demerits".
 (defclass kp-ledge (ledge)
   ((demerits :documentation "The cumulative demerits so far in the layout."
 	     :initarg :demerits :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
+
+(defmethod fitness-class ((ledge kp-ledge))
+  "Return Knuth-Plass LEDGE's boundary fitness class."
+  (fitness-class (boundary ledge)))
+
+(defmethod badness ((ledge kp-ledge))
+  "Return Knuth-Plass LEDGE's boundary badness."
+  (badness (boundary ledge)))
 
 (defmethod properties strnlcat ((ledge kp-ledge) &key)
   "Advertise Knuth-Plass LEDGE's fitness class, badness, and demerits."
   (format nil "Fitness class: ~A.~@
 	       Badness: ~A.~@
 	       Demerits: ~A (local), ~A (cumulative)."
-    (fitness-class-name (fitness-class (boundary ledge)))
-    ($float (badness (boundary ledge)))
+    (fitness-class-name (fitness-class ledge))
+    ($float (badness ledge))
     ($float (demerits (boundary ledge)))
     ($float (demerits ledge))))
 
@@ -264,18 +274,21 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (change-class (first (ledges layout)) 'kp-ledge
     :demerits (demerits (boundary (first (ledges layout)))))
   ;; See warning in KP-CREATE-NODES about that.
-  (when (= (fitness-class (boundary (first (ledges layout)))) 0)
+  (when (= (fitness-class (first (ledges layout))) 0)
     (setf (slot-value (first (ledges layout)) 'demerits)
 	  ($+ (demerits (first (ledges layout))) *adjacent-demerits*)))
   (change-class layout 'kp-layout
     :demerits (demerits (first (ledges layout)))
-    :bads (if (numberp (badness (boundary (first (ledges layout))))) 0  1)
+    :bads (if (numberp (badness (first (ledges layout)))) 0  1)
     :size length)
   (when (> length 1)
     (loop :for ledge1 :in (ledges layout)
 	  :for ledge2 :in (cdr (ledges layout))
 	  :for finalp := (eopp (break-point (boundary ledge2)))
-	  :unless (numberp (badness (boundary ledge2)))
+	  ;; #### WARNING: do this now! Otherwise, some pseudo-accessors
+	  ;; wouldn't work yet.
+	  :do (change-class ledge2 'kp-ledge)
+	  :unless (numberp (badness ledge2))
 	    :do (incf (slot-value layout 'bads))
 	  :do (setf (slot-value layout 'demerits)
 		    ($+ (demerits layout) (demerits (boundary ledge2))))
@@ -287,12 +300,11 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  :when (and finalp (hyphenated ledge1))
 	    :do (setf (slot-value layout 'demerits)
 		      ($+ (demerits layout) *final-hyphen-demerits*))
-	  :when (> (abs (- (fitness-class (boundary ledge1))
-			   (fitness-class (boundary ledge2))))
+	  :when (> (abs (- (fitness-class ledge1) (fitness-class ledge2)))
 		   1)
 	    :do (setf (slot-value layout 'demerits)
 		      ($+ (demerits layout) *adjacent-demerits*))
-	  :do (change-class ledge2 'kp-ledge :demerits (demerits layout))))
+	  :do (setf (slot-value ledge2 'demerits) (demerits layout))))
   layout)
 
 

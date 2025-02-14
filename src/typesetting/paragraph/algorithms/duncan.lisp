@@ -133,10 +133,16 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Ledges
 ;; ------
 
+;; #### TODO: it's probably a bad idea to call the cumulative weight just
+;; "weight".
 (defclass duncan-ledge (ledge)
   ((weight :documentation "The cumulative weight so far in the layout."
 	   :initarg :weight :reader weight))
   (:documentation "The Duncan Ledge class."))
+
+(defmethod fitness ((ledge duncan-ledge))
+  "Return Duncan LEDGE's boundary fitness."
+  (fitness (boundary ledge)))
 
 (defmethod properties strnlcat ((ledge duncan-ledge) &key)
   "Advertise Duncan LEDGE properties."
@@ -179,7 +185,7 @@ The possible endings are listed in reverse order (from last to first)."
 	  :do (setf weight ($+ weight (weight (boundary ledge))))
 	  :do (change-class ledge 'duncan-ledge :weight weight)
 	  :when (hyphenated ledge) :do (incf hyphens)
-	    :do (case (fitness (boundary ledge))
+	    :do (case (fitness ledge)
 		  (:underfull (incf underfulls))
 		  (:overfull  (incf overfulls))))))
 

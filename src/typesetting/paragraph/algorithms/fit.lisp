@@ -385,10 +385,7 @@ LINE class."))
     ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
     ;; calling (SCALE BOUNDARY).
     (setq scale (let ((scale (harray-scale
-			      harray
-			      (bol-idx bol)
-			      (eol-idx (break-point boundary))
-			      width)))
+			      harray (bol-idx bol) (eol-idx boundary) width)))
 		  ;; - A positive scale means that the line is naturally
 		  ;;   underfull (maybe not even elastic), so we can deshrink
 		  ;;   completely.

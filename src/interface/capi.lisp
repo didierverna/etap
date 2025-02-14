@@ -17,12 +17,16 @@
 
 
 (defun remake-rivers
-    (interface &aux (rivers-interface (rivers-interface interface)))
+    (interface
+     &aux (rivers-interface (rivers-interface interface))
+	  (rendition (rendition interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
-	(when (button-selected (rivers-detection (rivers-interface interface)))
+	(when (and (button-selected
+		    (rivers-detection (rivers-interface interface)))
+		   (not (zerop rendition)))
 	  (detect-rivers
-	   (paragraph interface)
+	   (get-rendition (1- rendition) (breakup (paragraph interface)))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
 (defun remake-paragraph (interface)
@@ -424,6 +428,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (unless (zerop renditions-#)
     (setq rendition (1+ (mod (1- (funcall op rendition)) renditions-#)))
     (setf (rendition interface) rendition)
+    (when (button-selected (rivers-detection (rivers-interface interface)))
+      (remake-rivers interface))
     (setf (titled-object-title (view interface))
 	  (format nil "Rendition ~D/~D" rendition renditions-#))
     (gp:invalidate-rectangle (view interface))))
@@ -535,7 +541,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore data))
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
   ;; #### NOTE: the language menu's selection is updated on pop-up.
-  (setf (editor-pane-text (text interface)) (text (nlstring context)))
+  (setf (editor-pane-text (text interface)) (text context))
   (update interface))
 
 (defun language-menu-callback (data interface)
@@ -546,10 +552,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defun language-menu-popup-callback (component)
   "Update the language popup to the current language."
   (setf (choice-selection component)
-	(position (language (nlstring (context (element-interface-for-callback
-						component))))
-		  *languages*
-		  :key #'car)))
+	(position
+	 (language (context (element-interface-for-callback component)))
+	 *languages*
+	 :key #'car)))
 
 ;; Interface
 (define-interface etap ()
@@ -1080,7 +1086,7 @@ This currently includes the initial ZOOMing factor and CLUES."
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
-  (setf (editor-pane-text (text etap)) (text (nlstring context)))
+  (setf (editor-pane-text (text etap)) (text context))
   (let ((size
 	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)

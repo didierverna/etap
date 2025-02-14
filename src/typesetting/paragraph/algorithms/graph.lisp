@@ -119,9 +119,15 @@ Contrary to boundaries however, they are specific to one path. Consequently,
 algorithms may subclass this class in order to store cumulative properties
 about the path so far."))
 
+;; #### NOTE: no PENALTY pseudo-accessor currently required.
+
 (defmethod hyphenated ((ledge ledge))
   "Return LEDGE's hyphenation status."
   (hyphenated (boundary ledge)))
+
+(defmethod eol-idx ((ledge ledge))
+  "Return LEDGE's break-point eold-idx."
+  (eol-idx (boundary ledge)))
 
 
 ;; -------
@@ -179,7 +185,7 @@ classes into more specific ones."
   (apply #'make-instance 'ledge-line
 	 :harray harray
 	 :start-idx (bol-idx bol)
-	 :stop-idx (eol-idx (break-point (boundary ledge)))
+	 :stop-idx (eol-idx ledge)
 	 :ledge ledge
 	 keys))
 
