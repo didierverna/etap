@@ -140,6 +140,10 @@ The possible endings are listed in reverse order (from last to first)."
 	   :initarg :weight :reader weight))
   (:documentation "The Duncan Ledge class."))
 
+(defmethod scale ((ledge duncan-ledge))
+  "Return Duncan LEDGE's boundary scale."
+  (scale (boundary ledge)))
+
 (defmethod fitness ((ledge duncan-ledge))
   "Return Duncan LEDGE's boundary fitness."
   (fitness (boundary ledge)))
@@ -264,11 +268,10 @@ The possible endings are listed in reverse order (from last to first)."
 ;; ==========================================================================
 
 (defun duncan-make-justified-line
-    (harray bol ledge overstretch overshrink
-     &aux (boundary (boundary ledge)) (scale (scale boundary)))
+    (harray bol ledge overstretch overshrink &aux (scale (scale ledge)))
   "Duncan version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
-      (if (eopp boundary)
+      (if (eopp ledge)
 	;; Justified last line: maybe shrink it but don't stretch it.
 	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
 	;; Justified regular line: make it fit.
