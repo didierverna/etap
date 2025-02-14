@@ -229,6 +229,10 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	     :initarg :demerits :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
 
+(defmethod scale ((ledge kp-ledge))
+  "Return Knuth-Plass LEDGE's boundary scale."
+  (scale (boundary ledge)))
+
 (defmethod fitness-class ((ledge kp-ledge))
   "Return Knuth-Plass LEDGE's boundary fitness class."
   (fitness-class (boundary ledge)))
@@ -402,7 +406,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (harray bol ledge stretch-tolerance overshrink)
   "KP version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
-      (actual-scales (scale (boundary ledge))
+      (actual-scales (scale ledge)
 	:stretch-tolerance stretch-tolerance
 	:overshrink overshrink
 	:overstretch t)
