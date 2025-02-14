@@ -435,13 +435,13 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
   "Return pinned LINE's effective scale factor."
   (effective-scale (line line)))
 
-(defmethod hyphenated ((line pinned-line))
-  "Return pinned LINE's hyphenation status."
-  (hyphenated (line line)))
-
 (defmethod penalty ((line pinned-line))
   "Return pinned LINE's penalty."
   (penalty (line line)))
+
+(defmethod hyphenated ((line pinned-line))
+  "Return pinned LINE's hyphenation status."
+  (hyphenated (line line)))
 
 ;; #### NOTE: we don't have having nesting feature right now, so no board for
 ;; pinned lines (toplevel objects).
