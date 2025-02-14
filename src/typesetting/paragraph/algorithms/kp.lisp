@@ -471,117 +471,93 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; ---------------
 
 (defun kp-try-break
-    (boundary nodes harray width threshold final
+    (break-point nodes harray width threshold final
      &aux (emergency-stretch (when (numberp final) final))
-	  last-deactivated-node new-nodes)
-  "Examine BOUNDARY and update active NODES accordingly."
+	  last-deactivation new-nodes)
+  "Examine BREAK-POINT and update active NODES accordingly."
   (maphash
    (lambda (key node
-	    &aux (previous-boundary (key-boundary key))
-		 (previous-line (key-line key))
-		 (previous-fitness (key-fitness key))
-		 (scale (harray-scale harray
-				      (bol-idx (break-point previous-boundary))
-				      (eol-idx (break-point boundary))
-				      width)))
-     (when (or ($< scale -1)
+	    &aux (bol (key-break-point key)) ; also available in the node
+		 (boundary (make-instance 'kp-boundary
+			     :harray harray :bol bol :break-point break-point
+			     :width width :extra emergency-stretch)))
+     ;; #### WARNING: we must deactivate all nodes when we reach the
+     ;; paragraph's end. TeX does this by adding a forced break at the end but
+     ;; this is a "dangling" penalty, whereas ours are properties of break
+     ;; points. This is why we need to check explicitly for the EOP below.
+     (when (or ($< (scale boundary) -1)
 	       (eq (penalty boundary) -∞)
-	       ;; #### WARNING: we must deactivate all nodes when we reach
-	       ;; the paragraph's end. TeX does this by adding a forced
-	       ;; break at the end.
-	       (last-boundary-p boundary))
-       (setq last-deactivated-node (cons key node))
+	       (eopp boundary))
+       (setq last-deactivation (cons key node))
        (remhash key nodes))
-     (when ($<= -1 scale)
-       (let ((badness (scale-badness
-		       (if emergency-stretch
-			 (harray-scale harray
-				       (bol-idx (break-point previous-boundary))
-				       (eol-idx (break-point boundary))
-				       width emergency-stretch)
-			 scale))))
-	 (when ($<= badness threshold)
-	   (let* ((fitness (scale-fitness-class scale))
-		  (demerits (local-demerits badness (penalty boundary)
-					    *line-penalty*))
-		  (total-demerits ($+ (kp-node-total-demerits node)
-				      demerits)))
-	     (when (> (abs (- fitness previous-fitness)) 1)
-	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
-	     ;; #### NOTE: according to #859, TeX doesn't consider the
-	     ;; admittedly very rare and weird case where a paragraph would
-	     ;; end with an explicit hyphen. As stipulated in #829, for the
-	     ;; purpose of computing demerits, the end of the paragraph is
-	     ;; always regarded as virtually hyphenated, and in case the
-	     ;; previous line (really) is hyphenated, the value of
-	     ;; final-hyphen-demerits is used instead of
-	     ;; double-hyphen-demerits. One could consider using
-	     ;; double-hyphen-demerits when there actually is a final hyphen,
-	     ;; but on the other hand, the final line is rarely justified so
-	     ;; the two hyphens are very unlikely to create a ladder.
-	     (when (discretionaryp (break-point previous-boundary))
-	       (if (last-boundary-p boundary)
-		 (setq total-demerits
-		       ($+ total-demerits *final-hyphen-demerits*))
-		 (when (discretionaryp (break-point boundary))
-		   (setq total-demerits
-			 ($+ total-demerits *double-hyphen-demerits*)))))
-	     (let* ((new-key (make-key boundary (1+ previous-line) fitness))
-		    (previous (find new-key new-nodes
-				:test #'equal :key #'car)))
-	       (if previous
-		 ;; #### NOTE: the inclusive inequality below is conformant
-		 ;; with what TeX does in #855. Concretely, it makes the KP
-		 ;; algorithm greedy in some sense: in case of demerits
-		 ;; equality, TeX keeps the last envisioned solution. On the
-		 ;; other hand, we're in fact not doing exactly the same thing
-		 ;; because we're using MAPHASH and the order of the nodes in
-		 ;; the hash table is not deterministic.
-		 (when ($<= total-demerits
-			    (kp-node-total-demerits (cdr previous)))
-		   (setf (kp-node-scale (cdr previous)) scale
-			 (kp-node-badness (cdr previous)) badness
-			 (kp-node-demerits (cdr previous)) demerits
-			 (kp-node-total-demerits (cdr previous))
-			 total-demerits
-			 (kp-node-previous (cdr previous)) node))
-		 (push (cons new-key
-			     (kp-make-node :boundary boundary
-					   :scale scale
-					   :fitness-class fitness
-					   :badness badness
-					   :demerits demerits
-					   :total-demerits total-demerits
-					   :previous node))
-		       new-nodes))))))))
+     (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
+       (let ((total-demerits ($+ (demerits node) (demerits boundary))))
+	 ;; #### WARNING: we must use the key's fitness class rather than the
+	 ;; node's one below, as accessing the node's one would break on
+	 ;; *KP-BOP-NODE*. Besides, we also save a couple of accessor calls
+	 ;; that way.
+	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
+	   (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
+	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
+	 ;; very rare and weird case where a paragraph would end with an
+	 ;; explicit hyphen. As stipulated in #829, for the purpose of
+	 ;; computing demerits, the end of the paragraph is always regarded as
+	 ;; virtually hyphenated, and in case the previous line (really) is
+	 ;; hyphenated, the value of final-hyphen-demerits is used instead of
+	 ;; double-hyphen-demerits. One could consider using
+	 ;; double-hyphen-demerits when there actually is a final hyphen, but
+	 ;; on the other hand, the final line is rarely justified so the two
+	 ;; hyphens are very unlikely to create a ladder.
+	 (when (discretionaryp bol)
+	   (if (eopp boundary)
+	     (setq total-demerits ($+ total-demerits *final-hyphen-demerits*))
+	     (when (discretionaryp (break-point boundary))
+	       (setq total-demerits
+		     ($+ total-demerits *double-hyphen-demerits*)))))
+	 (let* ((new-key (make-key break-point
+				   (1+ (key-line-number key))
+				   (fitness-class boundary)))
+		(previous (find new-key new-nodes :test #'equal :key #'car)))
+	   (if previous
+	     ;; #### NOTE: the inclusive inequality below is conforment
+	     ;; with what TeX does in #855. Concretely, it makes the KP
+	     ;; algorithm greedy in some sense: in case of demerits
+	     ;; equality, TeX keeps the last envisioned solution. On the
+	     ;; other hand, we're in fact not doing exactly the same thing
+	     ;; because we're using MAPHASH and the order of the nodes in
+	     ;; the hash table is not deterministic.
+	     (when ($<= total-demerits (demerits (cdr previous)))
+	       (reinitialize-instance (cdr previous)
+		 :boundary boundary :demerits total-demerits :previous node))
+	     (push (cons new-key
+			 (make-instance 'kp-node
+			   :boundary boundary
+			   :demerits total-demerits
+			   :previous node))
+		   new-nodes))))))
    nodes)
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
-    (setq new-nodes
-	  (list
-	   (let* ((scale (harray-scale harray
-				       (bol-idx
-					(break-point
-					 (key-boundary
-					  (car last-deactivated-node))))
-				       (eol-idx (break-point boundary))
-				       width))
-		  (badness (scale-badness scale))
-		  (fitness-class (scale-fitness-class scale)))
-	     (cons (make-key boundary
-			     (1+ (key-line (car last-deactivated-node)))
-			     fitness-class)
-		   (kp-make-node :boundary boundary
-				 :scale scale
-				 :fitness-class fitness-class
-				 :badness badness
-				 ;; #### NOTE: in this situation, TeX sets the
-				 ;; local demerits to 0 (#855) by checking the
-				 ;; artificial_demerits flag. So we just
-				 ;; re-use the previous total.
-				 :demerits 0
-				 :total-demerits (kp-node-total-demerits
-						  (cdr last-deactivated-node))
-				 :previous (cdr last-deactivated-node)))))))
+    (let ((boundary (make-instance 'kp-boundary
+		      :harray harray
+		      :bol (key-break-point (car last-deactivation))
+		      :break-point break-point
+		      :width width
+		      :extra emergency-stretch)))
+      ;; #### NOTE: in this situation, TeX sets the local demerits to 0 (#855)
+      ;; by checking the artificial_demerits flag. The KP-BOUNDARY
+      ;; initialization protocol takes care of this (although I should verify
+      ;; that we can indeed rely on infinite badness to detect the situation).
+      ;; In any case, we can also just reuse the previous total demerits in
+      ;; the new node.
+      (setq new-nodes
+	    (list
+	     (cons (make-key break-point
+			     (1+ (key-line-number (car last-deactivation)))
+			     (fitness-class boundary))
+		   (make-instance 'kp-node
+		     :boundary boundary
+		     :demerits (demerits (cdr last-deactivation))
+		     :previous (cdr last-deactivation)))))))
   (mapc (lambda (new-node)
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))

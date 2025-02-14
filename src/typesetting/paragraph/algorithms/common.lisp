@@ -250,31 +250,6 @@ line. Graph algorithms use boundaries to represent edges."))
   "Return BOUNDARY's break point EOP status."
   (eopp (break-point boundary)))
 
-(defun last-boundary-p (boundary)
-  "Return T if BOUNDARY is the last one."
-  (null (break-point boundary)))
-
-(defun next-boundary (harray from &optional (boundary-class 'boundary)
-				  &rest keys &key &allow-other-keys
-				  &aux (length (length harray)))
-  "Return the next boundary in HARRAY FROM position (excluded), or NIL.
-The returned object is an instance of BOUNDARY-CLASS (BOUNDARY by default).
-This function understands the terminal case where FROM = HARRAY's length
-(possibly coming from the end of harray special boundary), in which case it
-signals that there is no more boundary to find by returning NIL."
-  (unless (= from length)
-    (let* ((idx (position-if #'break-point-p harray :start (1+ from)))
-	   (item (when idx (aref harray idx)))
-	   stop-idx start-idx)
-      (etypecase item
-	(glue (setq stop-idx idx start-idx (1+ idx)))
-	(discretionary (setq stop-idx (1+ idx) start-idx idx))
-	(null (setq idx length stop-idx length)))
-      (apply #'make-instance boundary-class
-	     :break-point item :idx idx :stop-idx stop-idx :start-idx start-idx
-	     :harray harray
-	     keys))))
-
 
 
 
