@@ -703,7 +703,7 @@ through the algorithm in the TeX jargon).
     (make-instance 'kp-dynamic-breakup
       :disposition disposition :width width :harray harray
       :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
-    (let* ((ndoes (or (when ($>= *pre-tolerance* 0)
+    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
 			(kp-create-nodes harray width pass))
 		      (kp-create-nodes harray width (incf pass))
 		      (kp-create-nodes harray width (incf pass))))
