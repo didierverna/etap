@@ -226,7 +226,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; "demerits".
 (defclass kp-ledge (ledge)
   ((demerits :documentation "The cumulative demerits so far in the layout."
-	     :initarg :demerits :reader demerits))
+	     :initform 0 :initarg :demerits :reader demerits))
   (:documentation "The Knuth-Plass Ledge class."))
 
 (defmethod scale ((ledge kp-ledge))
@@ -450,27 +450,27 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 ;; Dynamic Variant
 ;; ==========================================================================
 
-(defstruct (kp-node (:constructor kp-make-node))
-  boundary scale fitness-class badness demerits total-demerits previous)
-
-(defmethod properties strnlcat ((node kp-node) &key)
-  "Advertise KP dynamic NODE's properties."
-  (format nil "Demerits: ~A" ($float (kp-node-total-demerits node))))
-
+;; A node in the Knuth-Plass terminology is really just a ledge in ours, plus
+;; a pointer to the previous one.
+(defclass kp-node (kp-ledge)
+  ((previous :documentation "This node's previous node."
+	     :initform nil :initarg :previous :reader previous))
+  (:documentation "The KP Node class."))
 
 ;; The active nodes hash table is accessed by
-;; key = (boundary line-number fitness-class)
-(defun make-key (boundary line fitness) (list boundary line fitness))
-(defun key-boundary (key) (first key))
-(defun key-line (key) (second key))
-(defun key-fitness (key) (third key))
+;; key = (break-point line-number fitness-class)
+(defun make-key (break-point line-number fitness-class)
+  (list break-point line-number fitness-class))
+(defun key-break-point (key) (first key))
+(defun key-line-number (key) (second key))
+(defun key-fitness-class (key) (third key))
 
 
 ;; ---------------
 ;; Boundary lookup
 ;; ---------------
 
-(defun kp-try-boundary
+(defun kp-try-break
     (boundary nodes harray width threshold final
      &aux (emergency-stretch (when (numberp final) final))
 	  last-deactivated-node new-nodes)
@@ -586,6 +586,46 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
+
+;; In a similar way as we defined *BOP*, which is not really a break-point, we
+;; define *KP-BOP-NODE* below as a special node which is not really a node.
+;; The goal is the same: to make the code more readable by limiting
+;; special-casing and simplifying stop conditions in loops notably.
+;;
+;; The structure of the BOP node is as follows:
+;; - previous = NIL
+;; - (total) demerits = 0
+;; - boundary (base class only) with break-point = *BOP*.
+;;
+;; Note that we don't use a KP boundary because we can't compute any of its
+;; properties (there's no actual line here). It doesn't matter because we
+;; don't need to access those, except for the fitness-class. However, the
+;; fitness-class is retrieved from the hash table key (see below). Also, *BOP*
+;; gives us the correct bol index, and no hyphenation so no double hyphen
+;; demerits for the first line.
+
+(defvar *kp-bop-node*
+  (make-instance 'kp-node
+    :boundary (make-instance 'boundary :break-point *bop*))
+  "The Knuth-Plass (fake) beginning of paragraph node.")
+
+
+;; The root hash table key under which we store the BOP node is defined as
+;; follows:
+;; - break point = *bop*
+;; - line number = 0
+;; fitness-class = 2 (decent).
+;;
+;; This is straightforward but the fitness class deserves a special comment.
+;; TeX computes adjacent demerits even for the first line which doesn't really
+;; have a previous line. This has the effect of negatively weighting very
+;; loose first lines. This is why we need the appropriate (fake) fitness class
+;; to begin with. See https://tug.org/pipermail/texhax/2023-May/026091.html.
+
+(defvar *kp-bop-key* (make-key *bop* 0 2)
+  "The Knuth-Plass beginning of paragraph hash table key.")
+
+
 (defun kp-create-nodes (harray width pass)
   "Compute the best sequences of breaks for HARRAY in the Knuth-Plass sense.
 This function may be called up to three times (corresponding to \"passes\"
@@ -596,48 +636,20 @@ through the algorithm in the TeX jargon).
   all nodes). If FINAL is NIL, we're in pass 1. If FINAL is T, we're in pass 2
   and there is no emergency stretch. Otherwise, FINAL is a non-zero value (the
   emergency stretch) and we're in pass 3."
-  ;; #### WARNING: the root node / boundary are fake because they don't really
-  ;; represent a line ending, but there are some requirements on them in order
-  ;; to KP-TRY-BOUNDARY above to work correctly when trying out the very first
-  ;; line.
-  ;;
-  ;; The fake root boundary has:
-  ;; - a null ITEM (making DISCRETIONARYP return NIL), essentially telling
-  ;;   that we don't have previous hyphenation, so no double hyphen demerits.
-  ;; - a START-IDX of 0, which is correct.
-  ;;
-  ;; The fake root key is a list of:
-  ;; - the fake root boundary,
-  ;; - a (previous) line number of 0,
-  ;; - a fitness class of 2 (decent). TeX computes adjacent demerits even for
-  ;;   the first line which doesn't really have a previous line. This has the
-  ;;   effect of negatively weighting very loose first lines. See
-  ;;   https:i/tug.org/pipermail/texhax/2023-May/026091.html
-  ;;
-  ;; The fake root node has:
-  ;; - the fake root boundary, unused because we use the key to get it,
-  ;; - a fitness class of 2 (see above), here for consistency but unused
-  ;;   because we use the key to get it,
-  ;; - an initial total demerits of 0.
-  ;; The other slots (scale, badness, and demerits are not initialized).
   (let ((hyphenate (> pass 1))
 	(threshold (if (> pass 1) *tolerance* *pre-tolerance*))
 	(final (case pass
 		 (1 nil)
 		 (2 (zerop *emergency-stretch*))
 		 (3 *emergency-stretch*)))
-	(root-boundary (make-instance 'boundary :break-point *bop*))
 	(nodes (make-hash-table :test #'equal)))
-    (setf (gethash (make-key root-boundary 0 2) nodes)
-	  (kp-make-node :boundary root-boundary :fitness-class 2
-			:total-demerits 0))
-    (loop :for boundary := (next-boundary harray 0)
-	    :then (next-boundary harray (idx (break-point boundary)))
-	  :while boundary
-	  :when (and ($< (penalty boundary) +∞)
-		     (or hyphenate
-			 (not (hyphenated boundary))))
-	    :do (kp-try-boundary boundary nodes harray width threshold final))
+    (setf (gethash *kp-bop-key* nodes) *kp-bop-node*)
+    (loop :for break-point := (next-break-point harray)
+	    :then (next-break-point harray break-point)
+	  :while break-point
+	  :when (and ($< (penalty break-point) +∞)
+		     (or hyphenate (not (hyphenation-point-p break-point))))
+	    :do (kp-try-break break-point nodes harray width threshold final))
     (unless (zerop (hash-table-count nodes)) nodes)))
 
 
@@ -650,10 +662,10 @@ through the algorithm in the TeX jargon).
     :documentation "This breakup's harray."
     :initarg :harray :reader harray)
    (nodes
-    :documentation "The breakup's sorted nodes array."
+    :documentation "This breakup's sorted nodes array."
     :initform nil :reader nodes)
    (renditions
-    :documentation "The breakups' sorted renditions array."
+    :documentation "This breakups' sorted renditions array."
     :initform nil :reader renditions))
   (:documentation "The KP-DYNAMIC-BREAKUP class."))
 
@@ -669,11 +681,19 @@ through the algorithm in the TeX jargon).
 
 (defmethod properties strnlcat
     ((breakup kp-dynamic-breakup) &key rendition &aux (nodes (nodes breakup)))
-  "Advertise Knuth-Plass dynamic BREAKUP's demerits and remaining active nodes."
+  "Advertise Knuth-Plass dynamic BREAKUP's properties."
   (when nodes
     (strnlcat
      (format nil "Remaining active nodes: ~A." (length nodes))
-     (when rendition (properties (aref nodes rendition)))
+     ;; #### NOTE: we don't want to use the PROPERTIES protocol on nodes here.
+     ;; That's because breakup nodes are just terminal ledges (as opposed to
+     ;; layouts in the graph version). We don't want to see ledges properties
+     ;; here (they will appear in the pinned lines properties popup). So
+     ;; instead we just advertise the node's cumulative demerits, which,
+     ;; again, is the equivalent of a layout's demerits.
+     (when rendition
+       (format nil "Demerits: ~A."
+	 ($float (demerits (aref nodes rendition)))))
      (when rendition (properties (get-rendition rendition breakup))))))
 
 
@@ -683,17 +703,16 @@ through the algorithm in the TeX jargon).
     (make-instance 'kp-dynamic-breakup
       :disposition disposition :width width :harray harray
       :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
-    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
+    (let* ((ndoes (or (when ($>= *pre-tolerance* 0)
 			(kp-create-nodes harray width pass))
 		      (kp-create-nodes harray width (incf pass))
 		      (kp-create-nodes harray width (incf pass))))
 	   nodes-list)
       (maphash (lambda (key node)
-		 (push (cons (key-line key) node) nodes-list))
+		 (push (cons (key-line-number key) node) nodes-list))
 	       nodes)
       (setq nodes-list
-	    (sort nodes-list #'$<
-	      :key (lambda (elt) (kp-node-total-demerits (cdr elt)))))
+	    (sort nodes-list #'$< :key (lambda (elt) (demerits (cdr elt)))))
       (unless (zerop *looseness*)
 	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
 	  (setq nodes-list
@@ -705,36 +724,6 @@ through the algorithm in the TeX jargon).
 	:disposition disposition :width width :harray harray
 	:pre-tolerance *pre-tolerance* :tolerance *tolerance*
 	:pass pass :nodes (mapcar #'cdr nodes-list)))))
-
-
-;; -----
-;; Lines
-;; -----
-
-(defclass kp-dynamic-line (line)
-  ((fitness-class :documentation "This line's fitness class."
-		  :initarg :fitness-class
-		  :reader fitness-class)
-   (badness :documentation "This line's badness."
-	    :initarg :badness
-	    :reader badness)
-   (demerits :documentation "This line's local demerits."
-	     :initarg :demerits
-	     :reader demerits)
-   (total-demerits :documentation "The total demerits so far."
-		   :initarg :total-demerits
-		   :reader total-demerits))
-  (:documentation "The Knuth-Plass Dynamic Line class."))
-
-(defmethod properties strnlcat ((line kp-dynamic-line) &key)
-  "Advertise Knuth-Plass dynamic LINE's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A.~@
-	       Badness: ~A.~@
-	       Demerits: ~A (local), ~A (cunulative)."
-    (fitness-class-name (fitness-class line))
-    ($float (badness line))
-    ($float (demerits line))
-    ($float (total-demerits line))))
 
 
 ;; ----------
@@ -766,11 +755,9 @@ through the algorithm in the TeX jargon).
   "Render Nth node from KP Dynamic BREAKUP."
   (pin-lines
    (loop :with lines
-	 :for end := (aref (nodes breakup) nth) :then (kp-node-previous end)
-	 :for beg := (kp-node-previous end)
+	 :for end := (aref (nodes breakup) nth) :then (previous end)
+	 :for beg := (previous end)
 	 :while beg
-	 :for start := (bol-idx (break-point (kp-node-boundary beg)))
-	 :for stop  := (eol-idx (break-point (kp-node-boundary end)))
 	 :do (push (if (eq disposition-type :justified)
 		     ;; #### NOTE: I think that the Knuth-Plass algorithm
 		     ;; cannot produce elastic underfulls (in case of an
@@ -783,20 +770,16 @@ through the algorithm in the TeX jargon).
 		     ;; not counting emergency stretch in the
 		     ;; stretch-tolerance one.
 		     (multiple-value-bind (theoretical effective)
-			 (actual-scales (kp-node-scale end)
+			 (actual-scales (scale end)
 			   :stretch-tolerance stretch-tolerance
 			   :overshrink overshrink :overstretch t)
-		       (make-instance 'kp-dynamic-line
-			 :harray harray
-			 :start-idx start :stop-idx stop
-			 :scale theoretical
-			 :effective-scale effective
-			 :fitness-class (kp-node-fitness-class end)
-			 :badness (kp-node-badness end)
-			 :demerits (kp-node-demerits end)
-			 :total-demerits (kp-node-total-demerits end)))
+		       (make-ledge-line
+			harray (break-point (boundary beg)) end
+			:scale theoretical :effective-scale effective))
 		     (make-instance 'line
-		       :harray harray :start-idx start :stop-idx stop))
+		       :harray harray
+		       :start-idx (bol-idx (break-point (boundary beg)))
+		       :stop-idx (eol-idx (break-point (boundary end)))))
 		   lines)
 	 :finally (return lines))
    disposition-type
