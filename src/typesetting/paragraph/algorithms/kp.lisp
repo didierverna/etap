@@ -187,16 +187,18 @@ This class is mixed in both the graph and dynamic breakup classes."))
 
 ;; Boundaries lookup
 
-;; #### FIXME: the docstring is wrong, so is the one for kp-create-nodes.
-;; Also, maybe I should pass a PASS argument here, as in kn-create-nodes now.
 (defun kp-get-boundaries
-    (harray bol width
-     &key hyphenate threshold final
+    (harray bol width threshold
+     &optional hyphenate final
      &aux (emergency-stretch (when (numberp final) final)))
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
-This is the Knuth-Plass version.
-
-See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
+This is the Knuth-Plass version for the graph variant.
+- THRESHOLD is the pre-tolerance or tolerance, depending on the pass.
+- HYPHENATE means consider hyphenation points as potential breaks. It is NIL
+  for pass 1 (the default), and T for passes 2 and .3
+- FINAL means this is the final pass. If FINAL is NIL, we're in pass 1. If
+  FINAL is T, we're in pass 2 and there is no emergency stretch. Otherwise,
+  FINAL is a non-zero value (the emergency stretch) and we're in pass 3."
   (loop :with boundaries :with overfull :with emergency-boundary
 	:with continue := t
 	:for eol := (next-break-point harray bol)
@@ -337,26 +339,24 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 	(setq graph
 	      (make-graph harray width
 			  (lambda (harray bol width)
-			    (kp-get-boundaries harray bol width
-			      :threshold *pre-tolerance*)))))
+			    (kp-get-boundaries
+			     harray bol width *pre-tolerance*)))))
       (unless (and graph (gethash *bop* graph))
 	(incf pass)
 	(setq graph
 	      (make-graph harray width
 			  (lambda (harray bol width)
-			    (kp-get-boundaries harray bol width
-			      :hyphenate t
-			      :threshold *tolerance*
-			      :final (zerop *emergency-stretch*))))))
+			    (kp-get-boundaries
+			     harray bol width *tolerance*
+			     t (zerop *emergency-stretch*))))))
       (unless (gethash *bop* graph)
 	(incf pass)
 	(setq graph
 	      (make-graph harray width
 			  (lambda (harray bol width)
-			    (kp-get-boundaries  harray bol width
-			      :hyphenate t
-			      :threshold *tolerance*
-			      :final *emergency-stretch*)))))
+			    (kp-get-boundaries
+			     harray bol width *tolerance*
+			     t *emergency-stretch*)))))
       (setq layouts (mapc #'kp-postprocess-layout (make-layouts graph)))
       ;; #### WARNING: in order to remain consistent with TeX, and as in the
       ;; dynamic version, an unfit line will have its demerits set to 0.
@@ -607,15 +607,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 
 
 (defun kp-create-nodes (harray width pass)
-  "Compute the best sequences of breaks for HARRAY in the Knuth-Plass sense.
-This function may be called up to three times (corresponding to \"passes\"
-through the algorithm in the TeX jargon).
-- HYPHENATE means consider hyphenation points as potential breaks. It is NIL
-  for pass 1, and T for passes 2 and 3.
-- FINAL means this is the final pass (in which case we can't allow to loose
-  all nodes). If FINAL is NIL, we're in pass 1. If FINAL is T, we're in pass 2
-  and there is no emergency stretch. Otherwise, FINAL is a non-zero value (the
-  emergency stretch) and we're in pass 3."
+  "Break HARRAY for a paragraph of WIDTH with PASS number of the Knuth-Plass."
   (let ((hyphenate (> pass 1))
 	(threshold (if (> pass 1) *tolerance* *pre-tolerance*))
 	(final (case pass
