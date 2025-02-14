@@ -287,6 +287,9 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
     (loop :for ledge1 :in (ledges layout)
 	  :for ledge2 :in (cdr (ledges layout))
 	  :for finalp := (eopp (break-point (boundary ledge2)))
+	  ;; #### WARNING: do this now! Otherwise, some pseudo-accessors
+	  ;; wouldn't work yet.
+	  :do (change-class ledge2 'kp-ledge)
 	  :unless (numberp (badness ledge2))
 	    :do (incf (slot-value layout 'bads))
 	  :do (setf (slot-value layout 'demerits)
@@ -303,7 +306,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
 		   1)
 	    :do (setf (slot-value layout 'demerits)
 		      ($+ (demerits layout) *adjacent-demerits*))
-	  :do (change-class ledge2 'kp-ledge :demerits (demerits layout))))
+	  :do (setf (slot-value ledge2 'demerits) (demerits layout))))
   layout)
 
 
