@@ -40,4 +40,3 @@ Also return a second value indicating whether a pattern was found."
   "Return HYPHENATION-RULES'exception for STRING.
 Also return a second value indicating whether an exception was found."
   (gethash string (exceptions hyphenation-rules)))
-
