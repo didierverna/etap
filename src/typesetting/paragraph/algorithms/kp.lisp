@@ -66,6 +66,10 @@
 ;; HList
 ;; ==========================================================================
 
+;; #### WARNING: although we have a specific hierarchy for hyphenation points,
+;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
+;; the same here.
+
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :knuth-plass))
      &key ((:hyphen-penalty *hyphen-penalty*))
@@ -74,11 +78,11 @@
   (calibrate-kp hyphen-penalty t)
   (calibrate-kp explicit-hyphen-penalty t)
   (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
+	  (when (discretionaryp item)
 	    (setf (penalty item)
-		  (if (explicitp item)
-		    *explicit-hyphen-penalty*
-		    *hyphen-penalty*))))
+		  (if (pre-break item)
+		    *hyphen-penalty*
+		    *explicit-hyphen-penalty*))))
     hlist)
   (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
   hlist)
