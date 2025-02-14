@@ -246,6 +246,10 @@ line. Graph algorithms use boundaries to represent edges."))
   "Return BOUNDARY's break-point end-of-line index."
   (eol-idx (break-point boundary)))
 
+(defmethod eopp ((boundary boundary))
+  "Return BOUNDARY's break point EOP status."
+  (eopp (break-point boundary)))
+
 (defun last-boundary-p (boundary)
   "Return T if BOUNDARY is the last one."
   (null (break-point boundary)))

@@ -55,7 +55,7 @@ The weight is computed according to the discriminating function."
      ;; now, but we're still saving some reader calls by using the propagated
      ;; keyword arguments.
      &key natural-width min-width max-width width
-     &aux (eopp (eopp (break-point boundary)))
+     &aux (eopp (eopp boundary))
 	  (fitness ;; #### NOTE: an underfull last line is actually a fit.
 	   (cond (($< max-width width) (if eopp :fit :underfull))
 		 ((>  min-width width) :overfull)
@@ -268,7 +268,7 @@ The possible endings are listed in reverse order (from last to first)."
      &aux (boundary (boundary ledge)) (scale (scale boundary)))
   "Duncan version of `make-ledge-line' for justified lines."
   (multiple-value-bind (theoretical effective)
-      (if (eopp (break-point boundary))
+      (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
 	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
 	;; Justified regular line: make it fit.

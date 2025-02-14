@@ -129,6 +129,10 @@ about the path so far."))
   "Return LEDGE's break-point eold-idx."
   (eol-idx (boundary ledge)))
 
+(defmethod eopp ((ledge ledge))
+  "Return LEDGE's boundary EOP status."
+  (eopp (boundary ledge)))
+
 
 ;; -------
 ;; Layouts
