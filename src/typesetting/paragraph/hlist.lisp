@@ -283,9 +283,12 @@ Glues represent breakable, elastic space."))
   ((idx :initarg :idx)) ;; slot override
   (:documentation "The EOP (End of Paragraph) class."))
 
-(defun eopp (break-point)
-  "Return T if BREAK-POINT is an EOP (End of Paragraph) one."
-  (typep break-point 'eop))
+(defgeneric eopp (object)
+  (:documentation "Return T if OBJECT denotes an end of paragraph.")
+  (:method (object)
+    "Return T if OBJECT is an EOP (End of Paragraph) one.
+This is the default method."
+    (typep object 'eop)))
 
 (defmethod bol-idx ((eop eop))
   "Return NIL."

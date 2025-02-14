@@ -286,7 +286,7 @@ See `kp-create-nodes' for the semantics of HYPHENATE and FINAL."
   (when (> length 1)
     (loop :for ledge1 :in (ledges layout)
 	  :for ledge2 :in (cdr (ledges layout))
-	  :for finalp := (eopp (break-point (boundary ledge2)))
+	  :for finalp := (eopp ledge2)
 	  ;; #### WARNING: do this now! Otherwise, some pseudo-accessors
 	  ;; wouldn't work yet.
 	  :do (change-class ledge2 'kp-ledge)

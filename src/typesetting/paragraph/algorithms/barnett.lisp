@@ -106,7 +106,7 @@ This is the Barnett algorithm version."
 (defun barnett-make-justified-line (harray bol boundary overshrink)
   "Barnett version of `make-line' for justified disposition."
   (multiple-value-bind (theoretical effective)
-      (if (eopp (break-point boundary))
+      (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
 	(actual-scales (scale boundary)
 	  :overshrink overshrink :stretch-tolerance 0)

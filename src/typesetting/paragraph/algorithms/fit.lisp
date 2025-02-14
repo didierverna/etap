@@ -358,7 +358,7 @@ LINE class."))
   "First Fit version of `make-line' for ragged lines."
   (when *relax*
     (setq scale
-	  (if (eopp (break-point boundary))
+	  (if (eopp boundary)
 	    ;; There is no constraint on destretching the last line.
 	    0
 	    ;; On the other hand, do not destretch any other line so much that
@@ -400,7 +400,7 @@ LINE class."))
     (harray bol boundary overstretch overshrink &aux line)
   "Fit version of `make-line' for justified lines."
   (multiple-value-bind (theoretical effective)
-      (if (eopp (break-point boundary))
+      (if (eopp boundary)
 	;; The last line, which almost never fits exactly, needs a special
 	;; treatment. Without paragraph-wide considerations, we want its
 	;; scaling to be close to the general effect of the selected variant.
