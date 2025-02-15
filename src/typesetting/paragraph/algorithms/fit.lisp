@@ -372,7 +372,8 @@ fit, natural width for the best fit, and min width for thew last fit)."
 		      (:underfull (or underword fit))
 		      (:anyfull (or (fixed-fallback-boundary
 				     underword overword
-				     (+ width *width-offset*))
+				     (+ width *width-offset*)
+				     get-width)
 				    fit))
 		      (:overfull (or overword fit))))
 		   ;; We have a fit and we don't care about hyphens or it's a
@@ -385,15 +386,17 @@ fit, natural width for the best fit, and min width for thew last fit)."
 		      (:underfull (or underword underfull overfull))
 		      (:anyfull (or (fixed-fallback-boundary
 				     underword overword
-				     (+ width *width-offset*))
+				     (+ width *width-offset*)
+				     get-width)
 				    (fixed-fallback-boundary
 				     underfull overfull
-				     (+ width *width-offset*))))
+				     (+ width *width-offset*)
+				     get-width)))
 		      (:overfull (or overword overfull underfull))))
 		   (t
 		    ;; We don't care about hyphens. Choose the best solution.
 		    (fixed-fallback-boundary
-		     underfull overfull (+ width *width-offset*)))))))
+		     underfull overfull (+ width *width-offset*) get-width))))))
 
 
 

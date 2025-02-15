@@ -153,8 +153,17 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 ;; access the max width of underfulls (so necessarily a number; otherwise it
 ;; wouldn't be an underfull), and the min width of overfulls (also necessarily
 ;; a number).
-(defun fixed-fallback-boundary (underfull overfull width)
-  "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary."
+(defun fixed-fallback-boundary
+    (underfull overfull width
+     &optional get-width
+     &aux (get-max-width (or get-width #'max-width))
+	  (get-min-width (or get-width #'min-width)))
+  "Select UNDERFULL, OVERFULL, or NIL, as a fallback boundary.
+If GET-WIDTH is non nil, it is used instead of the regular min-width and
+max-width accessors. This happens when the First/Last Fit algorithm calls this
+function in ragged dispositions (in which case it looks at its boundaries as
+if they were fixed ones, with either min or max width as their pseudo-natural
+widths."
   (cond
     ;; No possibility, no choice.
     ((and (null underfull) (null overfull)) nil)
@@ -167,9 +176,11 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
     ((eq *fallback* :overfull) overfull)
     ;; Anyfull fallback from now on.
     ;; One solution is closer to the paragraph's width, so still no choice.
-    ((< (- width (max-width underfull)) (- (min-width overfull) width))
+    ((< (- width (funcall get-max-width underfull))
+	(- (funcall get-min-width overfull) width))
      underfull)
-    ((> (- width (max-width underfull)) (- (min-width overfull) width))
+    ((> (- width (funcall get-max-width underfull))
+	(- (funcall get-min-width overfull) width))
      overfull)
     ;; Equidistance.
     ;; If we have two, or no hyphen, the Avoid Hyphens option has no effect,
