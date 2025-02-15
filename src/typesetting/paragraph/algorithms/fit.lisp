@@ -322,6 +322,82 @@ This is the  best-fit version."
 	   (fixed-fallback-boundary
 	    underfull overfull (+ width *width-offset*))))))
 
+;; #### NOTE: the function below handles infinite penalties and understands a
+;; WIDTH-KIND argument because the first- and last-fit algorithms in ragged
+;; dispositions use it. Also, because WIDTH-KIND can be set to :max-width, we
+;; need to be prepared to handle a width of +∞.
+
+;; In this function, we stop at the first word overfull even if we don't have
+;; an hyphen overfull yet, because the Avoid Hyphens options would have no
+;; effect. On the other hand, if we already have an hyphen overfull, it's
+;; still important to collect a word overfull if possible, because of that
+;; very same option.
+(defun fit-get-ragged-boundary
+    (harray bol width &optional (width-kind :natural))
+  "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
+The line's WIDTH-KIND is considered. It may be either :natural (the default),
+:min-width, or :max-width.
+This is the Fixed algorithm version."
+  (loop :with underfull :with underword :with fit :with overfull :with overword
+	:with continue := t
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol continue)
+	:do (when ($< (penalty eol) +∞)
+	      (when (eq (penalty eol) -∞) (setq continue nil))
+	      (let* ((boundary (make-instance 'fixed-boundary
+				 :harray harray :bol bol :break-point eol
+				 :width-kind width-kind))
+		     ;; Note that we already had EOL to figure this out, but
+		     ;; it's more readable like that.
+		     (hyphenated (hyphenated boundary)))
+		(cond (($< (width boundary) width)
+		       ;; Track the last underfulls because they're the
+		       ;; closest to WIDTH.
+		       (setq underfull boundary)
+		       (unless hyphenated (setq underword boundary)))
+		      (($= (width boundary) width) (setq fit boundary))
+		      (t
+		       ;; Track the first overfulls because they're the
+		       ;; closest to WIDTH.
+		       (unless overfull (setq overfull boundary))
+		       ;; No check required here because we stop at the first
+		       ;; word overfull anyway.
+		       (unless hyphenated
+			 (setq overword boundary continue nil))))))
+	:finally
+	   (return
+	     (cond ((and fit (hyphenated fit) *avoid-hyphens*)
+		    ;; We have a hyphenated fit but we prefer to avoid
+		    ;; hyphens. Choose a word solution if possible. Otherwise,
+		    ;; fallback to the fit.
+		    (ecase *fallback*
+		      (:underfull (or underword fit))
+		      (:anyfull (or (fixed-fallback-boundary
+				     underword overword
+				     (+ width *width-offset*))
+				    fit))
+		      (:overfull (or overword fit))))
+		   ;; We have a fit and we don't care about hyphens or it's a
+		   ;; word fit. Choose it.
+		   (fit fit)
+		   (*avoid-hyphens*
+		    ;; We don't have a fit and we want to avoid hyphens.
+		    ;; Choose a word solution if possible.
+		    (ecase *fallback*
+		      (:underfull (or underword underfull overfull))
+		      (:anyfull (or (fixed-fallback-boundary
+				     underword overword
+				     (+ width *width-offset*))
+				    (fixed-fallback-boundary
+				     underfull overfull
+				     (+ width *width-offset*))))
+		      (:overfull (or overword overfull underfull))))
+		   (t
+		    ;; We don't care about hyphens. Choose the best solution.
+		    (fixed-fallback-boundary
+		     underfull overfull (+ width *width-offset*)))))))
+
 
 
 
@@ -464,7 +540,7 @@ LINE class."))
 				 (:best :natural)
 				 (:last :min))))
 	       (lambda (harray bol width)
-		 (fixed-get-ragged-boundary harray bol width width-kind))))))
+		 (fit-get-ragged-boundary harray bol width width-kind))))))
 	(make-line
 	  (case disposition-type
 	    (:justified
