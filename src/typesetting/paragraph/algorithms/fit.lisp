@@ -228,6 +228,7 @@ for equally good solutions."))
 ;; in justified disposition.
 (defun fit-get-justified-boundaries (harray bol width)
   "Return the boundaries for a justified HARRAY line of WIDTH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
 This function is used by the Fit algorithm and returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
 - the last underfull boundary, or NIL,
@@ -275,7 +276,7 @@ This is the First/Last Fit algorithm version."
 (defun best-fit-get-justified-boundary (harray bol width)
   "Return the boundary for a justified HARRAY line of WITH starting at BOL.
 Return NIL if BOL is already at the end of HARRAY.
-This is the  best-fit version."
+This is the  Best Fit algorithm version."
   (multiple-value-bind (fits underfull overfull)
       (fit-get-justified-boundaries harray bol width)
     (cond ((and fits (null (cdr fits)))
@@ -322,22 +323,17 @@ This is the  best-fit version."
 	   (fixed-fallback-boundary
 	    underfull overfull (+ width *width-offset*))))))
 
-;; #### NOTE: the function below handles infinite penalties and understands a
-;; WIDTH-KIND argument because the first- and last-fit algorithms in ragged
-;; dispositions use it. Also, because WIDTH-KIND can be set to :max-width, we
-;; need to be prepared to handle a width of +∞.
-
 ;; In this function, we stop at the first word overfull even if we don't have
 ;; an hyphen overfull yet, because the Avoid Hyphens options would have no
 ;; effect. On the other hand, if we already have an hyphen overfull, it's
 ;; still important to collect a word overfull if possible, because of that
 ;; very same option.
-(defun fit-get-ragged-boundary
-    (harray bol width &optional (width-kind :natural))
+(defun fit-get-ragged-boundary (harray bol width get-width)
   "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
-The line's WIDTH-KIND is considered. It may be either :natural (the default),
-:min-width, or :max-width.
-This is the Fixed algorithm version."
+Return NIL if BOL is already at the end of HARRAY.
+This is the Fit algorithm version.
+GET-WIDTH is called to read the appropriate width (max width for the first
+fit, natural width for the best fit, and min width for thew last fit)."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
 	:for eol := (next-break-point harray bol)
@@ -345,18 +341,19 @@ This is the Fixed algorithm version."
 	:while (and eol continue)
 	:do (when ($< (penalty eol) +∞)
 	      (when (eq (penalty eol) -∞) (setq continue nil))
-	      (let* ((boundary (make-instance 'fixed-boundary
+	      (let* ((boundary (make-instance 'fit-boundary
 				 :harray harray :bol bol :break-point eol
-				 :width-kind width-kind))
+				 :width width))
 		     ;; Note that we already had EOL to figure this out, but
 		     ;; it's more readable like that.
 		     (hyphenated (hyphenated boundary)))
-		(cond (($< (width boundary) width)
+		(cond (($< (funcall get-width boundary) width)
 		       ;; Track the last underfulls because they're the
 		       ;; closest to WIDTH.
 		       (setq underfull boundary)
 		       (unless hyphenated (setq underword boundary)))
-		      (($= (width boundary) width) (setq fit boundary))
+		      (($= (funcall get-width boundary) width)
+		       (setq fit boundary))
 		      (t
 		       ;; Track the first overfulls because they're the
 		       ;; closest to WIDTH.
@@ -535,12 +532,12 @@ LINE class."))
 	       (:best #'best-fit-get-justified-boundary)
 	       (t     #'first/last-fit-get-justified-boundary)))
 	    (t
-	     (let ((width-kind (ecase *variant*
-				 (:first :max)
-				 (:best :natural)
-				 (:last :min))))
+	     (let ((get-width (ecase *variant*
+				(:first #'max-width)
+				(:best #'width)
+				(:last #'min-width))))
 	       (lambda (harray bol width)
-		 (fit-get-ragged-boundary harray bol width width-kind))))))
+		 (fit-get-ragged-boundary harray bol width get-width))))))
 	(make-line
 	  (case disposition-type
 	    (:justified

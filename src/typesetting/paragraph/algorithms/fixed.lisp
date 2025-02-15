@@ -112,6 +112,12 @@ the underfull one."))
 ;; Boundaries
 ;; ==========================================================================
 
+;; #### TODO: there's a name clash between the "width" as the boundary's
+;; natural width, and the "width" as the requested line width. Right now we
+;; avoid the collision by using a :natural-width and :width keyword arguments,
+;; but perhaps it would be better to use :width and :line-wdith or
+;; :requested-width instead.
+
 ;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
 ;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
 ;; fixed boundaries, but this function may actually be passed fit boundaries
@@ -121,6 +127,7 @@ the underfull one."))
   ((width :documentation "This boundary's line width.
 This is normally the line's natural width, but it can also be its minimum or
 maximum width, when the boundary is manipulated by the Fit algorithm."
+	  :initarg :natural-width ; see TODO above.
 	  :reader width :reader min-width :reader max-width))
   (:documentation "The FIXED-BOUNDARY class."))
 
@@ -135,18 +142,6 @@ maximum width, when the boundary is manipulated by the Fit algorithm."
 	   :natural-width natural :max-width max :min-width min
 	   :stretch stretch :shrink shrink
 	   keys)))
-
-;; #### NOTE: the first- and last-fit algorithms use fixed boundaries with
-;; non-natural widths in ragged dispositions, hence the parametrization below.
-(defmethod initialize-instance :after
-    ((boundary fixed-boundary)
-     &key natural-width max-width min-width (width-kind :natural))
-  "Initialize BOUNDARY's width with WIDTH-KIND (natural width by default)."
-  (setf (slot-value boundary 'width)
-	(ecase width-kind
-	  (:natural natural-width)
-	  (:min min-width)
-	  (:max max-width))))
 
 
 ;; ---------------
