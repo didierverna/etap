@@ -218,6 +218,7 @@ This is the Fixed algorithm version."
 ;; very same option.
 (defun fixed-get-ragged-boundary (harray bol width)
   "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
 This is the Fixed algorithm version."
   (loop :with underfull :with underword :with fit :with overfull :with overword
 	:with continue := t
