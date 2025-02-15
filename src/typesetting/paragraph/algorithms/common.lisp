@@ -183,18 +183,6 @@ stretch and shrink amounts."
 	:finally (return (values width ($+ width stretch) (- width shrink)
 				 stretch shrink))))
 
-(defun harray-max-width (harray start stop)
-  "Return HARRAY's width between START and STOP, with maximal stretching."
-  (multiple-value-bind (natural max) (harray-width harray start stop)
-    (declare (ignore natural))
-    max))
-
-(defun harray-min-width (harray start stop)
-  "Return HARRAY's width between START and STOP, with maximal shrinking."
-  (multiple-value-bind (natural max min) (harray-width harray start stop)
-    (declare (ignore natural max))
-    min))
-
 (defun harray-scale (harray start stop target &optional extra)
   "Return the amount of scaling required for HARRAY chunk between START and
 STOP to reach TARGET width, possibly with EXTRA stretch.
