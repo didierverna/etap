@@ -45,10 +45,10 @@
   (:documentation "The Barnett algorithm's boundary class."))
 
 (defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key natural-width width stretch shrink)
+    ((boundary barnett-boundary) &key width stretch shrink target)
   "Initialize BOUNDARY's scale."
   (setf (slot-value boundary 'scale)
-	(scaling natural-width width stretch shrink)))
+	(scaling width target stretch shrink)))
 
 
 ;; ---------------
@@ -64,7 +64,7 @@ This is the Barnett algorithm version."
 	:while (and eol (not overword))
 	:for boundary := (make-instance 'barnett-boundary
 			   :harray harray :bol bol :break-point eol
-			   :width width)
+			   :target width)
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.
 	:do (cond ((hyphenated boundary)

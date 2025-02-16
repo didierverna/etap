@@ -54,11 +54,11 @@ The weight is computed according to the discriminating function."
      ;; #### NOTE: the slots from the superclasses are already initialized by
      ;; now, but we're still saving some reader calls by using the propagated
      ;; keyword arguments.
-     &key natural-width min-width max-width width
+     &key width min-width max-width target
      &aux (eopp (eopp boundary))
 	  (fitness ;; #### NOTE: an underfull last line is actually a fit.
-	   (cond (($< max-width width) (if eopp :fit :underfull))
-		 ((>  min-width width) :overfull)
+	   (cond (($< max-width target) (if eopp :fit :underfull))
+		 ((>  min-width target) :overfull)
 		 (t :fit))))
   "Initialize BOUNDARY's fitness and weight."
   (setf (slot-value boundary 'fitness) fitness)
@@ -70,7 +70,7 @@ The weight is computed according to the discriminating function."
 	(if (and eopp (eq fitness :fit))
 	  0
 	  (ecase *discriminating-function*
-	    (:minimize-distance (abs (- width natural-width)))
+	    (:minimize-distance (abs (- target width)))
 	    (:minimize-scaling ($abs (scale boundary)))))))
 
 
@@ -102,7 +102,7 @@ The possible endings are listed in reverse order (from last to first)."
 	:while (and eol (not overfull))
 	:for boundary := (make-instance 'duncan-boundary
 			   :harray harray :bol bol :break-point eol
-			   :width width)
+			   :target width)
 	:do (cond (($< (max-width boundary) width)
 		   (if (and (eopp eol) (not strict))
 		     (push boundary fits)

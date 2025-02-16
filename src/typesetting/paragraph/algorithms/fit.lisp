@@ -197,14 +197,14 @@ for equally good solutions."))
     ((boundary fit-boundary)
      ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
      ;; EXTRA stretch here.
-     &key natural-width width stretch shrink extra)
+     &key width stretch shrink extra target)
   "Initialize BOUNDARY's scale."
   (when extra (setq stretch ($+ stretch extra)))
   (setf (slot-value boundary 'scale)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call
 	;; by using the propagated NATURAL-WIDTH keyword argument.
-	(scaling natural-width width stretch shrink)))
+	(scaling width target stretch shrink)))
 
 
 (defclass fit-weighted-boundary (fit-boundary)
@@ -242,7 +242,7 @@ This function is used by the Fit algorithm and returns three values:
 	      (when (eq (penalty eol) -∞) (setq continue nil))
 	      (let ((boundary (make-instance 'fit-boundary
 				:harray harray :bol bol :break-point eol
-				:width width)))
+				:target width)))
 		(cond (($< (max-width boundary) width)
 		       (setq underfull boundary))
 		      ((> (min-width boundary) width)
@@ -343,7 +343,7 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	      (when (eq (penalty eol) -∞) (setq continue nil))
 	      (let* ((boundary (make-instance 'fit-boundary
 				 :harray harray :bol bol :break-point eol
-				 :width width))
+				 :target width))
 		     ;; Note that we already had EOL to figure this out, but
 		     ;; it's more readable like that.
 		     (hyphenated (hyphenated boundary)))

@@ -208,7 +208,7 @@ This is the Knuth-Plass version for the graph variant.
 		   (or hyphenate (not (hyphenation-point-p eol))))
 	  :do (let ((boundary (make-instance 'kp-boundary
 				:harray harray :bol bol :break-point eol
-				:width width
+				:target width
 				:extra emergency-stretch)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
@@ -484,7 +484,7 @@ This is the Knuth-Plass version for the graph variant.
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kp-boundary
 			     :harray harray :bol bol :break-point break-point
-			     :width width :extra emergency-stretch)))
+			     :target width :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
@@ -545,7 +545,7 @@ This is the Knuth-Plass version for the graph variant.
 		      :harray harray
 		      :bol (key-break-point (car last-deactivation))
 		      :break-point break-point
-		      :width width
+		      :target width
 		      :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 (#855)
       ;; by checking the artificial_demerits flag. The KP-BOUNDARY
