@@ -1,5 +1,11 @@
 (in-package :etap)
 
+(defgeneric properties (object &key &allow-other-keys)
+  (:documentation "Return a string advertising OBJECT's properties.
+Methods may return an empty string or NIL if there is nothing to advertise.")
+  (:method-combination strnlcat :most-specific-last))
+
+
 ;; #### TODO: it's still not very clear to me whether we want all pinned
 ;; objects under the same class as it's currently done, or whether we should
 ;; have a pinned mixin and create subclasses for each kind of object.
@@ -25,17 +31,3 @@ space, expressed relative to their board."))
 (defun pin-object (object board x &optional (y 0))
   "Pin OBJECT on BOARD at position (X, Y)."
   (make-instance 'pinned :object object :board board :x x :y y))
-
-;; #### FIXME: the generic functions are created later, in hlist.lisp!
-
-(defmethod width ((pinned pinned))
-  "Return PINNED object's width."
-  (width (object pinned)))
-
-(defmethod height ((pinned pinned))
-  "Return PINNED object's height."
-  (height (object pinned)))
-
-(defmethod depth ((pinned pinned))
-  "Return PINNED object's depth."
-  (depth (object pinned)))

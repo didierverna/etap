@@ -47,12 +47,15 @@
   (:method (object)
     "Return 0 by default."
     0)
-  (:method ((list list))
-    "Return the sum of the widths of all elements in LIST."
-    (reduce #'+ (mapcar #'width list)))
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metric's width."
-    (tfm:width character)))
+    (tfm:width character))
+  (:method ((pinned pinned))
+    "Return PINNED object's width."
+    (width (object pinned)))
+  (:method ((list list))
+    "Return the sum of the widths of all elements in LIST."
+    (reduce #'+ (mapcar #'width list))))
 
 (defgeneric height (object)
   (:documentation "Return OBJECT's height.")
@@ -61,7 +64,10 @@
     0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's height."
-    (tfm:height character)))
+    (tfm:height character))
+  (:method ((pinned pinned))
+    "Return PINNED object's height."
+    (height (object pinned))))
 
 (defgeneric depth (object)
   (:documentation "Return OBJECT's depth.")
@@ -70,7 +76,10 @@
     0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's depth."
-    (tfm:depth character)))
+    (tfm:depth character))
+  (:method ((pinned pinned))
+    "Return PINNED object's depth."
+    (depth (object pinned))))
 
 
 
