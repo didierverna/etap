@@ -187,11 +187,12 @@ classes into more specific ones."
   "Make an HARRAY line from BOL for LEDGE."
   (declare (ignore scale effective-scale))
   (apply #'make-instance 'ledge-line
-	 :harray harray
-	 :start-idx (bol-idx bol)
-	 :stop-idx (eol-idx ledge)
-	 :ledge ledge
-	 keys))
+	 ;; #### FIXME: we need to pass the boundary explicitly below, which
+	 ;; is ugly because the ledge contains it. That's because the LINE's
+	 ;; after method needs it to be initialized. There are other ways to
+	 ;; do it, but hopefully this will go away all by itself when we get
+	 ;; rid of ledges to use lines directly.
+	 :harray harray :bol bol :boundary (boundary ledge) :ledge ledge keys))
 
 (defmethod properties strnlcat ((line ledge-line) &key)
   "Advertise LINE's ledge properties."

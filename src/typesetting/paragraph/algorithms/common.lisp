@@ -267,35 +267,42 @@ This class represents pinned glues and stores their width after scaling."))
 
 
 (defclass line ()
-  ((harray :documentation "The corresponding harray."
-	   :initarg :harray
-	   :reader harray)
-   (start-idx :documentation "This line's start index in HARRAY."
-	      :initarg :start-idx
-	      :reader start-idx)
-   (stop-idx :documentation "This line's stop index in HARRAY."
-	     :initarg :stop-idx
-	     :reader stop-idx)
-   (scale :documentation "The line'scale, as computed by the algorithm.
-It may be different from the effective scale used to pin the objects,
-depending on the algorithm itself, and on the Overstretch and Overshrink
-disposition options)."
-	  :initform 0
-	  :initarg :scale
-	  :reader scale)
+  ((harray
+    :documentation "The corresponding harray."
+    :initarg :harray :reader harray)
+   (bol
+    :documentation "This line's beginning break point."
+    :initarg :bol :reader bol)
+   (boundary
+    :documentation "This line's boundary."
+    :initarg :boundary :reader boundary)
+   (scale
+    :documentation "The line'scale, as computed by the algorithm.
+It may be different from the boundary's theoretical scale, and from the
+effective scale used to pin the objects, depending on the algorithm itself,
+and on the Overstretch and Overshrink disposition options)."
+    :initform 0 :initarg :scale :reader scale)
    (effective-scale
     :documentation "The line's effective scale, used for pinning the objects.
-It may be different from the scale computed by the algorithm in use, depending
-on the algorithm itself, and on the Overstretch and Overshrink disposition
-options)."
-    :initarg :effective-scale
-    :reader effective-scale)
-   (pinned-objects :documentation "The list of pinned objects."
-		   :reader pinned-objects))
+It may be different from the boundary's theoretical scale, and from scale
+computed by the algorithm in use, depending on the algorithm itself, and on
+the Overstretch and Overshrink disposition options)."
+    :initarg :effective-scale :reader effective-scale)
+   (pinned-objects
+    :documentation "The list of pinned objects."
+    :reader pinned-objects))
   (:documentation "The LINE class.
-A line contains a list of pinned objects (currently, characters and
-hyphenation clues). The objects are positioned relatively to the line's
+A line contains a list of pinned objects (currently, characters, whitespaces,
+and hyphenation clues). The objects are positioned relatively to the line's
 origin. A line also remembers its scale factor."))
+
+(defmethod bol-idx ((line line))
+  "Return LINE's BOL index."
+  (bol-idx (bol line)))
+
+(Defmethod eol-idx ((line line))
+  "Return LINE's EOL index."
+  (eol-idx (boundary line)))
 
 (defmethod initialize-instance :after ((line line) &key &aux scale)
   "Possibly initialize the LINE's effective scale, and pin its objects."
@@ -309,8 +316,7 @@ origin. A line also remembers its scale factor."))
   (setf (slot-value line 'pinned-objects)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
-	      :for elt
-		:in (flatten-harray harray (start-idx line) (stop-idx line))
+	      :for elt :in (flatten-harray harray (bol-idx line) (eol-idx line))
 	      :if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
 		:collect (pin-object elt line x)
 	      :else :if (typep elt 'tfm:character-metrics)
@@ -334,18 +340,8 @@ origin. A line also remembers its scale factor."))
 Optionally preset SCALE and EFFECTIVE-SCALE."
   (declare (ignore scale effective-scale))
   (apply #'make-instance 'line
-	 :harray harray :start-idx (bol-idx bol) :stop-idx (eol-idx boundary)
-	 keys))
+	 :harray harray :bol bol :boundary boundary keys))
 
-
-(defmethod hyphenated ((line line))
-  "Return LINE's hyphenation status."
-  (hyphenated (aref (harray line) (1- (stop-idx line)))))
-
-(defmethod penalty
-    ((line line) &aux (element (aref (harray line) (1- (stop-idx line)))))
-  "Return LINE's penalty."
-  (if (break-point-p element) (penalty element) 0))
 
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
   "Return LINE's width."
@@ -358,6 +354,14 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 (defmethod depth ((line line))
   "Return LINE's depth."
   (loop :for object :in (pinned-objects line) :maximize (depth object)))
+
+(defmethod hyphenated ((line line))
+  "Return LINE's hyphenation status."
+  (hyphenated (boundary line)))
+
+(defmethod penalty ((line line))
+  "Return LINE's penalty."
+  (penalty (boundary line)))
 
 (defmethod properties strnlcat ((line line) &key)
   "Advertise LINE's width. This is the default method."
