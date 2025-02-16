@@ -210,10 +210,8 @@ See `scaling' for more information."
 ;; ----------
 
 (defclass boundary ()
-  ((break-point
-    :documentation "This boundary's break point."
-     :initarg :break-point :reader break-point))
-  (:default-initargs :allow-other-keys t) ;; allow :harray
+  ((break-point :documentation "This boundary's break point."
+		:initarg :break-point :reader break-point))
   (:documentation "Base class for boundaries.
 A boundary represents a line ending at a certain break point. They do not
 store the position of the beginning of the line. Algorithms may subclass this
