@@ -182,15 +182,28 @@ for equally good solutions."))
 ;; Boundaries
 ;; ==========================================================================
 
+;; #### TODO: the min and max widths here (in fact, the width one as well) are
+;; "natural" widths. Nothing prevents an algorithm to stretch a line more than
+;; it's max width (in fact the Knuth-Plass does so with its tolerance
+;; setting). So perhaps the design is not very nice for algorithms with more
+;; flexibility, and those values should in fact represent the algorithm's
+;; tolerance instead.
+
+;; #### TODO: as for the scale property, it represents the amount required to
+;; reach a target width, /not/ an algorithm's final choice. Also, this really
+;; makes sense for justification, much less for ragged dispositions. But on
+;; the other hand, we don't currently have any sensible ragged formatting.
+
 (defclass fit-boundary (fixed-boundary)
-  ((max-width :documentation "This boundary's maximum line width."
-	      :initarg :max-width
-	      :reader max-width)
-   (min-width :documentation "This boundary's minimum line width."
-	      :initarg :min-width
-	      :reader min-width)
-   (scale :documentation "This boundary's required scaling."
-	  :reader scale))
+  ((min-width
+    :documentation "This boundary's theoretical minimum line width."
+    :initarg :min-width :reader min-width)
+   (max-width
+    :documentation "This boundary's theoretical maximum line width."
+    :initarg :max-width :reader max-width)
+   (scale
+    :documentation "This boundary's theoretical scaling."
+    :reader scale))
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
