@@ -478,7 +478,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				      (<= y (+ (y line) (depth line)))))
 			       pinned-lines))))
 	  (if line
-	      (display-tooltip pane :text (properties (line line)))
+	      (display-tooltip pane :text (properties (object line)))
 	      (display-tooltip pane))))))
 
 ;; Rivers detection
