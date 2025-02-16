@@ -376,49 +376,25 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; Pinned lines
 ;; ==========================================================================
 
-(defclass pinned-line (pinned)
-  ((line :documentation "The corresponding line."
-	 :initarg :line
-	 :reader line))
-  (:documentation "The PINNED-LINE class."))
+;; #### FIXME: yuck. See comment above the PINNED class definition.
 
-(defmethod width ((line pinned-line))
-  "Return pinned LINE's width."
-  (width (line line)))
+(defmethod scale ((pinned pinned))
+  "Return PINNED object's scale."
+  (scale (object pinned)))
 
-(defmethod height ((line pinned-line))
-  "Return pinned LINE's height."
-  (height (line line)))
-
-(defmethod depth ((line pinned-line))
-  "Return pinned LINE's depth."
-  (depth (line line)))
-
-(defmethod scale ((line pinned-line))
-  "Return pinned LINE's scale."
-  (scale (line line)))
-
-(defmethod effective-scale ((line pinned-line))
-  "Return pinned LINE's effective scale factor."
-  (effective-scale (line line)))
-
-(defmethod penalty ((line pinned-line))
-  "Return pinned LINE's penalty."
-  (penalty (line line)))
-
-(defmethod hyphenated ((line pinned-line))
-  "Return pinned LINE's hyphenation status."
-  (hyphenated (line line)))
+(defmethod effective-scale ((pinned pinned))
+  "Return PINNED object's effective scale."
+  (effective-scale (object pinned)))
 
 ;; #### NOTE: we don't have having nesting feature right now, so no board for
 ;; pinned lines (toplevel objects).
 (defun pin-line (line x y)
   "Pin LINE at position (X, Y)."
-  (let ((pinned-line (make-instance 'pinned-line :line line :x x :y y)))
+  (let ((pinned-line (pin-object line nil x y)))
     ;; #### FIXME: gross hack alert. Pinned objects have their line as the
     ;; board. But a line is not a pinned object, so it has no 2D coordinates,
     ;; and there is no back pointer from a line to a pinned line. For rivers
-    ;; detection, I'm thus changing the blnaks boards to their pinned line for
+    ;; detection, I'm thus changing the blanks boards to their pinned line for
     ;; now. Of course, this is completely broken.
     (mapc (lambda (pinned)
 	    (when (whitespacep pinned)

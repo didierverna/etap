@@ -1,5 +1,9 @@
 (in-package :etap)
 
+;; #### TODO: it's still not very clear to me whether we want all pinned
+;; objects under the same class as it's currently done, or whether we should
+;; have a pinned mixin and create subclasses for each kind of object.
+
 (defclass pinned ()
   ((object
     :documentation "The pinned object."
@@ -22,6 +26,7 @@ space, expressed relative to their board."))
   "Pin OBJECT on BOARD at position (X, Y)."
   (make-instance 'pinned :object object :board board :x x :y y))
 
+;; #### FIXME: the generic functions are created later, in hlist.lisp!
 
 (defmethod width ((pinned pinned))
   "Return PINNED object's width."

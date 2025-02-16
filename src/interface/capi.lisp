@@ -397,7 +397,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				      pane
 				      (+ x (x pinned) (/ (width pinned) 2)) y 1
 				      :filled t :foreground :red)))))
-		      (pinned-objects (line pinned-line))))
+		      (pinned-objects (object pinned-line))))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when (and (button-selected
 		    (rivers-detection (rivers-interface interface)))
