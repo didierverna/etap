@@ -431,30 +431,6 @@ fit, natural width for the best fit, and min width for thew last fit)."
 ;; Lines
 ;; ==========================================================================
 
-(defclass fit-line (line)
-  ((weight :documentation "This line's weight."
-	   :initarg :weight
-	   :reader weight)
-   (possibilities
-    :documentation "The number of possibilities for ending this line."
-    :initarg :possibilities
-    :reader possibilities))
-  (:documentation "The Fit line class.
-This class keeps track of the line's weight, as computed in the best /
-justified disposition. Note that unfit lines are still represented by the base
-LINE class."))
-
-(defmethod properties strnlcat ((line fit-line) &key)
-  "Advertise LINE's weight."
-  (format nil "Weight: ~A, out of ~A possible solutions."
-    ($float (weight line))
-    (possibilities line)))
-
-
-;; ----------------
-;; Line computation
-;; ----------------
-
 ;; By default, lines are stretched as much as possible.
 (defun first-fit-make-ragged-line (harray bol boundary width &aux (scale 1))
   "First Fit version of `make-line' for ragged lines."
@@ -499,7 +475,7 @@ LINE class."))
   (make-line harray bol boundary :scale scale))
 
 (defun fit-make-justified-line
-    (harray bol boundary overstretch overshrink &aux line)
+    (harray bol boundary overstretch overshrink)
   "Fit version of `make-line' for justified lines."
   (multiple-value-bind (theoretical effective)
       (if (eopp boundary)
@@ -521,12 +497,8 @@ LINE class."))
 	   (actual-scales -1 :overshrink overshrink)))
 	(actual-scales (scale boundary)
 	  :overshrink overshrink :overstretch overstretch))
-    (setq line (make-line harray bol boundary
-		 :scale theoretical :effective-scale effective)))
-  (when (typep boundary 'fit-weighted-boundary)
-    (change-class line 'fit-line
-      :weight (weight boundary) :possibilities (possibilities boundary)))
-  line)
+    (make-line harray bol boundary
+      :scale theoretical :effective-scale effective)))
 
 
 
