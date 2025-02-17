@@ -39,17 +39,7 @@
 ;; Boundaries
 ;; ==========================================================================
 
-(defclass barnett-boundary (fixed-boundary)
-  ((scale :documentation "This boundary's required scaling."
-	  :reader scale))
-  (:documentation "The Barnett algorithm's boundary class."))
-
-(defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key width stretch shrink target)
-  "Initialize BOUNDARY's scale."
-  (setf (slot-value boundary 'scale)
-	(scaling width target stretch shrink)))
-
+;; Barnett uses Fit boundaries.
 
 ;; ---------------
 ;; Boundary lookup
@@ -62,7 +52,7 @@ This is the Barnett algorithm version."
 	:for eol := (next-break-point harray bol)
 	  :then (next-break-point harray eol)
 	:while (and eol (not overword))
-	:for boundary := (make-instance 'barnett-boundary
+	:for boundary := (make-instance 'fit-boundary
 			   :harray harray :bol bol :break-point eol
 			   :target width)
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly

@@ -73,6 +73,12 @@ The weight is computed according to the discriminating function."
 	    (:minimize-distance (abs (- target width)))
 	    (:minimize-scaling ($abs (scale boundary)))))))
 
+;; It's not worth it to advertise the boundary's fitness.
+(defmethod properties strnlcat ((boundary duncan-boundary) &key)
+  "Advertise Duncan BOUNDARY's weight."
+  (format nil "Weigth: ~A."
+    ($float (weight boundary))))
+
 
 ;; -----------------
 ;; Boundaries lookup

@@ -134,6 +134,10 @@ the underfull one."))
 	   :stretch stretch :shrink shrink
 	   keys)))
 
+(defmethod properties strnlcat ((boundary fixed-boundary) &key)
+  "Advertise Fixed BOUNDARY's natural width."
+  (format nil "Natural width: ~Apt." (float (width boundary))))
+
 
 ;; ---------------
 ;; Boundary lookup

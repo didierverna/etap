@@ -184,6 +184,13 @@ This class is mixed in both the graph and dynamic breakup classes."))
 	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
 	  0)))
 
+(defmethod properties strnlcat ((boundary kp-boundary) &key)
+  "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line)."
+    (fitness-class-name (fitness-class boundary))
+    ($float (badness boundary))
+    ($float (demerits boundary))))
+
 
 ;; Boundaries lookup
 

@@ -236,6 +236,10 @@ line. Graph algorithms use boundaries to represent edges."))
   "Return BOUNDARY's break point EOP status."
   (eopp (break-point boundary)))
 
+(defmethod properties strnlcat ((boundary boundary) &key)
+  "Advertise BOUNDARY's penalty."
+  (format nil "Penalty: ~A." (penalty boundary)))
+
 
 
 
@@ -365,11 +369,13 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 
 (defmethod properties strnlcat ((line line) &key)
   "Advertise LINE's width. This is the default method."
-  (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
-    (float (width line))
-    ($float (scale line))
-    ($/= (scale line) (effective-scale line))
-    ($float (effective-scale line))))
+  (strnlcat
+   (properties (boundary line))
+   (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
+     (float (width line))
+     ($float (scale line))
+     ($/= (scale line) (effective-scale line))
+     ($float (effective-scale line)))))
 
 
 
