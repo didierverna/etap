@@ -308,42 +308,38 @@ origin. A line also remembers its scale factor."))
   "Return LINE's EOL index."
   (eol-idx (boundary line)))
 
-(defun render-line (line &aux (effective-scale (effective-scale line)))
+(defun render-line (line &aux (scale (effective-scale line)))
   "Pin LINE's objects. Return LINE."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
-  (let ((scale (if (numberp effective-scale) effective-scale 0)))
-    (setf (slot-value line 'pinned-objects)
-	  (loop :with x := 0 :with w
-		:with harray := (harray line)
-		:for elt
-		  :in (flatten-harray harray (bol-idx line) (eol-idx line))
-		:if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
-		  :collect (pin-object elt line x)
-		:else :if (typep elt 'tfm:character-metrics)
-		  :collect (pin-object elt line x)
-		  :and :do (incf x (width elt))
-		:else :if (kernp elt)
-		  :do (incf x (width elt))
-		:else :if (gluep elt)
-		  :do (setq w (width elt))
-		  :and :unless (zerop scale)
-		    :do (incf w (if (> scale 0)
-				    (* scale (stretch elt))
-				    (* scale (shrink elt))))
-		    :end
-		  :and :collect (pin-glue elt w line x)
-		  :and :do (incf x w))))
+  (unless (numberp scale) (setq scale 0))
+  (setf (slot-value line 'pinned-objects)
+	(loop :with x := 0 :with w
+	      :with harray := (harray line)
+	      :for elt
+		:in (flatten-harray harray (bol-idx line) (eol-idx line))
+	      :if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
+		:collect (pin-object elt line x)
+	      :else :if (typep elt 'tfm:character-metrics)
+	        :collect (pin-object elt line x)
+		:and :do (incf x (width elt))
+	      :else :if (kernp elt)
+	        :do (incf x (width elt))
+	      :else :if (gluep elt)
+	        :do (setq w (width elt))
+		:and :unless (zerop scale)
+		  :do (incf w (if (> scale 0)
+				  (* scale (stretch elt))
+				  (* scale (shrink elt))))
+		  :end
+		:and :collect (pin-glue elt w line x)
+		:and :do (incf x w)))
   line)
 
-(defmethod initialize-instance :after ((line line) &key &aux scale)
+(defmethod initialize-instance :after ((line line) &key)
   "Possibly initialize the LINE's effective scale, and pin its objects."
-  ;; #### NOTE: infinite scaling means that we do not have any elasticity.
-  ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
-  ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
-  ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
   (unless (slot-boundp line 'effective-scale)
     (setf (slot-value line 'effective-scale) (scale line)))
   (render-line line))
