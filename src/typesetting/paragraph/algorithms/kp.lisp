@@ -757,8 +757,8 @@ This is the Knuth-Plass version for the graph variant.
 			:scale theoretical :effective-scale effective))
 		     (make-instance 'line
 		       :harray harray
-		       :start-idx (bol-idx (break-point (boundary beg)))
-		       :stop-idx (eol-idx (break-point (boundary end)))))
+		       :bol (break-point (boundary beg))
+		       :boundary (boundary end)))
 		   lines)
 	 :finally (return lines))
    disposition-type
