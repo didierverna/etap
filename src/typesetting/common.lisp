@@ -6,27 +6,27 @@ Methods may return an empty string or NIL if there is nothing to advertise.")
   (:method-combination strnlcat :most-specific-last))
 
 
-;; #### TODO: it's still not very clear to me whether we want all pinned
-;; objects under the same class as it's currently done, or whether we should
-;; have a pinned mixin and create subclasses for each kind of object.
-
-(defclass pinned ()
-  ((object
-    :documentation "The pinned object."
-    :initarg :object :reader object)
-   (board
-    :documentation "The pinned object's board."
+(defclass pin ()
+  ((board
+    :documentation "The pin board."
     :initarg :board :reader board)
    (x
-    :documentation "The pinned object's X coordinate, relative to its board."
+    :documentation "The pin's X coordinate, relative to its board."
     :initform 0 :initarg :x :reader x)
    (y
-    :documentation "The pinned object's Y coordinate, relative to its board."
+    :documentation "The pin's Y coordinate, relative to its board."
     :initform 0 :initarg :y :reader y))
-  (:documentation "The PINNED class.
-This class represents objects which are pinned to a fixed position in 2D
-space, expressed relative to their board."))
+  (:documentation "The PIN class.
+This class can be used as a mixin for pinning objects to a fixed 2D position,
+expressed relative to a pin board."))
 
+
+(defclass pinned (pin)
+  ((object
+    :documentation "The pinned object."
+    :initarg :object :reader object))
+  (:documentation "The PINNED class.
+This class is used to pin any kind of object to a board."))
 
 (defun pin-object (object board x &optional (y 0))
   "Pin OBJECT on BOARD at position (X, Y)."
