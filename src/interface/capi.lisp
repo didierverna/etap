@@ -262,10 +262,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (paragraph (paragraph interface))
 	  (rendition (rendition interface))
-	  (pinned-lines (unless (zerop rendition)
-			  (get-rendition (1- rendition) (breakup paragraph))))
-	  (par-y (height pinned-lines))
-	  (par-h+d (+ par-y (depth pinned-lines)))
+	  (layout (unless (zerop rendition)
+		    (get-rendition (1- rendition) (breakup paragraph))))
+	  (par-y (height layout))
+	  (par-h+d (+ par-y (depth layout)))
 	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
@@ -281,82 +281,82 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(gp:draw-rectangle pane 0 0 (width paragraph) par-h+d
 	  :foreground :red
 	  :scale-thickness nil))
-      (when pinned-lines
-	(loop :for rest :on pinned-lines
-	      :for pinned-line := (car rest)
-	      :for x := (x pinned-line)
-	      :for y := (+ par-y (y pinned-line))
+      (when-let (lines (lines layout))
+	(loop :for rest :on lines
+	      :for line := (car rest)
+	      :for x := (x line)
+	      :for y := (+ par-y (y line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle pane
 			x
-			(- y (height pinned-line))
-			(width pinned-line)
-			(+ (height pinned-line) (depth pinned-line))
+			(- y (height line))
+			(width line)
+			(+ (height line) (depth line))
 		      :foreground :blue
 		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
-		:if (> (width pinned-line) (width paragraph))
+		:if (> (width line) (width paragraph))
 		  :do (gp:draw-rectangle pane
-			  (+ x (width pinned-line) 5)
-			  (- y (height pinned-line))
+			  (+ x (width line) 5)
+			  (- y (height line))
 			  5
-			  (+ (height pinned-line) (depth pinned-line))
+			  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
 		:else :if (and (cdr rest) ;; not the last one
 			       (eq (disposition-type (disposition paragraph))
 				   :justified)
-			       (< (width pinned-line) (width paragraph)))
+			       (< (width line) (width paragraph)))
 		  :do (gp:draw-rectangle pane
 			  (+ (width paragraph) 5)
-			  (- y (height pinned-line))
+			  (- y (height line))
 			  5
-			  (+ (height pinned-line) (depth pinned-line))
+			  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (effective-scale pinned-line) (scale pinned-line))
+		:if ($< (effective-scale line) (scale line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 11)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 8)
-				(+ y (depth pinned-line)))
+				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled t :closed t)
-		:else :if ($< (scale pinned-line) -1)
+		:else :if ($< (scale line) -1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 11)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 8)
-				(+ y (depth pinned-line)))
+				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled nil :closed t)
-		:else :if ($> (effective-scale pinned-line) (scale pinned-line))
+		:else :if ($> (effective-scale line) (scale line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 11)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 8)
-				(- y (height pinned-line)))
+				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
-		:else :if ($> (scale pinned-line) 1)
+		:else :if ($> (scale line) 1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 11)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 8)
-				(- y (height pinned-line)))
+				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
-		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
+		:do (gp:draw-line pane x y (+ x (width line)) y
 		      :foreground :purple
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
@@ -397,7 +397,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 				      pane
 				      (+ x (x pinned) (/ (width pinned) 2)) y 1
 				      :filled t :foreground :red)))))
-		      (pinned-objects (object pinned-line))))
+		      (pinned-objects line)))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when (and (button-selected
 		    (rivers-detection (rivers-interface interface)))
@@ -462,24 +462,24 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
 	  (rendition (1- (rendition interface)))
-	  (pinned-lines (when (<= 0 rendition)
-			  (get-rendition rendition (breakup paragraph)))))
+	  (layout (when (<= 0 rendition)
+		    (get-rendition rendition (breakup paragraph)))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    (decf y (height pinned-lines))
-    (if (and (<= x 0) (<= y (depth pinned-lines)))
-	(display-tooltip pane
-	  :text (properties paragraph
-		  :rendition (when (<= 0 rendition) rendition)))
-	(let ((line (when (and (>= x 0) (<= x (width paragraph)))
-		      (find-if (lambda (line)
-				 (and (>= y (- (y line) (height line)))
-				      (<= y (+ (y line) (depth line)))))
-			       pinned-lines))))
-	  (if line
-	      (display-tooltip pane :text (properties (object line)))
-	      (display-tooltip pane))))))
+    (decf y (height layout))
+    (if (and (<= x 0) (<= y (depth layout)))
+      (display-tooltip pane
+	:text (properties paragraph
+		:rendition (when (<= 0 rendition) rendition)))
+      (let ((line (when (and (>= x 0) (<= x (width paragraph)))
+		    (find-if (lambda (line)
+			       (and (>= y (- (y line) (height line)))
+				    (<= y (+ (y line) (depth line)))))
+			     (lines layout)))))
+	(if line
+	  (display-tooltip pane :text (properties line))
+	  (display-tooltip pane))))))
 
 ;; Rivers detection
 (defun set-rivers-detection

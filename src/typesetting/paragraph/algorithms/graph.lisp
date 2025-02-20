@@ -138,14 +138,7 @@ about the path so far."))
 ;; Layouts
 ;; -------
 
-(defclass layout ()
-  ((ledges :documentation "This layout's list of ledges." :reader ledges))
-  (:documentation "The LAYOUT class.
-A layout represents one specific path from the beginning to the end of the
-paragraph in a graph of possible solutions. Algorithms may subclass this class
-in order to store layout specific properties."))
-
-(defmethod initialize-instance :after ((layout layout) &key boundary)
+#+()(defmethod initialize-instance :after ((layout layout) &key boundary)
   "Initialize LAYOUT's ledges with one ledge leading to final BOUNDARY."
   (setf (slot-value layout 'ledges)
 	(list (make-instance 'ledge :boundary boundary))))

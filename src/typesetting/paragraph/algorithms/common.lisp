@@ -205,20 +205,19 @@ See `scaling' for more information."
 				  :key #'type-of)))))
 
 
-;; ----------
+
+
+;; ==========================================================================
 ;; Boundaries
-;; ----------
+;; ==========================================================================
 
 (defclass boundary ()
   ((break-point :documentation "This boundary's break point."
 		:initarg :break-point :reader break-point))
   (:documentation "Base class for boundaries.
-A boundary represents a line ending at a certain break point. They do not
-store the position of the beginning of the line. Algorithms may subclass this
-class in order to memoize line properties.
-
-Greedy algorithms use boundaries to figure out the appropriate end of each
-line. Graph algorithms use boundaries to represent edges."))
+A boundary represents the ending of a line at a certain break point.
+Boundaries do not store the position of the beginning of the line. Algorithms
+may subclass this class in order to memoize line properties."))
 
 (defmethod penalty ((boundary boundary))
   "Return BOUNDARY's break point penalty."
@@ -247,13 +246,18 @@ line. Graph algorithms use boundaries to represent edges."))
 ;; Lines
 ;; ==========================================================================
 
+;; -----------
+;; Whitespaces
+;; -----------
+
 ;; #### WARNING: do not confuse whitespaces (pinned glues) with blanks
 ;; (characters). In fact, newlines are considered blank characters, but they
 ;; do not produce whitespaces.
 
-;; #### NOTE: we cannot just use the pinned object class to store glues
-;; because a final space's width is different from the glue's width in
-;; general.
+;; #### NOTE: glues are currently the only objects that cannot be pinned
+;; directly, hence the class below. The reason is that the width of a pinned
+;; glue is different from the glue's width in general (it depends on the
+;; line's scaling).
 (defclass whitespace (pinned)
   ((width
     :documentation "The whitespace's width."
@@ -270,6 +274,11 @@ This class represents pinned glues and stores their width after scaling."))
   (make-instance 'whitespace :width width :object glue :board board :x x))
 
 
+;; -----
+;; Lines
+;; -----
+
+;; #### TODO: check if lines really need to store their BOL.
 (defclass line ()
   ((harray
     :documentation "The corresponding harray."
@@ -293,12 +302,29 @@ computed by the algorithm in use, depending on the algorithm itself, and on
 the Overstretch and Overshrink disposition options)."
     :initarg :effective-scale :reader effective-scale)
    (pinned-objects
-    :documentation "The list of pinned objects."
+    :documentation "The list of pinned objects.
+Currently, those are characters, whitespaces, and hyphenation clues.
+These objects are positioned relatively to the line's origin (which may be
+different from the paragraph's origin."
     :reader pinned-objects))
   (:documentation "The LINE class.
-A line contains a list of pinned objects (currently, characters, whitespaces,
-and hyphenation clues). The objects are positioned relatively to the line's
-origin. A line also remembers its scale factor."))
+A line represents one step in a particular path from the beginning to the end
+of the paragraph (that is, a layout). Algorithms may subclass this class in
+order to store cumulative properties about said path so far."))
+
+(defmethod initialize-instance :after ((line line) &key)
+  "Possibly initialize the LINE's effective scale, and pin its objects."
+  (unless (slot-boundp line 'effective-scale)
+    (setf (slot-value line 'effective-scale) (scale line))))
+
+(defun make-line
+    (harray bol boundary &rest keys &key scale effective-scale)
+  "Make an HARRAY line from BOL to BOUNDARY.
+Optionally preset SCALE and EFFECTIVE-SCALE."
+  (declare (ignore scale effective-scale))
+  (apply #'make-instance 'line
+	 :harray harray :bol bol :boundary boundary keys))
+
 
 (defmethod bol-idx ((line line))
   "Return LINE's BOL index."
@@ -307,6 +333,50 @@ origin. A line also remembers its scale factor."))
 (Defmethod eol-idx ((line line))
   "Return LINE's EOL index."
   (eol-idx (boundary line)))
+
+
+;; #### WARNING: the three methods below require the line to be rendered
+;; already! Doing it otherwise is possible in theory (because we know the
+;; scaling), but would require additional and redundant computation.
+
+(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
+  "Return LINE's width."
+  (+ (x object) (width object)))
+
+(defmethod height ((line line))
+  "Return LINE's height."
+  (loop :for object :in (pinned-objects line) :maximize (height object)))
+
+(defmethod depth ((line line))
+  "Return LINE's depth."
+  (loop :for object :in (pinned-objects line) :maximize (depth object)))
+
+(defmethod hyphenated ((line line))
+  "Return LINE's hyphenation status."
+  (hyphenated (boundary line)))
+
+(defmethod penalty ((line line))
+  "Return LINE's penalty."
+  (penalty (boundary line)))
+
+
+;; #### WARNING: this method requires the line to have been rendered already!
+;; Doing it otherwise is possible in theory (because we know the scaling), but
+;; would require additional and redundant computation.
+(defmethod properties strnlcat ((line line) &key)
+  "Advertise LINE's width. This is the default method."
+  (strnlcat
+   (properties (boundary line))
+   (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
+     (float (width line))
+     ($float (scale line))
+     ($/= (scale line) (effective-scale line))
+     ($float (effective-scale line)))))
+
+
+;; ---------
+;; Rendering
+;; ---------
 
 (defun render-line (line &aux (scale (effective-scale line)))
   "Pin LINE's objects. Return LINE."
@@ -338,89 +408,38 @@ origin. A line also remembers its scale factor."))
 		:and :do (incf x w)))
   line)
 
-(defmethod initialize-instance :after ((line line) &key)
-  "Possibly initialize the LINE's effective scale, and pin its objects."
-  (unless (slot-boundp line 'effective-scale)
-    (setf (slot-value line 'effective-scale) (scale line)))
-  (render-line line))
-
-(defun make-line
-    (harray bol boundary &rest keys &key scale effective-scale)
-  "Make an HARRAY line from BOL to BOUNDARY.
-Optionally preset SCALE and EFFECTIVE-SCALE."
-  (declare (ignore scale effective-scale))
-  (apply #'make-instance 'line
-	 :harray harray :bol bol :boundary boundary keys))
-
-
-(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
-  "Return LINE's width."
-  (+ (x object) (width object)))
-
-(defmethod height ((line line))
-  "Return LINE's height."
-  (loop :for object :in (pinned-objects line) :maximize (height object)))
-
-(defmethod depth ((line line))
-  "Return LINE's depth."
-  (loop :for object :in (pinned-objects line) :maximize (depth object)))
-
-(defmethod hyphenated ((line line))
-  "Return LINE's hyphenation status."
-  (hyphenated (boundary line)))
-
-(defmethod penalty ((line line))
-  "Return LINE's penalty."
-  (penalty (boundary line)))
-
-(defmethod properties strnlcat ((line line) &key)
-  "Advertise LINE's width. This is the default method."
-  (strnlcat
-   (properties (boundary line))
-   (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
-     (float (width line))
-     ($float (scale line))
-     ($/= (scale line) (effective-scale line))
-     ($float (effective-scale line)))))
-
 
 
 
 ;; ==========================================================================
-;; Pinned lines
+;; Layouts
 ;; ==========================================================================
 
-;; #### FIXME: yuck. See comment above the PINNED class definition.
+(defclass layout ()
+  ((lines :documentation "This layout's list of lines."
+	  :initarg :lines :reader lines))
+  (:documentation "The LAYOUT class.
+A layout represents one specific path from the beginning to the end of the
+paragraph in a graph of possible solutions. Algorithms may subclass this class
+in order to store layout specific global properties."))
 
-(defmethod scale ((pinned pinned))
-  "Return PINNED object's scale."
-  (scale (object pinned)))
 
-(defmethod effective-scale ((pinned pinned))
-  "Return PINNED object's effective scale."
-  (effective-scale (object pinned)))
+;; ---------
+;; Rendering
+;; ---------
+
+(defclass pinned-line (line pin)
+  ()
+  (:documentation "The LINNED-LINE class."))
 
 ;; #### NOTE: we don't have having nesting feature right now, so no board for
 ;; pinned lines (toplevel objects).
-(defun pin-line (line x y)
-  "Pin LINE at position (X, Y)."
-  (let ((pinned-line (pin-object line nil x y)))
-    ;; #### FIXME: gross hack alert. Pinned objects have their line as the
-    ;; board. But a line is not a pinned object, so it has no 2D coordinates,
-    ;; and there is no back pointer from a line to a pinned line. For rivers
-    ;; detection, I'm thus changing the blanks boards to their pinned line for
-    ;; now. Of course, this is completely broken.
-    (mapc (lambda (pinned)
-	    (when (whitespacep pinned)
-	      (setf (slot-value pinned 'board) pinned-line)))
-      (pinned-objects line))
-    pinned-line))
-
-(defun pin-lines (lines disposition width)
-  "Pin LINES according to DISPOSITION for a paragraph of WIDTH."
+(defun render-layout (layout disposition width &aux (lines (lines layout)))
+  "Render LAYOUT's lines and pin them for a DISPOSITION of WIDTH.
+Return LAYOUT."
   (when lines
     (loop :with baseline-skip := (baseline-skip (harray (car lines)))
-	  :with x := (case disposition
+	  :with x := (ecase (disposition-type disposition)
 		       ((:flush-left :justified)
 			(lambda (line) (declare (ignore line)) 0))
 		       (:centered
@@ -429,38 +448,38 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 			(lambda (line) (- width (width line)))))
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for line :in lines
-	  :collect (pin-line line (funcall x line) y))))
+	  :do (render-line line)
+	  :do (change-class line 'pinned-line :x (funcall x line) :y y)))
+  layout)
 
 
-;; #### FIXME: this is not cool. Renditions are not currently reified as
-;; objects, only as lists of pinned lines. Hence the kludgy specializations
-;; below.
-
-(defun lines-# (pinned-lines)
+(defun lines-# (layout)
   "Return the number of PINNED-LINES."
-  (length pinned-lines))
+  (length (lines layout)))
 
-(defmethod height ((pinned-lines cons))
-  "Return PINNED-LINES' height, or 0 if there is no pinned line.
+;; #### WARNING: the three methods below can only work when the layout has
+;; been rendered!
+
+(defmethod height ((layout layout))
+  "Return LAYOUT' height.
 This is in fact the height of the first line, since we consider that the
 paragraph's baseline is the first line's baseline. Not to be confused with the
 height of the whole paragraph."
-  (height (first pinned-lines)))
+  (height (first (lines layout))))
 
-(defmethod depth ((pinned-lines cons) &aux (last (car (last pinned-lines))))
-  "Return PINNED-LINES's depth, or 0 if there is no pinned line.
+(defmethod depth ((layout layout) &aux (last (car (last (lines layout)))))
+  "Return LAYOUT's depth.
 We consider that the paragraph's baseline is the first line's baseline."
   (+ (y last) (depth last)))
 
-(defmethod properties strnlcat ((pinned-lines list) &key)
-  "Return a string advertising PINNED-LINES properties."
-  (assert pinned-lines)
+(defmethod properties strnlcat ((layout layout) &key)
+  "Return a string advertising LAYOUT's properties."
   (format nil "~A line~:P.~@
 	       Vertical size: ~Apt (height: ~Apt, depth: ~Apt)."
-    (lines-# pinned-lines)
-    (float (+ (height pinned-lines) (depth pinned-lines)))
-    (float (height pinned-lines))
-    (float (depth pinned-lines))))
+    (lines-# layout)
+    (float (+ (height layout) (depth layout)))
+    (float (height layout))
+    (float (depth layout))))
 
 
 
