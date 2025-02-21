@@ -217,7 +217,9 @@ See `scaling' for more information."
   (:documentation "Base class for boundaries.
 A boundary represents the ending of a line at a certain break point.
 Boundaries do not store the position of the beginning of the line. Algorithms
-may subclass this class in order to memoize line properties."))
+may provide their own subclass in order to store line properties, but those
+properties should remain independent from layouts (the LINE hierarchy is here
+for that)."))
 
 (defmethod penalty ((boundary boundary))
   "Return BOUNDARY's break point penalty."
@@ -308,9 +310,11 @@ These objects are positioned relatively to the line's origin (which may be
 different from the paragraph's origin."
     :reader pinned-objects))
   (:documentation "The LINE class.
-A line represents one step in a particular path from the beginning to the end
-of the paragraph (that is, a layout). Algorithms may subclass this class in
-order to store cumulative properties about said path so far."))
+A line represents one step in a layout, that is, a particular path from the
+beginning to the end of the paragraph. Algorithms may provide their own
+subclass in order to store layout-dependent properties of the line, or
+cumulative ones (layout properties up to that particular line). For
+layout-independent properties, boundaries should be used instead."))
 
 (defmethod initialize-instance :after ((line line) &key)
   "Possibly initialize the LINE's effective scale, and pin its objects."
