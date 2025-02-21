@@ -421,7 +421,10 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; ==========================================================================
 
 (defclass layout ()
-  ((lines :documentation "This layout's list of lines."
+  ((pinned-line-class
+    :documentation "The class to use when pinning lines."
+    :allocation :class :initform 'pinned-line :reader pinned-line-class)
+   (lines :documentation "This layout's list of lines."
 	  :initform nil :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
@@ -441,7 +444,8 @@ specific global properties."))
   "Render LAYOUT's lines and pin them for a DISPOSITION of WIDTH.
 Return LAYOUT."
   (when lines
-    (loop :with baseline-skip := (baseline-skip (harray (car lines)))
+    (loop :with class := (pinned-line-class layout)
+	  :with baseline-skip := (baseline-skip (harray (car lines)))
 	  :with x := (ecase (disposition-type disposition)
 		       ((:flush-left :justified)
 			(lambda (line) (declare (ignore line)) 0))
@@ -452,7 +456,7 @@ Return LAYOUT."
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for line :in lines
 	  :do (render-line line)
-	  :do (change-class line 'pinned-line
+	  :do (change-class line class
 		:board layout :x (funcall x line) :y y)))
   layout)
 

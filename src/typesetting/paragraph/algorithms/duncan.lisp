@@ -138,7 +138,8 @@ The possible endings are listed in reverse order (from last to first)."
 ;; #### TODO: it's probably a bad idea to call the cumulative weight just
 ;; "weight".
 (defclass duncan-line (line)
-  ((weight
+  ((pinned-line-class :initform 'duncan-pinned-line) ; slot override
+   (weight
     :documentation "The cumulative weight so far in the layout."
     :initarg :weight :reader weight))
   (:documentation "The Duncan Line class."))
@@ -162,6 +163,11 @@ The possible endings are listed in reverse order (from last to first)."
       :scale theoretical
       :effective-scale effective
       :weight weight)))
+
+
+(defclass duncan-pinned-line (duncan-line pin)
+  ()
+  (:documentation "The Duncan Pinned Line class."))
 
 
 
@@ -200,7 +206,7 @@ The possible endings are listed in reverse order (from last to first)."
 	  (overstretch (getf disposition-options :overstretch))
 	  (overshrink (getf disposition-options :overshrink)))
   "Create a Duncan layout from HARRAY PATH for DISPOSITION."
-  (with-slots (lines weight hyphens underfulls overfulls) layout
+  (with-slots (weight hyphens underfulls overfulls) layout
     (loop :with make-line := (case disposition-type
 			       (:justified
 				(lambda (harray bol boundary weight)
@@ -221,7 +227,8 @@ The possible endings are listed in reverse order (from last to first)."
 	  :do (case (fitness boundary)
 		(:underfull (incf underfulls))
 		(:overfull  (incf overfulls)))
-	  :do (push (funcall make-line harray bol boundary weight) lines)))
+	  :collect (funcall make-line harray bol boundary weight) :into lines
+	  :finally (setf (slot-value layout 'lines) lines)))
   layout)
 
 
