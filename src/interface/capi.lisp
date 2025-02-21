@@ -361,43 +361,43 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (pinned)
-			    (cond ((typep (object pinned)
+		:do (mapc (lambda (item)
+			    (cond ((typep (object item)
 					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle pane
-					 (+ x (x pinned))
-					 (- y (height pinned))
-					 (width pinned)
-					 (+ (height pinned)
-					    (depth pinned))
+					 (+ x (x item))
+					 (- y (height item))
+					 (width item)
+					 (+ (height item)
+					    (depth item))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
 					 (aref *lm-ec*
-					       (tfm:code (object pinned)))
-					 (+ x (x pinned))
+					       (tfm:code (object item)))
+					 (+ x (x item))
 					 y)))
-				  ((member (object pinned)
+				  ((member (object item)
 					   '(:explicit-hyphenation-clue
 					     :hyphenation-clue))
 				   (when (member :hyphenation-points clues)
 				     (gp:draw-polygon pane
-				       (list (+ x (x pinned)) y
-					     (+ x (x pinned) -3) (+ y 5)
-					     (+ x (x pinned) +3) (+ y 5))
+				       (list (+ x (x item)) y
+					     (+ x (x item) -3) (+ y 5)
+					     (+ x (x item) +3) (+ y 5))
 				       :filled t
-				       :foreground (if (eq (object pinned)
+				       :foreground (if (eq (object item)
 							   :hyphenation-clue)
 						     :orange
 						     :blue))))
-				  ((whitespacep pinned)
+				  ((whitespacep item)
 				   (when (member :river-beds clues)
 				     (gp:draw-circle
 				      pane
-				      (+ x (x pinned) (/ (width pinned) 2)) y 1
+				      (+ x (x item) (/ (width item) 2)) y 1
 				      :filled t :foreground :red)))))
-		      (pinned-objects line)))
+		      (items line)))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when (and (button-selected
 		    (rivers-detection (rivers-interface interface)))

@@ -20,7 +20,7 @@ Otherwise, it's a possibly infinite stretching (positive) or shrinking
 This function returns two values.
 - The theoretical scale computed by the algorithm in use. This value depends
   on the algorithm s SHRINK / STRETCH-TOLERANCE (-1 / 1 by default).
-- The effective scale, used to pin the line's objects. This value further
+- The effective scale, used to pin the line's items. This value further
   depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
   (let ((theoretical-scale scale) (effective-scale scale))
     (cond (($< scale 0)
@@ -256,7 +256,7 @@ for that)."))
 ;; (characters). In fact, newlines are considered blank characters, but they
 ;; do not produce whitespaces.
 
-;; #### NOTE: glues are currently the only objects that cannot be pinned
+;; #### NOTE: glues are currently the only items that cannot be pinned
 ;; directly, hence the class below. The reason is that the width of a pinned
 ;; glue is different from the glue's width in general (it depends on the
 ;; line's scaling).
@@ -267,9 +267,9 @@ for that)."))
   (:documentation "The WHITESPACE class.
 This class represents pinned glues and stores their width after scaling."))
 
-(defun whitespacep (object)
-  "Return T if OBJECT is a whitespace."
-  (typep object 'whitespace))
+(defun whitespacep (item)
+  "Return T if ITEM is a whitespace."
+  (typep item 'whitespace))
 
 (defun pin-glue (glue width board x)
   "Pin GLUE of (scaled) WIDTH on BOARD at (X, 0)."
@@ -294,21 +294,21 @@ This class represents pinned glues and stores their width after scaling."))
    (scale
     :documentation "The line'scale, as computed by the algorithm.
 It may be different from the boundary's theoretical scale, and from the
-effective scale used to pin the objects, depending on the algorithm itself,
+effective scale used to pin the items, depending on the algorithm itself,
 and on the Overstretch and Overshrink disposition options)."
     :initform 0 :initarg :scale :reader scale)
    (effective-scale
-    :documentation "The line's effective scale, used for pinning the objects.
+    :documentation "The line's effective scale, used for pinning the items.
 It may be different from the boundary's theoretical scale, and from scale
 computed by the algorithm in use, depending on the algorithm itself, and on
 the Overstretch and Overshrink disposition options)."
     :initarg :effective-scale :reader effective-scale)
-   (pinned-objects
-    :documentation "The list of pinned objects.
+   (items
+    :documentation "The list of items in the line.
 Currently, those are characters, whitespaces, and hyphenation clues.
-These objects are positioned relatively to the line's origin (which may be
+These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin."
-    :reader pinned-objects))
+    :reader items))
   (:documentation "The LINE class.
 A line represents one step in a layout, that is, a particular path from the
 beginning to the end of the paragraph. Algorithms may provide their own
@@ -317,7 +317,7 @@ cumulative ones (layout properties up to that particular line). For
 layout-independent properties, boundaries should be used instead."))
 
 (defmethod initialize-instance :after ((line line) &key)
-  "Possibly initialize the LINE's effective scale, and pin its objects."
+  "Initialize the LINE's effective scale if not already done."
   (unless (slot-boundp line 'effective-scale)
     (setf (slot-value line 'effective-scale) (scale line))))
 
@@ -343,17 +343,17 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; already. Doing it otherwise is possible in theory (because we know the
 ;; scaling), but would require additional and redundant computation.
 
-(defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
+(defmethod width ((line line) &aux (item (car (last (items line)))))
   "Return LINE's width."
-  (+ (x object) (width object)))
+  (+ (x item) (width item)))
 
 (defmethod height ((line line))
   "Return LINE's height."
-  (loop :for object :in (pinned-objects line) :maximize (height object)))
+  (loop :for item :in (items line) :maximize (height item)))
 
 (defmethod depth ((line line))
   "Return LINE's depth."
-  (loop :for object :in (pinned-objects line) :maximize (depth object)))
+  (loop :for item :in (items line) :maximize (depth item)))
 
 (defmethod hyphenated ((line line))
   "Return LINE's hyphenation status."
@@ -383,32 +383,33 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; ---------
 
 (defun render-line (line &aux (scale (effective-scale line)))
-  "Pin LINE's objects. Return LINE."
+  "Pin LINE's items and return LINE."
   ;; #### NOTE: infinite scaling means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
   (unless (numberp scale) (setq scale 0))
-  (setf (slot-value line 'pinned-objects)
+  (setf (slot-value line 'items)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
-	      :for elt
+	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
-	      :if (member elt '(:explicit-hyphenation-clue :hyphenation-clue))
-		:collect (pin-object elt line x)
-	      :else :if (typep elt 'tfm:character-metrics)
-		:collect (pin-object elt line x)
-		:and :do (incf x (width elt))
-	      :else :if (kernp elt)
-		:do (incf x (width elt))
-	      :else :if (gluep elt)
-		:do (setq w (width elt))
+	      :if (member
+		   object '(:explicit-hyphenation-clue :hyphenation-clue))
+		:collect (pin-object object line x)
+	      :else :if (typep object 'tfm:character-metrics)
+		:collect (pin-object object line x)
+		:and :do (incf x (width object))
+	      :else :if (kernp object)
+		:do (incf x (width object))
+	      :else :if (gluep object)
+		:do (setq w (width object))
 		:and :unless (zerop scale)
 		  :do (incf w (if (> scale 0)
-				  (* scale (stretch elt))
-				  (* scale (shrink elt))))
+				  (* scale (stretch object))
+				  (* scale (shrink object))))
 		  :end
-		:and :collect (pin-glue elt w line x)
+		:and :collect (pin-glue object w line x)
 		:and :do (incf x w)))
   line)
 
@@ -470,7 +471,7 @@ Return LAYOUT."
 
 ;; #### NOTE: there's no WIDTH method for layouts because layout lines may be
 ;; of different widths. The width of a line is /not/ the width of the
-;; paragraph. It's the physical width occupied by its visible objects.
+;; paragraph. It's the total physical width occupied by its items.
 
 (defmethod height ((layout layout))
   "Return LAYOUT' height.
