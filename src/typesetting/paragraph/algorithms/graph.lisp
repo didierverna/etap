@@ -16,38 +16,43 @@
 ;; to 30 (33 without hyphenation).
 
 ;; The set of all possible solutions found by an algorithm is represented by a
-;; graph rather than a tree, so that storage is saved by sharing nodes. Right
-;; now, we only have rectangular paragraphs so graph nodes are just break
-;; points in the harray. Later we will need to make them a combination of
-;; break point and line number. Graph edges don't need a specific data
-;; structure either, as they can be conveniently reified as boundaries.
-;; Because of node sharing however, a graph cannot store information specific
-;; to a particular path from the beginning to the end of the paragraph. For
-;; that, another data structure called a "layout" is used.
+;; graph rather than a tree, so that storage is saved by sharing nodes. Such a
+;; graph is oriented and acyclic. It also has only one root (the beginning of
+;; the paragraph), and only one leaf (the end of the paragraph).
+
+;; A graph is represented by a hash table storing edges rather than nodes. The
+;; hash table keys are the harray break points (nodes), and each value is a
+;; list of edges from that break point (boundaries). The graph construction
+;; process is parameterized by an algorithm-specific function collecting the
+;; possible boundaries for a line starting at a particular break point. This
+;; allows each algorithm to use it's own boundary subclass.
+
+;; Right now, we only have rectangular paragraphs so graph nodes are just
+;; break points in the harray (this expresses the fact that however we reach a
+;; particular break point has no influence on the subsequent breaking
+;; solutions). Later we will need to make them a combination of break point
+;; and line number. Graph edges don't need a specific data structure either,
+;; as they can be conveniently reified as boundaries. Because of node sharing
+;; however, a graph cannot store information specific to a particular path
+;; from the beginning to the end of the paragraph. For that, another data
+;; structure called a "layout", and containing a list of "lines", also
+;; layout-specific, is used.
+
+;; If there's no entry in the hash table for a particular break point, it
+;; means that it was never considered as a possibility. If a break point was
+;; considered, but eventually found out to be a dead end, the hash table entry
+;; will be NIL (meaning that this break point has no outward edges). The only
+;; exception to this is the end of paragraph break point, which has a hash
+;; table value of T to indicate that it has no outward edges, but it is
+;; normal.
 
 
 (in-package :etap)
 
 
 ;; ==========================================================================
-;; Graphs
+;; Graph Construction
 ;; ==========================================================================
-
-;; A graphs is represented by a hash table storing edges rather than nodes.
-;; The hash table keys are the harray break points (nodes), and each value is
-;; a list of edges (boundaries).
-
-;; ------------------
-;; Graph construction
-;; ------------------
-
-;; #### NOTE: if there's no entry in the hash table for a particular break
-;; point, it means that it was never considered. If a break point was
-;; considered, but eventually found out to be a dead end, the hash table entry
-;; will be NIL (meaning that this break point has no outward edges). The only
-;; exception to this is the end of paragraph break point, which has a hash
-;; table value of T to indicate that it has no outward edges, but it is
-;; normal.
 
 (defun %make-graph (harray bol width get-boundaries hash-table)
   "Make a solutions graph for breaking HARRAY at BOL into a paragraph of WIDTH.
@@ -101,102 +106,20 @@ boundaries for a line starting at *BOP*."
 
 
 ;; ==========================================================================
-;; Layouts
+;; Paths Construction
 ;; ==========================================================================
 
-;; ---------------------
-;; Layout edges (ledges)
-;; ---------------------
-
-(defclass ledge ()
-  ((boundary :documentation "The corresponding boundary (graph edge)."
-	     :initarg :boundary :reader boundary))
-  (:documentation "The LEDGE class.
-A ledge represents a line ending at a certain break point in one particular
-path from the beginning to the end of the paragraph (that is, a layout). As
-boundaries, they do not store the position of the beginning of the line.
-Contrary to boundaries however, they are specific to one path. Consequently,
-algorithms may subclass this class in order to store cumulative properties
-about the path so far."))
-
-;; #### NOTE: no PENALTY pseudo-accessor currently required.
-
-(defmethod hyphenated ((ledge ledge))
-  "Return LEDGE's hyphenation status."
-  (hyphenated (boundary ledge)))
-
-(defmethod eol-idx ((ledge ledge))
-  "Return LEDGE's break-point eold-idx."
-  (eol-idx (boundary ledge)))
-
-(defmethod eopp ((ledge ledge))
-  "Return LEDGE's boundary EOP status."
-  (eopp (boundary ledge)))
-
-
-;; -------
-;; Layouts
-;; -------
-
-#+()(defmethod initialize-instance :after ((layout layout) &key boundary)
-  "Initialize LAYOUT's ledges with one ledge leading to final BOUNDARY."
-  (setf (slot-value layout 'ledges)
-	(list (make-instance 'ledge :boundary boundary))))
-
-;; #### NOTE: because the ledges are created and pushed bottom-up in layouts,
-;; it is not possible to compute cumulative properties (which are top-down) in
-;; the process. Because of that, algorithms need to post-process the created
-;; layouts anyway, so we might as well just use the base classes here, and let
-;; the algorithms change-class at will.
-(defun make-layouts (graph &optional (boundaries (gethash *bop* graph)))
-  "Return the list of all GRAPH layouts.
-Layouts and ledges are instantiated from the corresponding base classes only.
-Algorithms may subsequently post-process the created objects and change their
-classes into more specific ones."
+(defun make-graph-paths (graph &optional (boundaries (gethash *bop* graph)))
+  "Return the list of all GRAPH paths.
+A graph path is a list of boundaries from the beginning to the end of the
+paragraph. Note that there is no boundary for the beginning of the paragraph,
+but there is one for the end."
   (mapcan (lambda (boundary &aux (break-point (break-point boundary)))
 	    (if (eopp break-point)
-	      (list (make-instance 'layout :boundary boundary))
-	      (mapc (lambda (layout)
-		      (setf (slot-value layout 'ledges)
-			    (cons (make-instance 'ledge :boundary boundary)
-				  (ledges layout))))
-		(make-layouts graph (gethash break-point graph)))))
+	      (list (list boundary))
+	      (mapcar (lambda (path) (push boundary path))
+		(make-graph-paths graph (gethash break-point graph)))))
     boundaries))
-
-
-
-
-;; ==========================================================================
-;; Ledge Lines
-;; ==========================================================================
-
-(defclass ledge-line (line)
-  ((ledge :documentation "This line's corresponding ledge."
-	  :initarg :ledge :reader ledge))
-  (:documentation "The Ledge Line class."))
-
-(defun make-ledge-line
-    (harray bol ledge &rest keys &key scale effective-scale)
-  "Make an HARRAY line from BOL for LEDGE."
-  (declare (ignore scale effective-scale))
-  (apply #'make-instance 'ledge-line
-	 ;; #### FIXME: we need to pass the boundary explicitly below, which
-	 ;; is ugly because the ledge contains it. That's because the LINE's
-	 ;; after method needs it to be initialized. There are other ways to
-	 ;; do it, but hopefully this will go away all by itself when we get
-	 ;; rid of ledges to use lines directly.
-	 :harray harray :bol bol :boundary (boundary ledge) :ledge ledge keys))
-
-(defmethod properties strnlcat ((line ledge-line) &key)
-  "Advertise LINE's ledge properties."
-  (properties (ledge line)))
-
-
-(defun make-layout-lines (harray layout make-line)
-  "Make LAYOUT lines."
-  (loop :for bol := *bop* :then (break-point (boundary ledge))
-	:for ledge :in (ledges layout)
-	:collect (funcall make-line harray bol ledge)))
 
 
 
@@ -208,24 +131,13 @@ classes into more specific ones."
 (defclass graph-breakup (breakup)
   ((graph
     :documentation "This breakup's graph hash table."
-    :initform nil :initarg :graph :reader graph)
-   (renditions
-    :documentation "This breakup's sorted layout renditions array."
-    :initform nil :reader renditions))
+    :initform nil :initarg :graph :reader graph))
   (:documentation "The Graph Breakup class.
 This class is used by graph based algorithms."))
 
-(defmethod initialize-instance :after ((breakup graph-breakup) &key layouts)
-  "Convert the layouts list to an array and create the renditions array."
-  (when (graph breakup)
-    (setf (slot-value breakup 'layouts)
-	  (make-array (length layouts) :initial-contents layouts))
-    (setf (slot-value breakup 'renditions)
-	  (make-array (length layouts) :initial-element nil))))
-
-
-(defmethod properties strnlcat ((breakup graph-breakup) &key)
+(defmethod properties strnlcat
+    ((breakup graph-breakup) &key &aux (graph (graph breakup)))
   "Return a string advertising graph BREAKUP's properties."
   (when graph
-    (multiple-value-bind (non-null null) (hash-table-counts (graph breakup))
+    (multiple-value-bind (non-null null) (hash-table-counts graph)
       (format nil "Break points: ~A (~A dead-end~:P)." non-null null))))

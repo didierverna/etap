@@ -422,7 +422,7 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 
 (defclass layout ()
   ((lines :documentation "This layout's list of lines."
-	  :initarg :lines :reader lines))
+	  :initform nil :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
 paragraph. Algorithms may provide their own layout subclass in order to store

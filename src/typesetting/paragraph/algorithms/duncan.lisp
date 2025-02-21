@@ -132,40 +132,45 @@ The possible endings are listed in reverse order (from last to first)."
 
 
 ;; ==========================================================================
-;; Layouts
+;; Lines
 ;; ==========================================================================
-
-;; ------
-;; Ledges
-;; ------
 
 ;; #### TODO: it's probably a bad idea to call the cumulative weight just
 ;; "weight".
-(defclass duncan-ledge (ledge)
-  ((weight :documentation "The cumulative weight so far in the layout."
-	   :initarg :weight :reader weight))
-  (:documentation "The Duncan Ledge class."))
+(defclass duncan-line (line)
+  ((weight
+    :documentation "The cumulative weight so far in the layout."
+    :initarg :weight :reader weight))
+  (:documentation "The Duncan Line class."))
 
-(defmethod scale ((ledge duncan-ledge))
-  "Return Duncan LEDGE's boundary scale."
-  (scale (boundary ledge)))
+(defmethod properties strnlcat ((line duncan-line) &key)
+  "Advertise Duncan LINE properties."
+  (format nil "Cumulative weight: ~A." ($float (weight line))))
 
-(defmethod fitness ((ledge duncan-ledge))
-  "Return Duncan LEDGE's boundary fitness."
-  (fitness (boundary ledge)))
+(defun duncan-make-justified-line
+    (harray bol boundary weight overstretch overshrink
+     &aux (scale (scale boundary)))
+  "Duncan version of `make-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (if (eopp boundary)
+	;; Justified last line: maybe shrink it but don't stretch it.
+	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
+	;; Justified regular line: make it fit.
+	(actual-scales scale :overshrink overshrink :overstretch overstretch))
+    (make-instance 'duncan-line
+      :harray harray :bol bol :boundary boundary
+      :scale theoretical
+      :effective-scale effective
+      :weight weight)))
 
-(defmethod properties strnlcat ((ledge duncan-ledge) &key)
-  "Advertise Duncan LEDGE properties."
-  (format nil "Weights: ~A (line), ~A (cumulative)."
-    ($float (weight (boundary ledge)))
-    ($float (weight ledge))))
 
 
-;; -------
+
+;; ==========================================================================
 ;; Layouts
-;; -------
+;; ==========================================================================
 
-;; #### NOTE: the layout's weight is in fact the weight of the last ledge.
+;; #### NOTE: the layout's weight is in fact the weight of the last line.
 (defclass duncan-layout (layout)
   ((weight
     :documentation "This layout's total weight."
@@ -187,17 +192,37 @@ The possible endings are listed in reverse order (from last to first)."
   "Advertise Duncan LAYOUT properties."
   (format nil "Weight: ~A." ($float (weight layout))))
 
-(defun duncan-postprocess-layout (layout)
-  "Compute LAYOUT's properties."
-  (change-class layout 'duncan-layout)
-  (with-slots (weight hyphens underfulls overfulls) layout
-    (loop :for ledge :in (ledges layout)
-	  :do (setf weight ($+ weight (weight (boundary ledge))))
-	  :do (change-class ledge 'duncan-ledge :weight weight)
-	  :when (hyphenated ledge) :do (incf hyphens)
-	    :do (case (fitness ledge)
-		  (:underfull (incf underfulls))
-		  (:overfull  (incf overfulls))))))
+(defun duncan-make-layout
+    (harray disposition path
+     &aux (layout (make-instance 'duncan-layout))
+	  (disposition-type (disposition-type disposition))
+	  (disposition-options (disposition-options disposition))
+	  (overstretch (getf disposition-options :overstretch))
+	  (overshrink (getf disposition-options :overshrink)))
+  "Create a Duncan layout from HARRAY PATH for DISPOSITION."
+  (with-slots (lines weight hyphens underfulls overfulls) layout
+    (loop :with make-line := (case disposition-type
+			       (:justified
+				(lambda (harray bol boundary weight)
+				  (duncan-make-justified-line
+				   harray bol boundary weight
+				   overstretch overshrink)))
+			       (t  ;; just switch back to normal spacing.
+				(lambda (harray bol boundary weight)
+				  (make-instance 'duncan-line
+				    :harray harray
+				    :bol bol
+				    :boundary boundary
+				    :weight weight))))
+	  :for bol := *bop* :then (break-point boundary)
+	  :for boundary :in path
+	  :do (setf weight ($+ weight (weight boundary)))
+	  :when (hyphenated boundary) :do (incf hyphens)
+	  :do (case (fitness boundary)
+		(:underfull (incf underfulls))
+		(:overfull  (incf overfulls)))
+	  :do (push (funcall make-line harray bol boundary weight) lines)))
+  layout)
 
 
 
@@ -206,19 +231,14 @@ The possible endings are listed in reverse order (from last to first)."
 ;; Breakup
 ;; ==========================================================================
 
-;; #### NOTE: this class only exists to specialize MAKE-RENDITION.
-(defclass duncan-breakup (graph-breakup)
-  ()
-  (:documentation "The Duncan Breakup Class."))
-
 (defmethod break-harray
     (harray disposition width (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*)))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
   (if (zerop (length harray))
-    (make-instance 'duncan-breakup
-      :disposition disposition :width width :harray harray)
+    (make-instance 'graph-breakup
+      :harray harray :disposition disposition :width width)
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -229,7 +249,10 @@ The possible endings are listed in reverse order (from last to first)."
     ;; be experimented. On the other hand, if we get even just one full, the
     ;; solution is unacceptable in theory so it's probably not worth it.
     (let* ((graph (make-graph harray width #'duncan-get-boundaries))
-	   (layouts (mapc #'duncan-postprocess-layout (make-layouts graph))))
+	   (paths (make-graph-paths graph))
+	   (layouts (mapcar (lambda (path)
+			      (duncan-make-layout harray disposition path))
+		      paths)))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
 		      (zerop (underfulls layout))
@@ -262,55 +285,6 @@ The possible endings are listed in reverse order (from last to first)."
 			  (< (+ (underfulls l1) (overfulls l1))
 			     (+ (underfulls l2) (overfulls l2)))))))
 	(setq layouts (sort layouts #'better)))
-      (make-instance 'duncan-breakup
-	:disposition disposition :width width
-	:harray harray :graph graph :layouts layouts))))
-
-
-
-
-;; ==========================================================================
-;; Lines
-;; ==========================================================================
-
-(defun duncan-make-justified-line
-    (harray bol ledge overstretch overshrink &aux (scale (scale ledge)))
-  "Duncan version of `make-ledge-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
-      (if (eopp ledge)
-	;; Justified last line: maybe shrink it but don't stretch it.
-	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
-	;; Justified regular line: make it fit.
-	(actual-scales scale :overshrink overshrink :overstretch overstretch))
-    (make-ledge-line harray bol ledge
-      :scale theoretical
-      :effective-scale effective)))
-
-
-
-
-;; ==========================================================================
-;; Renditions
-;; ==========================================================================
-
-(defmethod make-rendition
-    (nth (breakup duncan-breakup)
-     &aux (disposition (disposition breakup))
-	  (disposition-type (disposition-type disposition))
-	  (disposition-options (disposition-options disposition))
-	  (overstretch (getf disposition-options :overstretch))
-	  (overshrink (getf disposition-options :overshrink)))
-  "Render Nth layout from Duncan BREAKUP."
-  (pin-lines
-   (make-layout-lines (harray breakup)
-		      (aref (layouts breakup) nth)
-		      (case disposition-type
-			(:justified
-			 (lambda (harray bol ledge)
-			   (duncan-make-justified-line
-			    harray bol ledge overstretch overshrink)))
-			(t  ;; just switch back to normal spacing.
-			 (lambda (harray bol ledge)
-			   (make-line harray bol (boundary ledge))))))
-   disposition-type
-   (width breakup)))
+      (make-instance 'graph-breakup
+	:harray harray :disposition disposition :width width
+	 :graph graph :layouts layouts))))
