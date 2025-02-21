@@ -68,7 +68,8 @@ it, and the closest to SOURCE's right, all of these X-wise."
 	  :else :do (return (append left below (list ws)))
 	  :finally (return (append left below)))))
 
-(defun detect-rivers (lines angle &aux (hash (make-hash-table)))
+(defun detect-rivers
+    (layout angle &aux (lines (lines layout)) (hash (make-hash-table)))
   "Detect rivers of at most ANGLE threshold in LINES.
 The return value is a hash table mapping source whitespaces to a list of arms."
   (loop :for line1 :in lines
