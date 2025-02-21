@@ -19,24 +19,24 @@
 (defun remake-rivers
     (interface
      &aux (rivers-interface (rivers-interface interface))
-	  (rendition (rendition interface)))
+	  (layout (layout interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
 	(when (and (button-selected
 		    (rivers-detection (rivers-interface interface)))
-		   (not (zerop rendition)))
+		   (not (zerop layout)))
 	  (detect-rivers
-	   (get-rendition (1- rendition) (breakup (paragraph interface)))
+	   (get-layout (1- layout) (breakup (paragraph interface)))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
 (defun remake-paragraph (interface)
   "Remake INTERFACE's paragaph."
   (let* ((paragraph (make-paragraph :context (context interface)))
-	 (renditions-# (renditions-# (breakup paragraph))))
+	 (layouts-# (layouts-# (breakup paragraph))))
     (setf (paragraph interface) paragraph)
-    (setf (rendition interface) (if (zerop renditions-#) 0 1))
+    (setf (layout interface) (if (zerop layouts-#) 0 1))
     (setf (titled-object-title (view interface))
-	  (format nil "Rendition ~D/~D" (rendition interface) renditions-#))))
+	  (format nil "Layout ~D/~D" (layout interface) layouts-#))))
 
 (defun update (interface)
   "Update INTERFACE.
@@ -261,9 +261,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (pane x y width height
      &aux (interface (top-level-interface pane))
 	  (paragraph (paragraph interface))
-	  (rendition (rendition interface))
-	  (layout (unless (zerop rendition)
-		    (get-rendition (1- rendition) (breakup paragraph))))
+	  (layout-# (layout interface))
+	  (layout (unless (zerop layout-#)
+		    (get-layout (1- layout-#) (breakup paragraph))))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
 	  (rivers (rivers interface))
@@ -418,28 +418,28 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		   rivers))))))
 
 
-;; Renditions
+;; Layouts
 
-(defun next-rendition
+(defun next-layout
     (op interface
-     &aux (renditions-# (renditions-# (breakup (paragraph interface))))
-	  (rendition (rendition interface)))
-  "Select the next OP rendition."
-  (unless (zerop renditions-#)
-    (setq rendition (1+ (mod (1- (funcall op rendition)) renditions-#)))
-    (setf (rendition interface) rendition)
+     &aux (layouts-# (layouts-# (breakup (paragraph interface))))
+	  (layout (layout interface)))
+  "Select the next OP layout."
+  (unless (zerop layouts-#)
+    (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
+    (setf (layout interface) layout)
     (when (button-selected (rivers-detection (rivers-interface interface)))
       (remake-rivers interface))
     (setf (titled-object-title (view interface))
-	  (format nil "Rendition ~D/~D" rendition renditions-#))
+	  (format nil "Layout ~D/~D" layout layouts-#))
     (gp:invalidate-rectangle (view interface))))
 
 
 ;; Tooltips
 
 (defparameter *interface-tooltips*
-  '(:rendition-1 "Display previous rendition."
-    :rendition+1 "Display next rendition."))
+  '(:layout-1 "Display previous layout."
+    :layout+1 "Display next layout."))
 
 (defparameter *tooltips*
   `(,@*interface-tooltips*
@@ -461,9 +461,9 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
-	  (rendition (1- (rendition interface)))
-	  (layout (when (<= 0 rendition)
-		    (get-rendition rendition (breakup paragraph)))))
+	  (layout-# (1- (layout interface)))
+	  (layout (when (<= 0 layout-#)
+		    (get-layout layout-# (breakup paragraph)))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
@@ -471,7 +471,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (if (and (<= x 0) (<= y (depth layout)))
       (display-tooltip pane
 	:text (properties paragraph
-		:rendition (when (<= 0 rendition) rendition)))
+		:layout (when (<= 0 layout-#) layout-#)))
       (let ((line (when (and (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))
@@ -561,7 +561,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
-   (rendition :initform 0 :accessor rendition)
+   (layout :initform 0 :accessor layout)
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
@@ -869,16 +869,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
-   (rendition-1 push-button
+   (layout-1 push-button
      :text "<"
      :data #'1-
-     :callback 'next-rendition
-     :help-key :rendition-1)
-   (rendition+1 push-button
+     :callback 'next-layout
+     :help-key :layout-1)
+   (layout+1 push-button
      :text ">"
      :data #'1+
-     :callback 'next-rendition
-     :help-key :rendition+1)
+     :callback 'next-layout
+     :help-key :layout+1)
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
@@ -902,7 +902,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :change-callback 'set-text
      :reader text)
    (view output-pane
-     :title "Rendition" :title-position :frame
+     :title "Layout" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
      :visible-min-height 300
@@ -910,15 +910,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :vertical-scroll t
      :display-callback 'render-view
      :reader view
-	 ;;:input-model '(((:button-1 :press) display-properties))))
+     ;; :input-model '(((:button-1 :press) display-properties))))
      :input-model '((:motion display-properties))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom renditions)
+   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
      :reader settings-1)
-   (renditions row-layout '(rendition-1 rendition+1))
-    (options row-layout '(options-1 options-2))
+   (layouts-ctrl row-layout '(layout-1 layout+1))
+   (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text-options text)

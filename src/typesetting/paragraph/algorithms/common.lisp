@@ -336,7 +336,7 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 
 
 ;; #### WARNING: the three methods below require the line to be rendered
-;; already! Doing it otherwise is possible in theory (because we know the
+;; already. Doing it otherwise is possible in theory (because we know the
 ;; scaling), but would require additional and redundant computation.
 
 (defmethod width ((line line) &aux (object (car (last (pinned-objects line)))))
@@ -360,11 +360,11 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
   (penalty (boundary line)))
 
 
-;; #### WARNING: this method requires the line to have been rendered already!
+;; #### WARNING: this method requires the line to have been rendered already.
 ;; Doing it otherwise is possible in theory (because we know the scaling), but
 ;; would require additional and redundant computation.
 (defmethod properties strnlcat ((line line) &key)
-  "Advertise LINE's width. This is the default method."
+  "Return a string advertising LINE's properties."
   (strnlcat
    (properties (boundary line))
    (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
@@ -420,8 +420,8 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 	  :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
-paragraph in a graph of possible solutions. Algorithms may subclass this class
-in order to store layout specific global properties."))
+paragraph. Algorithms may provide their own layout subclass in order to store
+specific global properties."))
 
 
 ;; ---------
@@ -432,8 +432,6 @@ in order to store layout specific global properties."))
   ()
   (:documentation "The LINNED-LINE class."))
 
-;; #### NOTE: we don't have having nesting feature right now, so no board for
-;; pinned lines (toplevel objects).
 (defun render-layout (layout disposition width &aux (lines (lines layout)))
   "Render LAYOUT's lines and pin them for a DISPOSITION of WIDTH.
 Return LAYOUT."
@@ -449,16 +447,26 @@ Return LAYOUT."
 	  :for y := 0 :then (+ y baseline-skip)
 	  :for line :in lines
 	  :do (render-line line)
-	  :do (change-class line 'pinned-line :x (funcall x line) :y y)))
+	  :do (change-class line 'pinned-line
+		:board layout :x (funcall x line) :y y)))
   layout)
+
+(defun renderedp (layout)
+  "Return T if LAYOUT is rendered."
+  (typep (first (lines layout)) 'pinned-line))
 
 
 (defun lines-# (layout)
   "Return the number of PINNED-LINES."
   (length (lines layout)))
 
+
 ;; #### WARNING: the three methods below can only work when the layout has
-;; been rendered!
+;; been rendered.
+
+;; #### NOTE: there's no WIDTH method for layouts because layout lines may be
+;; of different widths. The width of a line is /not/ the width of the
+;; paragraph. It's the physical width occupied by its visible objects.
 
 (defmethod height ((layout layout))
   "Return LAYOUT' height.
@@ -471,6 +479,7 @@ height of the whole paragraph."
   "Return LAYOUT's depth.
 We consider that the paragraph's baseline is the first line's baseline."
   (+ (y last) (depth last)))
+
 
 (defmethod properties strnlcat ((layout layout) &key)
   "Return a string advertising LAYOUT's properties."
