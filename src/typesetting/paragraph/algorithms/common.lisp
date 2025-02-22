@@ -372,7 +372,7 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 This includes the line's boundary properties, plus "
   (strnlcat
    (properties (boundary line))
-   (format nil "Scale: ~A~:[~; (effective: ~A)~].~%Width: ~Apt.~%"
+   (format nil "Scale: ~A~:[~; (effective: ~A)~].~%Width: ~Apt."
      ($float (scale line))
      ($/= (scale line) (effective-scale line))
      ($float (effective-scale line))
