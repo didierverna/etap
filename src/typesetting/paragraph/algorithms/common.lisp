@@ -462,7 +462,7 @@ Return LAYOUT."
 
 (defun renderedp (layout)
   "Return T if LAYOUT is rendered."
-  (typep (first (lines layout)) 'pinned-line))
+  (typep (first (lines layout)) (pinned-line-class layout)))
 
 
 (defun lines-# (layout)
