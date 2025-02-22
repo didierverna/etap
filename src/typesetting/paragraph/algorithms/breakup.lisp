@@ -27,14 +27,6 @@ A breakup is the result of running a paragraph formatting algorithm on an
 harray for a specific paragraph width. Algorithms may provide their own
 breakup subclass in order to store specific global properties."))
 
-(defmethod initialize-instance :after
-    ((breakup breakup) &key (layouts nil layoutsp))
-  "Initialize BREAKUP's layouts with LAYOUTS list when provided."
-  (when layoutsp
-    (setf (slot-value breakup 'layouts)
-	  (make-array (length layouts) :initial-contents layouts))))
-
-
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to
 ;; relax keyword argument checking. Also, each algorithm is responsible for
@@ -67,9 +59,7 @@ Use ALGORITHM to do so."
 
 (defun get-layout (nth breakup &aux (layout (aref (layouts breakup) nth)))
   "Get the Nth BREAKUP's layout. Make sure it is rendered first."
-  (if (renderedp layout)
-    layout
-    (render-layout layout (disposition breakup) (width breakup))))
+  (if (renderedp layout) layout (render-layout layout)))
 
 
 

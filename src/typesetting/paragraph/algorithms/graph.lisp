@@ -125,7 +125,7 @@ but there is one for the end."
 
 
 ;; ==========================================================================
-;; Graph / Layout Breakups
+;; Graph Breakups
 ;; ==========================================================================
 
 (defclass graph-breakup (breakup)

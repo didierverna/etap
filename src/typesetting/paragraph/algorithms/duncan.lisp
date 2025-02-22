@@ -138,8 +138,7 @@ The possible endings are listed in reverse order (from last to first)."
 ;; #### TODO: it's probably a bad idea to call the cumulative weight just
 ;; "weight".
 (defclass duncan-line (line)
-  ((pinned-line-class :initform 'duncan-pinned-line) ; slot override
-   (weight
+  ((weight
     :documentation "The cumulative weight so far in the layout."
     :initarg :weight :reader weight))
   (:documentation "The Duncan Line class."))
@@ -178,7 +177,8 @@ The possible endings are listed in reverse order (from last to first)."
 
 ;; #### NOTE: the layout's weight is in fact the weight of the last line.
 (defclass duncan-layout (layout)
-  ((weight
+  ((pinned-line-class :initform 'duncan-pinned-line) ; slot override
+   (weight
     :documentation "This layout's total weight."
     :initform 0 :reader weight)
    (hyphens
@@ -199,13 +199,15 @@ The possible endings are listed in reverse order (from last to first)."
   (format nil "Weight: ~A." ($float (weight layout))))
 
 (defun duncan-make-layout
-    (harray disposition path
-     &aux (layout (make-instance 'duncan-layout))
+    (breakup path
+     &aux (harray (harray breakup))
+	  (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
 	  (disposition-options (disposition-options disposition))
 	  (overstretch (getf disposition-options :overstretch))
-	  (overshrink (getf disposition-options :overshrink)))
-  "Create a Duncan layout from HARRAY PATH for DISPOSITION."
+	  (overshrink (getf disposition-options :overshrink))
+	  (layout (make-instance 'duncan-layout :breakup breakup)))
+  "Create a Duncan layout for BREAKUP from PATH."
   (with-slots (weight hyphens underfulls overfulls) layout
     (loop :with make-line := (case disposition-type
 			       (:justified
@@ -240,12 +242,12 @@ The possible endings are listed in reverse order (from last to first)."
 
 (defmethod break-harray
     (harray disposition width (algorithm (eql :duncan))
-     &key ((:discriminating-function *discriminating-function*)))
+     &key ((:discriminating-function *discriminating-function*))
+     &aux (breakup (make-instance 'graph-breakup
+		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Duncan algorithm."
   (default-duncan discriminating-function)
-  (if (zerop (length harray))
-    (make-instance 'graph-breakup
-      :harray harray :disposition disposition :width width)
+  (unless (zerop (length harray))
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid
     ;; preventive fulls, that is, we don't return *full boundaries if there is
     ;; at least one fit boundary. Experience shows that including preventive
@@ -257,8 +259,7 @@ The possible endings are listed in reverse order (from last to first)."
     ;; solution is unacceptable in theory so it's probably not worth it.
     (let* ((graph (make-graph harray width #'duncan-get-boundaries))
 	   (paths (make-graph-paths graph))
-	   (layouts (mapcar (lambda (path)
-			      (duncan-make-layout harray disposition path))
+	   (layouts (mapcar (lambda (path) (duncan-make-layout breakup path))
 		      paths)))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
@@ -292,6 +293,6 @@ The possible endings are listed in reverse order (from last to first)."
 			  (< (+ (underfulls l1) (overfulls l1))
 			     (+ (underfulls l2) (overfulls l2)))))))
 	(setq layouts (sort layouts #'better)))
-      (make-instance 'graph-breakup
-	:harray harray :disposition disposition :width width
-	 :graph graph :layouts layouts))))
+      (setf (slot-value breakup 'layouts)
+	    (make-array (length layouts) :initial-contents layouts))))
+  breakup)

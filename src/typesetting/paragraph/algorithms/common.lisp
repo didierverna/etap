@@ -421,11 +421,15 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; ==========================================================================
 
 (defclass layout ()
-  ((pinned-line-class
+  ((breakup
+    :documentation "The breakup this layout belongs to."
+    :initarg :breakup :reader breakup)
+   (pinned-line-class
     :documentation "The class to use when pinning lines."
     :allocation :class :initform 'pinned-line :reader pinned-line-class)
-   (lines :documentation "This layout's list of lines."
-	  :initform nil :initarg :lines :reader lines))
+   (lines
+    :documentation "This layout's list of lines."
+    :initform nil :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
 paragraph. Algorithms may provide their own layout subclass in order to store
@@ -440,24 +444,24 @@ specific global properties."))
   ()
   (:documentation "The LINNED-LINE class."))
 
-(defun render-layout (layout disposition width &aux (lines (lines layout)))
-  "Render LAYOUT's lines and pin them for a DISPOSITION of WIDTH.
-Return LAYOUT."
+(defun render-layout (layout &aux (lines (lines layout)))
+  "Render LAYOUT's lines and pin them. Return LAYOUT."
   (when lines
-    (loop :with class := (pinned-line-class layout)
-	  :with baseline-skip := (baseline-skip (harray (car lines)))
-	  :with x := (ecase (disposition-type disposition)
-		       ((:flush-left :justified)
-			(lambda (line) (declare (ignore line)) 0))
-		       (:centered
-			(lambda (line) (/ (- width (width line)) 2)))
-		       (:flush-right
-			(lambda (line) (- width (width line)))))
-	  :for y := 0 :then (+ y baseline-skip)
-	  :for line :in lines
-	  :do (render-line line)
-	  :do (change-class line class
-		:board layout :x (funcall x line) :y y)))
+    (with-slots (harray disposition width) (breakup layout)
+      (loop :with class := (pinned-line-class layout)
+	    :with baseline-skip := (baseline-skip harray)
+	    :with x := (ecase (disposition-type disposition)
+			 ((:flush-left :justified)
+			  (lambda (line) (declare (ignore line)) 0))
+			 (:centered
+			  (lambda (line) (/ (- width (width line)) 2)))
+			 (:flush-right
+			  (lambda (line) (- width (width line)))))
+	    :for y := 0 :then (+ y baseline-skip)
+	    :for line :in lines
+	    :do (render-line line)
+	    :do (change-class line class
+		  :board layout :x (funcall x line) :y y))))
   layout)
 
 (defun renderedp (layout)

@@ -12,18 +12,17 @@ This function processes HARRAY in a greedy way:
 	:while boundary
 	:collect (funcall make-line harray bol boundary)))
 
-(defun make-greedy-breakup (harray disposition width get-boundary make-line)
+(defun make-greedy-breakup
+    (harray disposition width get-boundary make-line
+     &aux (breakup (make-instance 'breakup
+		     :harray harray :disposition disposition :width width)))
   "Make a greedy breakup of HARRAY for a DISPOSITION paragraph of WIDTH.
-See `make-greedy-lines' for further information."
-  (if (zerop (length harray))
-    (make-instance 'breakup
-      :harray harray
-      :disposition disposition
-      :width width)
-    (make-instance 'breakup
-      :harray harray
-      :disposition disposition
-      :width width
-      :layouts (list (make-instance 'layout
-		       :lines (make-greedy-lines
-			       harray width get-boundary make-line))))))
+See `make-greedy-lines' for information on GET-BOUNDARY and MAKE-LINE."
+  (unless (zerop (length harray))
+    (setf (slot-value breakup 'layouts)
+	  (make-array 1
+	    :initial-element (make-instance 'layout
+			       :breakup breakup
+			       :lines (make-greedy-lines harray width
+					get-boundary make-line)))))
+  breakup)
