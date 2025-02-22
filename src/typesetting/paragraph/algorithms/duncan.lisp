@@ -258,9 +258,8 @@ The possible endings are listed in reverse order (from last to first)."
     ;; be experimented. On the other hand, if we get even just one full, the
     ;; solution is unacceptable in theory so it's probably not worth it.
     (let* ((graph (make-graph harray width #'duncan-get-boundaries))
-	   (paths (make-graph-paths graph))
 	   (layouts (mapcar (lambda (path) (duncan-make-layout breakup path))
-		      paths)))
+		      (make-graph-paths graph))))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
 		      (zerop (underfulls layout))
