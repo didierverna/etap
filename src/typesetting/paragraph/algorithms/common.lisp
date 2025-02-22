@@ -280,7 +280,6 @@ This class represents pinned glues and stores their width after scaling."))
 ;; Lines
 ;; -----
 
-;; #### TODO: check if lines really need to store their BOL.
 (defclass line ()
   ((harray
     :documentation "The corresponding harray."
