@@ -135,7 +135,7 @@ the underfull one."))
 	   keys)))
 
 (defmethod properties strnlcat ((boundary fixed-boundary) &key)
-  "Advertise Fixed BOUNDARY's natural width."
+  "Return a string advertising Fixed BOUNDARY's natural width."
   (format nil "Natural width: ~Apt." (float (width boundary))))
 
 

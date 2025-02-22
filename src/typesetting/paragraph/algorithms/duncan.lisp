@@ -75,7 +75,7 @@ The weight is computed according to the discriminating function."
 
 ;; It's not worth it to advertise the boundary's fitness.
 (defmethod properties strnlcat ((boundary duncan-boundary) &key)
-  "Advertise Duncan BOUNDARY's weight."
+  "Return a string advertising Duncan BOUNDARY's weight."
   (format nil "Weigth: ~A."
     ($float (weight boundary))))
 
@@ -144,7 +144,7 @@ The possible endings are listed in reverse order (from last to first)."
   (:documentation "The Duncan Line class."))
 
 (defmethod properties strnlcat ((line duncan-line) &key)
-  "Advertise Duncan LINE properties."
+  "Return a string advertising Duncan LINE's cumulative weight."
   (format nil "Cumulative weight: ~A." ($float (weight line))))
 
 (defun duncan-make-justified-line
@@ -195,7 +195,7 @@ The possible endings are listed in reverse order (from last to first)."
 ;; #### NOTE: we only advertise the layout's weight for now. The other
 ;; properties are here for sorting the layouts from best to worse.
 (defmethod properties strnlcat ((layout duncan-layout) &key)
-  "Advertise Duncan LAYOUT properties."
+  "Return a string advertising Duncan LAYOUT's weight."
   (format nil "Weight: ~A." ($float (weight layout))))
 
 (defun duncan-make-layout

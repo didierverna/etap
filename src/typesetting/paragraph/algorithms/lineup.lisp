@@ -45,7 +45,9 @@
 			 (expt 2 break-points-#)))))
 
 (defmethod properties strnlcat ((lineup lineup) &key)
-  "Return a string advertising LINEUP's properties."
+  "Return a string advertising LINEUP's properties.
+This includes the total number of break points, and the theoretical number of
+breaking solutions."
   (format nil "~A breakpoints, ~A theoretical solutions (2^n)."
     (break-points-# lineup)
     (theoretical-solutions-# lineup)))

@@ -238,7 +238,7 @@ for that)."))
   (eopp (break-point boundary)))
 
 (defmethod properties strnlcat ((boundary boundary) &key)
-  "Advertise BOUNDARY's penalty."
+  "Return a string advertising BOUNDARY's penalty."
   (format nil "Penalty: ~A." (penalty boundary)))
 
 
@@ -368,14 +368,15 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 ;; Doing it otherwise is possible in theory (because we know the scaling), but
 ;; would require additional and redundant computation.
 (defmethod properties strnlcat ((line line) &key)
-  "Return a string advertising LINE's properties."
+  "Return a string advertising LINE's properties.
+This includes the line's boundary properties, plus "
   (strnlcat
    (properties (boundary line))
-   (format nil "Width: ~Apt.~%Scale: ~A~:[~; (effective: ~A)~]"
-     (float (width line))
+   (format nil "Scale: ~A~:[~; (effective: ~A)~].~%Width: ~Apt.~%"
      ($float (scale line))
      ($/= (scale line) (effective-scale line))
-     ($float (effective-scale line)))))
+     ($float (effective-scale line))
+     (float (width line)))))
 
 
 ;; ---------
@@ -495,7 +496,8 @@ We consider that the paragraph's baseline is the first line's baseline."
 
 
 (defmethod properties strnlcat ((layout layout) &key)
-  "Return a string advertising LAYOUT's properties."
+  "Return a string advertising LAYOUT's properties.
+This includes the layout's number of lines, vertical size, height, and depth."
   (format nil "~A line~:P.~@
 	       Vertical size: ~Apt (height: ~Apt, depth: ~Apt)."
     (lines-# layout)

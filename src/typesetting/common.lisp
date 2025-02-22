@@ -1,6 +1,6 @@
 (in-package :etap)
 
-(defgeneric properties (object &key &allow-other-keys)
+(defgeneric properties (object &key)
   (:documentation "Return a string advertising OBJECT's properties.
 Methods may return an empty string or NIL if there is nothing to advertise.")
   (:method-combination strnlcat :most-specific-last))

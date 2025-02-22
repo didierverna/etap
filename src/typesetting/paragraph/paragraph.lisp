@@ -45,7 +45,9 @@
   "Return PARAGRAPH's width."
   (width (breakup paragraph)))
 
-(defmethod properties strnlcat ((paragraph paragraph) &key rendition)
-  "Return a string advertising PARAGRAPH's properties."
+(defmethod properties strnlcat ((paragraph paragraph) &key layout-#)
+  "Return a string advertising PARAGRAPH's lineup and breakup properties.
+When LAYOUT-#, also advertise the paragraph breakup's LAYOUT-#th layout
+properties."
   (strnlcat (properties (lineup paragraph))
-	    (properties (breakup paragraph) :rendition rendition)))
+	    (properties (breakup paragraph) :layout-# layout-#)))

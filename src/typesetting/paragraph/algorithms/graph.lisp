@@ -137,7 +137,7 @@ This class is used by graph based algorithms."))
 
 (defmethod properties strnlcat
     ((breakup graph-breakup) &key &aux (graph (graph breakup)))
-  "Return a string advertising graph BREAKUP's properties."
+  "Return a string advertising BREAKUP's graph properties."
   (when graph
     (multiple-value-bind (non-null null) (hash-table-counts graph)
       (format nil "Break points: ~A (~A dead-end~:P)." non-null null))))

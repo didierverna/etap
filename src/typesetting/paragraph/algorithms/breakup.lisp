@@ -70,9 +70,9 @@ Use ALGORITHM to do so."
 
 (defmethod properties strnlcat
     ((breakup breakup) &key layout-# &aux (layouts (layouts breakup)))
-  "Return a string advertising BREAKUP's properties.
-When LAYOUT-#, also advertise this layout's properties.
-Note that this entails the rendering of the layout."
+  "Return a string advertising BREAKUP's layouts number.
+When LAYOUT-#, also advertise BREAKUP's LAYOUT-#th layout properties.
+Care is taken to render the layout first."
   (strnlcat
    (when layouts (format nil "~A layout~:P" (length layouts)))
    (when layout-#

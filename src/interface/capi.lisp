@@ -471,7 +471,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
     (if (and (<= x 0) (<= y (depth layout)))
       (display-tooltip pane
 	:text (properties paragraph
-		:layout (when (<= 0 layout-#) layout-#)))
+		:layout-# (when (<= 0 layout-#) layout-#)))
       (let ((line (when (and (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))

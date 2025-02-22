@@ -220,7 +220,9 @@ for equally good solutions."))
 	(scaling width target stretch shrink)))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
-  "Advertise Fit BOUNDARY's natural width."
+  "Return a string advertising Fit BOUNDARY's natural dimensions.
+This includes the minimum, natural, and maximum theoretical line widths,
+plus the theoretical scaling required to reach the target width."
   (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical scaling: ~A."
     (float (min-width boundary))
     ($float (max-width boundary))
@@ -238,7 +240,9 @@ for equally good solutions."))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
 (defmethod properties strnlcat ((boundary fit-weighted-boundary) &key)
-  "Advertise Fit Weighted BOUNDARY's weight and choices number."
+  "Return a string advertising Fit Weighted BOUNDARY's properties.
+This includes the boundary's weight and the number possibilities to end this
+line."
   (format nil "Weight: ~A, best of ~A choice~:P."
     ($float (weight boundary))
     (possibilities boundary)))
