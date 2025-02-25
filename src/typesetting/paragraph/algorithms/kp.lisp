@@ -398,6 +398,7 @@ This is the Knuth-Plass version for the graph variant.
 				  (kp-get-boundaries
 				   harray bol width *tolerance*
 				   t *emergency-stretch*)))))
+      (setf (slot-value breakup 'graph) graph)
       (setq layouts (mapcar (lambda (path) (kp-make-layout breakup path))
 		      (make-graph-paths graph)))
       ;; #### WARNING: in order to remain consistent with TeX, and as in the

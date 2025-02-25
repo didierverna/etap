@@ -257,9 +257,10 @@ The possible endings are listed in reverse order (from last to first)."
     ;; of fit, we reduce the number of subsequent *fulls. Perhaps this should
     ;; be experimented. On the other hand, if we get even just one full, the
     ;; solution is unacceptable in theory so it's probably not worth it.
-    (let* ((graph (make-graph harray width #'duncan-get-boundaries))
-	   (layouts (mapcar (lambda (path) (duncan-make-layout breakup path))
-		      (make-graph-paths graph))))
+    (setf (slot-value breakup 'graph)
+	  (make-graph harray width #'duncan-get-boundaries))
+    (let ((layouts (mapcar (lambda (path) (duncan-make-layout breakup path))
+		     (make-graph-paths (graph breakup)))))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
 		      (zerop (underfulls layout))

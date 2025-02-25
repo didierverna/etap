@@ -131,7 +131,7 @@ but there is one for the end."
 (defclass graph-breakup (breakup)
   ((graph
     :documentation "This breakup's graph hash table."
-    :initform nil :initarg :graph :reader graph))
+    :initform nil :reader graph))
   (:documentation "The Graph Breakup class.
 This class is used by graph based algorithms."))
 
