@@ -123,13 +123,7 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 ;; ----------------------
 
 (defclass kp-breakup-mixin ()
-  ((pre-tolerance
-    :documentation "This breakup's pre-tolerance."
-    :initarg :pre-tolerance :reader pre-tolerance)
-   (tolerance
-    :documentation "This breakup's tolerance."
-    :initarg :tolerance :reader tolerance)
-   (pass
+  ((pass
     :documentation "Which of the 3 passes produced this breakup."
     :initform 0 :reader pass))
   (:documentation "The KP-BREAKUP-MIXIN class.
@@ -306,22 +300,19 @@ This is the Knuth-Plass version for the graph variant.
 	  (overshrink (getf (disposition-options disposition) :overshrink))
 	  ;; #### NOTE: no emergency stretch counted here. See comment on top
 	  ;; of KP-MAKE-JUSTIFIED-LINE.
-	  (stretch-tolerance (if (> (pass breakup) 1)
-			       (tolerance breakup)
-			       (pre-tolerance breakup)))
-	  (make-line (case disposition-type
-		       (:justified
-			(lambda (harray bol boundary demerits)
-			  (kp-make-justified-line
-			   harray bol boundary
-			   demerits stretch-tolerance overshrink)))
-		       (t ;; just switch back to normal spacing.
-			(lambda (harray bol boundary demerits)
-			  (make-instance 'kp-line
-			    :harray harray
-			    :bol bol
-			    :boundary boundary
-			    :demerits demerits)))))
+	  (stretch-tolerance
+	   (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))
+	  (make-line
+	   (case disposition-type
+	     (:justified
+	      (lambda (harray bol boundary demerits)
+		(kp-make-justified-line harray bol boundary
+		  demerits stretch-tolerance overshrink)))
+	     (t ;; just switch back to normal spacing.
+	      (lambda (harray bol boundary demerits)
+		(make-instance 'kp-line
+		  :harray harray :bol bol :boundary boundary
+		  :demerits demerits)))))
 	  (layout (make-instance 'kp-layout
 		    :breakup breakup
 		    :demerits (demerits (first path))
@@ -373,8 +364,7 @@ This is the Knuth-Plass version for the graph variant.
 (defun kp-graph-break-harray
     (harray disposition width
      &aux (breakup (make-instance 'kp-graph-breakup
-		     :harray harray :disposition disposition :width width
-		     :pre-tolerance *pre-tolerance* :tolerance *tolerance*)))
+		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
   (unless (zerop (length harray))
     (let (graph layouts)
