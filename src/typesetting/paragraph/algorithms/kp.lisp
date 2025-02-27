@@ -306,8 +306,8 @@ This is the Knuth-Plass version for the graph variant.
     :documentation "This layout's number of bad lines."
     :initarg :bads :reader bads)
    (size
-    :documentation "This layout's size (i.e. the number of lines)."
-    :initform 1 :reader size))
+    :documentation "This layout's size (i.e., the number of lines)."
+    :initform 1 :initarg :size :reader size))
   (:documentation "The KP-LAYOUT class."))
 
 ;; #### NOTE: we only advertise the layout's demerits for now. The other
@@ -433,9 +433,9 @@ This is the Knuth-Plass version for the graph variant.
 ;; Dynamic Variant
 ;; ==========================================================================
 
-;; A node in the Knuth-Plass terminology is really just a ledge in ours, plus
-;; a pointer to the previous one.
-(defclass kp-node (kp-ledge)
+;; A node in the Knuth-Plass terminology is really just a line in ours, plus a
+;; pointer to the previous one.
+(defclass kp-node (kp-line)
   ((previous :documentation "This node's previous node."
 	     :initform nil :initarg :previous :reader previous))
   (:documentation "The KP Node class."))
@@ -698,16 +698,6 @@ This is the Knuth-Plass version for the graph variant.
    disposition-type
    (width breakup)))
 
-
-;; #### NOTE: the call to LENGTH below will return 0 when the RENDITIONS slot
-;; is nil, as well as when it's an array of size 0.
-(defmethod renditions-# ((breakup kp-dynamic-breakup))
-  "Return KP Dynamic BREAKUP's renditions number."
-  (length (renditions breakup)))
-
-(defmethod get-rendition (nth (breakup kp-dynamic-breakup))
-  "Return the Nth KP Dynamic BREAKUP's rendition."
-  (or (aref (renditions breakup) nth) (make-rendition nth breakup)))
 
 
 
