@@ -136,6 +136,30 @@ This class is mixed in both the graph and dynamic breakup classes."))
   "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
+;; #### WARNING: by choosing the first layout here, we're doing the opposite
+;; of what TeX does in case of total demerits equality (extremely rare), or
+;; when there's no solution and we resort to overfulls, because TeX restores
+;; the last deactivated node (so the last seen (im)possibility. We could
+;; instead check for multiple equivalent layouts and take the last one. On the
+;; other hand, while we're using a hash table in the dynamic programming
+;; implementation, we're not doing exactly what TeX does either, so there's no
+;; rush. It's still important to keep that in mind however, because that
+;; explains while we may end up with different solutions between the graph and
+;; the dynamic versions.
+(defun kp-register-layouts (breakup layouts)
+  "Register LAYOUTS in BREAKUP. Return BREAKUP.
+This function sorts the layouts by demerits, and possibly by looseness."
+  (setq layouts (stable-sort layouts #'$< :key #'demerits))
+  (unless (zerop *looseness*)
+    (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+      (setq layouts (stable-sort layouts (lambda (size1 size2)
+					   (< (abs (- size1 ideal-size))
+					      (abs (- size2 ideal-size))))
+				 :key #'size))))
+  (setf (slot-value breakup 'layouts)
+	(make-array (length layouts) :initial-contents layouts))
+  breakup)
+
 
 
 
@@ -366,7 +390,8 @@ This is the Knuth-Plass version for the graph variant.
      &aux (breakup (make-instance 'kp-graph-breakup
 		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
-  (unless (zerop (length harray))
+  (if (zerop (length harray))
+    breakup
     (let (graph layouts)
       (setf (slot-value breakup 'pass) 1)
       (when ($<= 0 *pre-tolerance*)
@@ -398,32 +423,8 @@ This is the Knuth-Plass version for the graph variant.
       ;; even turn out that an unfit one has fewer demerits than a fit one
       ;; (because of the zero'ed lines). Consequently, the layouts must be
       ;; sorted by number of bads first, and demerits next.
-
-      ;; #### WARNING: by choosing the first layout here, we're doing the
-      ;; opposite of what TeX does in case of total demerits equality
-      ;; (extremely rare), or when there's no solution and we resort to
-      ;; overfulls, because TeX restores the last deactivated node (so the
-      ;; last seen (im)possibility. We could instead check for multiple
-      ;; equivalent layouts and take the last one. On the other hand, while
-      ;; we're using a hash table in the dynamic programming implementation,
-      ;; we're not doing exactly what TeX does either, so there's no rush.
-      ;; It's still important to keep that in mind however, because that
-      ;; explains while we may end up with different solutions between the
-      ;; graph and the dynamic versions.
-      (setq layouts
-	    (sort layouts (lambda (l1 l2)
-			    (or (< (bads l1) (bads l2))
-				(and (= (bads l1) (bads l2))
-				     (< (demerits l1) (demerits l2)))))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (size (first layouts)) *looseness*)))
-	  (setq layouts (stable-sort layouts (lambda (size1 size2)
-					       (< (abs (- size1 ideal-size))
-						  (abs (- size2 ideal-size))))
-				     :key #'size))))
-      (setf (slot-value breakup 'layouts)
-	    (make-array (length layouts) :initial-contents layouts))))
-  breakup)
+      (setq layouts (stable-sort layouts #'< :key #'bads))
+      (kp-register-layouts breakup layouts))))
 
 
 
@@ -607,73 +608,35 @@ This is the Knuth-Plass version for the graph variant.
 ;; Breakup
 ;; -------
 
+;; #### NOTE: given the fact that the dynamic implementation simply constructs
+;; layouts as they go, keeping the best ones, there's no point in keeping the
+;; nodes around in the breakup, not even for properties advertisement. Indeed,
+;; nodes boil down to the last lines of each layout.
+
 (defclass kp-dynamic-breakup (kp-breakup-mixin breakup)
-  ((harray
-    :documentation "This breakup's harray."
-    :initarg :harray :reader harray)
-   (nodes
-    :documentation "This breakup's sorted nodes array."
-    :initform nil :reader nodes)
-   (renditions
-    :documentation "This breakups' sorted renditions array."
-    :initform nil :reader renditions))
-  (:documentation "The KP-DYNAMIC-BREAKUP class."))
+  ()
+  (:documentation "The Knuth-Plass Dynamic Breakup class."))
 
-(defmethod initialize-instance :after
-    ((breakup kp-dynamic-breakup) &key nodes)
-  "Convert the nodes list to an array and create the renditions array."
-  (when nodes
-    (setf (slot-value breakup 'nodes)
-	  (make-array (length nodes) :initial-contents nodes))
-    (setf (slot-value breakup 'renditions)
-	  (make-array (length nodes) :initial-element nil))))
-
-
-(defmethod properties strnlcat
-    ((breakup kp-dynamic-breakup) &key rendition &aux (nodes (nodes breakup)))
-  "Advertise Knuth-Plass dynamic BREAKUP's properties."
-  (when nodes
-    (strnlcat
-     (format nil "Remaining active nodes: ~A." (length nodes))
-     ;; #### NOTE: we don't want to use the PROPERTIES protocol on nodes here.
-     ;; That's because breakup nodes are just terminal ledges (as opposed to
-     ;; layouts in the graph version). We don't want to see ledges properties
-     ;; here (they will appear in the pinned lines properties popup). So
-     ;; instead we just advertise the node's cumulative demerits, which,
-     ;; again, is the equivalent of a layout's demerits.
-     (when rendition
-       (format nil "Demerits: ~A."
-	 ($float (demerits (aref nodes rendition)))))
-     (when rendition (properties (get-rendition rendition breakup))))))
-
-
-(defun kp-dynamic-break-harray (harray disposition width &aux (pass 1))
+(defun kp-dynamic-break-harray
+    (harray disposition width
+     &aux (breakup (make-instance 'kp-dynamic-breakup
+		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length harray))
-    (make-instance 'kp-dynamic-breakup
-      :disposition disposition :width width :harray harray
-      :pre-tolerance *pre-tolerance* :tolerance *tolerance*)
-    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
-			(kp-create-nodes harray width pass))
-		      (kp-create-nodes harray width (incf pass))
-		      (kp-create-nodes harray width (incf pass))))
-	   nodes-list)
-      (maphash (lambda (key node)
-		 (push (cons (key-line-number key) node) nodes-list))
-	       nodes)
-      (setq nodes-list
-	    (sort nodes-list #'$< :key (lambda (elt) (demerits (cdr elt)))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
-	  (setq nodes-list
-		(stable-sort nodes-list (lambda (elt1 elt2)
-					  (< (abs (- elt1 ideal-size))
-					     (abs (- elt2 ideal-size))))
-			     :key #'car))))
-      (make-instance 'kp-dynamic-breakup
-	:disposition disposition :width width :harray harray
-	:pre-tolerance *pre-tolerance* :tolerance *tolerance*
-	:pass pass :nodes (mapcar #'cdr nodes-list)))))
+    breakup
+    (kp-register-layouts
+     breakup
+     (loop :for key :being :the :hash-keys
+	     :in (or (when ($>= *pre-tolerance* 0)
+		       (kp-create-nodes harray width
+					(setf (slot-value breakup 'pass) 1)))
+		     (kp-create-nodes harray width
+				      (setf (slot-value breakup 'pass) 2))
+		     (kp-create-nodes harray width
+				      (incf (slot-value breakup 'pass))))
+	       :using (hash-value node)
+	   :for size := (key-line-number key)
+	   :collect (kp-dynamic-make-layout breakup node size)))))
 
 
 ;; ----------
@@ -735,6 +698,7 @@ This is the Knuth-Plass version for the graph variant.
    disposition-type
    (width breakup)))
 
+
 ;; #### NOTE: the call to LENGTH below will return 0 when the RENDITIONS slot
 ;; is nil, as well as when it's an array of size 0.
 (defmethod renditions-# ((breakup kp-dynamic-breakup))
@@ -744,7 +708,6 @@ This is the Knuth-Plass version for the graph variant.
 (defmethod get-rendition (nth (breakup kp-dynamic-breakup))
   "Return the Nth KP Dynamic BREAKUP's rendition."
   (or (aref (renditions breakup) nth) (make-rendition nth breakup)))
-
 
 
 
