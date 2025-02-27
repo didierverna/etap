@@ -298,7 +298,7 @@ This is the Knuth-Plass version for the graph variant.
   "Return a string advertising Knuth-Plass LAYOUT's demerits."
   (format nil "Demerits: ~A." ($float (demerits layout))))
 
-(defun kp-make-layout
+(defun kp-graph-make-layout
     (breakup path
      &aux (harray (harray breakup))
 	  (disposition (disposition breakup))
@@ -399,7 +399,7 @@ This is the Knuth-Plass version for the graph variant.
 				   harray bol width *tolerance*
 				   t *emergency-stretch*)))))
       (setf (slot-value breakup 'graph) graph)
-      (setq layouts (mapcar (lambda (path) (kp-make-layout breakup path))
+      (setq layouts (mapcar (lambda (path) (kp-graph-make-layout breakup path))
 		      (make-graph-paths graph)))
       ;; #### WARNING: in order to remain consistent with TeX, and as in the
       ;; dynamic version, an unfit line will have its demerits set to 0.
@@ -426,7 +426,7 @@ This is the Knuth-Plass version for the graph variant.
 				(and (= (bads l1) (bads l2))
 				     (< (demerits l1) (demerits l2)))))))
       (unless (zerop *looseness*)
-	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
+	(let ((ideal-size (+ (size (first layouts)) *looseness*)))
 	  (setq layouts (stable-sort layouts (lambda (size1 size2)
 					       (< (abs (- size1 ideal-size))
 						  (abs (- size2 ideal-size))))
