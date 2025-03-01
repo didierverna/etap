@@ -587,23 +587,27 @@ This is the Knuth-Plass version for the graph variant.
   "The Knuth-Plass beginning of paragraph hash table key.")
 
 
-(defun kp-create-nodes (harray width pass)
-  "Break HARRAY for a paragraph of WIDTH with PASS number of the Knuth-Plass."
-  (let ((hyphenate (> pass 1))
-	(threshold (if (> pass 1) *tolerance* *pre-tolerance*))
-	(final (case pass
-		 (1 nil)
-		 (2 (zerop *emergency-stretch*))
-		 (3 *emergency-stretch*)))
-	(nodes (make-hash-table :test #'equal)))
-    (setf (gethash *kp-bop-key* nodes) *kp-bop-node*)
-    (loop :for break-point := (next-break-point harray)
-	    :then (next-break-point harray break-point)
-	  :while break-point
-	  :when (and ($< (penalty break-point) +∞)
-		     (or hyphenate (not (hyphenation-point-p break-point))))
-	    :do (kp-try-break break-point nodes harray width threshold final))
-    (unless (zerop (hash-table-count nodes)) nodes)))
+(defun kp-create-nodes
+    (breakup
+     &aux (harray (harray breakup))
+	  (pass (pass breakup))
+	  (width (width breakup))
+	  (hyphenate (> pass 1))
+	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*))
+	  (final (case pass
+		   (1 nil)
+		   (2 (zerop *emergency-stretch*))
+		   (3 *emergency-stretch*)))
+	  (nodes (make-hash-table :test #'equal)))
+  "Create Knuth-Plass BREAKUP's dynamic nodes."
+  (setf (gethash *kp-bop-key* nodes) *kp-bop-node*)
+  (loop :for break-point := (next-break-point harray)
+	  :then (next-break-point harray break-point)
+	:while break-point
+	:when (and ($< (penalty break-point) +∞)
+		   (or hyphenate (not (hyphenation-point-p break-point))))
+	  :do (kp-try-break break-point nodes harray width threshold final))
+  (unless (zerop (hash-table-count nodes)) nodes))
 
 
 ;; -------
@@ -626,19 +630,21 @@ This is the Knuth-Plass version for the graph variant.
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (if (zerop (length harray))
     breakup
-    (kp-register-layouts
-     breakup
-     (loop :for key :being :the :hash-keys
-	     :in (or (when ($>= *pre-tolerance* 0)
-		       (kp-create-nodes harray width
-					(setf (slot-value breakup 'pass) 1)))
-		     (kp-create-nodes harray width
-				      (setf (slot-value breakup 'pass) 2))
-		     (kp-create-nodes harray width
-				      (incf (slot-value breakup 'pass))))
-	       :using (hash-value node)
-	   :for size := (key-line-number key)
-	   :collect (kp-dynamic-make-layout breakup node size)))))
+    (let (nodes)
+      (when ($>= *pre-tolerance* 0)
+	(setf (slot-value breakup 'pass) 1)
+	(setq nodes (kp-create-nodes breakup)))
+      (unless nodes
+	(setf (slot-value breakup 'pass) 2)
+	(setq nodes (kp-create-nodes breakup)))
+      (unless nodes
+	(incf (slot-value breakup 'pass))
+	(setq nodes (kp-create-nodes breakup)))
+      (kp-register-layouts
+       breakup
+       (loop :for key :being :the :hash-keys :in nodes :using (hash-value node)
+	     :for size := (key-line-number key)
+	     :collect (kp-dynamic-make-layout breakup node size))))))
 
 
 ;; ----------
