@@ -215,6 +215,8 @@ This function sorts the layouts by demerits, and possibly by looseness."
 (defun kp-get-boundaries
     (harray bol width threshold
      &optional hyphenate final
+     ;; #### FIXME: as in the dynamic version, we should get rid of this
+     ;; because it's recomputed everytime this function is called.
      &aux (emergency-stretch (when (numberp final) final)))
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
 This is the Knuth-Plass version for the graph variant.
