@@ -677,66 +677,6 @@ This is the Knuth-Plass version for the graph variant.
 	     :collect (kp-dynamic-make-layout breakup node size))))))
 
 
-;; ----------
-;; Renditions
-;; ----------
-
-;; #### FIXME: the renditions logic below is a duplicate of the graph one,
-;; essentially because we should have a super-class for multiple-renditions
-;; breakups, split apart from the graph one.
-
-;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
-;; underfulls (in case of an impossible layout, it falls back to overfull
-;; boxes). This means that the overstretch option has no effect, but it allows
-;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
-;; an emergency stretch as overstretched, regardless of the option. This is
-;; done by setting the overstretched parameter to T and not counting emergency
-;; stretch in the stretch-tolerance one.
-(defmethod make-rendition
-    (nth (breakup kp-dynamic-breakup)
-     &aux (harray (harray breakup))
-	  (disposition (disposition breakup))
-	  (disposition-type (disposition-type disposition))
-	  (disposition-options (disposition-options disposition))
-	  (overshrink (getf disposition-options :overshrink))
-	  (stretch-tolerance (stretch-tolerance
-			      (if (> (pass breakup) 1)
-				(tolerance breakup)
-				(pre-tolerance breakup)))))
-  "Render Nth node from KP Dynamic BREAKUP."
-  (pin-lines
-   (loop :with lines
-	 :for end := (aref (nodes breakup) nth) :then (previous end)
-	 :for beg := (previous end)
-	 :while beg
-	 :do (push (if (eq disposition-type :justified)
-		     ;; #### NOTE: I think that the Knuth-Plass algorithm
-		     ;; cannot produce elastic underfulls (in case of an
-		     ;; impossible layout, it falls back to overfull boxes).
-		     ;; This means that the overstretch option has no effect,
-		     ;; but it allows for a nice trick: we can indicate lines
-		     ;; exceeding the tolerance thanks to an emergency stretch
-		     ;; as overstretched, regardless of the option. This is
-		     ;; done by setting the overstretched parameter to T and
-		     ;; not counting emergency stretch in the
-		     ;; stretch-tolerance one.
-		     (multiple-value-bind (theoretical effective)
-			 (actual-scales (scale end)
-			   :stretch-tolerance stretch-tolerance
-			   :overshrink overshrink :overstretch t)
-		       (make-ledge-line
-			harray (break-point (boundary beg)) end
-			:scale theoretical :effective-scale effective))
-		     (make-instance 'line
-		       :harray harray
-		       :bol (break-point (boundary beg))
-		       :boundary (boundary end)))
-		   lines)
-	 :finally (return lines))
-   disposition-type
-   (width breakup)))
-
-
 
 
 ;; ==========================================================================
