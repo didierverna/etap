@@ -325,7 +325,8 @@ This is the Knuth-Plass version for the graph variant.
 	  ;; #### NOTE: no emergency stretch counted here. See comment on top
 	  ;; of KP-MAKE-JUSTIFIED-LINE.
 	  (stretch-tolerance
-	   (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))
+	   (stretch-tolerance
+	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
 	  (make-line
 	   (case disposition-type
 	     (:justified
