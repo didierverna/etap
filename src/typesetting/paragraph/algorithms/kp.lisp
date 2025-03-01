@@ -118,6 +118,59 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
 
 
+;; -----
+;; Lines
+;; -----
+
+;; #### TODO: it's probably a bad idea to call the cumulative demerits just
+;; "demerits".
+(defclass kp-line (line)
+  ((demerits
+    :documentation "The cumulative demerits so far in the layout."
+    :initarg :demerits :reader demerits))
+  (:documentation "The Knuth-Plass Line class."))
+
+(defmethod properties strnlcat ((line kp-line) &key)
+  "Return a string advertising Knuth-Plass LINE's cumulative demerits."
+  (format nil "Cumulative demerits: ~A." ($float (demerits line))))
+
+;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
+;; underfulls (in case of an impossible layout, it falls back to overfull
+;; boxes). This means that the overstretch option has no effect, but it allows
+;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
+;; an emergency stretch as overstretched, regardless of the option. This is
+;; done by setting the overstretch parameter to T and not counting emergency
+;; stretch in the stretch tolerance below.
+
+(defun kp-make-justified-line
+    (harray bol boundary stretch-tolerance overshrink demerits
+     &rest keys &key previous
+     &aux (scale (scale boundary)))
+  "KP version of `make-line' for justified lines.
+By default, this function instantiates a KP-LINE. The dynamic version will
+however call this function with a PREVIOUS node, in which case a KP-NODE is
+instantiated instead."
+  (multiple-value-bind (theoretical effective)
+      (actual-scales scale
+	:stretch-tolerance stretch-tolerance
+	:overshrink overshrink
+	:overstretch t)
+    (apply #'make-instance
+      (if previous 'kp-node 'kp-line) ; kp-node forward reference
+      :harray harray :bol bol :boundary boundary
+      :scale theoretical
+      :effective-scale effective
+      :demerits demerits
+      keys)))
+
+;; #### NOTE: there's no need for a KP-PINNED-NODE because when pinning lines,
+;; we don't care about the previous one. Thus, we can safely CHANGE-CLASS a
+;; KP-NODE into a KP-PINNED-LINE, thereby dropping the PREVIOUS slot.
+(defclass kp-pinned-line (kp-line pin)
+  ()
+  (:documentation "The Knuth-Plass Pinned Line class."))
+
+
 ;; ----------------------
 ;; Breakup specialization
 ;; ----------------------
@@ -249,51 +302,6 @@ This is the Knuth-Plass version for the graph variant.
 			       (list (or overfull emergency-boundary)))))))
 
 
-;; -----
-;; Lines
-;; -----
-
-;; #### TODO: it's probably a bad idea to call the cumulative demerits just
-;; "demerits".
-(defclass kp-line (line)
-  ((demerits
-    :documentation "The cumulative demerits so far in the layout."
-    :initarg :demerits :reader demerits))
-  (:documentation "The Knuth-Plass Line class."))
-
-(defmethod properties strnlcat ((line kp-line) &key)
-  "Return a string advertising Knuth-Plass LINE's cumulative demerits."
-  (format nil "Cumulative demerits: ~A." ($float (demerits line))))
-
-;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
-;; underfulls (in case of an impossible layout, it falls back to overfull
-;; boxes). This means that the overstretch option has no effect, but it allows
-;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
-;; an emergency stretch as overstretched, regardless of the option. This is
-;; done by setting the overstretch parameter to T and not counting emergency
-;; stretch in the stretch tolerance below.
-
-(defun kp-make-justified-line
-    (harray bol boundary demerits stretch-tolerance overshrink
-     &aux (scale (scale boundary)))
-  "KP version of `make-ledge-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
-      (actual-scales scale
-	:stretch-tolerance stretch-tolerance
-	:overshrink overshrink
-	:overstretch t)
-    (make-instance 'kp-line
-      :harray harray :bol bol :boundary boundary
-      :scale theoretical
-      :effective-scale effective
-      :demerits demerits)))
-
-
-(defclass kp-pinned-line (kp-line pin)
-  ()
-  (:documentation "The Knuth-Plass Pinned Line class."))
-
-
 ;; -------
 ;; Layouts
 ;; -------
@@ -334,7 +342,7 @@ This is the Knuth-Plass version for the graph variant.
 	     (:justified
 	      (lambda (harray bol boundary demerits)
 		(kp-make-justified-line harray bol boundary
-		  demerits stretch-tolerance overshrink)))
+		  stretch-tolerance overshrink demerits)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -457,7 +465,7 @@ This is the Knuth-Plass version for the graph variant.
 ;; ---------------
 
 (defun kp-try-break
-    (break-point nodes harray width threshold final
+    (break-point nodes harray width threshold final make-node
      &aux (emergency-stretch (when (numberp final) final))
 	  last-deactivation new-nodes)
   "Examine BREAK-POINT and update active NODES accordingly."
@@ -503,32 +511,34 @@ This is the Knuth-Plass version for the graph variant.
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
 				   (fitness-class boundary)))
-		(previous (find new-key new-nodes :test #'equal :key #'car)))
-	   (if previous
-	     ;; #### NOTE: the inclusive inequality below is conformant
-	     ;; with what TeX does in #855. Concretely, it makes the KP
-	     ;; algorithm greedy in some sense: in case of demerits
-	     ;; equality, TeX keeps the last envisioned solution. On the
-	     ;; other hand, we're in fact not doing exactly the same thing
-	     ;; because we're using MAPHASH and the order of the nodes in
-	     ;; the hash table is not deterministic.
-	     (when ($<= total-demerits (demerits (cdr previous)))
-	       (reinitialize-instance (cdr previous)
-		 :boundary boundary :demerits total-demerits :previous node))
-	     (push (cons new-key
-			 (make-instance 'kp-node
-			   :boundary boundary
-			   :demerits total-demerits
-			   :previous node))
-		   new-nodes))))))
+		(previous (find new-key new-nodes :test #'equal :key #'car))
+		(new-node
+		  (when (or (not previous)
+			    ;; #### NOTE: the inclusive inequality below is
+			    ;; conformant with what TeX does in #855.
+			    ;; Concretely, it makes the KP algorithm greedy in
+			    ;; some sense: in case of demerits equality, TeX
+			    ;; keeps the last envisioned solution. On the
+			    ;; other hand, we're in fact not doing exactly the
+			    ;; same thing because we're using MAPHASH and the
+			    ;; order of the nodes in the hash table is not
+			    ;; deterministic.
+			    ($<= total-demerits (demerits (cdr previous))))
+		    (funcall make-node
+		      harray bol boundary total-demerits node))))
+	   (when new-node
+	     (if previous
+	       (setf (cdr previous) new-node)
+	       (push (cons new-key new-node) new-nodes)))))))
    nodes)
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
-    (let ((boundary (make-instance 'kp-boundary
-		      :harray harray
-		      :bol (key-break-point (car last-deactivation))
-		      :break-point break-point
-		      :target width
-		      :extra emergency-stretch)))
+    (let* ((bol (key-break-point (car last-deactivation)))
+	   (boundary (make-instance 'kp-boundary
+		       :harray harray
+		       :bol bol
+		       :break-point break-point
+		       :target width
+		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 (#855)
       ;; by checking the artificial_demerits flag. The KP-BOUNDARY
       ;; initialization protocol takes care of this (although I should verify
@@ -540,10 +550,9 @@ This is the Knuth-Plass version for the graph variant.
 	     (cons (make-key break-point
 			     (1+ (key-line-number (car last-deactivation)))
 			     (fitness-class boundary))
-		   (make-instance 'kp-node
-		     :boundary boundary
-		     :demerits (demerits (cdr last-deactivation))
-		     :previous (cdr last-deactivation)))))))
+		   (funcall make-node
+		     harray bol boundary (demerits (cdr last-deactivation))
+		     (cdr last-deactivation)))))))
   (mapc (lambda (new-node)
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
@@ -595,13 +604,30 @@ This is the Knuth-Plass version for the graph variant.
      &aux (harray (harray breakup))
 	  (pass (pass breakup))
 	  (width (width breakup))
-	  (hyphenate (> pass 1))
+	  (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (overshrink (getf (disposition-options disposition) :overshrink))
 	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*))
+	  ;; #### NOTE: no emergency stretch counted here. See comment on top
+	  ;; of KP-MAKE-JUSTIFIED-LINE.
+	  (stretch-tolerance (stretch-tolerance threshold))
+	  (hyphenate (> pass 1))
 	  (final (case pass
 		   (1 nil)
 		   (2 (zerop *emergency-stretch*))
 		   (3 *emergency-stretch*)))
-	  (nodes (make-hash-table :test #'equal)))
+	  (nodes (make-hash-table :test #'equal))
+	  (make-node
+	   (case disposition-type
+	     (:justified
+	      (lambda (harray bol boundary demerits previous)
+		(kp-make-justified-line harray bol boundary
+		  stretch-tolerance overshrink demerits :previous previous)))
+	     (t ;; just switch back to normal spacing.
+	      (lambda (harray bol boundary demerits previous)
+		(make-instance 'kp-node
+		  :harray harray :bol bol :boundary boundary
+		  :demerits demerits :previous previous))))))
   "Create Knuth-Plass BREAKUP's dynamic nodes."
   (setf (gethash *kp-bop-key* nodes) *kp-bop-node*)
   (loop :for break-point := (next-break-point harray)
@@ -609,7 +635,8 @@ This is the Knuth-Plass version for the graph variant.
 	:while break-point
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
-	  :do (kp-try-break break-point nodes harray width threshold final))
+	  :do (kp-try-break break-point nodes
+			    harray width threshold final make-node))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 
