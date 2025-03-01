@@ -555,17 +555,19 @@ This is the Knuth-Plass version for the graph variant.
 ;; - previous = NIL
 ;; - (total) demerits = 0
 ;; - boundary (base class only) with break-point = *BOP*.
+;; - the rest is either uninitialized or doesn't matter.
 ;;
-;; Note that we don't use a KP boundary because we can't compute any of its
-;; properties (there's no actual line here). It doesn't matter because we
-;; don't need to access those, except for the fitness-class. However, the
-;; fitness-class is retrieved from the hash table key (see below). Also, *BOP*
-;; gives us the correct bol index, and no hyphenation so no double hyphen
-;; demerits for the first line.
+;; Note that we don't use a KP boundary because we can't let the
+;; initialization protocol compute any of its properties (there's no actual
+;; line here). It doesn't matter because we don't need to access those, except
+;; for the fitness-class. However, the fitness-class is retrieved from the
+;; hash table key (see below). Also, *BOP* gives us the correct bol index, and
+;; no hyphenation so no double hyphen demerits for the first line.
 
 (defvar *kp-bop-node*
   (make-instance 'kp-node
-    :boundary (make-instance 'boundary :break-point *bop*))
+    :boundary (make-instance 'boundary :break-point *bop*)
+    :demerits 0)
   "The Knuth-Plass (fake) beginning of paragraph node.")
 
 
