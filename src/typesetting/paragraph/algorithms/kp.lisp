@@ -393,14 +393,14 @@ This is the Knuth-Plass version for the graph variant.
   (if (zerop (length harray))
     breakup
     (let (graph layouts)
-      (setf (slot-value breakup 'pass) 1)
       (when ($<= 0 *pre-tolerance*)
+	(setf (slot-value breakup 'pass) 1)
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
 				  (kp-get-boundaries
 				   harray bol width *pre-tolerance*)))))
       (unless (and graph (gethash *bop* graph))
-	(incf (slot-value breakup 'pass))
+	(setf (slot-value breakup 'pass) 2)
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
 				  (kp-get-boundaries
