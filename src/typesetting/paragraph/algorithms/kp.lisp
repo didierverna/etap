@@ -502,7 +502,7 @@ This is the Knuth-Plass version for the graph variant.
 				   (fitness-class boundary)))
 		(previous (find new-key new-nodes :test #'equal :key #'car)))
 	   (if previous
-	     ;; #### NOTE: the inclusive inequality below is conforment
+	     ;; #### NOTE: the inclusive inequality below is conformant
 	     ;; with what TeX does in #855. Concretely, it makes the KP
 	     ;; algorithm greedy in some sense: in case of demerits
 	     ;; equality, TeX keeps the last envisioned solution. On the
