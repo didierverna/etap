@@ -118,6 +118,55 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
   (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
 
 
+
+
+;; ==========================================================================
+;; Variant-Independent Data Structures
+;; ==========================================================================
+
+;; ----------
+;; Boundaries
+;; ----------
+
+(defclass kp-boundary (fit-boundary)
+  ((fitness-class
+    :documentation "This boundary's fitness class."
+    :reader fitness-class)
+   (badness
+    :documentation "This boundary's badness."
+    :reader badness)
+   (demerits
+    :documentation "This boundary's local demerits."
+    :reader demerits))
+  (:documentation "The KP-boundary class."))
+
+(defmethod initialize-instance :after ((boundary kp-boundary) &key)
+  "Initialize BOUNDARY's fitness class, badness, and local demerits."
+  ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
+  ;; only an overfull one. For example, we could have collected an hyphenated
+  ;; beginning of word thanks to an infinite tolerance, and this would result
+  ;; in a rigid underfull. This probably doesn't happen in TeX with its
+  ;; dynamic programming implementation. But the problem is that we can't
+  ;; define a sensible fitness class in such a case. So we consider those
+  ;; lines to be very tight (as overfulls) even if they are actually
+  ;; underfull.
+  (setf
+   (slot-value boundary 'fitness-class) (scale-fitness-class (scale boundary))
+   (slot-value boundary 'badness)       (scale-badness (scale boundary)))
+  (setf (slot-value boundary 'demerits)
+	;; See comment in the dynamic version about this.
+	(if (numberp (badness boundary))
+	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
+	  0)))
+
+(defmethod properties strnlcat ((boundary kp-boundary) &key)
+  "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
+  (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line)."
+    (fitness-class-name (fitness-class boundary))
+    ($float (badness boundary))
+    ($float (demerits boundary))))
+
+
 ;; -----
 ;; Lines
 ;; -----
@@ -164,8 +213,9 @@ instantiated instead."
       keys)))
 
 ;; #### NOTE: there's no need for a KP-PINNED-NODE because when pinning lines,
-;; we don't care about the previous one. Thus, we can safely CHANGE-CLASS a
-;; KP-NODE into a KP-PINNED-LINE, thereby dropping the PREVIOUS slot.
+;; we don't care about the previous one anymore. Thus, we can safely
+;; CHANGE-CLASS a KP-NODE into a KP-PINNED-LINE, thereby dropping the PREVIOUS
+;; slot.
 (defclass kp-pinned-line (kp-line pin)
   ()
   (:documentation "The Knuth-Plass Pinned Line class."))
@@ -220,50 +270,9 @@ This function sorts the layouts by demerits, and possibly by looseness."
 ;; Graph Variant
 ;; ==========================================================================
 
-;; ----------
-;; Boundaries
-;; ----------
-
-(defclass kp-boundary (fit-boundary)
-  ((fitness-class
-    :documentation "This boundary's fitness class."
-    :reader fitness-class)
-   (badness
-    :documentation "This boundary's badness."
-    :reader badness)
-   (demerits
-    :documentation "This boundary's local demerits."
-    :reader demerits))
-  (:documentation "The KP-boundary class."))
-
-(defmethod initialize-instance :after ((boundary kp-boundary) &key)
-  "Initialize BOUNDARY's fitness class, badness, and local demerits."
-  ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
-  ;; only an overfull one. For example, we could have collected an hyphenated
-  ;; beginning of word thanks to an infinite tolerance, and this would result
-  ;; in a rigid underfull. This probably doesn't happen in TeX with its
-  ;; dynamic programming implementation. But the problem is that we can't
-  ;; define a sensible fitness class in such a case. So we consider those
-  ;; lines to be very tight (as overfulls) even if they are actually
-  ;; underfull.
-  (setf
-   (slot-value boundary 'fitness-class) (scale-fitness-class (scale boundary))
-   (slot-value boundary 'badness)       (scale-badness (scale boundary)))
-  (setf (slot-value boundary 'demerits)
-	;; See comment in the dynamic version about this.
-	(if (numberp (badness boundary))
-	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
-	  0)))
-
-(defmethod properties strnlcat ((boundary kp-boundary) &key)
-  "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line)."
-    (fitness-class-name (fitness-class boundary))
-    ($float (badness boundary))
-    ($float (demerits boundary))))
-
-
+;; -----------------
 ;; Boundaries lookup
+;; -----------------
 
 (defun kp-get-boundaries
     (harray bol width threshold
@@ -638,6 +647,27 @@ This is the Knuth-Plass version for the graph variant.
 	  :do (kp-try-break break-point nodes
 			    harray width threshold final make-node))
   (unless (zerop (hash-table-count nodes)) nodes))
+
+
+;; -------
+;; Layouts
+;; -------
+
+;; #### NOTE: a dynamic layout is trivial to create because the dynamic
+;; implementation essentially returns lines in last-to-first order. The SIZE
+;; argument is directly available from the hash table keys, and avoids
+;; the need for counting the lines.
+(defun kp-dynamic-make-layout (breakup node size)
+  "Create a Knuth-Plass layout for BREAKUP from dynamic NODE of SIZE lines."
+  (make-instance 'kp-layout
+    :breakup breakup
+    :lines (loop :with lines
+		 :for line := node :then (previous line)
+		 :until (eq line *kp-bop-node*)
+		 :do (push line lines)
+		 :finally (return lines))
+    :demerits (demerits node)
+    :size size))
 
 
 ;; -------

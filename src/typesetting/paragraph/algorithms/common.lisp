@@ -464,9 +464,14 @@ specific global properties."))
 		  :board layout :x (funcall x line) :y y))))
   layout)
 
-(defun renderedp (layout)
+;; #### NOTE: nothing prevents an algorithm from sharing an object
+;; representing a line across multiple layouts. In fact, the dynamic
+;; programming implementation of the Knuth-Plass does exactly that. As a
+;; consequence, we need to check that /all/ layout lines have been rendered
+;; below. Not just, say, the first one.
+(defun renderedp (layout &aux (class (pinned-line-class layout)))
   "Return T if LAYOUT is rendered."
-  (typep (first (lines layout)) (pinned-line-class layout)))
+  (every (lambda (line) (typep line class)) (lines layout)))
 
 
 (defun lines-# (layout)
