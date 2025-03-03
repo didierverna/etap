@@ -251,8 +251,7 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; the dynamic versions.
 (defun kp-register-layouts (breakup layouts)
   "Register LAYOUTS in BREAKUP. Return BREAKUP.
-This function sorts the layouts by demerits, and possibly by looseness."
-  (setq layouts (stable-sort layouts #'$< :key #'demerits))
+This function sorts LAYOUTS by looseness if appropriate."
   (unless (zerop *looseness*)
     (let ((ideal-size (+ (size (first layouts)) *looseness*)))
       (setq layouts (stable-sort layouts (lambda (size1 size2)
@@ -443,7 +442,11 @@ This is the Knuth-Plass version for the graph variant.
       ;; even turn out that an unfit one has fewer demerits than a fit one
       ;; (because of the zero'ed lines). Consequently, the layouts must be
       ;; sorted by number of bads first, and demerits next.
-      (setq layouts (stable-sort layouts #'< :key #'bads))
+      (setq layouts (sort layouts
+			(lambda (l1 l2)
+			  (or (< (bads l1) (bads l2))
+			      (and (= (bads l1) (bads l2))
+				   (< (demerits l1) (demerits l2)))))))
       (kp-register-layouts breakup layouts))))
 
 
@@ -702,9 +705,12 @@ This is the Knuth-Plass version for the graph variant.
 	(setq nodes (kp-create-nodes breakup)))
       (kp-register-layouts
        breakup
-       (loop :for key :being :the :hash-keys :in nodes :using (hash-value node)
-	     :for size := (key-line-number key)
-	     :collect (kp-dynamic-make-layout breakup node size))))))
+       (stable-sort
+	(loop :for key :being :the :hash-keys :in nodes
+		:using (hash-value node)
+	      :for size := (key-line-number key)
+	      :collect (kp-dynamic-make-layout breakup node size))
+	#'$< :key #'demerits)))))
 
 
 
