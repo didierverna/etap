@@ -140,8 +140,12 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
     :reader demerits))
   (:documentation "The KP-boundary class."))
 
-(defmethod initialize-instance :after ((boundary kp-boundary) &key)
-  "Initialize BOUNDARY's fitness class, badness, and local demerits."
+(defmethod initialize-instance :after
+    ((boundary kp-boundary) &key width stretch shrink extra target)
+  "Initialize Knuth-Plass BOUNDARY's properties.
+This includes its fitness class, badness, and local demerits.
+Possibly also restore BOUNDARY's scale to the real value in case of EXTRA,
+that is, of an emergency stretch ."
   ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -157,7 +161,13 @@ This is an integer ranging from 0 (very loose) to 3 (tight)."
 	;; See comment in the dynamic version about this.
 	(if (numberp (badness boundary))
 	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
-	  0)))
+	  0))
+  (when (and extra (not (zerop extra)))
+    (setf (slot-value boundary 'scale)
+	  ;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
+	  ;; already initialized by now, but we're still saving a reader call
+	  ;; by using the propagated NATURAL-WIDTH keyword argument.
+	  (scaling width target stretch shrink))))
 
 (defmethod properties strnlcat ((boundary kp-boundary) &key)
   "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
