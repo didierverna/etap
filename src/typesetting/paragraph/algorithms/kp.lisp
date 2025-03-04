@@ -330,7 +330,7 @@ This is the Knuth-Plass version for the graph variant.
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
-		      (($<= (scale-badness (scale boundary)) threshold)
+		      (($<= (badness boundary) threshold)
 		       (push boundary boundaries))
 		      (t
 		       (setq emergency-boundary boundary))))
