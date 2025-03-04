@@ -2,11 +2,6 @@
 ;; Michael F. (1981), "Breaking paragraphs into lines", Software: Practice and
 ;; Experience, 11 (11): 1119–1184.
 
-;; #### FIXME: my implementation of the 3 passes is probably not correct. It
-;; seems that TeX goes into the 2nd pass, not only when the first fails, but
-;; also when it succeeds with a non-zero looseness, and the number of lines
-;; doesn't match. I need to check this.
-
 (in-package :etap)
 
 ;; ==========================================================================
@@ -301,6 +296,9 @@ This function sorts LAYOUTS by looseness if appropriate."
 ;; ==========================================================================
 ;; Graph Variant
 ;; ==========================================================================
+
+;; #### FIXME: my graph implementation of the 3 passes is not correct
+;; vis-a-vis the looseness.
 
 ;; -----------------
 ;; Boundaries lookup
@@ -666,6 +664,27 @@ This is the Knuth-Plass version for the graph variant.
 		   (or hyphenate (not (hyphenation-point-p break-point))))
 	  :do (kp-try-break break-point nodes harray width make-node
 			    threshold final emergency-stretch))
+  ;; #### NOTE: according to #872, TeX will attempt to match a non-zero
+  ;; looseness exactly, or try another pass unless it's already the final one,
+  ;; so we need to handle that here. Unfortunately, this requires some
+  ;; computation that may go to waste afterwards (finding the ideal size,
+  ;; etc.). Fortunately though, the final nodes contain all the cumulative
+  ;; information we need, so we don't have to go as far as creating the
+  ;; layouts (and in general, there's only very few nodes left).
+  (unless (or final (zerop *looseness*) (zerop (hash-table-count nodes)))
+    ;; #### NOTE: we normally only have numerical demerits here, so it's safe
+    ;; to initialize the maximum to infinity.
+    (let ((best-demerits +∞) best-size ideal-size)
+      (maphash (lambda (key node
+			&aux (demerits (demerits node))
+			     (size (key-line-number key)))
+		 (when ($< demerits best-demerits)
+		   (setq best-demerits demerits best-size size)))
+	       nodes)
+      (setq ideal-size (+ best-size *looseness*))
+      (maphash (lambda (key node &aux (size (key-line-number key)))
+		 (unless (= size ideal-size) (remhash key nodes)))
+	       nodes)))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 
