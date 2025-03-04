@@ -297,19 +297,15 @@ This function sorts LAYOUTS by looseness if appropriate."
 ;; -----------------
 
 (defun kp-get-boundaries
-    (harray bol width threshold
-     &optional hyphenate final
-     ;; #### FIXME: as in the dynamic version, we should get rid of this
-     ;; because it's recomputed everytime this function is called.
-     &aux (emergency-stretch (when (numberp final) final)))
+    (harray bol width threshold &optional hyphenate final emergency-stretch)
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
 This is the Knuth-Plass version for the graph variant.
 - THRESHOLD is the pre-tolerance or tolerance, depending on the pass.
 - HYPHENATE means consider hyphenation points as potential breaks. It is NIL
-  for pass 1 (the default), and T for passes 2 and .3
-- FINAL means this is the final pass. If FINAL is NIL, we're in pass 1. If
-  FINAL is T, we're in pass 2 and there is no emergency stretch. Otherwise,
-  FINAL is a non-zero value (the emergency stretch) and we're in pass 3."
+  for pass 1 (the default), and T for passes 2 and 3.
+- FINAL means this is the final pass, in which case this function is required
+  to return a boundary, albeit unfit.
+- EMERGENCY-STRETCH may be available during a final third pass."
   (loop :with boundaries :with overfull :with emergency-boundary
 	:with continue := t
 	:for eol := (next-break-point harray bol)
@@ -442,7 +438,7 @@ This is the Knuth-Plass version for the graph variant.
 				(lambda (harray bol width)
 				  (kp-get-boundaries
 				   harray bol width *tolerance*
-				   t *emergency-stretch*)))))
+				   t t *emergency-stretch*)))))
       (setf (slot-value breakup 'graph) graph)
       (setq layouts (mapcar (lambda (path) (kp-graph-make-layout breakup path))
 		      (make-graph-paths graph)))
@@ -488,9 +484,8 @@ This is the Knuth-Plass version for the graph variant.
 ;; ---------------
 
 (defun kp-try-break
-    (break-point nodes harray width threshold final make-node
-     &aux (emergency-stretch (when (numberp final) final))
-	  last-deactivation new-nodes)
+    (break-point nodes harray width make-node threshold final emergency-stretch
+     &aux last-deactivation new-nodes)
   "Examine BREAK-POINT and update active NODES accordingly."
   (maphash
    (lambda (key node
@@ -638,7 +633,8 @@ This is the Knuth-Plass version for the graph variant.
 	  (final (case pass
 		   (1 nil)
 		   (2 (zerop *emergency-stretch*))
-		   (3 *emergency-stretch*)))
+		   (3 t)))
+	  (emergency-stretch (when final *emergency-stretch*))
 	  (nodes (make-hash-table :test #'equal))
 	  (make-node
 	   (case disposition-type
@@ -658,8 +654,8 @@ This is the Knuth-Plass version for the graph variant.
 	:while break-point
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
-	  :do (kp-try-break break-point nodes
-			    harray width threshold final make-node))
+	  :do (kp-try-break break-point nodes harray width make-node
+			    threshold final emergency-stretch))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 
