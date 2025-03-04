@@ -221,6 +221,29 @@ instantiated instead."
   (:documentation "The Knuth-Plass Pinned Line class."))
 
 
+;; -------
+;; Layouts
+;; -------
+
+;; #### NOTE: the layout's demerits is in fact the demerits of the last line.
+(defclass kp-layout (layout)
+  ((pinned-line-class :initform 'kp-pinned-line) ; slot override
+   (demerits
+    :documentation "This layout's total demerits."
+    :initarg :demerits :reader demerits)
+   (size
+    :documentation "This layout's size (i.e., the number of lines)."
+    :initform 1 :initarg :size :reader size))
+  (:documentation "The Knuth-Plass Layout class."))
+
+;; #### NOTE: we only advertise the layout's demerits for now. The other
+;; properties (also including the bads in the graph variant subclass) are here
+;; for sorting the layouts from best to worse.
+(defmethod properties strnlcat ((layout kp-layout) &key)
+  "Return a string advertising Knuth-Plass LAYOUT's demerits."
+  (format nil "Demerits: ~A." ($float (demerits layout))))
+
+
 ;; ----------------------
 ;; Breakup specialization
 ;; ----------------------
@@ -314,25 +337,13 @@ This is the Knuth-Plass version for the graph variant.
 ;; Layouts
 ;; -------
 
-;; #### NOTE: the layout's demerits is in fact the demerits of the last line.
-(defclass kp-layout (layout)
-  ((pinned-line-class :initform 'kp-pinned-line) ; slot override
-   (demerits
-    :documentation "This layout's total demerits."
-    :initarg :demerits :reader demerits)
-   (bads
+;; #### NOTE: in the graph variant, we need to keep the bads around for
+;; sorting. See comment about that in KP-GRAPH-BREAK-HARRAY.
+(defclass kp-graph-layout (kp-layout)
+  ((bads
     :documentation "This layout's number of bad lines."
-    :initarg :bads :reader bads)
-   (size
-    :documentation "This layout's size (i.e., the number of lines)."
-    :initform 1 :initarg :size :reader size))
-  (:documentation "The KP-LAYOUT class."))
-
-;; #### NOTE: we only advertise the layout's demerits for now. The other
-;; properties are here for sorting the layouts from best to worse.
-(defmethod properties strnlcat ((layout kp-layout) &key)
-  "Return a string advertising Knuth-Plass LAYOUT's demerits."
-  (format nil "Demerits: ~A." ($float (demerits layout))))
+    :initarg :bads :reader bads))
+  (:documentation "The Knuth-Plass Graph Layout class."))
 
 (defun kp-graph-make-layout
     (breakup path
@@ -356,7 +367,7 @@ This is the Knuth-Plass version for the graph variant.
 		(make-instance 'kp-line
 		  :harray harray :bol bol :boundary boundary
 		  :demerits demerits)))))
-	  (layout (make-instance 'kp-layout
+	  (layout (make-instance 'kp-graph-layout
 		    :breakup breakup
 		    :demerits (demerits (first path))
 		    :bads (if (numberp (badness (first path))) 0  1)))
