@@ -25,11 +25,6 @@
 ;; Specification
 ;; ==========================================================================
 
-;; #### NOTE: in theory, when only the looseness changes, we don't have to run
-;; the algorithm again: we only need to sort the solutions found previously in
-;; a different order and select another one. We currently don't go that far,
-;; and the GUI doesn't know that anyway.
-
 (defparameter *kp-variants*
   '(:graph :dynamic))
 
@@ -265,6 +260,25 @@ instantiated instead."
   "Return a string advertising Knuth-Plass LAYOUT's demerits."
   (format nil "Demerits: ~A." ($float (demerits layout))))
 
+(defun kp-remove-unloose-layouts (layouts)
+  "Return the subset of Knuth-Plass LAYOUTS conforming to *LOOSENESS*.
+The looseness is supposed to be non-zero, and the layouts are supposed to be
+already sorted, such that the natural size of the original solution is the
+size of the first layout."
+  (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+    (remove-if-not (lambda (size) (= size ideal-size)) layouts :key #'size)))
+
+(defun kp-sort-layouts-by-looseness (layouts)
+  "Return Knuth-Plass LAYOUTS sorted by conformance to *LOOSENESS*.
+The looseness is supposed to be non-zero, and the layouts are supposed to be
+already sorted, such that the natural size of the original solution is the
+size of the first layout."
+  (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+    (stable-sort layouts (lambda (size1 size2)
+			   (< (abs (- size1 ideal-size))
+			      (abs (- size2 ideal-size))))
+		 :key #'size)))
+
 
 ;; ----------------------
 ;; Breakup specialization
@@ -367,7 +381,7 @@ This is the Knuth-Plass version for the graph variant.
 		    :demerits (demerits (first path))
 		    :bads (if (numberp (badness (first path))) 0  1)))
 	  line1)
-  "Create a Knuth-Plass layout for BREAKUP from PATH."
+  "Create a Knuth-Plass layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
   (when (zerop (fitness-class (first path)))
     (setf (slot-value layout 'demerits)
@@ -421,39 +435,20 @@ or, in case of equality, a lesser amount of demerits."
       (and (= (bads layout1) (bads layout2))
 	   (< (demerits layout1) (demerits layout2)))))
 
-(defun kp-graph-remove-unloose-layouts (layouts)
-  "Return the subset of Knuth-Plass graph LAYOUTS conforming to *LOOSENESS*.
-The looseness is supposed to be non-zero, and the layouts are supposed to be
-already sorted, such that the natural size of the original solution is the
-size of the first layout."
-  (let ((ideal-size (+ (size (first layouts)) *looseness*)))
-    (remove-if-not (lambda (size) (= size ideal-size)) layouts :key #'size)))
-
-(defun kp-graph-sort-layouts-by-looseness (layouts)
-  "Return Knuth-Plass graph LAYOUTS sorted by conformance to *LOOSENESS*.
-The looseness is supposed to be non-zero, and the layouts are supposed to be
-already sorted, such that the natural size of the original solution is the
-size of the first layout."
-  (let ((ideal-size (+ (size (first layouts)) *looseness*)))
-    (stable-sort layouts (lambda (size1 size2)
-			   (< (abs (- size1 ideal-size))
-			      (abs (- size2 ideal-size))))
-		 :key #'size)))
-
 
 ;; -------
 ;; Breakup
 ;; -------
 
-;; #### NOTE: the KP Breakup Mixin comes first for proper ordering of the
-;; displayed properties.
+;; #### NOTE: the Knuth-Plass breakup mixin comes first for proper ordering of
+;; the displayed properties.
 (defclass kp-graph-breakup (kp-breakup-mixin graph-breakup)
   ()
   (:documentation "The Knuth-Plass Graph Breakup class."))
 
-;; #### NOTE: unfortunately, the handling of the looseness parameter requires
-;; us to go as far as creating layouts below, only to maybe throw them away
-;; afterwards.
+;; #### NOTE: according to #872, TeX will attempt to match a non-zero
+;; looseness exactly, or try another pass unless it's already the final one. I
+;; got that wrong for quite some time...
 (defun kp-graph-break-harray
     (harray disposition width
      &aux (breakup (make-instance 'kp-graph-breakup
@@ -473,7 +468,7 @@ size of the first layout."
 	  (setq layouts (sort (kp-graph-make-layouts breakup graph)
 			    #'$< :key #'demerits))
 	  (unless (zerop *looseness*)
-	    (setq layouts (kp-graph-remove-unloose-layouts layouts)))))
+	    (setq layouts (kp-remove-unloose-layouts layouts)))))
 
       ;; Pass 2, maybe final.
       (unless layouts
@@ -488,14 +483,12 @@ size of the first layout."
 		   (setq layouts (sort (kp-graph-make-layouts breakup graph)
 				     #'kp-graph-layout-<))
 		   (unless (zerop *looseness*)
-		     (setq layouts
-			   (kp-graph-sort-layouts-by-looseness layouts))))
+		     (setq layouts (kp-sort-layouts-by-looseness layouts))))
 		  (t
 		   (setq layouts (sort (kp-graph-make-layouts breakup graph)
 				     #'$< :key #'demerits))
 		   (unless (zerop *looseness*)
-		     (setq layouts
-			   (kp-graph-remove-unloose-layouts layouts))))))))
+		     (setq layouts (kp-remove-unloose-layouts layouts))))))))
 
       ;; Pass 3, always final.
       (unless layouts
@@ -508,7 +501,7 @@ size of the first layout."
 	(setq layouts
 	      (sort (kp-graph-make-layouts breakup graph) #'kp-graph-layout-<))
 	(unless (zerop *looseness*)
-	  (setq layouts (kp-graph-sort-layouts-by-looseness layouts))))
+	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
 
       ;; We're done here.
       (setf (slot-value breakup 'graph) graph)
@@ -677,8 +670,6 @@ size of the first layout."
   "The Knuth-Plass beginning of paragraph hash table key.")
 
 
-;; #### FIXME: there's a mix of looseness handling here and in
-;; KP-DYNAMIC-BREAK-HARRAY. This should all be done in the function below.
 (defun kp-create-nodes
     (breakup
      &aux (harray (harray breakup))
@@ -718,27 +709,6 @@ size of the first layout."
 		   (or hyphenate (not (hyphenation-point-p break-point))))
 	  :do (kp-try-break break-point nodes harray width make-node
 			    threshold final emergency-stretch))
-  ;; #### NOTE: according to #872, TeX will attempt to match a non-zero
-  ;; looseness exactly, or try another pass unless it's already the final one,
-  ;; so we need to handle that here. Unfortunately, this requires some
-  ;; computation that may go to waste afterwards (finding the ideal size,
-  ;; etc.). Fortunately though, the final nodes contain all the cumulative
-  ;; information we need, so we don't have to go as far as creating the
-  ;; layouts (and in general, there's only very few nodes left).
-  (unless (or final (zerop *looseness*) (zerop (hash-table-count nodes)))
-    ;; #### NOTE: we normally only have numerical demerits here, so it's safe
-    ;; to initialize the maximum to infinity.
-    (let ((best-demerits +∞) best-size ideal-size)
-      (maphash (lambda (key node
-			&aux (demerits (demerits node))
-			     (size (key-line-number key)))
-		 (when ($< demerits best-demerits)
-		   (setq best-demerits demerits best-size size)))
-	       nodes)
-      (setq ideal-size (+ best-size *looseness*))
-      (maphash (lambda (key node &aux (size (key-line-number key)))
-		 (unless (= size ideal-size) (remhash key nodes)))
-	       nodes)))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 
@@ -762,6 +732,15 @@ size of the first layout."
     :demerits (demerits node)
     :size size))
 
+;; #### NOTE: contrary to the graph variant, we can't have a mix of good and
+;; bad layouts here, so we can directly sort them by demerits.
+(defun kp-dynamic-make-layouts (breakup nodes)
+  "Make Knuth-Plass NODES layouts for BREAKUP. Return them sorted by demerits."
+  (sort (loop :for key :being :the :hash-keys :in nodes :using (hash-value node)
+	      :for size := (key-line-number key)
+	      :collect (kp-dynamic-make-layout breakup node size))
+      #'$< :key #'demerits))
+
 
 ;; -------
 ;; Breakup
@@ -776,6 +755,9 @@ size of the first layout."
   ()
   (:documentation "The Knuth-Plass Dynamic Breakup class."))
 
+;; #### NOTE: according to #872, TeX will attempt to match a non-zero
+;; looseness exactly, or try another pass unless it's already the final one. I
+;; got that wrong for quite some time...
 (defun kp-dynamic-break-harray
     (harray disposition width
      &aux (breakup (make-instance 'kp-dynamic-breakup
@@ -783,27 +765,38 @@ size of the first layout."
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
   (unless (zerop (length harray))
     (let (nodes layouts)
-      (when ($>= *pre-tolerance* 0)
+
+      ;; Pass 1, never final.
+      (when ($<= 0 *pre-tolerance*)
 	(setf (slot-value breakup 'pass) 1)
-	(setq nodes (kp-create-nodes breakup)))
-      (unless nodes
-	(setf (slot-value breakup 'pass) 2)
-	(setq nodes (kp-create-nodes breakup)))
+	(setq nodes (kp-create-nodes breakup))
+	(when nodes
+	  (setq layouts (kp-dynamic-make-layouts breakup nodes))
+	  (unless (zerop *looseness*)
+	    (setq layouts (kp-remove-unloose-layouts layouts)))))
+
+      ;; Pass 2, maybe final.
+      (unless layouts
+	(let ((final (zerop *emergency-stretch*)))
+	  (setf (slot-value breakup 'pass) 2)
+	  (setq nodes (kp-create-nodes breakup))
+	  (when nodes
+	    (setq layouts (kp-dynamic-make-layouts breakup nodes))
+	    (unless (zerop *looseness*)
+	      (setq layouts
+		    (if final
+		      (kp-sort-layouts-by-looseness layouts)
+		      (kp-remove-unloose-layouts layouts)))))))
+
+      ;; Pass 3, always final.
       (unless nodes
 	(incf (slot-value breakup 'pass))
-	(setq nodes (kp-create-nodes breakup)))
-      (setq layouts
-	    (sort (loop :for key :being :the :hash-keys :in nodes
-			  :using (hash-value node)
-			:for size := (key-line-number key)
-			:collect (kp-dynamic-make-layout breakup node size))
-		#'$< :key #'demerits))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (size (first layouts)) *looseness*)))
-	  (setq layouts (stable-sort layouts (lambda (size1 size2)
-					       (< (abs (- size1 ideal-size))
-						  (abs (- size2 ideal-size))))
-				     :key #'size))))
+	(setq nodes (kp-create-nodes breakup))
+	(setq layouts (kp-dynamic-make-layouts breakup nodes))
+	(unless (zerop *looseness*)
+	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
+
+      ;; We're done here.
       (setf (slot-value breakup 'layouts)
 	    (make-array (length layouts) :initial-contents layouts))))
   breakup)
