@@ -297,9 +297,6 @@ This function sorts LAYOUTS by looseness if appropriate."
 ;; Graph Variant
 ;; ==========================================================================
 
-;; #### FIXME: my graph implementation of the 3 passes is not correct
-;; vis-a-vis the looseness.
-
 ;; -----------------
 ;; Boundaries lookup
 ;; -----------------
@@ -419,50 +416,109 @@ This is the Knuth-Plass version for the graph variant.
   ()
   (:documentation "The Knuth-Plass Graph Breakup class."))
 
+;; #### NOTE: unfortunately, the handling of the looseness parameter requires
+;; us to go as far as creating layouts below, only to maybe throw them away
+;; afterwards.
 (defun kp-graph-break-harray
     (harray disposition width
      &aux (breakup (make-instance 'kp-graph-breakup
 		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
-  (if (zerop (length harray))
-    breakup
+  (unless (zerop (length harray))
     (let (graph layouts)
+
+      ;; Pass 1.
       (when ($<= 0 *pre-tolerance*)
 	(setf (slot-value breakup 'pass) 1)
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
 				  (kp-get-boundaries
-				   harray bol width *pre-tolerance*)))))
-      (unless (and graph (gethash *bop* graph))
-	(setf (slot-value breakup 'pass) 2)
-	(setq graph (make-graph harray width
-				(lambda (harray bol width)
-				  (kp-get-boundaries
-				   harray bol width *tolerance*
-				   t (zerop *emergency-stretch*))))))
-      (unless (gethash *bop* graph)
+				   harray bol width *pre-tolerance*))))
+	(when (gethash *bop* graph)
+	  (setq layouts
+		(sort (mapcar (lambda (path)
+				(kp-graph-make-layout breakup path))
+			(make-graph-paths graph))
+		    ;; #### NOTE: we're in pass 1 so no bads.
+		    #'$< :key #'demerits))
+	  (unless (zerop *looseness*)
+	    (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+	      (setq layouts
+		    (remove-if-not (lambda (size) (= size ideal-size))
+			layouts :key #'size))))))
+
+      ;; Pass 2.
+      (unless layouts
+	(let ((final (zerop *emergency-stretch*)))
+	  (setf (slot-value breakup 'pass) 2)
+	  (setq graph (make-graph harray width
+				  (lambda (harray bol width)
+				    (kp-get-boundaries
+				     harray bol width *tolerance* t final))))
+	  (when (gethash *bop* graph)
+	    (setq layouts
+		  (sort (mapcar (lambda (path)
+				  (kp-graph-make-layout breakup path))
+			  (make-graph-paths graph))
+		      (if final
+			;; #### WARNING: in order to remain consistent with
+			;; TeX, and as in the dynamic version, an unfit line
+			;; will have its demerits set to 0. Contrary to the
+			;; dynamic version however, the final pass may offer a
+			;; graph in which there are both fit and unfit
+			;; possibilities, and it may even turn out that an
+			;; unfit one has fewer demerits than a fit one
+			;; (because of the zero'ed lines). Consequently, the
+			;; layouts must be sorted by number of bads first, and
+			;; demerits next.
+			(lambda (l1 l2)
+			  (or (< (bads l1) (bads l2))
+			      (and (= (bads l1) (bads l2))
+				   (< (demerits l1) (demerits l2)))))
+			(lambda (l1 l2)
+			  (< (demerits l1) (demerits l2))))))
+	    (unless (zerop *looseness*)
+	      (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+		(setq layouts
+		      (if final
+			(stable-sort layouts (lambda (size1 size2)
+					       (< (abs (- size1 ideal-size))
+						  (abs (- size2 ideal-size))))
+				     :key #'size)
+			(remove-if-not (lambda (size) (= size ideal-size))
+			    layouts :key #'size))))))))
+
+      ;; Pass 3.
+      (unless layouts
 	(incf (slot-value breakup 'pass))
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
 				  (kp-get-boundaries
 				   harray bol width *tolerance*
-				   t t *emergency-stretch*)))))
+				   t t *emergency-stretch*))))
+	;; #### NOTE: the final pass has at least one solution, however bad it
+	;; may be.
+	(setq layouts
+	      (sort (mapcar (lambda (path) (kp-graph-make-layout breakup path))
+		      (make-graph-paths graph))
+		  ;; See comment in pass to above about this sorting scheme.
+		  (lambda (l1 l2)
+		    (or (< (bads l1) (bads l2))
+			(and (= (bads l1) (bads l2))
+			     (< (demerits l1) (demerits l2)))))))
+	(unless (zerop *looseness*)
+	  (let ((ideal-size (+ (size (first layouts)) *looseness*)))
+	    (setq layouts
+		  (stable-sort layouts (lambda (size1 size2)
+					 (< (abs (- size1 ideal-size))
+					    (abs (- size2 ideal-size))))
+			       :key #'size)))))
+
+      ;; We're done here.
       (setf (slot-value breakup 'graph) graph)
-      (setq layouts (mapcar (lambda (path) (kp-graph-make-layout breakup path))
-		      (make-graph-paths graph)))
-      ;; #### WARNING: in order to remain consistent with TeX, and as in the
-      ;; dynamic version, an unfit line will have its demerits set to 0.
-      ;; Contrary to the dynamic version however, the final pass may offer a
-      ;; graph in which there are both fit and unfit possibilities, and it may
-      ;; even turn out that an unfit one has fewer demerits than a fit one
-      ;; (because of the zero'ed lines). Consequently, the layouts must be
-      ;; sorted by number of bads first, and demerits next.
-      (setq layouts (sort layouts
-			(lambda (l1 l2)
-			  (or (< (bads l1) (bads l2))
-			      (and (= (bads l1) (bads l2))
-				   (< (demerits l1) (demerits l2)))))))
-      (kp-register-layouts breakup layouts))))
+      (setf (slot-value breakup 'layouts)
+	    (make-array (length layouts) :initial-contents layouts))))
+  breakup)
 
 
 
