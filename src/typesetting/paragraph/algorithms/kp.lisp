@@ -165,7 +165,8 @@ that is, of an emergency stretch ."
    (slot-value boundary 'fitness-class) (scale-fitness-class (scale boundary))
    (slot-value boundary 'badness)       (scale-badness (scale boundary)))
   (setf (slot-value boundary 'demerits)
-	;; See comment in the dynamic version about this.
+	;; #### NOTE: see TeX's use of the artificial_demerits flag in this
+	;; situation (#854, #855).
 	(if (numberp (badness boundary))
 	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
 	  0))
@@ -610,12 +611,10 @@ or, in case of equality, a lesser amount of demerits."
 		       :break-point break-point
 		       :target width
 		       :extra emergency-stretch)))
-      ;; #### NOTE: in this situation, TeX sets the local demerits to 0 (#855)
-      ;; by checking the artificial_demerits flag. The KP-BOUNDARY
-      ;; initialization protocol takes care of this (although I should verify
-      ;; that we can indeed rely on infinite badness to detect the situation).
-      ;; In any case, we can also just reuse the previous total demerits in
-      ;; the new node.
+      ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
+      ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY
+      ;; initialization protocol takes care of this. In any case, we can also
+      ;; just reuse the previous total demerits in the new node.
       (setq new-nodes
 	    (list
 	     (cons (make-key break-point
