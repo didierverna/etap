@@ -284,19 +284,6 @@ This class is mixed in both the graph and dynamic breakup classes."))
   "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
-(defun kp-register-layouts (breakup layouts)
-  "Register LAYOUTS in BREAKUP. Return BREAKUP.
-This function sorts LAYOUTS by looseness if appropriate."
-  (unless (zerop *looseness*)
-    (let ((ideal-size (+ (size (first layouts)) *looseness*)))
-      (setq layouts (stable-sort layouts (lambda (size1 size2)
-					   (< (abs (- size1 ideal-size))
-					      (abs (- size2 ideal-size))))
-				 :key #'size))))
-  (setf (slot-value breakup 'layouts)
-	(make-array (length layouts) :initial-contents layouts))
-  breakup)
-
 
 
 
@@ -688,6 +675,8 @@ This is the Knuth-Plass version for the graph variant.
   "The Knuth-Plass beginning of paragraph hash table key.")
 
 
+;; #### FIXME: there's a mix of looseness handling here and in
+;; KP-DYNAMIC-BREAK-HARRAY. This should all be done in the function below.
 (defun kp-create-nodes
     (breakup
      &aux (harray (harray breakup))
@@ -790,9 +779,8 @@ This is the Knuth-Plass version for the graph variant.
      &aux (breakup (make-instance 'kp-dynamic-breakup
 		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
-  (if (zerop (length harray))
-    breakup
-    (let (nodes)
+  (unless (zerop (length harray))
+    (let (nodes layouts)
       (when ($>= *pre-tolerance* 0)
 	(setf (slot-value breakup 'pass) 1)
 	(setq nodes (kp-create-nodes breakup)))
@@ -802,14 +790,21 @@ This is the Knuth-Plass version for the graph variant.
       (unless nodes
 	(incf (slot-value breakup 'pass))
 	(setq nodes (kp-create-nodes breakup)))
-      (kp-register-layouts
-       breakup
-       (stable-sort
-	(loop :for key :being :the :hash-keys :in nodes
-		:using (hash-value node)
-	      :for size := (key-line-number key)
-	      :collect (kp-dynamic-make-layout breakup node size))
-	#'$< :key #'demerits)))))
+      (setq layouts
+	    (sort (loop :for key :being :the :hash-keys :in nodes
+			  :using (hash-value node)
+			:for size := (key-line-number key)
+			:collect (kp-dynamic-make-layout breakup node size))
+		#'$< :key #'demerits))
+      (unless (zerop *looseness*)
+	(let ((ideal-size (+ (size (first layouts)) *looseness*)))
+	  (setq layouts (stable-sort layouts (lambda (size1 size2)
+					       (< (abs (- size1 ideal-size))
+						  (abs (- size2 ideal-size))))
+				     :key #'size))))
+      (setf (slot-value breakup 'layouts)
+	    (make-array (length layouts) :initial-contents layouts))))
+  breakup)
 
 
 
