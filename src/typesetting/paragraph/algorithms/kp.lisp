@@ -2,7 +2,24 @@
 ;; Michael F. (1981), "Breaking paragraphs into lines", Software: Practice and
 ;; Experience, 11 (11): 1119–1184.
 
+;; We provide both a full graph-based version and a dynamic programming
+;; optimized one (as the original). These variants reimplement the principles
+;; of the algorithm, not its original low-level implementation. This, by the
+;; way, may induce some subtle behavioral differences.
+
+;; For example, by choosing the first of the available layouts after sorting
+;; them, we're doing the opposite of what TeX does in case of total demerits
+;; equality (extremely rare), or when there's no solution and we resort to
+;; overfulls, because TeX restores the last deactivated node (so the last seen
+;; (im)possibility. We could instead check for multiple equivalent layouts and
+;; take the last one. On the other hand, while we're using a hash table in the
+;; dynamic programming implementation, we're not doing exactly what TeX does
+;; either, so there's no rush. It's still important to keep that in mind
+;; however, because that explains while we may end up with different solutions
+;; between the graph and the dynamic versions.
+
 (in-package :etap)
+
 
 ;; ==========================================================================
 ;; Specification
@@ -267,16 +284,6 @@ This class is mixed in both the graph and dynamic breakup classes."))
   "Advertise Knuth-Plass breakup MIXIN's pass number."
   (unless (zerop pass) (format nil "Pass: ~A." pass)))
 
-;; #### WARNING: by choosing the first layout here, we're doing the opposite
-;; of what TeX does in case of total demerits equality (extremely rare), or
-;; when there's no solution and we resort to overfulls, because TeX restores
-;; the last deactivated node (so the last seen (im)possibility. We could
-;; instead check for multiple equivalent layouts and take the last one. On the
-;; other hand, while we're using a hash table in the dynamic programming
-;; implementation, we're not doing exactly what TeX does either, so there's no
-;; rush. It's still important to keep that in mind however, because that
-;; explains while we may end up with different solutions between the graph and
-;; the dynamic versions.
 (defun kp-register-layouts (breakup layouts)
   "Register LAYOUTS in BREAKUP. Return BREAKUP.
 This function sorts LAYOUTS by looseness if appropriate."
