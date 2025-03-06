@@ -182,7 +182,7 @@ that is, of an emergency stretch ."
   (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line)."
     (fitness-class-name (fitness-class boundary))
     ($float (badness boundary))
-    ($float (demerits boundary))))
+    (float (demerits boundary))))
 
 
 ;; -----
@@ -199,7 +199,7 @@ that is, of an emergency stretch ."
 
 (defmethod properties strnlcat ((line kp-line) &key)
   "Return a string advertising Knuth-Plass LINE's cumulative demerits."
-  (format nil "Cumulative demerits: ~A." ($float (demerits line))))
+  (format nil "Cumulative demerits: ~A." (float (demerits line))))
 
 ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
 ;; underfulls (in case of an impossible layout, it falls back to overfull
@@ -259,7 +259,7 @@ instantiated instead."
 ;; for sorting the layouts from best to worse.
 (defmethod properties strnlcat ((layout kp-layout) &key)
   "Return a string advertising Knuth-Plass LAYOUT's demerits."
-  (format nil "Demerits: ~A." ($float (demerits layout))))
+  (format nil "Demerits: ~A." (float (demerits layout))))
 
 (defun kp-remove-unloose-layouts (layouts)
   "Return the subset of Knuth-Plass LAYOUTS conforming to *LOOSENESS*.
@@ -386,7 +386,7 @@ This is the Knuth-Plass version for the graph variant.
   ;; See warning in KP-CREATE-NODES about that.
   (when (zerop (fitness-class (first path)))
     (setf (slot-value layout 'demerits)
-	  ($+ (slot-value layout 'demerits) *adjacent-demerits*)))
+	  (+ (slot-value layout 'demerits) *adjacent-demerits*)))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
     (with-slots (demerits bads size) layout
@@ -395,19 +395,19 @@ This is the Knuth-Plass version for the graph variant.
 	    :for finalp := (eopp boundary2)
 	    :do (incf size)
 	    :unless (numberp (badness boundary2)) :do (incf bads)
-	    :do (setf demerits ($+ demerits (demerits boundary2)))
+	    :do (setf demerits (+ demerits (demerits boundary2)))
 	    ;; See comment in dynamic version. Do not consider the very
 	    ;; rare case where the paragraph ends with an explicit hyphen.
 	    :when (and (not finalp)
 		       (hyphenated boundary1)
 		       (hyphenated boundary2))
-	      :do (setf demerits ($+ demerits *double-hyphen-demerits*))
+	      :do (setf demerits (+ demerits *double-hyphen-demerits*))
 	    :when (and finalp (hyphenated boundary1))
-	      :do (setf demerits ($+ demerits *final-hyphen-demerits*))
+	      :do (setf demerits (+ demerits *final-hyphen-demerits*))
 	    :when (> (abs (- (fitness-class boundary1)
 			     (fitness-class boundary2)))
 		     1)
-	      :do (setf demerits ($+ demerits *adjacent-demerits*))
+	      :do (setf demerits (+ demerits *adjacent-demerits*))
 	    :collect (funcall make-line
 		       harray (break-point boundary1) boundary2 demerits)
 	      :into lines
@@ -467,7 +467,7 @@ or, in case of equality, a lesser amount of demerits."
 				   harray bol width *pre-tolerance*))))
 	(when (gethash *bop* graph)
 	  (setq layouts (sort (kp-graph-make-layouts breakup graph)
-			    #'$< :key #'demerits))
+			    #'< :key #'demerits))
 	  (unless (zerop *looseness*)
 	    (setq layouts (kp-remove-unloose-layouts layouts)))))
 
@@ -487,7 +487,7 @@ or, in case of equality, a lesser amount of demerits."
 		     (setq layouts (kp-sort-layouts-by-looseness layouts))))
 		  (t
 		   (setq layouts (sort (kp-graph-make-layouts breakup graph)
-				     #'$< :key #'demerits))
+				     #'< :key #'demerits))
 		   (unless (zerop *looseness*)
 		     (setq layouts (kp-remove-unloose-layouts layouts))))))))
 
@@ -557,13 +557,13 @@ or, in case of equality, a lesser amount of demerits."
        (setq last-deactivation (cons key node))
        (remhash key nodes))
      (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
-       (let ((total-demerits ($+ (demerits node) (demerits boundary))))
+       (let ((total-demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on
 	 ;; *KP-BOP-NODE*. Besides, we also save a couple of accessor calls
 	 ;; that way.
 	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
-	   (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
+	   (setq total-demerits (+ total-demerits *adjacent-demerits*)))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
@@ -576,10 +576,10 @@ or, in case of equality, a lesser amount of demerits."
 	 ;; hyphens are very unlikely to create a ladder.
 	 (when (discretionaryp bol)
 	   (if (eopp boundary)
-	     (setq total-demerits ($+ total-demerits *final-hyphen-demerits*))
+	     (setq total-demerits (+ total-demerits *final-hyphen-demerits*))
 	     (when (discretionaryp (break-point boundary))
 	       (setq total-demerits
-		     ($+ total-demerits *double-hyphen-demerits*)))))
+		     (+ total-demerits *double-hyphen-demerits*)))))
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
 				   (fitness-class boundary)))
@@ -595,7 +595,7 @@ or, in case of equality, a lesser amount of demerits."
 			    ;; same thing because we're using MAPHASH and the
 			    ;; order of the nodes in the hash table is not
 			    ;; deterministic.
-			    ($<= total-demerits (demerits (cdr previous))))
+			    (<= total-demerits (demerits (cdr previous))))
 		    (funcall make-node
 		      harray bol boundary total-demerits node))))
 	   (when new-node
@@ -738,7 +738,7 @@ or, in case of equality, a lesser amount of demerits."
   (sort (loop :for key :being :the :hash-keys :in nodes :using (hash-value node)
 	      :for size := (key-line-number key)
 	      :collect (kp-dynamic-make-layout breakup node size))
-      #'$< :key #'demerits))
+      #'< :key #'demerits))
 
 
 ;; -------
