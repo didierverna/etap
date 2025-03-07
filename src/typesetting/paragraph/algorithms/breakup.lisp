@@ -1,9 +1,31 @@
 (in-package :etap)
 
+;; ==========================================================================
+;; Breakups
+;; ==========================================================================
+
 (defclass breakup ()
-  ()
+  ((harray
+    :documentation "This breakup's harray."
+    :initarg :harray :reader harray)
+   (disposition
+    :documentation "The breakup's disposition."
+    :initarg :disposition :reader disposition)
+   (width
+    :documentation "The breakup's paragraph width."
+    :initarg :width :reader width)
+   (layouts
+    :documentation "This breakup's layouts array, or NIL (the default).
+A distinction is made between the case where there's nothing to typeset
+(an empty harray) and where an algorithm couldn't find any solution (which
+currently never happens because all algorithms turn to a fallback solution):
+- when there's nothing to typeset, this slot remains NIL,
+- when no solution could be found, an array of size 0 will be created."
+    :initform nil :reader layouts))
   (:documentation "The BREAKUP class.
-This is the base class for breakups."))
+A breakup is the result of running a paragraph formatting algorithm on an
+harray for a specific paragraph width. Algorithms may provide their own
+breakup subclass in order to store specific global properties."))
 
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to
@@ -11,42 +33,49 @@ This is the base class for breakups."))
 ;; instantiating the appropriate breakup class, so we cannot short-circuit
 ;; anything here in case of an empty harray.
 (defgeneric break-harray
-    (harray disposition width beds algorithm &key &allow-other-keys)
+    (harray disposition width algorithm &key &allow-other-keys)
   (:documentation
    "Break HARRAY as a DISPOSITION paragraph of WIDTH with ALGORITHM.
-Maybe include river BEDS."))
+Return the resulting breakup."))
 
-(defun %make-breakup (lineup disposition width beds algorithm)
+(defun %make-breakup (lineup disposition width algorithm)
   "Make a new breakup out of LINEUP for a DISPOSITION paragraph of WITH.
-Use ALGORITHM to do so. Maybe include river BEDS."
-  (apply #'break-harray (harray lineup) disposition width beds
+Use ALGORITHM to do so."
+  (apply #'break-harray (harray lineup) disposition width
 	 (algorithm-type algorithm) (algorithm-options algorithm)))
 
 
-;; #### TODO: the two protocols below will change when we give the interface
-;; the ability to visualize different breakup results.
 
-(defgeneric pinned-lines (breakup)
-  (:documentation "Return BREAKUP's number of pinned lines."))
+
+;; ==========================================================================
+;; Rendering
+;; ==========================================================================
 
-(defun lines-# (breakup)
-  "Return BREAKUP's number of lines."
-  (length (pinned-lines breakup)))
+;; #### NOTE: the call to LENGTH below will return 0 when the LAYOUTS slot is
+;; nil, as well as when it's an array of size 0.
+(defun layouts-# (breakup)
+  "Return BREAKUP's layouts number."
+  (length (layouts breakup)))
+
+(defun get-layout (nth breakup &aux (layout (aref (layouts breakup) nth)))
+  "Get the Nth BREAKUP's layout. Make sure it is rendered first."
+  (if (renderedp layout) layout (render-layout layout)))
+
+
+
+
+;; ==========================================================================
+;; Properties
+;; ==========================================================================
 
 (defmethod properties strnlcat
-    ((breakup breakup) &aux (lines-# (lines-# breakup)))
-  "Addvertise BREAKUP's number of lines."
-  (unless (zerop lines-#) (format nil "~A line~:P." (lines-# breakup))))
-
-
-;; ---------------
-;; Simple Breakups
-;; ---------------
-
-(defclass simple-breakup (breakup)
-  ((pinned-lines :documentation "The pinned lines."
-		 :initform nil :initarg :pinned-lines :reader pinned-lines))
-  (:documentation "The Simple Breakup class.
-This class allows the storage of a single breaking solution. It is thus
-adequate for greedy algorithms making only discrete choices. Current
-algorithms using it are Fixed and Barnett."))
+    ((breakup breakup) &key layout-# &aux (layouts (layouts breakup)))
+  "Return a string advertising BREAKUP's layouts number.
+When LAYOUT-#, also advertise BREAKUP's LAYOUT-#th layout properties.
+Care is taken to render the layout first."
+  (strnlcat
+   (when layouts (format nil "~A layout~:P" (length layouts)))
+   (when layout-#
+     (assert layouts)
+     ;; Using GET-LAYOUT here makes sure that the layout is rendered.
+     (properties (get-layout layout-# breakup)))))

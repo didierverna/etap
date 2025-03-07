@@ -72,6 +72,7 @@
 
 (in-package :etap)
 
+
 ;; ==========================================================================
 ;; Specification
 ;; ==========================================================================
@@ -181,22 +182,51 @@ for equally good solutions."))
 ;; Boundaries
 ;; ==========================================================================
 
+;; #### TODO: the min and max widths here (in fact, the width one as well) are
+;; "natural" widths. Nothing prevents an algorithm to stretch a line more than
+;; it's max width (in fact the Knuth-Plass does so with its tolerance
+;; setting). So perhaps the design is not very nice for algorithms with more
+;; flexibility, and those values should in fact represent the algorithm's
+;; tolerance instead.
+
+;; #### TODO: as for the scale property, it represents the amount required to
+;; reach a target width, /not/ an algorithm's final choice. Also, this really
+;; makes sense for justification, much less for ragged dispositions. But on
+;; the other hand, we don't currently have any sensible ragged formatting.
+
 (defclass fit-boundary (fixed-boundary)
-  ((max-width :documentation "This boundary's maximum line width."
-	      :initarg :max-width
-	      :reader max-width)
-   (min-width :documentation "This boundary's minimum line width."
-	      :initarg :min-width
-	      :reader min-width)
-   (scale :documentation "This boundary's required scaling."
-	  :reader scale))
+  ((min-width
+    :documentation "This boundary's theoretical minimum line width."
+    :initarg :min-width :reader min-width)
+   (max-width
+    :documentation "This boundary's theoretical maximum line width."
+    :initarg :max-width :reader max-width)
+   (scale
+    :documentation "This boundary's theoretical scaling."
+    :reader scale))
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary) &key natural-width width stretch shrink)
+    ((boundary fit-boundary)
+     ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
+     ;; EXTRA stretch here.
+     &key width stretch shrink extra target)
   "Initialize BOUNDARY's scale."
+  (when extra (setq stretch ($+ stretch extra)))
   (setf (slot-value boundary 'scale)
-	(scaling natural-width width stretch shrink)))
+	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
+	;; already initialized by now, but we're still saving a reader call
+	;; by using the propagated NATURAL-WIDTH keyword argument.
+	(scaling width target stretch shrink)))
+
+(defmethod properties strnlcat ((boundary fit-boundary) &key)
+  "Return a string advertising Fit BOUNDARY's natural dimensions.
+This includes the minimum, natural, and maximum theoretical line widths,
+plus the theoretical scaling required to reach the target width."
+  (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical scaling: ~A."
+    (float (min-width boundary))
+    ($float (max-width boundary))
+    ($float (scale boundary))))
 
 
 (defclass fit-weighted-boundary (fit-boundary)
@@ -209,6 +239,14 @@ for equally good solutions."))
     :reader possibilities))
   (:documentation "The Fit algorithm's weighted boundary class."))
 
+(defmethod properties strnlcat ((boundary fit-weighted-boundary) &key)
+  "Return a string advertising Fit Weighted BOUNDARY's properties.
+This includes the boundary's weight and the number possibilities to end this
+line."
+  (format nil "Weight: ~A, best of ~A choice~:P."
+    ($float (weight boundary))
+    (possibilities boundary)))
+
 
 ;; ---------------
 ;; Boundary lookup
@@ -218,103 +256,177 @@ for equally good solutions."))
 ;; the first overfull (included), regardless of their hyphenation status.
 ;; That's because getting as close to the paragraph's width takes precedence
 ;; in justified disposition.
-(defun fit-justified-line-boundaries (harray start width)
-  "Return possible boundaries for justification by the Fit algorithm.
-Boundaries are collected for a HARRAY line beginning at START, and for a
-paragraph of WIDTH.
-This function returns three values:
+(defun fit-get-justified-boundaries (harray bol width)
+  "Return the boundaries for a justified HARRAY line of WIDTH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This function is used by the Fit algorithm and returns three values:
 - a (possibly empty) list of fit boundaries from last to first,
-- the last underfull boundary or NIL,
-- the first overfull boundary or NIL."
+- the last underfull boundary, or NIL,
+- the first overfull boundary, or NIL."
   (loop :with underfull :with fits := (list) :with overfull
 	:with continue := t
-	:for boundary := (next-boundary harray start 'fit-boundary
-					:start start :width width)
-	  :then (next-boundary harray (idx boundary) 'fit-boundary
-			       :start start :width width)
-	:while continue
-	:do (when ($< (penalty (item boundary)) +∞)
-	      (when (eq (penalty (item boundary)) -∞) (setq continue nil))
-	      (cond (($< (max-width boundary) width)
-		     (setq underfull boundary))
-		    ((> (min-width boundary) width)
-		     (setq overfull boundary continue nil))
-		    (t
-		     (push boundary fits)))) ;; note the reverse order
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol continue)
+	:do (when ($< (penalty eol) +∞)
+	      (when (eq (penalty eol) -∞) (setq continue nil))
+	      (let ((boundary (make-instance 'fit-boundary
+				:harray harray :bol bol :break-point eol
+				:target width)))
+		(cond (($< (max-width boundary) width)
+		       (setq underfull boundary))
+		      ((> (min-width boundary) width)
+		       (setq overfull boundary continue nil))
+		      (t
+		       (push boundary fits))))) ;; note the reverse order
 	:finally (return (values fits underfull overfull))))
 
 
-;; #### NOTE: even though the value is dynamically scoped, we're still passing
-;; VARIANT explicitly to this function for specialization purposes.
-(defgeneric fit-justified-line-boundary (harray start width variant)
-  (:documentation
-   "Return the Fit algorithm's view of the end of a justified line boundary.")
-  (:method (harray start width variant)
-    "Find a first-/last-fit boundary for the justified disposition."
-    (multiple-value-bind (fits underfull overfull)
-	(fit-justified-line-boundaries harray start width)
-      (cond (fits
-	     (when *avoid-hyphens*
-	       (setq fits
-		     (loop :for boundary :in fits
-			   :if (hyphenation-point-p (item boundary))
-			     :collect boundary :into hyphens
-			   :else
-			     :collect boundary :into others
-			   :finally (return (or others hyphens)))))
-	     (ecase variant
-	       (:first (car (last fits)))
-	       (:last (first fits))))
-	    (t
-	     (fixed-fallback-boundary
-	      underfull overfull (+ width *width-offset*))))))
-  (:method (harray start width (variant (eql :best)))
-    "Find a best-fit boundary for the justified disposition."
-    (multiple-value-bind (fits underfull overfull)
-	(fit-justified-line-boundaries harray start width)
-      (cond ((and fits (null (cdr fits)))
-	     (first fits))
-	    (fits
-	     ;; #### NOTE: since we're only working with fits here, the
-	     ;; badness can only be numerical (not infinite). Also, there is
-	     ;; at most one boundary with a penalty of -∞ (because of the way
-	     ;; we collect boundaries). This means that we can end up with at
-	     ;; most one infinitely negative weight below.
-	     (let ((possibilities (length fits)))
+(defun first/last-fit-get-justified-boundary (harray bol width)
+  "Return the boundary for a justified HARRAY line of WITH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the First/Last Fit algorithm version."
+  (multiple-value-bind (fits underfull overfull)
+      (fit-get-justified-boundaries harray bol width)
+    (cond (fits
+	   (when *avoid-hyphens*
+	     (setq fits (loop :for boundary :in fits
+			      :if (hyphenated boundary)
+				:collect boundary :into hyphens
+			      :else
+				:collect boundary :into others
+			      :finally (return (or others hyphens)))))
+	   (ecase *variant*
+	     (:first (car (last fits)))
+	     (:last (first fits))))
+	  (t
+	   (fixed-fallback-boundary
+	    underfull overfull (+ width *width-offset*))))))
+
+(defun best-fit-get-justified-boundary (harray bol width)
+  "Return the boundary for a justified HARRAY line of WITH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the  Best Fit algorithm version."
+  (multiple-value-bind (fits underfull overfull)
+      (fit-get-justified-boundaries harray bol width)
+    (cond ((and fits (null (cdr fits)))
+	   (first fits))
+	  (fits
+	   ;; #### NOTE: since we're only working with fits here, the badness
+	   ;; can only be numerical (not infinite). Also, there is at most one
+	   ;; boundary with a penalty of -∞ (because of the way we collect
+	   ;; boundaries). This means that we can end up with at most one
+	   ;; infinitely negative weight below.
+	   (let ((possibilities (length fits)))
+	     (mapc (lambda (fit)
+		     (change-class fit 'fit-weighted-boundary
+		       :weight (local-demerits (scale-badness (scale fit))
+					       (penalty fit)
+					       *line-penalty*)
+		       :possibilities possibilities))
+	       fits))
+	   ;; Note the use of $< and EQL here, because we can have (at most)
+	   ;; one infinitely negative weight.
+	   (setq fits (stable-sort fits #'$< :key #'weight))
+	   (setq fits (retain (weight (first fits)) fits
+			:test #'eql :key #'weight))
+	   (when (cdr fits)
+	     ;; We have two or more equal weights, so they can only be
+	     ;; numerical.
+	     (let ((new-weight
+		     (ecase *discriminating-function*
+		       (:minimize-distance
+			(lambda (fit) (abs (- width (width fit)))))
+		       (:minimize-scaling
+			(lambda (fit) (abs (scale fit)))))))
 	       (mapc (lambda (fit)
-		       (change-class fit 'fit-weighted-boundary
-			 :weight (local-demerits (scale-badness (scale fit))
-						 (penalty (item fit))
-						 *line-penalty*)
-			 :possibilities possibilities))
+		       (setf (weight fit) (funcall new-weight fit)))
 		 fits))
-	     ;; Note the use of $< and EQL here, because we can have (at most)
-	     ;; one infinitely negative weight.
-	     (setq fits (stable-sort fits #'$< :key #'weight))
+	     (setq fits (stable-sort fits #'< :key #'weight))
 	     (setq fits (retain (weight (first fits)) fits
-			  :test #'eql :key #'weight))
-	     (when (cdr fits)
-	       ;; We have two or more equal weights, so they can only be
-	       ;; numerical.
-	       (let ((new-weight
-		       (ecase *discriminating-function*
-			 (:minimize-distance
-			  (lambda (fit) (abs (- width (width fit)))))
-			 (:minimize-scaling
-			  (lambda (fit) (abs (scale fit)))))))
-		 (mapc (lambda (fit)
-			 (setf (weight fit) (funcall new-weight fit)))
-		   fits))
-	       (setq fits (stable-sort fits #'< :key #'weight))
-	       (setq fits (retain (weight (first fits)) fits
-			    :test #'= :key #'weight)))
-	     (cond ((cdr fits)
-		    (assert (= (length fits) 2))
-		    (if *prefer-shrink* (first fits) (second fits)))
-		   (t (first fits))))
-	    (t
-	     (fixed-fallback-boundary
-	      underfull overfull (+ width *width-offset*)))))))
+				:test #'= :key #'weight)))
+	   (cond ((cdr fits)
+		  (assert (= (length fits) 2))
+		  (if *prefer-shrink* (first fits) (second fits)))
+		 (t (first fits))))
+	  (t
+	   (fixed-fallback-boundary
+	    underfull overfull (+ width *width-offset*))))))
+
+;; In this function, we stop at the first word overfull even if we don't have
+;; an hyphen overfull yet, because the Avoid Hyphens options would have no
+;; effect. On the other hand, if we already have an hyphen overfull, it's
+;; still important to collect a word overfull if possible, because of that
+;; very same option.
+(defun fit-get-ragged-boundary (harray bol width get-width)
+  "Return the boundary for a ragged HARRAY line of WIDTH starting at BOL.
+Return NIL if BOL is already at the end of HARRAY.
+This is the Fit algorithm version.
+GET-WIDTH is called to read the appropriate width (max width for the first
+fit, natural width for the best fit, and min width for thew last fit)."
+  (loop :with underfull :with underword :with fit :with overfull :with overword
+	:with continue := t
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol continue)
+	:do (when ($< (penalty eol) +∞)
+	      (when (eq (penalty eol) -∞) (setq continue nil))
+	      (let* ((boundary (make-instance 'fit-boundary
+				 :harray harray :bol bol :break-point eol
+				 :target width))
+		     ;; Note that we already had EOL to figure this out, but
+		     ;; it's more readable like that.
+		     (hyphenated (hyphenated boundary)))
+		(cond (($< (funcall get-width boundary) width)
+		       ;; Track the last underfulls because they're the
+		       ;; closest to WIDTH.
+		       (setq underfull boundary)
+		       (unless hyphenated (setq underword boundary)))
+		      (($= (funcall get-width boundary) width)
+		       (setq fit boundary))
+		      (t
+		       ;; Track the first overfulls because they're the
+		       ;; closest to WIDTH.
+		       (unless overfull (setq overfull boundary))
+		       ;; No check required here because we stop at the first
+		       ;; word overfull anyway.
+		       (unless hyphenated
+			 (setq overword boundary continue nil))))))
+	:finally
+	   (return
+	     (cond ((and fit (hyphenated fit) *avoid-hyphens*)
+		    ;; We have a hyphenated fit but we prefer to avoid
+		    ;; hyphens. Choose a word solution if possible. Otherwise,
+		    ;; fallback to the fit.
+		    (ecase *fallback*
+		      (:underfull (or underword fit))
+		      (:anyfull (or (fixed-fallback-boundary
+				     underword overword
+				     (+ width *width-offset*)
+				     get-width)
+				    fit))
+		      (:overfull (or overword fit))))
+		   ;; We have a fit and we don't care about hyphens or it's a
+		   ;; word fit. Choose it.
+		   (fit fit)
+		   (*avoid-hyphens*
+		    ;; We don't have a fit and we want to avoid hyphens.
+		    ;; Choose a word solution if possible.
+		    (ecase *fallback*
+		      (:underfull (or underword underfull overfull))
+		      (:anyfull (or (fixed-fallback-boundary
+				     underword overword
+				     (+ width *width-offset*)
+				     get-width)
+				    (fixed-fallback-boundary
+				     underfull overfull
+				     (+ width *width-offset*)
+				     get-width)))
+		      (:overfull (or overword overfull underfull))))
+		   (t
+		    ;; We don't care about hyphens. Choose the best solution.
+		    (fixed-fallback-boundary
+		     underfull overfull (+ width *width-offset*) get-width))))))
 
 
 
@@ -323,123 +435,74 @@ This function returns three values:
 ;; Lines
 ;; ==========================================================================
 
-(defclass fit-line (line)
-  ((weight :documentation "This line's weight."
-	   :initarg :weight
-	   :reader weight)
-   (possibilities
-    :documentation "The number of possibilities for ending this line."
-    :initarg :possibilities
-    :reader possibilities))
-  (:documentation "The Fit line class.
-This class keeps track of the line's weight, as computed in the best /
-justified disposition. Note that unfit lines are still represented by the base
-LINE class."))
+;; By default, lines are stretched as much as possible.
+(defun first-fit-make-ragged-line (harray bol boundary width &aux (scale 1))
+  "First Fit version of `make-line' for ragged lines."
+  (when *relax*
+    (setq scale
+	  (if (eopp boundary)
+	    ;; There is no constraint on destretching the last line.
+	    0
+	    ;; On the other hand, do not destretch any other line so much that
+	    ;; another chunk would fit in.
+	    (let ((scale (harray-scale
+			  harray
+			  (bol-idx bol)
+			  (eol-idx
+			   (next-break-point harray (break-point boundary)))
+			  width)))
+	      ;; A positive scale means that another chunk would fit in, and
+	      ;; still be underfull (possibly not even elastic), so we can
+	      ;; destretch only up to that (infinity falling back to 0).
+	      ;; Otherwise, we can destretch completely.
+	      (if ($> scale 0) scale 0)))))
+  (make-line harray bol boundary :scale scale))
 
-(defmethod properties strnlcat ((line fit-line))
-  "Advertise LINE's weight."
-  (format nil "Weight: ~A, out of ~A possible solutions."
-    ($float (weight line))
-    (possibilities line)))
+;; By default, lines are shrunk as much as possible.
+(defun last-fit-make-ragged-line (harray bol boundary width &aux (scale -1))
+  "Last Fit version of `make-line' for ragged lines."
+  (when *relax*
+    ;; There is no specific case for the last line here, because we only
+    ;; deshrink up to the line's natural width.
+    ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
+    ;; calling (SCALE BOUNDARY).
+    (setq scale (let ((scale (harray-scale
+			      harray (bol-idx bol) (eol-idx boundary) width)))
+		  ;; - A positive scale means that the line is naturally
+		  ;;   underfull (maybe not even elastic), so we can deshrink
+		  ;;   completely.
+		  ;; - A scale between -1 and 0 means that the line can fit,
+		  ;;   so we can deshrink up to that.
+		  ;; - Finally, a scale < -1 means that the line cannot fit at
+		  ;;   all, so we must stay at our original -1.
+		  (if ($>= scale 0) 0 ($max scale -1)))))
+  (make-line harray bol boundary :scale scale))
 
-
-;; -----------------
-;; Lines computation
-;; -----------------
-
-;; #### NOTE: even though the value is dynamically scoped, we're still passing
-;; VARIANT explicitly to this function for specialization purposes.
-(defgeneric fit-make-line
-    (harray start boundary disposition beds variant &key &allow-other-keys)
-  (:documentation
-   "Make a Fit line from HARRAY chunk between START and BOUNDARY.")
-  (:method (harray start boundary disposition beds (variant (eql :first))
-	    &key width
-		 ;; By default, lines are stretched as much as possible.
-	    &aux (scale 1))
-    "Make a first-fit ragged line from HARRAY chunk between START and BOUNDARY."
-    (when *relax*
-      (setq scale
-	    (if (last-boundary-p boundary)
-	      ;; There is no constraint on destretching the last line.
-	      0
-	      ;; On the other hand, do not destretch any other line so much
-	      ;; that another chunk would fit in.
-	      (let ((scale (scale (next-boundary harray (idx boundary)
-						 'fit-boundary
-						 :start start :width width))))
-		;; A positive scale means that another chunk would fit in, and
-		;; still be underfull (possibly not even elastic), so we can
-		;; destretch only up to that (infinity falling back to 0).
-		;; Otherwise, we can destretch completely.
-		(if ($> scale 0) scale 0)))))
-    (make-instance 'line :harray harray :start-idx start
-		   :stop-idx (stop-idx boundary)
-		   :beds beds :scale scale))
-  (:method (harray start boundary disposition beds (variant (eql :best)) &key)
-    "Make a best-fit ragged line from HARRAY chunk between START and BOUNDARY."
-    (make-instance 'line
-      :harray harray :start-idx start :stop-idx (stop-idx boundary) :beds beds))
-  (:method (harray start boundary disposition beds (variant (eql :last))
-	    &key width
-	    &aux (stop (stop-idx boundary))
-		 ;; By default, lines are shrunk as much as possible.
-		 (scale -1))
-    "Make a last-fit ragged line from HARRAY chunk between START and BOUNDARY."
-    (when *relax*
-      ;; There is no specific case for the last line here, because we only
-      ;; deshrink up to the line's natural width.
-      ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
-      ;; calling BOUNDARY-SCALE.
-      (setq scale (let ((scale (harray-scale harray start stop width)))
-		    ;; - A positive scale means that the line is naturally
-		    ;;   underfull (maybe not even elastic), so we can
-		    ;;   deshrink  completely.
-		    ;; - A scale between -1 and 0 means that the line can fit,
-		    ;;   so we can deshrink up to that.
-		    ;; - Finally, a scale < -1 means that the line cannot fit
-		    ;;   at all, so we must stay at our original -1.
-		    (if ($>= scale 0) 0 ($max scale -1)))))
-    (make-instance 'line :harray harray :start-idx start :stop-idx stop
-		   :beds beds :scale scale))
-  (:method (harray start boundary (disposition (eql :justified)) beds variant
-	    &key overstretch overshrink
-	    &aux (stop (stop-idx boundary))
-		 (scale (scale boundary))
-		 (line-initargs
-		  `(:harray ,harray :start-idx ,start :stop-idx ,stop
-		    :beds ,beds))
-		 line-class)
-    "Make an any-fit justified line from HARRAY chunk between START and STOP."
-    (etypecase boundary
-      (fit-weighted-boundary
-       (setq line-class 'fit-line)
-       (setq line-initargs `(,@line-initargs
-			     :weight ,(weight boundary)
-			     :possibilities ,(possibilities boundary))))
-      (fit-boundary
-       (setq line-class 'line)))
-    (multiple-value-bind (theoretical effective)
-	(if (last-boundary-p boundary)
-	  ;; The last line, which almost never fits exactly, needs a special
-	  ;; treatment. Without paragraph-wide considerations, we want its
-	  ;; scaling to be close to the general effect of the selected
-	  ;; variant.
-	  (ecase variant
-	    (:first
-	     ;; If the line needs to be shrunk, shrink it. Otherwise, stretch
-	     ;; as much as possible, without overstretching.
-	     (actual-scales scale :overshrink overshrink))
-	    (:best
-	     ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
-	     ;; normal spacing.
-	     (actual-scales scale :overshrink overshrink :stretch-tolerance 0))
-	    (:last
-	     ;; Shrink as much as possible.
-	     (actual-scales -1 :overshrink overshrink)))
-	  (actual-scales scale :overshrink overshrink :overstretch overstretch))
-      (apply #'make-instance line-class
-	     :scale theoretical :effective-scale effective line-initargs))))
+(defun fit-make-justified-line
+    (harray bol boundary overstretch overshrink)
+  "Fit version of `make-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (if (eopp boundary)
+	;; The last line, which almost never fits exactly, needs a special
+	;; treatment. Without paragraph-wide considerations, we want its
+	;; scaling to be close to the general effect of the selected variant.
+	(ecase *variant*
+	  (:first
+	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
+	   ;; much as possible, without overstretching.
+	   (actual-scales (scale boundary) :overshrink overshrink))
+	  (:best
+	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
+	   ;; normal spacing.
+	   (actual-scales (scale boundary)
+	     :overshrink overshrink :stretch-tolerance 0))
+	  (:last
+	   ;; Shrink as much as possible.
+	   (actual-scales -1 :overshrink overshrink)))
+	(actual-scales (scale boundary)
+	  :overshrink overshrink :overstretch overstretch))
+    (make-line harray bol boundary
+      :scale theoretical :effective-scale effective)))
 
 
 
@@ -448,36 +511,8 @@ LINE class."))
 ;; Breakup
 ;; ==========================================================================
 
-(defun fit-break-harray (harray disposition width beds)
-  "Make fit pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with disposition-options := (disposition-options disposition)
-	:with disposition := (disposition-type disposition)
-	:with line-boundary
-	  := (case disposition
-	       (:justified
-		(lambda (start)
-		  (fit-justified-line-boundary harray start width *variant*)))
-	       (t
-		(lambda (start)
-		  (fixed-ragged-line-boundary harray start width
-					      (ecase *variant*
-						(:first :max)
-						(:best :natural)
-						(:last :min))))))
-	:with baseline-skip := (baseline-skip harray)
-	:for y := 0 :then (+ y baseline-skip)
-	:for start := 0 :then (start-idx boundary) :while start
-	:for boundary := (funcall line-boundary start)
-	:for line := (apply #'fit-make-line harray start boundary disposition
-			    beds *variant* :width width disposition-options)
-	:for x := (case disposition
-		    ((:flush-left :justified) 0)
-		    (:centered (/ (- width (width line)) 2))
-		    (:flush-right (- width (width line))))
-	:collect (pin-line line x y)))
-
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :fit))
+    (harray disposition width (algorithm (eql :fit))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:fallback *fallback*))
@@ -486,13 +521,44 @@ LINE class."))
 	  ((:prefer-overfulls *prefer-overfulls*))
 	  ((:relax *relax*))
 	  ((:prefer-shrink *prefer-shrink*))
-	  ((:discriminating-function *discriminating-function*)))
+	  ((:discriminating-function *discriminating-function*))
+     &aux (disposition-type (disposition-type disposition))
+	  (disposition-options (disposition-options disposition)))
   "Break HARRAY with the Fit algorithm."
   (default-fit variant)
   (calibrate-fit line-penalty)
   (default-fit fallback)
   (calibrate-fit width-offset)
   (default-fit discriminating-function)
-  (make-instance 'simple-breakup
-    :pinned-lines (unless (zerop (length harray))
-		    (fit-break-harray harray disposition width beds))))
+  (let ((get-boundary
+	  (case disposition-type
+	    (:justified
+	     (case *variant*
+	       (:best #'best-fit-get-justified-boundary)
+	       (t     #'first/last-fit-get-justified-boundary)))
+	    (t
+	     (let ((get-width (ecase *variant*
+				(:first #'max-width)
+				(:best #'width)
+				(:last #'min-width))))
+	       (lambda (harray bol width)
+		 (fit-get-ragged-boundary harray bol width get-width))))))
+	(make-line
+	  (case disposition-type
+	    (:justified
+	     (let ((overstretch (getf disposition-options :overstretch))
+		   (overshrink  (getf disposition-options :overshrink)))
+	       (lambda (harray bol boundary)
+		 (fit-make-justified-line
+		  harray bol boundary overstretch overshrink))))
+	    (t
+	     (ecase *variant*
+	       (:first
+		(lambda (harray bol boundary)
+		  (first-fit-make-ragged-line harray bol boundary width)))
+	       (:best
+		#'make-line)
+	       (:last
+		(lambda (harray bol boundary)
+		  (last-fit-make-ragged-line harray bol boundary width))))))))
+    (make-greedy-breakup harray disposition width get-boundary make-line)))

@@ -34,37 +34,30 @@
 
 (in-package :etap)
 
+
 ;; ==========================================================================
 ;; Boundaries
 ;; ==========================================================================
 
-(defclass barnett-boundary (fixed-boundary)
-  ((scale :documentation "This boundary's required scaling."
-	  :reader scale))
-  (:documentation "The Barnett algorithm's boundary class."))
-
-(defmethod initialize-instance :after
-    ((boundary barnett-boundary) &key natural-width width stretch shrink)
-  "Initialize BOUNDARY's scale."
-  (setf (slot-value boundary 'scale)
-	(scaling natural-width width stretch shrink)))
-
+;; Barnett uses Fit boundaries.
 
 ;; ---------------
 ;; Boundary lookup
 ;; ---------------
 
-(defun barnett-line-boundary (harray start width)
-  "Return the Barnett algorithm's view of the end of line boundary."
+(defun barnett-get-boundary (harray bol width)
+  "Return the boundary for an HARRAY LINE of WIDTH starting at BOL.
+This is the Barnett algorithm version."
   (loop :with underword :with hyphens := (list) :with overword
-	:for boundary := (next-boundary harray start 'barnett-boundary
-					:start start :width width)
-	  :then (next-boundary harray (idx boundary) 'barnett-boundary
-			       :start start :width width)
-	:while (and boundary (not overword))
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol (not overword))
+	:for boundary := (make-instance 'fit-boundary
+			   :harray harray :bol bol :break-point eol
+			   :target width)
 	;; #### NOTE: keeping hyphen solutions in reverse order is exactly
 	;; what we need for putting "as much as will fit" on the line.
-	:do (cond ((hyphenation-point-p (item boundary))
+	:do (cond ((hyphenated boundary)
 		   (push boundary hyphens))
 		  ((<= (width boundary) width)
 		   (setq underword boundary hyphens nil))
@@ -93,52 +86,45 @@
 
 
 ;; ==========================================================================
-;; Breakup
+;; Lines
 ;; ==========================================================================
 
 ;; #### NOTE: I'm handling the overshrink option below as in the other
 ;; algorithms, but I think that by construction, the only overfulls that we
 ;; can get are when there is no elasticity, so this option should have no
 ;; effect.
-(defun barnett-break-harray (harray disposition width beds)
-  "Make Barnett pinned lines from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with overshrink := (getf (disposition-options disposition) :overshrink)
-	:with disposition := (disposition-type disposition)
-	:with baseline-skip := (baseline-skip harray)
-	:for y := 0 :then (+ y baseline-skip)
-	:for start := 0 :then (start-idx boundary) :while start
-	:for boundary := (barnett-line-boundary harray start width)
-	:for stop := (stop-idx boundary)
-	:for scale := (scale boundary)
-	:for line := (case disposition
-		       (:justified
-			(multiple-value-bind (theoretical effective)
-			    (if (last-boundary-p boundary)
-			      ;; Justified last line: maybe shrink it but
-			      ;; don't stretch it.
-			      (actual-scales scale
-				:overshrink overshrink :stretch-tolerance 0)
-			      ;; Justified regular line: always stretch as
-			      ;; needed, and maybe overshrink.
-			      (actual-scales scale
-				:overshrink overshrink :stretch-tolerance +∞))
-			  (make-instance 'line
-			    :harray harray :start-idx start :stop-idx stop
-			    :beds beds
-			    :scale theoretical :effective-scale effective)))
-		       (t ;; just switch back to normal spacing.
-			(make-instance 'line
-			  :harray harray :start-idx start :stop-idx stop
-			  :beds beds)))
-	:for x := (case disposition
-		    ((:flush-left :justified) 0)
-		    (:centered (/ (- width (width line)) 2))
-		    (:flush-right (- width (width line))))
-	:collect (pin-line line x y)))
+(defun barnett-make-justified-line (harray bol boundary overshrink)
+  "Barnett version of `make-line' for justified disposition."
+  (multiple-value-bind (theoretical effective)
+      (if (eopp boundary)
+	;; Justified last line: maybe shrink it but don't stretch it.
+	(actual-scales (scale boundary)
+	  :overshrink overshrink :stretch-tolerance 0)
+	;; Justified regular line: always stretch as needed, and maybe
+	;; overshrink.
+	(actual-scales (scale boundary)
+	  :overshrink overshrink :stretch-tolerance +∞))
+    (make-line harray bol boundary
+      :scale theoretical :effective-scale effective)))
+
+
+
+
+;; ==========================================================================
+;; Breakup
+;; ==========================================================================
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :barnett)) &key)
+    (harray disposition width (algorithm (eql :barnett)) &key)
   "Break HARRAY with the Barnett algorithm."
-  (make-instance 'simple-breakup
-    :pinned-lines (unless (zerop (length harray))
-		    (barnett-break-harray harray disposition width beds))))
+  (let ((make-line
+	  (case (disposition-type disposition)
+	    (:justified
+	     (let ((overshrink
+		     (getf (disposition-options disposition) :overshrink)))
+	       (lambda (harray bol boundary)
+		 (barnett-make-justified-line
+		  harray bol boundary overshrink))))
+	    (t #'make-line))))
+    (make-greedy-breakup harray disposition width
+			 #'barnett-get-boundary make-line)))

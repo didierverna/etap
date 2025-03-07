@@ -12,14 +12,20 @@
     ("Knuth-Plass/Graph" :knuth-plass :variant :graph)
     ("Knuth-Plass/Dynamic" :knuth-plass :variant :dynamic)))
 
+;; #### NOTE: currently, no algorithm refuses to typeset a non-empty text
+;; (they all return a last-resort fallback solution) so we can save a couple
+;; of checks below.
+
 (defun collect-fulls (lineup widths algorithm &rest options)
   "Collect ALGORITHM's number of under/full lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (loop :with fulls := 0
-		  :for lines :on (pinned-lines
-				  (apply #'break-harray (harray lineup)
-					 :justified width nil algorithm
-					 options))
+		  :for lines
+		    :on (lines
+			 (get-layout
+			  0
+			  (apply #'break-harray (harray lineup)
+				 :justified width algorithm options)))
 		  :for w := (width (car lines))
 		  :when (or (> w width)
 			    ;; Do not count an underfull last line.
@@ -31,10 +37,11 @@
 (defun collect-hyphenation (lineup widths algorithm &rest options)
   "Collect ALGORITHM's number of hyphenated lines per paragraph WIDTHS."
   (mapcar (lambda (width)
-	    (reduce #'+ (pinned-lines
-			 (apply #'break-harray (harray lineup)
-				:justified width nil algorithm
-				options))
+	    (reduce #'+ (lines
+			 (get-layout
+			  0
+			  (apply #'break-harray (harray lineup)
+				 :justified width algorithm options)))
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
 
@@ -43,10 +50,11 @@
   (mapcar (lambda (width)
 	    (let ((scales
 		    (mapcar #'scale
-		      (pinned-lines
-		       (apply #'break-harray (harray lineup)
-			      :justified width nil algorithm
-			      options)))))
+		      (lines
+		       (get-layout
+			0
+			(apply #'break-harray (harray lineup)
+			       :justified width algorithm options))))))
 	      (float (/ (reduce #'+ scales) (length scales)))))
     widths))
 
@@ -55,10 +63,11 @@
   (mapcar (lambda (width)
 	    (let* ((scales
 		     (mapcar #'scale
-		       (pinned-lines
-			(apply #'break-harray lineup
-			       :justified width nil algorithm
-			       options))))
+		       (lines
+			(get-layout
+			 0
+			 (apply #'break-harray (harray lineup)
+				:justified width algorithm options)))))
 		   (length (length scales))
 		   (mean (float (/ (reduce #'+ scales) length))))
 	      (sqrt (/ (reduce #'+
@@ -79,9 +88,7 @@
      ((:double-hyphen-demerits *double-hyphen-demerits*))
      ((:final-hyphen-demerits *final-hyphen-demerits*))
      &allow-other-keys)
-  "Collect TeX's demerits evaluation per paragraph WIDTHS.
-Infinite demerits are collected as \"NaN\", in order for subsequent plotting
-to be able to handle that gracefully."
+  "Collect TeX's demerits evaluation per paragraph WIDTHS."
   (declare (special *line-penalty* *hyphen-penalty* *explicit-hyphen-penalty*
 		    *adjacent-demerits* *double-hyphen-demerits*
 		    *final-hyphen-demerits*))
@@ -97,41 +104,46 @@ to be able to handle that gracefully."
   (loop :with harray := (harray lineup)
 	:for i :from 0 :upto (1- (length harray))
 	:for item := (aref harray i)
-	:when (hyphenation-point-p item)
+	:when (discretionaryp item)
 	  :do (setf (penalty item)
-		    (if (explicitp item)
-		      *explicit-hyphen-penalty*
-		      *hyphen-penalty*)))
+		    (if (pre-break item)
+		      *hyphen-penalty*
+		      *explicit-hyphen-penalty*)))
   (mapcar (lambda (width)
-	    (let* ((lines (pinned-lines
-			   (apply #'break-harray (harray lineup)
-				  :justified width nil algorithm
-				  options)))
+	    (let* ((lines (lines
+			   (get-layout
+			    0
+			    (apply #'break-harray (harray lineup)
+				   :justified width algorithm options))))
 		   (length (length lines))
-		   (demerits (local-demerits
-			      (scale-badness (scale (car lines)))
-			      (penalty (car lines))
-			      *line-penalty*)))
+		   (demerits
+		     (let ((badness (scale-badness (scale (car lines)))))
+		       (if (numberp badness)
+			 (local-demerits
+			  badness (penalty (car lines)) *line-penalty*)
+			 0))))
 	      (when (= (scale-fitness-class (scale (car lines))) 0)
-		(setf demerits ($+ demerits *adjacent-demerits*)))
+		(setf demerits (+ demerits *adjacent-demerits*)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
-				($+ demerits
-				    (local-demerits
-				     (scale-badness (scale line2))
-				     (penalty line2)
-				     *line-penalty*)))
+				(+ demerits
+				   (let ((badness
+					   (scale-badness (scale line2))))
+				     (if (numberp badness)
+				       (local-demerits
+					badness (penalty line2) *line-penalty*)
+				       0))))
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits
-				  ($+ demerits *double-hyphen-demerits*)))
+				  (+ demerits *double-hyphen-demerits*)))
 			  (when (> (abs (- (scale-fitness-class (scale line1))
 					   (scale-fitness-class (scale line2))))
 				   1)
-			    (setq demerits ($+ demerits *adjacent-demerits*)))))
+			    (setq demerits (+ demerits *adjacent-demerits*)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))
-		(setq demerits ($+ demerits *final-hyphen-demerits*)))
-	      (if (numberp demerits) (float demerits) "NaN")))
+		(setq demerits (+ demerits *final-hyphen-demerits*)))
+	      (float demerits)))
     widths))
 
 (defun scalar-statistics

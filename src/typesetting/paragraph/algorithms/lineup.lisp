@@ -24,19 +24,34 @@
 
 (defmethod initialize-instance :after
     ((lineup lineup) &key &aux (harray (harray lineup)))
-  "Compute LINEUP's number of break points and theoretical solutions."
+  "Finalize LINEUP. This currently involves:
+- initializing the break point indexes in the harray,
+- computing the total number of (usable) break points,
+- and computing the total number of theoretical solutions."
   ;; #### NOTE: for clarity, we want to make a distinction between and empty
   ;; paragraph and a non-empty one with no break points. In the former case,
   ;; we state that we have 0 solutions, while in the later case we have one.
   (unless (zerop (length harray))
-    (let ((break-points-#
-	    (count-if (lambda (item)
-			(and (break-point-p item) ($< (penalty item) +∞)))
-		harray)))
-      (setf (slot-value lineup 'break-points-#)
-	    break-points-#
-	    (slot-value lineup 'theoretical-solutions-#)
-	    (expt 2 break-points-#)))))
+    (loop :with break-points-# := 0
+	  :for item :across harray
+	  :for i :from 0
+	  :when (break-point-p item)
+	    :do (progn
+		  (setf (slot-value item 'idx) i)
+		  (when ($< (penalty item) +∞) (incf break-points-#)))
+	  :finally (setf (slot-value lineup 'break-points-#)
+			 break-points-#
+			 (slot-value lineup 'theoretical-solutions-#)
+			 (expt 2 break-points-#)))))
+
+(defmethod properties strnlcat ((lineup lineup) &key)
+  "Return a string advertising LINEUP's properties.
+This includes the total number of break points, and the theoretical number of
+breaking solutions."
+  (format nil "~A breakpoints, ~A theoretical solutions (2^n)."
+    (break-points-# lineup)
+    (theoretical-solutions-# lineup)))
+
 
 ;; #### NOTE: this function is called with all the algorithm options, without
 ;; knowing in advance whether they're going to be used or not, so we need to

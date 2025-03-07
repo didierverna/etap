@@ -1,11 +1,16 @@
 (in-package :cl-user)
 
 (defpackage :etap
-  #+lispworks (:add-use-defaults t)
   (:local-nicknames (:tfm :net.didierverna.tfm))
+  #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl)
-  (:shadow :$+ :$/
-   ;; CAPI exports these and it sucks.
+  #+sbcl
+  (:import-from :sb-mop :validate-superclass)
+  #+lispworks
+  (:shadow
+   ;; From the Lispworks package:
+   :when-let
+   ;; From the CAPI package (this sucks):
    :item :layout)
   (:export
     :*language* :*text* :*paragraph-width*

@@ -17,17 +17,26 @@
 
 
 (defun remake-rivers
-    (interface &aux (rivers-interface (rivers-interface interface)))
+    (interface
+     &aux (rivers-interface (rivers-interface interface))
+	  (layout (layout interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
-	(when (button-selected (rivers-detection (rivers-interface interface)))
+	(when (and (button-selected
+		    (rivers-detection (rivers-interface interface)))
+		   (not (zerop layout)))
 	  (detect-rivers
-	   (paragraph interface)
+	   (get-layout (1- layout) (breakup (paragraph interface)))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
 (defun remake-paragraph (interface)
   "Remake INTERFACE's paragaph."
-  (setf (paragraph interface) (make-paragraph :context (context interface))))
+  (let* ((paragraph (make-paragraph :context (context interface)))
+	 (layouts-# (layouts-# (breakup paragraph))))
+    (setf (paragraph interface) paragraph)
+    (setf (layout interface) (if (zerop layouts-#) 0 1))
+    (setf (titled-object-title (view interface))
+	  (format nil "Layout ~D/~D" (layout interface) layouts-#))))
 
 (defun update (interface)
   "Update INTERFACE.
@@ -282,8 +291,12 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
-	  (context (context interface))
 	  (paragraph (paragraph interface))
+	  (layout-# (layout interface))
+	  (layout (unless (zerop layout-#)
+		    (get-layout (1- layout-#) (breakup paragraph))))
+	  (par-y (height layout))
+	  (par-h+d (+ par-y (depth layout)))
 	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
@@ -292,145 +305,176 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (set-horizontal-scroll-parameters pane
     :max-range (+ (* (width paragraph) zoom) 40))
   (set-vertical-scroll-parameters pane
-    :max-range (+ (* (+ (height paragraph) (depth paragraph)) zoom) 40))
+    :max-range (+ (* par-h+d zoom) 40))
   (gp:with-graphics-translation (pane 20 20)
     (gp:with-graphics-scale (pane zoom zoom)
       (when (member :paragraph-box clues)
-	(gp:draw-rectangle pane
-	    0 0 (width paragraph) (+ (height paragraph) (depth paragraph))
+	(gp:draw-rectangle pane 0 0 (width paragraph) par-h+d
 	  :foreground :red
 	  :scale-thickness nil))
-      (when (pinned-lines paragraph)
-	(loop :with par-y := (height (first (pinned-lines paragraph)))
-	      :for pinned-lines :on (pinned-lines paragraph)
-	      :for pinned-line := (car pinned-lines)
-	      :for x := (x pinned-line)
-	      :for y := (+ par-y (y pinned-line))
+      (when-let (lines (lines layout))
+	(loop :for rest :on lines
+	      :for line := (car rest)
+	      :for x := (x line)
+	      :for y := (+ par-y (y line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle pane
 			x
-			(- y (height pinned-line))
-			(width pinned-line)
-			(+ (height pinned-line) (depth pinned-line))
+			(- y (height line))
+			(width line)
+			(+ (height line) (depth line))
 		      :foreground :blue
 		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
-		:if (> (width pinned-line) (width paragraph))
+		:if (> (width line) (width paragraph))
 		  :do (gp:draw-rectangle pane
-			  (+ x (width pinned-line) 5)
-			  (- y (height pinned-line))
+			  (+ x (width line) 5)
+			  (- y (height line))
 			  5
-			  (+ (height pinned-line) (depth pinned-line))
+			  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
-		:else :if (and (cdr pinned-lines) ;; not the last one
-			       (eq (disposition-type (disposition context))
+		:else :if (and (cdr rest) ;; not the last one
+			       (eq (disposition-type (disposition paragraph))
 				   :justified)
-			       (< (width pinned-line) (width paragraph)))
+			       (< (width line) (width paragraph)))
 		  :do (gp:draw-rectangle pane
 			  (+ (width paragraph) 5)
-			  (- y (height pinned-line))
+			  (- y (height line))
 			  5
-			  (+ (height pinned-line) (depth pinned-line))
+			  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (effective-scale pinned-line) (scale pinned-line))
+		:if ($< (effective-scale line) (scale line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 11)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 8)
-				(+ y (depth pinned-line)))
+				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled t :closed t)
-		:else :if ($< (scale pinned-line) -1)
+		:else :if ($< (scale line) -1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 11)
-				(- y (height pinned-line))
+				(- y (height line))
 				(+ (width paragraph) 8)
-				(+ y (depth pinned-line)))
+				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled nil :closed t)
-		:else :if ($> (effective-scale pinned-line) (scale pinned-line))
+		:else :if ($> (effective-scale line) (scale line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 11)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 8)
-				(- y (height pinned-line)))
+				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
-		:else :if ($> (scale pinned-line) 1)
+		:else :if ($> (scale line) 1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 11)
-				(+ y (depth pinned-line))
+				(+ y (depth line))
 				(+ (width paragraph) 8)
-				(- y (height pinned-line)))
+				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
-		:do (gp:draw-line pane x y (+ x (width pinned-line)) y
+		:do (gp:draw-line pane x y (+ x (width line)) y
 		      :foreground :purple
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (object)
-			    (cond ((pinned-character-p object)
+		:do (mapc (lambda (item)
+			    (cond ((typep (object item)
+					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle pane
-					 (+ x (x object))
-					 (- y (height object))
-					 (width object)
-					 (+ (height object)
-					    (depth object))
+					 (+ x (x item))
+					 (- y (height item))
+					 (width item)
+					 (+ (height item)
+					    (depth item))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character pane
 					 (aref *lm-ec*
-					       (tfm:code
-						(character-metrics object)))
-					 (+ x (x object))
+					       (tfm:code (object item)))
+					 (+ x (x item))
 					 y)))
-				  ((hyphenation-clue-p object)
+				  ((member (object item)
+					   '(:explicit-hyphenation-clue
+					     :hyphenation-clue))
 				   (when (member :hyphenation-points clues)
 				     (gp:draw-polygon pane
-				       (list (+ x (x object)) y
-					     (+ x (x object) -3) (+ y 5)
-					     (+ x (x object) +3) (+ y 5))
+				       (list (+ x (x item)) y
+					     (+ x (x item) -3) (+ y 5)
+					     (+ x (x item) +3) (+ y 5))
 				       :filled t
-				       :foreground (if (explicitp object)
-						     :blue
-						     :orange))))
-				  ((bedp object)
+				       :foreground (if (eq (object item)
+							   :hyphenation-clue)
+						     :orange
+						     :blue))))
+				  ((whitespacep item)
 				   (when (member :river-beds clues)
-				     (gp:draw-circle pane (+ x (x object)) y 1
+				     (gp:draw-circle
+				      pane
+				      (+ x (x item) (/ (width item) 2)) y 1
 				      :filled t :foreground :red)))))
-		      (pinned-objects (line pinned-line))))
+		      (items line)))
 	;; #### FIXME: see PIN-LINE comment about the beds boards.
-	(when rivers
-	  (let ((par-y (height (first (pinned-lines paragraph)))))
-	    (maphash (lambda (source arms)
-		       (mapc (lambda (arm &aux (mouth (mouth arm)))
-			       (gp:draw-line pane
-				   (+ (x (board source)) (x source))
-				   (+ par-y (y (board source)) (y source))
-				   (+ (x (board mouth)) (x mouth))
-				   (+ par-y (y (board mouth)) (y mouth))
-				 :foreground :red :scale-thickness nil))
-			 arms))
-		     rivers)))))))
+	(when (and (button-selected
+		    (rivers-detection (rivers-interface interface)))
+		   rivers)
+	  (maphash (lambda (source arms)
+		     (mapc (lambda (arm &aux (mouth (mouth arm)))
+			     (gp:draw-line pane
+				 (+ (x (board source))
+				    (x source)
+				    (/ (width source) 2))
+				 (+ par-y (y (board source)) (y source))
+				 (+ (x (board mouth))
+				    (x mouth)
+				    (/ (width mouth) 2))
+				 (+ par-y (y (board mouth)) (y mouth))
+			       :foreground :red :scale-thickness nil))
+		       arms))
+		   rivers))))))
+
+
+;; Layouts
+
+(defun next-layout
+    (op interface
+     &aux (layouts-# (layouts-# (breakup (paragraph interface))))
+	  (layout (layout interface)))
+  "Select the next OP layout."
+  (unless (zerop layouts-#)
+    (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
+    (setf (layout interface) layout)
+    (when (button-selected (rivers-detection (rivers-interface interface)))
+      (remake-rivers interface))
+    (setf (titled-object-title (view interface))
+	  (format nil "Layout ~D/~D" layout layouts-#))
+    (gp:invalidate-rectangle (view interface))))
 
 
 ;; Tooltips
+
+(defparameter *interface-tooltips*
+  '(:layout-1 "Display previous layout."
+    :layout+1 "Display next layout."))
+
 (defparameter *tooltips*
-  `(,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips* ,@*kpx-tooltips*
+  `(,@*interface-tooltips*
+    ,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips* ,@*kpx-tooltips*
     ,@*disposition-options-tooltips*)
   "The GUI's tooltips.")
 
@@ -448,20 +492,24 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
-	  (pinned-lines (pinned-lines paragraph)))
+	  (layout-# (1- (layout interface)))
+	  (layout (when (<= 0 layout-#)
+		    (get-layout layout-# (breakup paragraph)))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    (when pinned-lines (decf y (height (first (pinned-lines paragraph)))))
-    (if (and (<= x 0) (<= y (depth paragraph)))
-      (display-tooltip pane :text (properties paragraph))
+    (decf y (height layout))
+    (if (and (<= x 0) (<= y (depth layout)))
+      (display-tooltip pane
+	:text (properties paragraph
+		:layout-# (when (<= 0 layout-#) layout-#)))
       (let ((line (when (and (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))
 				    (<= y (+ (y line) (depth line)))))
-			     (pinned-lines paragraph)))))
+			     (lines layout)))))
 	(if line
-	  (display-tooltip pane :text (properties (line line)))
+	  (display-tooltip pane :text (properties line))
 	  (display-tooltip pane))))))
 
 ;; Rivers detection
@@ -470,9 +518,10 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      &aux (detectionp (button-selected value))
 	  (main-interface (main-interface interface)))
   "Toggle rivers detection."
+  (when (and detectionp (null (rivers main-interface)))
+    (remake-rivers main-interface))
   (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
-  (setf (beds (context main-interface)) detectionp)
-  (update main-interface))
+  (gp:invalidate-rectangle (view main-interface)))
 
 (defun set-rivers-angle
     (pane value status
@@ -523,7 +572,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
   (declare (ignore data))
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
   ;; #### NOTE: the language menu's selection is updated on pop-up.
-  (setf (editor-pane-text (text interface)) (text (nlstring context)))
+  (setf (editor-pane-text (text interface)) (text context))
   (update interface))
 
 (defun language-menu-callback (data interface)
@@ -534,15 +583,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 (defun language-menu-popup-callback (component)
   "Update the language popup to the current language."
   (setf (choice-selection component)
-	(position (language (nlstring (context (element-interface-for-callback
-						component))))
-		  *languages*
-		  :key #'car)))
+	(position
+	 (language (context (element-interface-for-callback component)))
+	 *languages*
+	 :key #'car)))
 
 ;; Interface
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
+   (layout :initform 0 :accessor layout)
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
@@ -980,6 +1030,16 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
+   (layout-1 push-button
+     :text "<"
+     :data #'1-
+     :callback 'next-layout
+     :help-key :layout-1)
+   (layout+1 push-button
+     :text ">"
+     :data #'1+
+     :callback 'next-layout
+     :help-key :layout+1)
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
@@ -1003,7 +1063,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :change-callback 'set-text
      :reader text)
    (view output-pane
-     :title "Typeset paragraph" :title-position :frame
+     :title "Layout" :title-position :frame
      :font (gp:make-font-description :family "Latin Modern Roman"
 	     :weight :normal :slant :roman :size 10)
      :visible-min-height 300
@@ -1011,13 +1071,14 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :vertical-scroll t
      :display-callback 'render-view
      :reader view
-	 ;;:input-model '(((:button-1 :press) display-properties))))
+     ;; :input-model '(((:button-1 :press) display-properties))))
      :input-model '((:motion display-properties))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom)
+   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
      :reader settings-1)
+   (layouts-ctrl row-layout '(layout-1 layout+1))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
@@ -1201,7 +1262,7 @@ This currently includes the initial ZOOMing factor and CLUES."
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
-  (setf (editor-pane-text (text etap)) (text (nlstring context)))
+  (setf (editor-pane-text (text etap)) (text context))
   (let ((size
 	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)

@@ -5,15 +5,47 @@
 
 (in-package :etap)
 
-;; Remember that we may have null entries for subgraphs that were attempted,
-;; but lead to a dead-end.
-(defun hash-table-count-non-null (hashtable)
-  "Count non null entries in HASHTABLE."
-  (loop :with count := 0
-	:for value :being :the :hash-values :of hashtable
-	:unless (null value)
-	  :do (incf count)
-	:finally (return count)))
+;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
+;; instead of just a Boolean, for keeping more than 1 *full.
+
+(defun get-boundaries (harray bol width &key fulls strict)
+  "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
+A boundary is acceptable if the required scaling remains within [-1,1].
+
+If no acceptable boundary is found, return NIL, unless FULLS, in which case
+return the last underfull and the first overfull (if any) as a fallback
+solution. If FULLS is :PREVENTIVE, also return these fulls even if acceptable
+boundaries are found.
+
+If STRICT, consider that even the last line must fit exactly. Otherwise
+(the default), consider a final underfull as a fit.
+
+The possible endings are listed in reverse order (from last to first)."
+  (loop :with underfull :with fits := (list) :with overfull
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol (not overfull))
+	:for boundary := (make-instance 'fit-boundary
+			   :harray harray :bol bol :break-point eol
+			   :target width)
+	:do (cond (($< (max-width boundary) width)
+		   (if (and (eopp eol) (not strict))
+		     (push boundary fits)
+		     (setq underfull boundary)))
+		  ((> (min-width boundary) width)
+		   (setq overfull boundary))
+		  (t ;; note the reverse order
+		   (push boundary fits)))
+	:finally
+	   (return (cond ((eq fulls :preventive)
+			  (append (when overfull (list overfull))
+				  fits
+				  (when underfull (list underfull))))
+			 (fulls
+			  (or fits
+			      (append (when overfull (list overfull))
+				      (when underfull (list underfull)))))
+			 (t fits)))))
 
 (defun graph-sizes ()
   "Collect and print the solutions graphs sizes per paragraph width.
@@ -36,22 +68,21 @@ width2 no-fulls-size-2 fallback-fulls-size-2 preventive-fulls-size-2
     (loop :initially
       (format t "~&Width Fulls/None Fulls/Fallback Fulls/Preventive~%")
 	  :for width :from *paragraph-min-width* :to *paragraph-max-width*
-	  :for (nil hash1) := (multiple-value-list
-			       (make-graph (harray lineup) width))
-	  :for (nil hash2) := (multiple-value-list
-			       (make-graph (harray lineup) width
-					   :next-boundaries
-					   '(next-boundaries :fulls t)))
-	  :for (nil hash3) := (multiple-value-list
-			       (make-graph (harray lineup) width
-					   :next-boundaries
-					   '(next-boundaries
-					     :fulls :preventive)))
+	  :for hash1 := (make-graph (harray lineup) width
+				    #'get-boundaries)
+	  :for hash2 := (make-graph (harray lineup) width
+				    (lambda (harray bol width)
+				      (get-boundaries harray bol width
+					:fulls t)))
+	  :for hash3 := (make-graph (harray lineup) width
+				    (lambda (harray bol width)
+				      (get-boundaries harray bol width
+					:fulls :preventive)))
 	  :do (format t "~&~S ~S ~S ~S~%"
 		width
-		(hash-table-count-non-null hash1)
-		(hash-table-count-non-null hash2)
-		(hash-table-count-non-null hash3)))))
+		(hash-table-counts hash1)
+		(hash-table-counts hash2)
+		(hash-table-counts hash3)))))
 
 (defun graph-solutions ()
   "Collect and print the number of solutions per paragraph width.
@@ -77,17 +108,21 @@ width2 strict2 strict/hyphens2 regular2 regular/hyphens2
       (format t "~&Width Strict Strict/Hyphens Regular Regular/Hyphens~%")
 	  :for width :from *paragraph-min-width* :to *paragraph-max-width*
 	  :for stricts
-	    := (make-layouts (make-graph (harray lineup) width
-					  :next-boundaries
-					  '(next-boundaries :strict t)))
+	    := (make-graph-paths (make-graph (harray lineup) width
+					     (lambda (harray bol width)
+					       (get-boundaries harray bol width
+						 :strict t))))
 	  :for hyphenated-stricts
-	    := (make-layouts (make-graph (harray hyphenated-lineup) width
-					  :next-boundaries
-					  '(next-boundaries :strict t)))
+	    := (make-graph-paths (make-graph (harray hyphenated-lineup) width
+					     (lambda (harray bol width)
+					       (get-boundaries harray bol width
+						 :strict t))))
 	  :for regulars
-	    := (make-layouts (make-graph (harray lineup) width))
+	    := (make-graph-paths (make-graph (harray lineup) width
+					     #'get-boundaries))
 	  :for hyphenated-regulars
-	    := (make-layouts (make-graph (harray hyphenated-lineup) width))
+	    := (make-graph-paths (make-graph (harray hyphenated-lineup) width
+					     #'get-boundaries))
 	  :do (format t "~S ~S ~S ~S ~S~%"
 		width
 		(length stricts) (length hyphenated-stricts)

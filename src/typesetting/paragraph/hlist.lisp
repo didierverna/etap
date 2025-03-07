@@ -47,12 +47,15 @@
   (:method (object)
     "Return 0 by default."
     0)
-  (:method ((list list))
-    "Return the sum of the widths of all elements in LIST."
-    (reduce #'+ (mapcar #'width list)))
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metric's width."
-    (tfm:width character)))
+    (tfm:width character))
+  (:method ((pinned pinned))
+    "Return PINNED object's width."
+    (width (object pinned)))
+  (:method ((list list))
+    "Return the sum of the widths of all elements in LIST."
+    (reduce #'+ (mapcar #'width list))))
 
 (defgeneric height (object)
   (:documentation "Return OBJECT's height.")
@@ -61,7 +64,10 @@
     0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's height."
-    (tfm:height character)))
+    (tfm:height character))
+  (:method ((pinned pinned))
+    "Return PINNED object's height."
+    (height (object pinned))))
 
 (defgeneric depth (object)
   (:documentation "Return OBJECT's depth.")
@@ -70,7 +76,10 @@
     0)
   (:method ((character tfm:character-metrics))
     "Return TFM CHARACTER metrics's depth."
-    (tfm:depth character)))
+    (tfm:depth character))
+  (:method ((pinned pinned))
+    "Return PINNED object's depth."
+    (depth (object pinned))))
 
 
 
@@ -84,7 +93,7 @@
 ;; -----
 
 (defclass kern ()
-  ((width :initarg :width :reader width :documentation "The kern's width."))
+  ((width :documentation "The kern's width." :initarg :width :reader width))
   (:documentation "The KERN class.
 Kerns represent inter-letter horizontal spacing."))
 
@@ -121,26 +130,47 @@ Kerns represent inter-letter horizontal spacing."))
     "Return -∞."
     -∞))
 
-(defclass break-point ()
-  ((penalty :documentation "The penalty for breaking here."
-	    :initform 0 :initarg :penalty :accessor penalty))
-  (:documentation "The BREAK-POINT class.
+(defabstract break-point ()
+  ((idx
+    :documentation "This break point's harray index."
+    :reader idx)
+   (penalty
+    :documentation "The penalty for breaking here."
+    :initform 0 :initarg :penalty :accessor penalty))
+  (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 
 (defun break-point-p (object)
   "Return T if OBJECT is a break point."
   (typep object 'break-point))
 
+(defgeneric bol-idx (break-point)
+  (:documentation
+   "Return the harray index for a beginning of line at that break point.")
+  (:method (break-point)
+    "Return BREAK-POINT's IDX + 1. This is the default method."
+    (1+ (idx break-point))))
+
+(defgeneric eol-idx (break-point)
+  (:documentation
+   "Return the harray index for an end of line at that break point.")
+  (:method (break-point)
+    "Return BREAK-POINT's IDX. This is the default method."
+    (idx break-point)))
+
 
 ;; Discretionaries
 
 (defclass discretionary (break-point)
-  ((pre-break :initform nil :initarg :pre-break :accessor pre-break
-	      :documentation "Contents to insert before the break.")
-   (post-break :initform nil :initarg :post-break :accessor post-break
-	       :documentation "Contents to insert after the break.")
-   (no-break :initform nil :initarg :no-break :accessor no-break
-	     :documentation "Contents to insert when we don't break."))
+  ((pre-break
+    :documentation "Contents to insert before the break."
+    :initform nil :initarg :pre-break :accessor pre-break)
+   (post-break
+    :documentation "Contents to insert after the break."
+    :initform nil :initarg :post-break :accessor post-break)
+   (no-break
+    :documentation "Contents to insert when we don't break."
+    :initform nil :initarg :no-break :accessor no-break))
   (:documentation "The DISCRETIONARY class.
 Discretionaries represent breakable positions with alternative contents,
 depending on whether the break occurs or not."))
@@ -156,17 +186,25 @@ depending on whether the break occurs or not."))
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
 
+(defmethod bol-idx ((discretionary discretionary))
+  "Return DISCRETIONARY's IDX."
+  (idx discretionary))
+
+(defmethod eol-idx ((discretionary discretionary))
+  "Return DISCRETIONARY's IDX + 1."
+  (1+ (idx discretionary)))
+
 
 ;; Hyphenation points
 
 ;; #### NOTE: we use T as the default here because it allows simple calls to
 ;; MAKE-HYPHENATION-POINT without arguments (the pre, post, and no-breaks are
 ;; empty in that case).
-(defclass hyphenation-mixin ()
+(defabstract hyphenation-mixin ()
   ((explicitp
-    :initform t :initarg :explicit :reader explicitp
     :documentation
-    "Whether this hyphenation point comes from an explicit hyphen."))
+    "Whether this hyphenation point comes from an explicit hyphen."
+    :initform t :initarg :explicit :reader explicitp))
   (:documentation "The HYPHENATION-MIXIN class.
 This is a mixin for hyphenation points."))
 
@@ -176,8 +214,10 @@ This is a mixin for hyphenation points."))
 This class represents hyphenation point discretionaries."))
 
 (defun hyphenation-point-p (object)
-  "Return T if OBJECT is a hyphenation point."
-  (typep object 'hyphenation-point))
+  "Check whether OBJECT is a hyphenation point.
+return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
+  (when (typep object 'hyphenation-point)
+    (if (explicitp object) :explicit :implicit)))
 
 (defun make-hyphenation-point
     (&rest initargs &key pre-break post-break no-break explicit)
@@ -187,24 +227,24 @@ This class represents hyphenation point discretionaries."))
 
 (defgeneric hyphenated (object)
   (:documentation "Return OBJECT's hyphenation status.
-Possible values are nil, :explicit, or :implicit.")
+Possible values are :explicit, :implicit, or nil.")
   (:method (object)
-    "Return NIL. This is the default method."
-    nil)
-  (:method ((object hyphenation-mixin))
-    "Return hyphenation mixin OBJECT's status (:explicit or :implicit)."
-    (if (explicitp object) :explicit :implicit)))
+    "Call `hyphenation-point-p' on OBJECT. This is the default method."
+    (hyphenation-point-p object)))
 
 
 ;; Glues
 
 (defclass glue (break-point)
-  ((width :initform 0 :initarg :width :reader width
-	  :documentation "The glues's natural width.")
-   (shrink :initform 0 :initarg :shrink :reader shrink
-	   :documentation "The glue's shrinkability.")
-   (stretch :initform 0 :initarg :stretch :reader stretch
-	    :documentation "The glue's stretchability."))
+  ((width
+    :documentation "The glues's natural width."
+    :initform 0 :initarg :width :reader width)
+   (shrink
+    :documentation "The glue's shrinkability."
+    :initform 0 :initarg :shrink :reader shrink)
+   (stretch
+    :documentation "The glue's stretchability."
+    :initform 0 :initarg :stretch :reader stretch))
   (:documentation "The GLUE class.
 Glues represent breakable, elastic space."))
 
@@ -231,6 +271,37 @@ Glues represent breakable, elastic space."))
   (make-glue :width (tfm:interword-space font)
 	     :shrink (tfm:interword-shrink font)
 	     :stretch (tfm:interword-stretch font)))
+
+
+;; Special break points
+
+(defsingleton bop (break-point)
+  ((idx :initform -1)) ;; slot override
+  (:documentation "The BOP (Beginning of Paragraph) singleton class."))
+
+(defmethod eol-idx ((bop bop))
+  "Return NIL."
+  nil)
+
+(defvar *bop* (make-instance 'bop))
+
+
+;; #### NOTE: contrary to BOP, there can't be a single EOP instance because
+;; the IDX value depends on the corresponding harray.
+(defclass eop (break-point)
+  ((idx :initarg :idx)) ;; slot override
+  (:documentation "The EOP (End of Paragraph) class."))
+
+(defgeneric eopp (object)
+  (:documentation "Return T if OBJECT denotes an end of paragraph.")
+  (:method (object)
+    "Return T if OBJECT is an EOP (End of Paragraph) one.
+This is the default method."
+    (typep object 'eop)))
+
+(defmethod bol-idx ((eop eop))
+  "Return NIL."
+  nil)
 
 
 
