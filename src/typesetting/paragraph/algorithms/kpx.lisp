@@ -1,22 +1,12 @@
-;; This is my Knuth-Plass Extended, aka, KPX algorithm
+;; This is my Knuth-Plass Extended, aka, KPX algorithm.
 
-;; #### FIXME: this code is still too redundant with the Knuth-Plass one.
-
-;; #### FIXME: my implementation of the 3 passes is probably not correct. It
-;; seems that TeX goes into the 2nd pass, not only when the first fails, but
-;; also when it succeeds with a non-zero looseness, and the number of lines
-;; doesn't match. I need to check this.
+;; #### FIXME: this code is way too much redundant with the Knuth-Plass one.
 
 (in-package :etap)
 
 ;; ==========================================================================
 ;; Specification
 ;; ==========================================================================
-
-;; #### NOTE: in theory, when only the looseness changes, we don't have to run
-;; the algorithm again: we only need to sort the solutions found previously in
-;; a different order and select another one. We currently don't go that far,
-;; and the GUI doesn't know that anyway.
 
 ;; #### TODO: maybe we could introduce a basic value for similar demerits and
 ;; multiply it by the size of the similarity, rather than using a fixed value.
@@ -71,6 +61,10 @@
 ;; HList
 ;; ==========================================================================
 
+;; #### WARNING: although we have a specific hierarchy for hyphenation points,
+;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
+;; the same here.
+
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :kpx))
      &key ((:hyphen-penalty *hyphen-penalty*))
@@ -79,11 +73,11 @@
   (calibrate-kpx hyphen-penalty t)
   (calibrate-kpx explicit-hyphen-penalty t)
   (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
+	  (when (discretionaryp item)
 	    (setf (penalty item)
-		  (if (explicitp item)
-		    *explicit-hyphen-penalty*
-		    *hyphen-penalty*))))
+		  (if (pre-break item)
+		    *hyphen-penalty*
+		    *explicit-hyphen-penalty*))))
     hlist)
   (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
   hlist)
