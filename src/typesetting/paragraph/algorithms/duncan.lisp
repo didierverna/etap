@@ -84,24 +84,13 @@ The weight is computed according to the discriminating function."
 ;; Boundaries lookup
 ;; -----------------
 
-;; #### TODO: for experimentation, we could make PREVENTIVE-*FULLS a number
-;; instead of just a Boolean, for keeping more than 1 *full. On the other
-;; hand, this function (which was originally a general utility) does already
-;; too much as Duncan only uses the default keyword values.
-
-(defun duncan-get-boundaries (harray bol width &key (fulls t) strict)
+(defun duncan-get-boundaries (harray bol width)
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
 This is the Duncan algorithm version.
 
-If no boundary is found, return NIL, unless FULLS (the default), in which case
-return the last underfull and the first overfull (if any) as a fallback
-solution. If FULLS is :PREVENTIVE, also return these fulls even if acceptable
-boundaries are found.
-
-If STRICT, consider that even the last line must fit exactly. Otherwise
-(the default), consider a final underfull as a fit.
-
-The possible endings are listed in reverse order (from last to first)."
+If no boundary is found, return the last underfull and the first overfull (if
+any) as a fallback solution. The possible endings are listed in reverse
+order (from last to first)."
   (loop :with underfull :with fits := (list) :with overfull
 	:for eol := (next-break-point harray bol)
 	  :then (next-break-point harray eol)
@@ -110,7 +99,7 @@ The possible endings are listed in reverse order (from last to first)."
 			   :harray harray :bol bol :break-point eol
 			   :target width)
 	:do (cond (($< (max-width boundary) width)
-		   (if (and (eopp eol) (not strict))
+		   (if (eopp eol) ; last line underfull is a actually a fit
 		     (push boundary fits)
 		     (setq underfull boundary)))
 		  ((> (min-width boundary) width)
@@ -118,15 +107,9 @@ The possible endings are listed in reverse order (from last to first)."
 		  (t ;; note the reverse order
 		   (push boundary fits)))
 	:finally
-	   (return (cond ((eq fulls :preventive)
-			  (append (when overfull (list overfull))
-				  fits
-				  (when underfull (list underfull))))
-			 (fulls
-			  (or fits
-			      (append (when overfull (list overfull))
-				      (when underfull (list underfull)))))
-			 (t fits)))))
+	   (return (or fits
+		       (append (when overfull (list overfull))
+			       (when underfull (list underfull)))))))
 
 
 
