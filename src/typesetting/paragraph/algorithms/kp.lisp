@@ -385,8 +385,7 @@ This is the Knuth-Plass version for the graph variant.
   "Create a Knuth-Plass layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
   (when (zerop (fitness-class (first path)))
-    (setf (slot-value layout 'demerits)
-	  (+ (slot-value layout 'demerits) *adjacent-demerits*)))
+    (incf (slot-value layout 'demerits) *adjacent-demerits*))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
     (with-slots (demerits bads size) layout
@@ -395,19 +394,19 @@ This is the Knuth-Plass version for the graph variant.
 	    :for finalp := (eopp boundary2)
 	    :do (incf size)
 	    :unless (numberp (badness boundary2)) :do (incf bads)
-	    :do (setf demerits (+ demerits (demerits boundary2)))
+	    :do (incf demerits (demerits boundary2))
 	    ;; See comment in dynamic version. Do not consider the very
 	    ;; rare case where the paragraph ends with an explicit hyphen.
 	    :when (and (not finalp)
 		       (hyphenated boundary1)
 		       (hyphenated boundary2))
-	      :do (setf demerits (+ demerits *double-hyphen-demerits*))
+	      :do (incf demerits *double-hyphen-demerits*)
 	    :when (and finalp (hyphenated boundary1))
-	      :do (setf demerits (+ demerits *final-hyphen-demerits*))
+	      :do (incf demerits *final-hyphen-demerits*)
 	    :when (> (abs (- (fitness-class boundary1)
 			     (fitness-class boundary2)))
 		     1)
-	      :do (setf demerits (+ demerits *adjacent-demerits*))
+	      :do (incf demerits *adjacent-demerits*)
 	    :collect (funcall make-line
 		       harray (break-point boundary1) boundary2 demerits)
 	      :into lines
@@ -563,7 +562,7 @@ or, in case of equality, a lesser amount of demerits."
 	 ;; *KP-BOP-NODE*. Besides, we also save a couple of accessor calls
 	 ;; that way.
 	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
-	   (setq total-demerits (+ total-demerits *adjacent-demerits*)))
+	   (incf total-demerits *adjacent-demerits*))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
@@ -576,10 +575,9 @@ or, in case of equality, a lesser amount of demerits."
 	 ;; hyphens are very unlikely to create a ladder.
 	 (when (discretionaryp bol)
 	   (if (eopp boundary)
-	     (setq total-demerits (+ total-demerits *final-hyphen-demerits*))
+	     (incf total-demerits *final-hyphen-demerits*)
 	     (when (discretionaryp (break-point boundary))
-	       (setq total-demerits
-		     (+ total-demerits *double-hyphen-demerits*)))))
+	       (incf total-demerits *double-hyphen-demerits*))))
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
 				   (fitness-class boundary)))
