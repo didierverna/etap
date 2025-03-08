@@ -61,10 +61,7 @@
 ;; HList
 ;; ==========================================================================
 
-;; #### WARNING: although we have a specific hierarchy for hyphenation points,
-;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
-;; the same here.
-
+;; #### FIXME: this is exactly the original KP method.
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :kpx))
      &key ((:hyphen-penalty *hyphen-penalty*))
@@ -119,43 +116,43 @@
 ;;    line in a special way, so this might render this point obsolete.
 ;; 7. Finally, this approach works only on rectangular paragraphs.
 
-;; #### FIXME: I don't like the asymmetry between BOL and EOL here. Perhaps
-;; edges should be instantiated with a start boundary rather than just an
-;; index.
-(defun harray-bol (start harray &aux (item (aref harray start)) idx bol)
-  "Return the beginning-of-line items for an HARRAY line starting at START.
-This is the list of the first visible characters that lie between START and
-the next break point."
-  (cond ((discretionaryp item)
-	 (setq idx (1+ start))
-	 (setq bol (retain 'tfm:character-metrics (post-break item)
-			   :key #'type-of)))
-	(t
-	 (setq idx start)))
-  (append bol
-	  (loop :for i :from idx :upto (1- (length harray))
-		;;                ╰► probably terminated sooner by :until
-		:for item := (aref harray i)
-		:until (break-point-p item)
-		:when (eq (type-of item) 'tfm:character-metrics)
-		  :collect item)))
+(defun harray-bol-items (harray break-point)
+  "Return the BOL items for an HARRAY line starting at BREAK-POINT.
+This is the list of the first visible characters that lie between BREAK-POINT
+and the next one."
+  (unless (eopp break-point)
+    (let ((idx (bol-idx break-point)) bol-items)
+      (when (discretionaryp break-point)
+	(setq bol-items (retain 'tfm:character-metrics (post-break break-point)
+				:key #'type-of))
+	(incf idx))
+      (append bol-items
+	      (loop :for i :from idx :upto (1- (length harray))
+		    ;;                ╰► probably terminated sooner by :until
+		    :for item := (aref harray i)
+		    :until (break-point-p item)
+		    :when (eq (type-of item) 'tfm:character-metrics)
+		      :collect item)))))
 
-(defun boundary-eol (boundary harray &aux idx eol)
+;; #### NOTE: currently, this function has no reason to be called on *BOP*,
+;; but let's just remain on the safe side.
+(defun harray-eol-items (harray break-point)
   "Return the end-of-line items for an HARRAY line ending at BOUNDARY.
 This is the list of the last visible characters (including a final hyphen if
 the line is hyphenated) that lie between BOUNDARY and the previous break
 point, in reverse order."
-  (cond ((discretionaryp (item boundary))
-	 (setq idx (- (stop-idx boundary) 2))
-	 (setq eol (retain 'tfm:character-metrics (pre-break (item boundary))
-			   :key #'type-of)))
-	(t ; glue
-	 (setq idx (1- (stop-idx boundary)))))
-  (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
-	:for item := (aref harray i)
-	:until (break-point-p item)
-	:when (eq (type-of item) 'tfm:character-metrics) :do (push item eol))
-  (nreverse eol))
+  (unless (eq break-point *bop*)
+    (let ((idx (1- (eol-idx break-point))) eol-items)
+      (when (discretionaryp break-point)
+	(setq eol-items (retain 'tfm:character-metrics (pre-break break-point)
+				:key #'type-of))
+	(decf idx))
+      (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
+	    :for item := (aref harray i)
+	    :until (break-point-p item)
+	    :when (eq (type-of item) 'tfm:character-metrics)
+	      :do (push item eol-items))
+      (nreverse eol-items))))
 
 
 
@@ -168,14 +165,7 @@ point, in reverse order."
 ;; Edges
 ;; -----
 
-(defclass kpx-edge (kp-edge)
-  ((bol :documentation "This edge's beginning-of-line items."
-	:reader bol)
-   (eol :documentation "This edge's end-of-line items."
-	:reader eol))
-  (:documentation "The KPX-EDGE class."))
-
-(defmethod initialize-instance :after
+#+()(defmethod initialize-instance :after
     ((edge kpx-edge)
      &key harray start width
      &aux (boundary (boundary (destination edge))))
@@ -207,7 +197,7 @@ point, in reverse order."
 		(slot-value edge 'scale)))))
 
 ;; Last line ledge
-(defclass kpx-last-ledge (kp-ledge)
+#+()(defclass kpx-last-ledge (kp-ledge)
   ((scale :documentation "The adjusted last line scale."
 	  :reader scale)
    (fitness-class :documentation "The adjusted last line fitness class."
@@ -219,7 +209,7 @@ one-before-last."))
 
 ;; #### NOTE: technically, this is not required, but it makes the code in
 ;; KPX-POSTPROCESS-LAYOUT more pleasant to read.
-(defmethod update-instance-for-different-class :after
+#+()(defmethod update-instance-for-different-class :after
     ((old kp-ledge) (new kpx-last-ledge) &key)
   "Initialize the scale slot to the edge's one."
   (setf (slot-value new 'scale) (scale (edge old))))
@@ -228,7 +218,7 @@ one-before-last."))
 ;; what the advertised line properties contain (hence, the design of the LINE
 ;; hierarchy is broken; see comment atop GRAPH-LINE). Also, the adjusted
 ;; fitness class is likely to not be very different from the original one.
-(defmethod properties strnlcat ((ledge kpx-last-ledge))
+#+()(defmethod properties strnlcat ((ledge kpx-last-ledge))
   "Advertise KPX last LEDGE's adjusted fitness class."
   (format nil "Adjusted fitness class: ~A."
     (fitness-class-name (fitness-class ledge))))
@@ -238,209 +228,160 @@ one-before-last."))
 ;; Layouts
 ;; -------
 
-(defun kpx-postprocess-layout
-    (layout &aux (total-demerits (demerits (edge (first (ledges layout))))))
-  "Compute LAYOUT's properties."
-  ;; #### NOTE: in order to stay close to the original philosophy about
-  ;; adjacency of the first line (see warning in KPX-CREATE-NODES about that),
-  ;; we do it by comparison with a scale of 0. This originally made sense in
-  ;; TeX because the last line of previous paragraph would most often not be
-  ;; scaled. On the other hand, with our last line adjustment feature in KPX,
-  ;; this is not a validd assumption anymore. In theory, we should remember if
-  ;; there's a previous paragraph, if so, what's the scaling of the last line,
-  ;; and eventually compare to that.
-  ;; #### WARNING: with a continuous function for adjacency demerits, we get
-  ;; the risk of doing +∞ * 0 twice below, with infinite scaling differences
-  ;; and no adjacent demerits. Fortunately, we have a way to protect ourselves
-  ;; against that: without adjacent demerits, we don't even need to compute a
-  ;; product at all (in other words, +∞ * 0 = 0 in this context).
-  #+()(unless (zerop *adjacent-demerits*)
-	(setq total-demerits ($+ total-demerits
-				 ($* ($abs (scale (edge (first (ledges layout)))))
-				     *adjacent-demerits*))))
-  (when (= (fitness-class (edge (first (ledges layout)))) 0)
-    (setf total-demerits ($+ total-demerits *adjacent-demerits*)))
-  (setf (slot-value (first (ledges layout)) 'demerits) total-demerits)
-  (unless (numberp (badness (edge (first (ledges layout)))))
-    (incf (slot-value layout 'bads)))
-  (when (> (length (ledges layout)) 1)
-    (loop :for ledge1 :in (ledges layout)
-	  :for ledge2 :in (cdr (ledges layout))
-	  :for edge1 := (edge ledge1)
-	  :for edge2 := (edge ledge2)
-	  :for finalp := (last-boundary-p (boundary (destination edge2)))
-	  :when finalp
-	    :do (change-class ledge2 'kpx-last-ledge)
-	    :and :do (setf (slot-value ledge2 'scale)
-			   (if ($< (scale ledge1) (car (scale ledge2)))
-			     ;; we can always shrink the last line as much as
-			     ;; we want.
-			     (scale ledge1)
-			     ;; otherwise, we don't want to stretch more than
-			     ;; required to justify
-			     ($min (scale ledge1) (car (scale ledge2)))))
-	    :and :do (setf (slot-value ledge2 'fitness-class)
-			   (scale-fitness-class (scale ledge2)))
-	  :unless (numberp (badness edge2))
-	    :do (incf (slot-value layout 'bads))
-	  :do (setq total-demerits ($+ total-demerits (demerits edge2)))
-	  :when (>= (compare (bol edge1) (bol edge2)) 2)
-	    :do (setq total-demerits ($+ total-demerits *similar-demerits*))
-	  :when (and (not finalp) (>= (compare (eol edge1) (eol edge2)) 2))
-	    :do (setq total-demerits ($+ total-demerits *similar-demerits*))
-	  ;; See comment in dynamic version. Do not consider very rare case
-	  ;; where the paragraph ends with an explicit hyphen.
-	  :when (and (not finalp) (hyphenated ledge1) (hyphenated ledge2))
-	    :do (setq total-demerits
-		      ($+ total-demerits *double-hyphen-demerits*))
-	  :when (and finalp (hyphenated ledge1))
-	    :do (setq total-demerits
-		      ($+ total-demerits *final-hyphen-demerits*))
-	  :when (> (abs (- (fitness-class edge1) (fitness-class edge2))) 1)
-	    :do (setf total-demerits ($+ total-demerits *adjacent-demerits*))
-	  #|
-	  :unless (zerop *adjacent-demerits*)
-	    :do (setq total-demerits
-		      ($+ total-demerits
-			  ;; #### WARNING: we access the scale through the
-			  ;; ledge, not the edge, because of the last line
-			  ;; override.
-			  ($* ($abs ($- (scale ledge1) (scale ledge2)))
-	  *adjacent-demerits*)))
-	  |#
-	  :do (setf (slot-value ledge2 'demerits) total-demerits)))
-  (setf (slot-value layout 'size) (length (ledges layout))))
+;; #### NOTE: even though KPX layouts are created differently, only the
+;; demerits computation differs, so in the end, there's no need for a KPX
+;; layout class.
+
+;; #### FIXME: too similar to the original KP function.
+(defun kpx-graph-make-layout
+    (breakup path
+     &aux (harray (harray breakup))
+	  (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (overshrink (getf (disposition-options disposition) :overshrink))
+	  ;; #### NOTE: no emergency stretch counted here. See comment on top
+	  ;; of KP-MAKE-JUSTIFIED-LINE.
+	  (stretch-tolerance
+	   (stretch-tolerance
+	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
+	  (make-line
+	   (case disposition-type
+	     (:justified
+	      (lambda (harray bol boundary demerits)
+		(kp-make-justified-line harray bol boundary
+		  stretch-tolerance overshrink demerits)))
+	     (t ;; just switch back to normal spacing.
+	      (lambda (harray bol boundary demerits)
+		(make-instance 'kpx-line
+		  :harray harray :bol bol :boundary boundary
+		  :demerits demerits)))))
+	  (layout (make-instance 'kp-graph-layout
+		    :breakup breakup
+		    :demerits (demerits (first path))
+		    :bads (if (numberp (badness (first path))) 0  1)))
+	  line1)
+  "Create a KPX layout for BREAKUP from graph PATH."
+  ;; See warning in KP-CREATE-NODES about that.
+  (when (zerop (fitness-class (first path)))
+    (setf (slot-value layout 'demerits)
+	  (+ (slot-value layout 'demerits) *adjacent-demerits*)))
+  (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
+  (when (cdr path)
+    (with-slots (demerits bads size) layout
+      (loop :for boundary1 := (first path) :then boundary2
+	    :for bol1 := (harray-bol-items harray *bop*) :then bol2
+	    :for bol2 := (harray-bol-items harray (break-point boundary1))
+	    :for eol1 := (harray-eol-items harray (break-point (first path)))
+	      :then eol2
+	    :for boundary2 :in (cdr path)
+	    :for eol2 := (harray-eol-items harray (break-point boundary2))
+	    :for finalp := (eopp boundary2)
+	    :do (incf size)
+	    :unless (numberp (badness boundary2)) :do (incf bads)
+	    :do (setf demerits (+ demerits (demerits boundary2)))
+	    ;; See comment in dynamic version. Do not consider the very
+	    ;; rare case where the paragraph ends with an explicit hyphen.
+	    :when (and (not finalp)
+		       (hyphenated boundary1)
+		       (hyphenated boundary2))
+	      :do (setf demerits (+ demerits *double-hyphen-demerits*))
+	    :when (and finalp (hyphenated boundary1))
+	      :do (setf demerits (+ demerits *final-hyphen-demerits*))
+	    :when (> (abs (- (fitness-class boundary1)
+			     (fitness-class boundary2)))
+		     1)
+	      :do (setf demerits (+ demerits *adjacent-demerits*))
+	     ;; #### NOTE: for now, I'm considering that hyphenated
+	     ;; similarities are even worse than regular ones, so we will
+	     ;; apply both similar and double-hyphen demerits.
+	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
+	    :when (>= (compare bol1 bol2) 2)
+	      :do (incf demerits *similar-demerits*)
+	     :when (>= (compare eol1 eol2) 2)
+		   :do (incf demerits *similar-demerits*)
+	    :collect (funcall make-line
+		       harray (break-point boundary1) boundary2 demerits)
+	      :into lines
+	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
+  layout)
+
+;; #### FIXME: too similar to the original KP function.
+(defun kpx-graph-make-layouts (breakup graph)
+  "Make KPX GRAPH layouts for BREAKUP."
+  (mapcar (lambda (path) (kpx-graph-make-layout breakup path))
+    (make-graph-paths graph)))
 
 
-;; -----------------
-;; Lines computation
-;; -----------------
+;; -------
+;; Breakup
+;; -------
 
-;; #### NOTE: I'm keeping this for now, in anticipation for last line
-;; adjustment changes (probably need to modify this function).
-(defun kpx-pin-layout (harray disposition width beds layout pass)
-  "Pin KPX LAYOUT from HARRAY for a DISPOSITION paragraph."
-  (when layout
-    (loop :with disposition-options := (disposition-options disposition)
-	  ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
-	  ;; elastic underfulls (in case of an impossible layout, it falls
-	  ;; back to overfull boxes). This means that the overstretch option
-	  ;; has no effect, but it allows for a nice trick: we can indicate
-	  ;; lines exceeding the tolerance thanks to an emergency stretch as
-	  ;; overstretched, regardless of the option. This is done by setting
-	  ;; the overstretched parameter to T and not counting emergency
-	  ;; stretch in the stretch-tolerance one.
-	  :with overshrink := (getf disposition-options :overshrink)
-	  :with disposition := (disposition-type disposition)
-	  :with stretch-tolerance
-	    := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
-	  :with baseline-skip := (baseline-skip harray)
-	  :for y := 0 :then (+ y baseline-skip)
-	  :for ledge :in (ledges layout)
-	  :for boundary := (boundary (destination (edge ledge)))
-	  :and start := 0 :then (start-idx boundary)
-	  :for stop := (stop-idx boundary)
-	  :for line := (case disposition
-			 (:justified
-			  (multiple-value-bind (theoretical effective)
-			      ;; #### WARNING: we access the scale through the
-			      ;; ledge, not the edge, because of the last line
-			      ;; override.
-			      (actual-scales (scale ledge)
-				:stretch-tolerance stretch-tolerance
-				:overshrink overshrink
-				:overstretch t)
-			    (make-instance 'graph-line
-			      :harray harray :start-idx start
-			      ;; #### HACK ALERT: don't count the final glue
-			      ;; for last lines with non zero scaling !
-			      :stop-idx (if (last-boundary-p boundary)
-					  (1- stop)
-					  stop)
-			      :beds beds
-			      :scale theoretical :effective-scale effective
-			      :ledge ledge)))
-			 (t ;; just switch back to normal spacing.
-			  (make-instance 'line
-			    :harray harray :start-idx start :stop-idx stop
-			    :beds beds)))
-	  :for x := (case disposition
-		      ((:flush-left :justified) 0)
-		      (:centered (/ (- width (width line)) 2))
-		      (:flush-right (- width (width line))))
-	  :collect (pin-line line x y))))
+;; #### NOTE: a KPX breakup is no different from a KP one.
 
+;; #### FIXME: too similar to the original KP function. Only the layouts are
+;; created differently. We could have a KPX boundary class remembering the
+;; end-of-line sequence, but that is in fact not necessary since similarity
+;; computation occurs between two lines, so we just need KPX lines. At least,
+;; that saves us some redundancy.
+(defun kpx-graph-break-harray
+    (harray disposition width
+     &aux (breakup (make-instance 'kp-graph-breakup
+		     :harray harray :disposition disposition :width width)))
+  "Break HARRAY with the Knuth-Plass algorithm, graph version."
+  (unless (zerop (length harray))
+    (let (graph layouts)
 
-;; ----------------------
-;; Breakup specialization
-;; ----------------------
+      ;; Pass 1, never final.
+      (when ($<= 0 *pre-tolerance*)
+	(setf (slot-value breakup 'pass) 1)
+	(setq graph (make-graph harray width
+				(lambda (harray bol width)
+				  (kp-get-boundaries
+				   harray bol width *pre-tolerance*))))
+	(when (gethash *bop* graph)
+	  (setq layouts (sort (kpx-graph-make-layouts breakup graph)
+			    #'< :key #'demerits))
+	  (unless (zerop *looseness*)
+	    (setq layouts (kp-remove-unloose-layouts layouts)))))
 
-(defun kpx-graph-break-harray (harray disposition width beds)
-  "Break HARRAY with the KPX algorithm, graph version."
-  (if (zerop (length harray))
-    (make-instance 'kp-graph-breakup)
-    (let ((threshold *pre-tolerance*)
-	  (pass 1)
-	  root nodes layouts breakup)
-      (when ($<= 0 threshold)
-	(multiple-value-setq (root nodes)
-	  (make-graph harray width
-	    :edge-type 'kpx-edge
-	    :next-boundaries `(kp-next-boundaries :threshold ,threshold))))
-      (unless (and root (edges root))
-	(incf pass)
-	(setq threshold *tolerance*)
-	(multiple-value-setq (root nodes)
-	  (make-graph harray width
-	    :edge-type 'kpx-edge
-	    :next-boundaries `(kp-next-boundaries
-			       :hyphenate t
-			       :threshold ,threshold
-			       :final ,(zerop *emergency-stretch*)))))
-      (unless (edges root)
-	(incf pass)
-	(multiple-value-setq (root nodes)
-	  (make-graph harray width
-	    :edge-type 'kpx-edge
-	    :next-boundaries `(kp-next-boundaries
-			       :hyphenate t
-			       :threshold ,threshold
-			       :final ,*emergency-stretch*))))
-      (setq layouts
-	    (make-layouts root :layout-type 'kp-layout :ledge-type 'kp-ledge))
-      (mapc #'kpx-postprocess-layout layouts)
-      ;; #### WARNING: in order to remain consistent with TeX, and as in the
-      ;; dynamic version, an unfit line will have its demerits set to 0.
-      ;; Contrary to the dynamic version however, the final pass may offer a
-      ;; graph in which there are both fit and unfit possibilities, and it may
-      ;; even turn out that an unfit one has fewer demerits than a fit one
-      ;; (because of the zero'ed lines). Consequently, the layouts must be
-      ;; sorted by number of bads first, and demerits next.
-      (setq layouts
-	    (sort layouts (lambda (l1 l2)
-			    (or (< (bads l1) (bads l2))
-				(and (= (bads l1) (bads l2))
-				     (< (demerits l1) (demerits l2)))))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (size (car layouts)) *looseness*)))
-	  (setq layouts (stable-sort layouts (lambda (size1 size2)
-					       (< (abs (- size1 ideal-size))
-						  (abs (- size2 ideal-size))))
-				     :key #'size))))
-      (setq breakup (make-instance 'kp-graph-breakup
-		      :root root :nodes nodes :layouts layouts :pass pass))
-      ;; #### WARNING: by choosing the first layout here, we're doing the
-      ;; opposite of what TeX does in case of total demerits equality. We
-      ;; could instead check for multiple such layouts and take the last one.
-      ;; On the other hand, while we're using a hash table in the dynamic
-      ;; programming implementation, we're not doing exactly what TeX does
-      ;; either, so there's no rush. It's still important to keep that in mind
-      ;; however, because that explains while we may end up with different
-      ;; solutions between the graph and the dynamic versions.
-      (setf (aref (renditions breakup) 0)
-	    (kpx-pin-layout harray disposition width beds (first layouts)
-			   pass))
-      breakup)))
+      ;; Pass 2, maybe final.
+      (unless layouts
+	(let ((final (zerop *emergency-stretch*)))
+	  (setf (slot-value breakup 'pass) 2)
+	  (setq graph (make-graph harray width
+				  (lambda (harray bol width)
+				    (kp-get-boundaries
+				     harray bol width *tolerance* t final))))
+	  (when (gethash *bop* graph)
+	    (cond (final
+		   (setq layouts (sort (kpx-graph-make-layouts breakup graph)
+				     #'kp-graph-layout-<))
+		   (unless (zerop *looseness*)
+		     (setq layouts (kp-sort-layouts-by-looseness layouts))))
+		  (t
+		   (setq layouts (sort (kpx-graph-make-layouts breakup graph)
+				     #'< :key #'demerits))
+		   (unless (zerop *looseness*)
+		     (setq layouts (kp-remove-unloose-layouts layouts))))))))
+
+      ;; Pass 3, always final.
+      (unless layouts
+	(incf (slot-value breakup 'pass))
+	(setq graph (make-graph harray width
+				(lambda (harray bol width)
+				  (kp-get-boundaries
+				   harray bol width *tolerance*
+				   t t *emergency-stretch*))))
+	(setq layouts
+	      (sort (kpx-graph-make-layouts breakup graph) #'kp-graph-layout-<))
+	(unless (zerop *looseness*)
+	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
+
+      ;; We're done here.
+      (setf (slot-value breakup 'graph) graph)
+      (setf (slot-value breakup 'layouts)
+	    (make-array (length layouts) :initial-contents layouts))))
+  breakup)
 
 
 
@@ -449,9 +390,9 @@ one-before-last."))
 ;; Dynamic Variant
 ;; ==========================================================================
 
-(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) bol eol)
+#+()(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) bol eol)
 
-(defstruct (kpx-last-node (:constructor kpx-make-last-node)
+#+()(defstruct (kpx-last-node (:constructor kpx-make-last-node)
 			  (:include kpx-node))
   original-scale original-fitness-class)
 
@@ -726,7 +667,7 @@ through the algorithm in the TeX jargon).
     :reader original-fitness-class))
   (:documentation "The KPX Last Dynamic Line class."))
 
-(defmethod properties strnlcat ((line kpx-last-dynamic-line))
+(defmethod properties strnlcat ((line kpx-last-dynamic-line) &key)
   "Advertise KPX last dynamic LINE's original scale and fitness class."
   (format nil "Original scale: ~A.~@
 	       Original fitness class: ~A."
@@ -857,7 +798,7 @@ through the algorithm in the TeX jargon).
 ;; ==========================================================================
 
 (defmethod break-harray
-    (harray disposition width beds (algorithm (eql :kpx))
+    (harray disposition width (algorithm (eql :kpx))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
@@ -882,4 +823,4 @@ through the algorithm in the TeX jargon).
   (funcall (ecase *variant*
 	     (:graph #'kpx-graph-break-harray)
 	     (:dynamic #'kpx-dynamic-break-harray))
-    harray disposition width beds))
+    harray disposition width))
