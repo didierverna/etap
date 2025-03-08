@@ -161,6 +161,9 @@ point, in reverse order."
 ;; Graph Variant
 ;; ==========================================================================
 
+;; #### NOTE: this is currently left here for future re-implementation of last
+;; line adjustments.
+
 ;; -----
 ;; Edges
 ;; -----
