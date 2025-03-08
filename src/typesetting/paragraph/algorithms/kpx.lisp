@@ -266,8 +266,7 @@ one-before-last."))
   "Create a KPX layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
   (when (zerop (fitness-class (first path)))
-    (setf (slot-value layout 'demerits)
-	  (+ (slot-value layout 'demerits) *adjacent-demerits*)))
+    (incf (slot-value layout 'demerits) *adjacent-demerits*))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
     (with-slots (demerits bads size) layout
@@ -281,19 +280,19 @@ one-before-last."))
 	    :for finalp := (eopp boundary2)
 	    :do (incf size)
 	    :unless (numberp (badness boundary2)) :do (incf bads)
-	    :do (setf demerits (+ demerits (demerits boundary2)))
+	    :do (incf demerits (demerits boundary2))
 	    ;; See comment in dynamic version. Do not consider the very
 	    ;; rare case where the paragraph ends with an explicit hyphen.
 	    :when (and (not finalp)
 		       (hyphenated boundary1)
 		       (hyphenated boundary2))
-	      :do (setf demerits (+ demerits *double-hyphen-demerits*))
+	      :do (incf demerits *double-hyphen-demerits*)
 	    :when (and finalp (hyphenated boundary1))
-	      :do (setf demerits (+ demerits *final-hyphen-demerits*))
+	      :do (incf demerits *final-hyphen-demerits*)
 	    :when (> (abs (- (fitness-class boundary1)
 			     (fitness-class boundary2)))
 		     1)
-	      :do (setf demerits (+ demerits *adjacent-demerits*))
+	      :do (incf demerits *adjacent-demerits*)
 	     ;; #### NOTE: for now, I'm considering that hyphenated
 	     ;; similarities are even worse than regular ones, so we will
 	     ;; apply both similar and double-hyphen demerits.
