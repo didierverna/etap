@@ -556,13 +556,13 @@ or, in case of equality, a lesser amount of demerits."
        (setq last-deactivation (cons key node))
        (remhash key nodes))
      (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
-       (let ((total-demerits (+ (demerits node) (demerits boundary))))
+       (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on
 	 ;; *KP-BOP-NODE*. Besides, we also save a couple of accessor calls
 	 ;; that way.
 	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
-	   (incf total-demerits *adjacent-demerits*))
+	   (incf demerits *adjacent-demerits*))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
@@ -575,9 +575,9 @@ or, in case of equality, a lesser amount of demerits."
 	 ;; hyphens are very unlikely to create a ladder.
 	 (when (discretionaryp bol)
 	   (if (eopp boundary)
-	     (incf total-demerits *final-hyphen-demerits*)
+	     (incf demerits *final-hyphen-demerits*)
 	     (when (discretionaryp (break-point boundary))
-	       (incf total-demerits *double-hyphen-demerits*))))
+	       (incf demerits *double-hyphen-demerits*))))
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
 				   (fitness-class boundary)))
@@ -593,9 +593,8 @@ or, in case of equality, a lesser amount of demerits."
 			    ;; same thing because we're using MAPHASH and the
 			    ;; order of the nodes in the hash table is not
 			    ;; deterministic.
-			    (<= total-demerits (demerits (cdr previous))))
-		    (funcall make-node
-		      harray bol boundary total-demerits node))))
+			    (<= demerits (demerits (cdr previous))))
+		    (funcall make-node harray bol boundary demerits node))))
 	   (when new-node
 	     (if previous
 	       (setf (cdr previous) new-node)
