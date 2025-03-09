@@ -312,8 +312,8 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(gp:draw-rectangle pane 0 0 (width paragraph) par-h+d
 	  :foreground :red
 	  :scale-thickness nil))
-      (when-let (lines (lines layout))
-	(loop :for rest :on lines
+      (when layout
+	(loop :for rest :on (lines layout)
 	      :for line := (car rest)
 	      :for x := (x line)
 	      :for y := (+ par-y (y line))
@@ -503,7 +503,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
       (display-tooltip pane
 	:text (properties paragraph
 		:layout-# (when (<= 0 layout-#) layout-#)))
-      (let ((line (when (and (>= x 0) (<= x (width paragraph)))
+      (let ((line (when (and layout (>= x 0) (<= x (width paragraph)))
 		    (find-if (lambda (line)
 			       (and (>= y (- (y line) (height line)))
 				    (<= y (+ (y line) (depth line)))))
