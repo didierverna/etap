@@ -65,18 +65,11 @@
     (hlist disposition (algorithm (eql :kpx))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HLIST, and append the final glue to it."
+  "Process HLIST for DISPOSITION by the KPX algorithm. Return HLIST.
+See `kp-process-hlist' for more information."
   (calibrate-kpx hyphen-penalty t)
   (calibrate-kpx explicit-hyphen-penalty t)
-  (mapc (lambda (item)
-	  (when (discretionaryp item)
-	    (setf (penalty item)
-		  (if (pre-break item)
-		    *hyphen-penalty*
-		    *explicit-hyphen-penalty*))))
-    hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
-  hlist)
+  (kp-process-hlist hlist))
 
 
 

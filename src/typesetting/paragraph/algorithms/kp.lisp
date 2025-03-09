@@ -77,13 +77,10 @@
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
 ;; the same here.
 
-(defmethod process-hlist
-    (hlist disposition (algorithm (eql :knuth-plass))
-     &key ((:hyphen-penalty *hyphen-penalty*))
-	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HLIST, and append the final glue to it."
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
+;; This function is also used by the KPX algorithm.
+(defun kp-process-hlist (hlist)
+  "Adjust hyphen penalties in HLIST, and append the final glue to it.
+Return HLIST."
   (mapc (lambda (item)
 	  (when (discretionaryp item)
 	    (setf (penalty item)
@@ -93,6 +90,16 @@
     hlist)
   (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
   hlist)
+
+(defmethod process-hlist
+    (hlist disposition (algorithm (eql :knuth-plass))
+     &key ((:hyphen-penalty *hyphen-penalty*))
+	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
+  "Process HLIST for DISPOSITION by the Knuth-Plass algorithm. Return HLIST.
+See `kp-process-hlist' for more information."
+  (calibrate-kp hyphen-penalty t)
+  (calibrate-kp explicit-hyphen-penalty t)
+  (kp-process-hlist hlist))
 
 
 
