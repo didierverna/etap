@@ -723,7 +723,10 @@ or, in case of equality, a lesser amount of demerits."
     :breakup breakup
     :lines (loop :with lines
 		 :for line := node :then (previous line)
-		 :until (eq line *kp-bop-node*)
+		 ;; #### NOTE: testing for a previous node instead of
+		 ;; comparing the node to *KP-BOP-NODE* allows this function
+		 ;; to be reused by the KPX algorithm.
+		 :while (previous line)
 		 :do (push line lines)
 		 :finally (return lines))
     :demerits (demerits node)
