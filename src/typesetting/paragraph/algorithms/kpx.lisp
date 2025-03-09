@@ -255,7 +255,7 @@ one-before-last."))
 		  stretch-tolerance overshrink demerits)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
-		(make-instance 'kpx-line
+		(make-instance 'kp-line
 		  :harray harray :bol bol :boundary boundary
 		  :demerits demerits)))))
 	  (layout (make-instance 'kp-graph-layout
