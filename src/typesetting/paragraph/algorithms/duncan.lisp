@@ -240,10 +240,8 @@ order (from last to first)."
     ;; of fit, we reduce the number of subsequent *fulls. Perhaps this should
     ;; be experimented. On the other hand, if we get even just one full, the
     ;; solution is unacceptable in theory so it's probably not worth it.
-    (setf (slot-value breakup 'graph)
-	  (make-graph harray width #'duncan-get-boundaries))
-    (let ((layouts (mapcar (lambda (path) (duncan-make-layout breakup path))
-		     (make-graph-paths (graph breakup)))))
+    (let* ((graph (make-graph harray width #'duncan-get-boundaries))
+	   (layouts (make-graph-layouts graph breakup #'duncan-make-layout)))
       (labels ((perfect (layout)
 		 (and (zerop (hyphens layout))
 		      (zerop (underfulls layout))
@@ -276,6 +274,7 @@ order (from last to first)."
 			  (< (+ (underfulls l1) (overfulls l1))
 			     (+ (underfulls l2) (overfulls l2)))))))
 	(setq layouts (sort layouts #'better)))
+      (setf (slot-value breakup 'graph) graph)
       (setf (slot-value breakup 'layouts)
 	    (make-array (length layouts) :initial-contents layouts))))
   breakup)

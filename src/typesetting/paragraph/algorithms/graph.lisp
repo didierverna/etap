@@ -121,6 +121,12 @@ but there is one for the end."
 		(make-graph-paths graph (gethash break-point graph)))))
     boundaries))
 
+(defun make-graph-layouts (graph breakup make-layout)
+  "Make GRAPH layouts for BREAKUP.
+(MAKE-LAYOUT BREAKUP PATH) is called to create a layout from a GRAPH path."
+  (mapcar (lambda (path) (funcall make-layout breakup path))
+    (make-graph-paths graph)))
+
 
 
 

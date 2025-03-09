@@ -296,76 +296,6 @@ one-before-last."))
 	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
   layout)
 
-(defun kpx-graph-make-layouts (breakup graph)
-  "Make KPX GRAPH layouts for BREAKUP."
-  (mapcar (lambda (path) (kpx-graph-make-layout breakup path))
-    (make-graph-paths graph)))
-
-
-;; -------
-;; Breakup
-;; -------
-
-(defun kpx-graph-break-harray
-    (harray disposition width
-     &aux (breakup (make-instance 'kp-graph-breakup
-		     :harray harray :disposition disposition :width width)))
-  "Break HARRAY with the Knuth-Plass algorithm, graph version."
-  (unless (zerop (length harray))
-    (let (graph layouts)
-
-      ;; Pass 1, never final.
-      (when ($<= 0 *pre-tolerance*)
-	(setf (slot-value breakup 'pass) 1)
-	(setq graph (make-graph harray width
-				(lambda (harray bol width)
-				  (kp-get-boundaries
-				   harray bol width *pre-tolerance*))))
-	(when (gethash *bop* graph)
-	  (setq layouts (sort (kpx-graph-make-layouts breakup graph)
-			    #'< :key #'demerits))
-	  (unless (zerop *looseness*)
-	    (setq layouts (kp-remove-unloose-layouts layouts)))))
-
-      ;; Pass 2, maybe final.
-      (unless layouts
-	(let ((final (zerop *emergency-stretch*)))
-	  (setf (slot-value breakup 'pass) 2)
-	  (setq graph (make-graph harray width
-				  (lambda (harray bol width)
-				    (kp-get-boundaries
-				     harray bol width *tolerance* t final))))
-	  (when (gethash *bop* graph)
-	    (cond (final
-		   (setq layouts (sort (kpx-graph-make-layouts breakup graph)
-				     #'kp-graph-layout-<))
-		   (unless (zerop *looseness*)
-		     (setq layouts (kp-sort-layouts-by-looseness layouts))))
-		  (t
-		   (setq layouts (sort (kpx-graph-make-layouts breakup graph)
-				     #'< :key #'demerits))
-		   (unless (zerop *looseness*)
-		     (setq layouts (kp-remove-unloose-layouts layouts))))))))
-
-      ;; Pass 3, always final.
-      (unless layouts
-	(incf (slot-value breakup 'pass))
-	(setq graph (make-graph harray width
-				(lambda (harray bol width)
-				  (kp-get-boundaries
-				   harray bol width *tolerance*
-				   t t *emergency-stretch*))))
-	(setq layouts
-	      (sort (kpx-graph-make-layouts breakup graph) #'kp-graph-layout-<))
-	(unless (zerop *looseness*)
-	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
-
-      ;; We're done here.
-      (setf (slot-value breakup 'graph) graph)
-      (setf (slot-value breakup 'layouts)
-	    (make-array (length layouts) :initial-contents layouts))))
-  breakup)
-
 
 
 
@@ -664,7 +594,8 @@ one-before-last."))
   (calibrate-kpx tolerance :positive)
   (calibrate-kpx emergency-stretch)
   (calibrate-kpx looseness)
-  (funcall (ecase *variant*
-	     (:graph #'kpx-graph-break-harray)
-	     (:dynamic #'kpx-dynamic-break-harray))
-    harray disposition width))
+  (ecase *variant*
+    (:graph
+     (kp-graph-break-harray harray disposition width #'kpx-graph-make-layout))
+    (:dynamic
+     (kpx-dynamic-break-harray harray disposition width))))

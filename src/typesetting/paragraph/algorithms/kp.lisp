@@ -420,11 +420,6 @@ This is the Knuth-Plass version for the graph variant.
 	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
   layout)
 
-(defun kp-graph-make-layouts (breakup graph)
-  "Make Knuth-Plass GRAPH layouts for BREAKUP."
-  (mapcar (lambda (path) (kp-graph-make-layout breakup path))
-    (make-graph-paths graph)))
-
 ;; #### WARNING: the final pass of the graph variant may construct a graph
 ;; containing a mix of fit and unfit paths, because we can't know in advance
 ;; whether there will be an actual solution or not (in other words,
@@ -458,6 +453,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; got that wrong for quite some time...
 (defun kp-graph-break-harray
     (harray disposition width
+     &optional (make-layout #'kp-graph-make-layout)
      &aux (breakup (make-instance 'kp-graph-breakup
 		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, graph version."
@@ -472,7 +468,7 @@ or, in case of equality, a lesser amount of demerits."
 				  (kp-get-boundaries
 				   harray bol width *pre-tolerance*))))
 	(when (gethash *bop* graph)
-	  (setq layouts (sort (kp-graph-make-layouts breakup graph)
+	  (setq layouts (sort (make-graph-layouts graph breakup make-layout)
 			    #'< :key #'demerits))
 	  (unless (zerop *looseness*)
 	    (setq layouts (kp-remove-unloose-layouts layouts)))))
@@ -487,13 +483,15 @@ or, in case of equality, a lesser amount of demerits."
 				     harray bol width *tolerance* t final))))
 	  (when (gethash *bop* graph)
 	    (cond (final
-		   (setq layouts (sort (kp-graph-make-layouts breakup graph)
-				     #'kp-graph-layout-<))
+		   (setq layouts
+			 (sort (make-graph-layouts graph breakup make-layout)
+			     #'kp-graph-layout-<))
 		   (unless (zerop *looseness*)
 		     (setq layouts (kp-sort-layouts-by-looseness layouts))))
 		  (t
-		   (setq layouts (sort (kp-graph-make-layouts breakup graph)
-				     #'< :key #'demerits))
+		   (setq layouts
+			 (sort (make-graph-layouts graph breakup make-layout)
+			     #'< :key #'demerits))
 		   (unless (zerop *looseness*)
 		     (setq layouts (kp-remove-unloose-layouts layouts))))))))
 
@@ -506,7 +504,8 @@ or, in case of equality, a lesser amount of demerits."
 				   harray bol width *tolerance*
 				   t t *emergency-stretch*))))
 	(setq layouts
-	      (sort (kp-graph-make-layouts breakup graph) #'kp-graph-layout-<))
+	      (sort (make-graph-layouts graph breakup make-layout)
+		  #'kp-graph-layout-<))
 	(unless (zerop *looseness*)
 	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
 
