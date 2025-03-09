@@ -61,7 +61,6 @@
 ;; HList
 ;; ==========================================================================
 
-;; #### FIXME: this is exactly the original KP method.
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :kpx))
      &key ((:hyphen-penalty *hyphen-penalty*))
@@ -134,8 +133,6 @@ and the next one."
 		    :when (eq (type-of item) 'tfm:character-metrics)
 		      :collect item)))))
 
-;; #### NOTE: currently, this function has no reason to be called on *BOP*,
-;; but let's just remain on the safe side.
 (defun harray-eol-items (harray break-point)
   "Return the end-of-line items for an HARRAY line ending at BOUNDARY.
 This is the list of the last visible characters (including a final hyphen if
@@ -160,6 +157,10 @@ point, in reverse order."
 ;; ==========================================================================
 ;; Graph Variant
 ;; ==========================================================================
+
+;; The KPX graph variant does not need any specific data structures, because
+;; similarity processing is done when creating the layouts, and we don't even
+;; need to remember the BOL and EOL items outside of the path loop.
 
 ;; #### NOTE: this is currently left here for future re-implementation of last
 ;; line adjustments.
@@ -231,11 +232,6 @@ one-before-last."))
 ;; Layouts
 ;; -------
 
-;; #### NOTE: even though KPX layouts are created differently, only the
-;; demerits computation differs, so in the end, there's no need for a KPX
-;; layout class.
-
-;; #### FIXME: too similar to the original KP function.
 (defun kpx-graph-make-layout
     (breakup path
      &aux (harray (harray breakup))
@@ -307,7 +303,6 @@ one-before-last."))
 	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
   layout)
 
-;; #### FIXME: too similar to the original KP function.
 (defun kpx-graph-make-layouts (breakup graph)
   "Make KPX GRAPH layouts for BREAKUP."
   (mapcar (lambda (path) (kpx-graph-make-layout breakup path))
@@ -318,13 +313,6 @@ one-before-last."))
 ;; Breakup
 ;; -------
 
-;; #### NOTE: a KPX breakup is no different from a KP one.
-
-;; #### FIXME: too similar to the original KP function. Only the layouts are
-;; created differently. We could have a KPX boundary class remembering the
-;; end-of-line sequence, but that is in fact not necessary since similarity
-;; computation occurs between two lines, so we just need KPX lines. At least,
-;; that saves us some redundancy.
 (defun kpx-graph-break-harray
     (harray disposition width
      &aux (breakup (make-instance 'kp-graph-breakup
@@ -392,7 +380,17 @@ one-before-last."))
 ;; Dynamic Variant
 ;; ==========================================================================
 
-#+()(defstruct (kpx-node (:constructor kpx-make-node) (:include kp-node)) bol eol)
+;; Contrary to the graph variant, the dynamic one needs to remember the BOL
+;; and EOL items in the nodes, so we need a specific subclass for that.
+
+(defclass kpx-node (kp-node)
+  ((eol-items
+    :documentation "This node's EOL items."
+    :initarg :eol-items :reader eol-items)
+   (bol-items
+    :documentation "This node's BOL items."
+    :initarg :bol-items :reader bol-items))
+   (:documentation "The KPX Node class."))
 
 #+()(defstruct (kpx-last-node (:constructor kpx-make-last-node)
 			  (:include kpx-node))
@@ -403,263 +401,179 @@ one-before-last."))
 ;; Boundary lookup
 ;; ---------------
 
-(defun kpx-try-boundary
-    (boundary nodes harray width threshold final
-     &aux (emergency-stretch (when (numberp final) final))
-	  last-deactivated-node new-nodes)
-  "Examine BOUNDARY and update active NODES accordingly."
+(defun kpx-try-break
+    (break-point nodes harray width make-node threshold final emergency-stretch
+     &aux (bol-items (harray-bol-items harray break-point))
+	  (eol-items (harray-eol-items harray break-point))
+	  last-deactivation new-nodes)
+  "Examine BREAK-POINT and update active NODES accordingly."
   (maphash
    (lambda (key node
-	    &aux (previous-boundary (key-boundary key))
-		 (previous-line (key-line key))
-		 (previous-fitness (key-fitness key))
-		 (scale (harray-scale harray
-				      (start-idx previous-boundary)
-				      (stop-idx boundary)
-				      width)))
-     (when (or ($< scale -1)
-	       (eq (penalty (item boundary)) -∞)
-	       ;; #### WARNING: we must deactivate all nodes when we reach
-	       ;; the paragraph's end. TeX does this by adding a forced
-	       ;; break at the end.
-	       (last-boundary-p boundary))
-       (setq last-deactivated-node (cons key node))
+	    &aux (bol (key-break-point key)) ; also available in the node
+		 (boundary (make-instance 'kp-boundary
+			     :harray harray :bol bol :break-point break-point
+			     :target width :extra emergency-stretch)))
+     ;; #### WARNING: we must deactivate all nodes when we reach the
+     ;; paragraph's end. TeX does this by adding a forced break at the end but
+     ;; this is a "dangling" penalty, whereas ours are properties of break
+     ;; points. This is why we need to check explicitly for the EOP below.
+     (when (or ($< (scale boundary) -1)
+	       (eq (penalty boundary) -∞)
+	       (eopp boundary))
+       (setq last-deactivation (cons key node))
        (remhash key nodes))
-     (when ($<= -1 scale)
-       (let ((badness (scale-badness
-		       (if emergency-stretch
-			 (harray-scale harray
-				       (start-idx previous-boundary)
-				       (stop-idx boundary)
-				       width emergency-stretch)
-			 scale))))
-	 (when ($<= badness threshold)
-	   (let* ((eol (boundary-eol boundary harray))
-		  (bol (unless (last-boundary-p boundary)
-			 (harray-bol (start-idx boundary) harray)))
-		  (fitness (scale-fitness-class scale))
-		  (demerits (local-demerits badness (penalty (item boundary))
-					    *line-penalty*))
-		  (total-demerits ($+ (kpx-node-total-demerits node)
-				      demerits))
-		  original-scale original-fitness)
-	     ;; Last line adjustment: see comments in the graph variant.
-	     (when (last-boundary-p boundary)
-	       (let ((max-scale (harray-scale harray
-					      (start-idx previous-boundary)
-					      (1- (stop-idx boundary))
-					      width)))
-		 (setq original-scale scale
-		       original-fitness fitness
-		       scale (if ($< (kpx-node-scale node) scale)
-			       (kpx-node-scale node)
-			       ($min (kpx-node-scale node) max-scale))
-		       fitness (scale-fitness-class scale))))
-	     (when (> (abs (- fitness previous-fitness)) 1)
-	       (setq total-demerits ($+ total-demerits *adjacent-demerits*)))
-	     ;; #### NOTE: for now, I'm considering that hyphenated
-	     ;; similarities are even worse than regular ones, so we will
-	     ;; apply both similar and double-hyphen demerits.
-	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
-	     (when (>= (compare bol (kpx-node-bol node)) 2)
-	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
-	     (when (>= (compare eol (kpx-node-eol node)) 2)
-	       (setq total-demerits ($+ total-demerits *similar-demerits*)))
-	     ;; #### NOTE: according to #859, TeX doesn't consider the
-	     ;; admittedly very rare and weird case where a paragraph would
-	     ;; end with an explicit hyphen. As stipulated in #829, for the
-	     ;; purpose of computing demerits, the end of the paragraph is
-	     ;; always regarded as virtually hyphenated, and in case the
-	     ;; previous line (really) is hyphenated, the value of
-	     ;; final-hyphen-demerits is used instead of
-	     ;; double-hyphen-demerits. One could consider using
-	     ;; double-hyphen-demerits when there actually is a final hyphen,
-	     ;; but on the other hand, the final line is rarely justified so
-	     ;; the two hyphens are very unlikely to create a ladder.
-	     (when (discretionaryp (item previous-boundary))
-	       (if (last-boundary-p boundary)
-		 (setq total-demerits
-		       ($+ total-demerits *final-hyphen-demerits*))
-		 (when (discretionaryp (item boundary))
-		   (setq total-demerits
-			 ($+ total-demerits *double-hyphen-demerits*)))))
-	     (let* ((new-key (make-key boundary (1+ previous-line) fitness))
-		    (previous (find new-key new-nodes
-				:test #'equal :key #'car)))
-	       (if previous
-		 ;; #### NOTE: the inclusive inequality below is conformant
-		 ;; with what TeX does in #855. Concretely, it makes the KP
-		 ;; algorithm greedy in some sense: in case of demerits
-		 ;; equality, TeX keeps the last envisioned solution. On the
-		 ;; other hand, we're in fact not doing exactly the same thing
-		 ;; because we're using MAPHASH and the order of the nodes in
-		 ;; the hash table is not deterministic.
-		 (when ($<= total-demerits
-			    (kpx-node-total-demerits (cdr previous)))
-		   (setf (kpx-node-scale (cdr previous)) scale
-			 (kpx-node-badness (cdr previous)) badness
-			 (kpx-node-demerits (cdr previous)) demerits
-			 (kpx-node-total-demerits (cdr previous))
-			 total-demerits
-			 (kpx-node-previous (cdr previous)) node)
-		   (when (last-boundary-p boundary)
-		     (setf (kpx-last-node-original-scale (cdr previous))
-			   original-scale
-			   (kpx-last-node-original-fitness-class (cdr previous))
-			   original-fitness)))
-		 (push (cons new-key
-			     (if (last-boundary-p boundary)
-			       (kpx-make-last-node
-				:eol eol
-				:boundary boundary
-				:scale scale
-				:original-scale original-scale
-				:fitness-class fitness
-				:original-fitness-class original-fitness
-				:badness badness
-				:demerits demerits
-				:total-demerits total-demerits
-				:previous node)
-			       (kpx-make-node
-				:bol bol
-				:eol eol
-				:boundary boundary
-				:scale scale
-				:fitness-class fitness
-				:badness badness
-				:demerits demerits
-				:total-demerits total-demerits
-				:previous node)))
-		       new-nodes))))))))
+     (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
+       (let ((total-demerits (+ (demerits node) (demerits boundary))))
+	 ;; #### WARNING: we must use the key's fitness class rather than the
+	 ;; node's one below, as accessing the node's one would break on the
+	 ;; BOP node. Besides, we also save a couple of accessor calls that
+	 ;; way.
+	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
+	   (incf total-demerits *adjacent-demerits*))
+	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
+	 ;; very rare and weird case where a paragraph would end with an
+	 ;; explicit hyphen. As stipulated in #829, for the purpose of
+	 ;; computing demerits, the end of the paragraph is always regarded as
+	 ;; virtually hyphenated, and in case the previous line (really) is
+	 ;; hyphenated, the value of final-hyphen-demerits is used instead of
+	 ;; double-hyphen-demerits. One could consider using
+	 ;; double-hyphen-demerits when there actually is a final hyphen, but
+	 ;; on the other hand, the final line is rarely justified so the two
+	 ;; hyphens are very unlikely to create a ladder.
+	 (when (discretionaryp bol)
+	   (if (eopp boundary)
+	     (incf total-demerits *final-hyphen-demerits*)
+	     (when (discretionaryp (break-point boundary))
+	       (incf total-demerits *double-hyphen-demerits*))))
+	 ;; #### NOTE: for now, I'm considering that hyphenated similarities
+	 ;; are even worse than regular ones, so we will apply both similar
+	 ;; and double-hyphen demerits.
+	 ;; #### FIXME: see with Thomas whether 2 is acceptable.
+	 (when (>= (compare (eol-items node) eol-items) 2)
+	   (incf total-demerits *similar-demerits*))
+	 (when (>= (compare (bol-items node) bol-items) 2)
+	   (incf total-demerits *similar-demerits*))
+	 (let* ((new-key (make-key break-point
+				   (1+ (key-line-number key))
+				   (fitness-class boundary)))
+		(previous (find new-key new-nodes :test #'equal :key #'car))
+		(new-node
+		  (when (or (not previous)
+			    ;; #### NOTE: the inclusive inequality below is
+			    ;; conformant with what TeX does in #855.
+			    ;; Concretely, it makes the KP algorithm greedy in
+			    ;; some sense: in case of demerits equality, TeX
+			    ;; keeps the last envisioned solution. On the
+			    ;; other hand, we're in fact not doing exactly the
+			    ;; same thing because we're using MAPHASH and the
+			    ;; order of the nodes in the hash table is not
+			    ;; deterministic.
+			    (<= total-demerits (demerits (cdr previous))))
+		    (funcall make-node
+		      harray bol boundary total-demerits node eol-items bol-items))))
+	   (when new-node
+	     (if previous
+	       (setf (cdr previous) new-node)
+	       (push (cons new-key new-node) new-nodes)))))))
    nodes)
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
-    (setq new-nodes
-	  (list
-	   (let* ((node (cdr last-deactivated-node))
-		  (previous-boundary (key-boundary (car last-deactivated-node)))
-		  (scale (harray-scale harray
-				       (start-idx previous-boundary)
-				       (stop-idx boundary)
-				       width))
-		  (badness (scale-badness scale))
-		  (fitness (scale-fitness-class scale))
-		  original-scale original-fitness)
-	     ;; Last line adjustment.
-	     (when (last-boundary-p boundary)
-	       (let ((max-scale (harray-scale harray
-					      (start-idx previous-boundary)
-					      (1- (stop-idx boundary))
-					      width)))
-		 (setq original-scale scale
-		       original-fitness fitness
-		       scale (if ($< (kpx-node-scale node) scale)
-			       (kpx-node-scale node)
-			       ($min (kpx-node-scale node) max-scale))
-		       fitness (scale-fitness-class scale))))
-	     (cons (make-key boundary
-			     (1+ (key-line (car last-deactivated-node)))
-			     fitness)
-		   (if (last-boundary-p boundary)
-		     (kpx-make-last-node
-		      :eol (boundary-eol boundary harray)
-		      :boundary boundary
-		      :scale scale
-		      :original-scale original-scale
-		      :fitness-class fitness
-		      :original-fitness-class original-fitness
-		      :badness badness
-		      ;; #### NOTE: in this situation, TeX sets the local
-		      ;; demerits to 0 (#855) by checking the
-		      ;; artificial_demerits flag. So we just re-use the
-		      ;; previous total.
-		      :demerits 0
-		      :total-demerits
-		      (kpx-node-total-demerits node)
-		      :previous node)
-		     (kpx-make-node
-		      :bol (harray-bol (if (discretionaryp (item boundary))
-					 (start-idx boundary)
-					 (1+ (start-idx boundary)))
-				       harray)
-		      :eol (boundary-eol boundary harray)
-		      :boundary boundary
-		      :scale scale
-		      :fitness-class fitness
-		      :badness badness
-		      ;; #### NOTE: in this situation, TeX sets the local
-		      ;; demerits to 0 (#855) by checking the
-		      ;; artificial_demerits flag. So we just re-use the
-		      ;; previous total.
-		      :demerits 0
-		      :total-demerits
-		      (kpx-node-total-demerits node)
-		      :previous node)))))))
+    (let* ((bol (key-break-point (car last-deactivation)))
+	   (boundary (make-instance 'kp-boundary
+		       :harray harray
+		       :bol bol
+		       :break-point break-point
+		       :target width
+		       :extra emergency-stretch)))
+      ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
+      ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY
+      ;; initialization protocol takes care of this. In any case, we can also
+      ;; just reuse the previous total demerits in the new node.
+      (setq new-nodes
+	    (list
+	     (cons (make-key break-point
+			     (1+ (key-line-number (car last-deactivation)))
+			     (fitness-class boundary))
+		   (funcall make-node
+		     harray bol boundary (demerits (cdr last-deactivation))
+		     (cdr last-deactivation) eol-items bol-items))))))
   (mapc (lambda (new-node)
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
-(defun kpx-create-nodes (harray width pass)
-  "Compute the best sequences of breaks for HARRAY in the KPX sense.
-This function may be called up to three times (corresponding to \"passes\"
-through the algorithm in the TeX jargon).
-- HYPHENATE means consider hyphenation points as potential breaks. It is NIL
-  for pass 1, and T for passes 2 and 3.
-- FINAL means this is the final pass (in which case we can't allow to loose
-  all nodes). If FINAL is NIL, we're in pass 1. If FINAL is T, we're in pass 2
-  and there is no emergency stretch. Otherwise, FINAL is a non-zero value (the
-  emergency stretch) and we're in pass 3."
-  ;; #### WARNING: the root node / boundary are fake because they don't really
-  ;; represent a line ending, but there are some requirements on them in order
-  ;; to KPX-TRY-BOUNDARY above to work correctly when trying out the very first
-  ;; line.
-  ;;
-  ;; The fake root boundary has:
-  ;; - a null ITEM (making DISCRETIONARYP return NIL), essentially telling
-  ;;   that we don't have previous hyphenation, so no double hyphen demerits.
-  ;; - a START-IDX of 0, which is correct.
-  ;;
-  ;; The fake root key is a list of:
-  ;; - the fake root boundary,
-  ;; - a (previous) line number of 0,
-  ;; - a fitness class of 2 (decent). TeX computes adjacent demerits even for
-  ;;   the first line which doesn't really have a previous line. This has the
-  ;;   effect of negatively weighting very loose first lines. See
-  ;;   https:i/tug.org/pipermail/texhax/2023-May/026091.html
-  ;;
-  ;; The fake root node has:
-  ;; - the fake root boundary, unused because we use the key to get it,
-  ;; - a fitness class of 2 (see above), here for consistency but unused
-  ;;   because we use the key to get it,
-  ;; - a null eol and the correct bol so as to compute similar demerits,
-  ;; - an initial total demerits of 0.
-  ;; The other slots (scale, badness, and demerits are not initialized).
-  (let ((hyphenate (> pass 1))
-	(threshold (if (> pass 1) *tolerance* *pre-tolerance*))
-	(final (case pass
-		 (1 nil)
-		 (2 (zerop *emergency-stretch*))
-		 (3 *emergency-stretch*)))
-	(root-boundary (make-instance 'boundary :item nil :start-idx 0))
-	(nodes (make-hash-table :test #'equal)))
-    (setf (gethash (make-key root-boundary 0 2) nodes)
-	  (kpx-make-node :boundary root-boundary :fitness-class 2
-			 :bol (harray-bol 0 harray)
-			:total-demerits 0))
-    (loop :for boundary := (next-boundary harray 0)
-	    :then (next-boundary harray (idx boundary))
-	  :while boundary
-	  :when (and ($< (penalty (item boundary)) +∞)
-		     (or hyphenate
-			 (not (hyphenation-point-p (item boundary)))))
-	    :do (kpx-try-boundary boundary nodes harray width threshold final))
-    (unless (zerop (hash-table-count nodes)) nodes)))
+(defun kpx-make-justified-node
+    (harray bol boundary stretch-tolerance overshrink demerits previous
+     eol-items bol-items
+     &aux (scale (scale boundary)))
+  "KPX dynamic version of `make-line' for justified lines."
+  (multiple-value-bind (theoretical effective)
+      (actual-scales scale
+	:stretch-tolerance stretch-tolerance
+	:overshrink overshrink
+	:overstretch t)
+    (make-instance 'kpx-node
+      :harray harray :bol bol :boundary boundary
+      :scale theoretical :effective-scale effective
+      :demerits demerits :previous previous
+      :eol-items eol-items :bol-items bol-items)))
+
+(defun kpx-create-nodes
+    (breakup
+     &aux (harray (harray breakup))
+	  (pass (pass breakup))
+	  (width (width breakup))
+	  (disposition (disposition breakup))
+	  (disposition-type (disposition-type disposition))
+	  (overshrink (getf (disposition-options disposition) :overshrink))
+	  (threshold (if (> pass 1) *tolerance* *pre-tolerance*))
+	  ;; #### NOTE: no emergency stretch counted here. See comment on top
+	  ;; of KP-MAKE-JUSTIFIED-LINE.
+	  (stretch-tolerance (stretch-tolerance threshold))
+	  (hyphenate (> pass 1))
+	  (final (case pass
+		   (1 nil)
+		   (2 (zerop *emergency-stretch*))
+		   (3 t)))
+	  (emergency-stretch (when final *emergency-stretch*))
+	  (nodes (make-hash-table :test #'equal))
+	  (make-node
+	   (case disposition-type
+	     (:justified
+	      (lambda
+		  (harray bol boundary demerits previous eol-items bol-items)
+		(kpx-make-justified-node harray bol boundary
+		  stretch-tolerance overshrink demerits previous
+		  eol-items bol-items)))
+	     (t ;; just switch back to normal spacing.
+	      (lambda
+		  (harray bol boundary demerits previous eol-items bol-items)
+		(make-instance 'kpx-node
+		  :harray harray :bol bol :boundary boundary
+		  :demerits demerits :previous previous
+		  :eol-items eol-items :bol-items bol-items))))))
+  "Create Knuth-Plass BREAKUP's dynamic nodes."
+  (setf (gethash *kp-bop-key* nodes)
+	;; #### NOTE: we can't use *KP-BOP-NODE* here because we need to
+	;; remember the eol and bol items which are harray-dependent.
+	(make-instance 'kpx-node
+	  :boundary (make-instance 'boundary :break-point *bop*)
+	  :demerits 0
+	  :eol-items nil :bol-items (harray-bol-items harray *bop*)))
+  (loop :for break-point := (next-break-point harray)
+	  :then (next-break-point harray break-point)
+	:while break-point
+	:when (and ($< (penalty break-point) +∞)
+		   (or hyphenate (not (hyphenation-point-p break-point))))
+	  :do (kpx-try-break break-point nodes harray width make-node
+			    threshold final emergency-stretch))
+  (unless (zerop (hash-table-count nodes)) nodes))
+
 
 
 ;; -----------------
 ;; Lines computation
 ;; -----------------
 
-(defclass kpx-last-dynamic-line (kp-dynamic-line)
+#+()(defclass kpx-last-dynamic-line (kp-dynamic-line)
   ((original-scale :documentation "The last line's original scale."
 		   :initarg :original-scale
 		   :reader original-scale)
@@ -669,128 +583,63 @@ through the algorithm in the TeX jargon).
     :reader original-fitness-class))
   (:documentation "The KPX Last Dynamic Line class."))
 
-(defmethod properties strnlcat ((line kpx-last-dynamic-line) &key)
+#+()(defmethod properties strnlcat ((line kpx-last-dynamic-line) &key)
   "Advertise KPX last dynamic LINE's original scale and fitness class."
   (format nil "Original scale: ~A.~@
 	       Original fitness class: ~A."
     ($float (original-scale line))
     (fitness-class-name (original-fitness-class line))))
 
-;; #### NOTE: I'm keeping this for now, in anticipation for last line
-;; adjustment changes (probably need to modify this function).
-(defun kpx-dynamic-pin-node (harray disposition width beds node pass)
-  "Pin KPX NODE from HARRAY for a DISPOSITION paragraph of WIDTH."
-  (loop :with disposition-options := (disposition-options disposition)
-	;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce
-	;; elastic underfulls (in case of an impossible layout, it falls back
-	;; to overfull boxes). This means that the overstretch option has no
-	;; effect, but it allows for a nice trick: we can indicate lines
-	;; exceeding the tolerance thanks to an emergency stretch as
-	;; overstretched, regardless of the option. This is done by setting
-	;; the overstretched parameter to T and not counting emergency stretch
-	;; in the stretch-tolerance one.
-	:with overshrink := (getf disposition-options :overshrink)
-	:with disposition := (disposition-type disposition)
-	:with stretch-tolerance
-	  := (stretch-tolerance (if (> pass 1) *tolerance* *pre-tolerance*))
-	:with lines
-	:for end := node :then (kpx-node-previous end)
-	:for beg := (kpx-node-previous end)
-	:while beg
-	:for start := (start-idx (kpx-node-boundary beg))
-	:for stop := (stop-idx (kpx-node-boundary end))
-	:do (push (if (eq disposition :justified)
-		    ;; #### NOTE: I think that the Knuth-Plass algorithm
-		    ;; cannot produce elastic underfulls (in case of an
-		    ;; impossible layout, it falls back to overfull boxes).
-		    ;; This means that the overstretch option has no effect,
-		    ;; but it allows for a nice trick: we can indicate lines
-		    ;; exceeding the tolerance thanks to an emergency stretch
-		    ;; as overstretched, regardless of the option. This is
-		    ;; done by setting the overstretched parameter to T and
-		    ;; not counting emergency stretch in the stretch-tolerance
-		    ;; one.
-		    (multiple-value-bind (theoretical effective)
-			(actual-scales (kpx-node-scale end)
-			  :stretch-tolerance stretch-tolerance
-			  :overshrink overshrink :overstretch t)
-		      (if (last-boundary-p (kp-node-boundary end))
-			(make-instance 'kpx-last-dynamic-line
-			  :harray harray
-			  :start-idx start
-			  ;; #### HACK ALERT: don't count the final glue for
-			  ;; last lines with non zero scaling !
-			  :stop-idx (1- stop)
-			  :beds beds
-			  :scale theoretical
-			  :original-scale (kpx-last-node-original-scale end)
-			  :effective-scale effective
-			  :fitness-class (kpx-node-fitness-class end)
-			  :original-fitness-class
-			  (kpx-last-node-original-fitness-class end)
-			  :badness (kpx-node-badness end)
-			  :demerits (kpx-node-demerits end)
-			  :total-demerits (kpx-node-total-demerits end))
-			(make-instance 'kp-dynamic-line
-			  :harray harray
-			  :start-idx start
-			  :stop-idx stop
-			  :beds beds
-			  :scale theoretical
-			  :effective-scale effective
-			  :fitness-class (kpx-node-fitness-class end)
-			  :badness (kpx-node-badness end)
-			  :demerits (kpx-node-demerits end)
-			  :total-demerits (kpx-node-total-demerits end))))
-		    (make-instance 'line
-		      :harray harray :start-idx start :stop-idx stop
-		      :beds beds))
-		  lines)
-	:finally
-	   (return (loop :with baseline-skip := (baseline-skip harray)
-			 :for y := 0 :then (+ y baseline-skip)
-			 :for line :in lines
-			 :for x := (case disposition
-				     ((:flush-left :justified) 0)
-				     (:centered (/ (- width (width line)) 2))
-				     (:flush-right (- width (width line))))
-			 :collect (pin-line line x y)))))
-
 
 ;; ------------------------
 ;; Breakup specialization
 ;; ------------------------
 
+;; #### NOTE: according to #872, TeX will attempt to match a non-zero
+;; looseness exactly, or try another pass unless it's already the final one. I
+;; got that wrong for quite some time...
 (defun kpx-dynamic-break-harray
-    (harray disposition width beds &aux (pass 1))
+    (harray disposition width
+     &aux (breakup (make-instance 'kp-dynamic-breakup
+		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the KPX algorithm, dynamic programming version."
-  (if (zerop (length harray))
-    (make-instance 'kp-dynamic-breakup)
-    (let* ((nodes (or (when ($>= *pre-tolerance* 0)
-			(kpx-create-nodes harray width pass))
-		      (kpx-create-nodes harray width (incf pass))
-		      (kpx-create-nodes harray width (incf pass))))
-	   nodes-list
-	   breakup)
-      (maphash (lambda (key node)
-		 (push (cons (key-line key) node) nodes-list))
-	       nodes)
-      (setq nodes-list
-	    (sort nodes-list #'$<
-	      :key (lambda (elt) (kpx-node-total-demerits (cdr elt)))))
-      (unless (zerop *looseness*)
-	(let ((ideal-size (+ (car (first nodes-list)) *looseness*)))
-	  (setq nodes-list
-		(stable-sort nodes-list (lambda (elt1 elt2)
-					  (< (abs (- elt1 ideal-size))
-					     (abs (- elt2 ideal-size))))
-			     :key #'car))))
-      (setq breakup (make-instance 'kp-dynamic-breakup
-		      :pass pass :nodes (mapcar #'cdr nodes-list)))
-      (setf (aref (renditions breakup) 0)
-	    (kpx-dynamic-pin-node
-	     harray disposition width beds (aref (nodes breakup) 0) pass))
-      breakup)))
+  (unless (zerop (length harray))
+    (let (nodes layouts)
+
+      ;; Pass 1, never final.
+      (when ($<= 0 *pre-tolerance*)
+	(setf (slot-value breakup 'pass) 1)
+	(setq nodes (kpx-create-nodes breakup))
+	(when nodes
+	  (setq layouts (kp-dynamic-make-layouts breakup nodes))
+	  (unless (zerop *looseness*)
+	    (setq layouts (kp-remove-unloose-layouts layouts)))))
+
+      ;; Pass 2, maybe final.
+      (unless layouts
+	(let ((final (zerop *emergency-stretch*)))
+	  (setf (slot-value breakup 'pass) 2)
+	  (setq nodes (kpx-create-nodes breakup))
+	  (when nodes
+	    (setq layouts (kp-dynamic-make-layouts breakup nodes))
+	    (unless (zerop *looseness*)
+	      (setq layouts
+		    (if final
+		      (kp-sort-layouts-by-looseness layouts)
+		      (kp-remove-unloose-layouts layouts)))))))
+
+      ;; Pass 3, always final.
+      (unless nodes
+	(incf (slot-value breakup 'pass))
+	(setq nodes (kpx-create-nodes breakup))
+	(setq layouts (kp-dynamic-make-layouts breakup nodes))
+	(unless (zerop *looseness*)
+	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
+
+      ;; We're done here.
+      (setf (slot-value breakup 'layouts)
+	    (make-array (length layouts) :initial-contents layouts))))
+  breakup)
 
 
 
