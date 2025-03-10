@@ -1,7 +1,5 @@
 ;; This is my Knuth-Plass Extended, aka, KPX algorithm.
 
-;; #### FIXME: this code is way too much redundant with the Knuth-Plass one.
-
 (in-package :etap)
 
 ;; ==========================================================================
@@ -514,57 +512,6 @@ one-before-last."))
     (fitness-class-name (original-fitness-class line))))
 
 
-;; ------------------------
-;; Breakup specialization
-;; ------------------------
-
-;; #### NOTE: according to #872, TeX will attempt to match a non-zero
-;; looseness exactly, or try another pass unless it's already the final one. I
-;; got that wrong for quite some time...
-(defun kpx-dynamic-break-harray
-    (harray disposition width
-     &aux (breakup (make-instance 'kp-dynamic-breakup
-		     :harray harray :disposition disposition :width width)))
-  "Break HARRAY with the KPX algorithm, dynamic programming version."
-  (unless (zerop (length harray))
-    (let (nodes layouts)
-
-      ;; Pass 1, never final.
-      (when ($<= 0 *pre-tolerance*)
-	(setf (slot-value breakup 'pass) 1)
-	(setq nodes (kpx-create-nodes breakup))
-	(when nodes
-	  (setq layouts (kp-dynamic-make-layouts breakup nodes))
-	  (unless (zerop *looseness*)
-	    (setq layouts (kp-remove-unloose-layouts layouts)))))
-
-      ;; Pass 2, maybe final.
-      (unless layouts
-	(let ((final (zerop *emergency-stretch*)))
-	  (setf (slot-value breakup 'pass) 2)
-	  (setq nodes (kpx-create-nodes breakup))
-	  (when nodes
-	    (setq layouts (kp-dynamic-make-layouts breakup nodes))
-	    (unless (zerop *looseness*)
-	      (setq layouts
-		    (if final
-		      (kp-sort-layouts-by-looseness layouts)
-		      (kp-remove-unloose-layouts layouts)))))))
-
-      ;; Pass 3, always final.
-      (unless nodes
-	(incf (slot-value breakup 'pass))
-	(setq nodes (kpx-create-nodes breakup))
-	(setq layouts (kp-dynamic-make-layouts breakup nodes))
-	(unless (zerop *looseness*)
-	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
-
-      ;; We're done here.
-      (setf (slot-value breakup 'layouts)
-	    (make-array (length layouts) :initial-contents layouts))))
-  breakup)
-
-
 
 
 ;; ==========================================================================
@@ -598,4 +545,4 @@ one-before-last."))
     (:graph
      (kp-graph-break-harray harray disposition width #'kpx-graph-make-layout))
     (:dynamic
-     (kpx-dynamic-break-harray harray disposition width))))
+     (kp-dynamic-break-harray harray disposition width #'kpx-create-nodes))))

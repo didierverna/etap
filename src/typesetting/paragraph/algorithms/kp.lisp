@@ -765,6 +765,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; got that wrong for quite some time...
 (defun kp-dynamic-break-harray
     (harray disposition width
+     &optional (create-nodes #'kp-create-nodes)
      &aux (breakup (make-instance 'kp-dynamic-breakup
 		     :harray harray :disposition disposition :width width)))
   "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
@@ -774,7 +775,7 @@ or, in case of equality, a lesser amount of demerits."
       ;; Pass 1, never final.
       (when ($<= 0 *pre-tolerance*)
 	(setf (slot-value breakup 'pass) 1)
-	(setq nodes (kp-create-nodes breakup))
+	(setq nodes (funcall create-nodes breakup))
 	(when nodes
 	  (setq layouts (kp-dynamic-make-layouts breakup nodes))
 	  (unless (zerop *looseness*)
@@ -784,7 +785,7 @@ or, in case of equality, a lesser amount of demerits."
       (unless layouts
 	(let ((final (zerop *emergency-stretch*)))
 	  (setf (slot-value breakup 'pass) 2)
-	  (setq nodes (kp-create-nodes breakup))
+	  (setq nodes (funcall create-nodes breakup))
 	  (when nodes
 	    (setq layouts (kp-dynamic-make-layouts breakup nodes))
 	    (unless (zerop *looseness*)
@@ -796,7 +797,7 @@ or, in case of equality, a lesser amount of demerits."
       ;; Pass 3, always final.
       (unless nodes
 	(incf (slot-value breakup 'pass))
-	(setq nodes (kp-create-nodes breakup))
+	(setq nodes (funcall create-nodes breakup))
 	(setq layouts (kp-dynamic-make-layouts breakup nodes))
 	(unless (zerop *looseness*)
 	  (setq layouts (kp-sort-layouts-by-looseness layouts))))
