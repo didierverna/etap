@@ -101,7 +101,7 @@
 ;; Utilities
 ;; ==========================================================================
 
-;; #### WARNING: the logic is ACTUAL-SCALES is to establish scaling
+;; #### WARNING: the logic in ACTUAL-SCALES is to establish scaling
 ;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
 ;; back (from a float to a ratio), which is not very nice.
 (defun stretch-tolerance (badness-tolerance)
