@@ -19,7 +19,7 @@ Otherwise, it's a possibly infinite stretching (positive) or shrinking
   "Compute the actual scales for a line, based on required SCALE.
 This function returns two values.
 - The theoretical scale computed by the algorithm in use. This value depends
-  on the algorithm s SHRINK / STRETCH-TOLERANCE (-1 / 1 by default).
+  on the algorithm's SHRINK / STRETCH-TOLERANCE (-1 / 1 by default).
 - The effective scale, used to pin the line's items. This value further
   depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
   (let ((theoretical-scale scale) (effective-scale scale))
