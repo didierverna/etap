@@ -146,6 +146,58 @@ point, in reverse order."
 
 
 ;; ==========================================================================
+;; Adjacency Refinements
+;; ==========================================================================
+
+(defun kpx-scale-fitness-class (scale)
+  "Return KPX fitness class for SCALE."
+  (or (unless (numberp scale) scale) (floor (+ (* 10 scale) 1/2))))
+
+(defun kpx-extended-adjacent-demerits (efc1 efc2)
+  "Return KPX adjacent demerits for extended fitness classes EFC1 and EFC2."
+  (cond ((eq efc1 efc2)
+	 ;; Includes equally infinite.
+	 0)
+	((or (not (numberp efc1)) (not (numberp efc2)))
+	 ;; At least one infinity, or both but different.
+	 *adjacent-demerits*)
+	(t ;; All numerical.
+	 (min (if (or (>= efc1 10) (>= efc2 10))
+		  (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 5))
+		  (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 10)))
+	      *adjacent-demerits*))))
+
+
+
+
+;; ==========================================================================
+;; Variant-Independent Data Structures
+;; ==========================================================================
+
+;; ----------
+;; Boundaries
+;; ----------
+
+(defclass kpx-boundary (kp-boundary)
+  ((extended-fitness-class
+    :documentation "This boundary's extended fitness class."
+    :reader extended-fitness-class))
+  (:documentation "The KPX Boundary class."))
+
+(defmethod initialize-instance :after ((boundary kpx-boundary) &key)
+  "Initialize KPX BOUNDARY's extended fitness class."
+  (setf (slot-value boundary 'extended-fitness-class)
+	(kpx-scale-fitness-class (scale boundary))))
+
+(defmethod properties strnlcat ((boundary kpx-boundary) &key)
+  "Advertise KPX BOUNDARY's extended fitness class."
+  (format nil "Extended fitness class: ~A."
+    (extended-fitness-class boundary)))
+
+
+
+
+;; ==========================================================================
 ;; Graph Variant
 ;; ==========================================================================
 
@@ -331,7 +383,7 @@ one-before-last."))
   (maphash
    (lambda (key node
 	    &aux (bol (key-break-point key)) ; also available in the node
-		 (boundary (make-instance 'kp-boundary
+		 (boundary (make-instance 'kpx-boundary
 			     :harray harray :bol bol :break-point break-point
 			     :target width :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
@@ -349,8 +401,9 @@ one-before-last."))
 	 ;; node's one below, as accessing the node's one would break on the
 	 ;; BOP node. Besides, we also save a couple of accessor calls that
 	 ;; way.
-	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
-	   (incf demerits *adjacent-demerits*))
+	 (incf demerits (kpx-extended-adjacent-demerits
+			 (key-fitness-class key)
+			 (extended-fitness-class boundary)))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
@@ -376,7 +429,7 @@ one-before-last."))
 	   (incf demerits *similar-demerits*))
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
-				   (fitness-class boundary)))
+				   (extended-fitness-class boundary)))
 		(previous (find new-key new-nodes :test #'equal :key #'car))
 		(new-node
 		  (when (or (not previous)
@@ -399,7 +452,7 @@ one-before-last."))
    nodes)
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
     (let* ((bol (key-break-point (car last-deactivation)))
-	   (boundary (make-instance 'kp-boundary
+	   (boundary (make-instance 'kpx-boundary
 		       :harray harray
 		       :bol bol
 		       :break-point break-point
@@ -413,7 +466,7 @@ one-before-last."))
 	    (list
 	     (cons (make-key break-point
 			     (1+ (key-line-number (car last-deactivation)))
-			     (fitness-class boundary))
+			     (extended-fitness-class boundary))
 		   (funcall make-node
 		     harray bol boundary (demerits (cdr last-deactivation))
 		     (cdr last-deactivation) eol-items bol-items))))))
@@ -436,6 +489,10 @@ one-before-last."))
       :scale theoretical :effective-scale effective
       :demerits demerits :previous previous
       :eol-items eol-items :bol-items bol-items)))
+
+;; Default (decent) extended fitness class = 0.
+(defvar *kpx-bop-key* (make-key *bop* 0 0)
+  "The KPX beginning of paragraph hash table key.")
 
 (defun kpx-create-nodes
     (breakup
@@ -472,7 +529,7 @@ one-before-last."))
 		  :demerits demerits :previous previous
 		  :eol-items eol-items :bol-items bol-items))))))
   "Create Knuth-Plass BREAKUP's dynamic nodes."
-  (setf (gethash *kp-bop-key* nodes)
+  (setf (gethash *kpx-bop-key* nodes)
 	;; #### NOTE: we can't use *KP-BOP-NODE* here because we need to
 	;; remember the eol and bol items which are harray-dependent.
 	(make-instance 'kpx-node
