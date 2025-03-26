@@ -501,10 +501,6 @@ one-before-last."))
       :demerits demerits :previous previous
       :eol-items eol-items :bol-items bol-items)))
 
-;; Default (decent) extended fitness class = 0.
-(defvar *kpx-bop-key* (make-key *bop* 0 0)
-  "The KPX beginning of paragraph hash table key.")
-
 (defun kpx-create-nodes
     (breakup
      &aux (harray (harray breakup))
@@ -540,7 +536,7 @@ one-before-last."))
 		  :demerits demerits :previous previous
 		  :eol-items eol-items :bol-items bol-items))))))
   "Create Knuth-Plass BREAKUP's dynamic nodes."
-  (setf (gethash *kpx-bop-key* nodes)
+  (setf (gethash *kp-bop-key* nodes)
 	;; #### NOTE: we can't use *KP-BOP-NODE* here because we need to
 	;; remember the eol and bol items which are harray-dependent.
 	(make-instance 'kpx-node
