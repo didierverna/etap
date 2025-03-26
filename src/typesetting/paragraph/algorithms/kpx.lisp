@@ -327,7 +327,7 @@ one-before-last."))
 	  line1)
   "Create a KPX layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
-  (when (zerop (fitness-class (first path)))
+  (when (= (fitness-class (first path)) 2)
     (incf (slot-value layout 'demerits) *adjacent-demerits*))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
