@@ -119,17 +119,20 @@ See `kp-process-hlist' for more information."
     +∞
     (rationalize (expt (/ badness-tolerance 100) 1/3))))
 
+;; #### NOTE: we don't use the same numerical values as in the real
+;; Knuth-Plass here. The point being that having a decent fitness class of 0
+;; makes our life simpler for handling extended fitness classes in KPX.
 (defun scale-fitness-class (scale)
   "Return SCALE's fitness class.
-This is an integer ranging from 0 (very loose) to 3 (tight)."
-  (cond (($< scale -1/2) 3)
-	(($< 1 scale) 0)
-	((<= -1/2 scale 1/2) 2)
-	(t 1)))
+This is an integer ranging from -1 (tight) to 2 (very loose)."
+  (cond (($< scale -1/2) -1)
+	(($<= scale 1/2)  0)
+	(($<= scale 1)    1)
+	(t                2)))
 
 (defun fitness-class-name (fitness-class)
   "Return FITNESS-CLASS's name (a string)."
-  (ecase fitness-class (3 "tight") (2 "decent") (1 "loose") (0 "very loose")))
+  (ecase fitness-class (-1 "tight") (0 "decent") (1 "loose") (2 "very loose")))
 
 
 
@@ -391,7 +394,7 @@ This is the Knuth-Plass version for the graph variant.
 	  line1)
   "Create a Knuth-Plass layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
-  (when (zerop (fitness-class (first path)))
+  (when (= (fitness-class (first path)) 2)
     (incf (slot-value layout 'demerits) *adjacent-demerits*))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
@@ -660,7 +663,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; follows:
 ;; - break point = *bop*
 ;; - line number = 0
-;; fitness-class = 2 (decent).
+;; fitness-class = 0 (decent).
 ;;
 ;; This is straightforward but the fitness class deserves a special comment.
 ;; TeX computes adjacent demerits even for the first line which doesn't really
@@ -668,7 +671,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; loose first lines. This is why we need the appropriate (fake) fitness class
 ;; to begin with. See https://tug.org/pipermail/texhax/2023-May/026091.html.
 
-(defvar *kp-bop-key* (make-key *bop* 0 2)
+(defvar *kp-bop-key* (make-key *bop* 0 0)
   "The Knuth-Plass beginning of paragraph hash table key.")
 
 
