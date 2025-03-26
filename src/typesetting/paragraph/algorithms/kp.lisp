@@ -656,7 +656,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; hash table key (see below). Also, *BOP* gives us the correct bol index, and
 ;; no hyphenation so no double hyphen demerits for the first line.
 
-(defvar *kp-bop-node*
+(defparameter *kp-bop-node*
   (make-instance 'kp-node
     :boundary (make-instance 'boundary :break-point *bop*)
     :demerits 0)
@@ -675,7 +675,7 @@ or, in case of equality, a lesser amount of demerits."
 ;; loose first lines. This is why we need the appropriate (fake) fitness class
 ;; to begin with. See https://tug.org/pipermail/texhax/2023-May/026091.html.
 
-(defvar *kp-bop-key* (make-key *bop* 0 0)
+(defparameter *kp-bop-key* (make-key *bop* 0 0)
   "The Knuth-Plass beginning of paragraph hash table key.")
 
 
