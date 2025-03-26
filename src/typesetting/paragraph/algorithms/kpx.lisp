@@ -186,8 +186,8 @@ point, in reverse order."
 	 *adjacent-demerits*)
 	(t ;; All numerical.
 	 (min (ecase *fitness*
-		(:linear (kpx-linear-adjacent-demerits efc1 efc2))
-		(:quadratic (kpx-quadratic-adjacent-demerits efc1 efc2)))
+		(:linear (kpx-linear-fitness-demerits efc1 efc2))
+		(:quadratic (kpx-quadratic-fitness-demerits efc1 efc2)))
 	      *adjacent-demerits*))))
 
 
@@ -216,6 +216,14 @@ point, in reverse order."
   "Advertise KPX BOUNDARY's extended fitness class."
   (format nil "Extended fitness class: ~A."
     (extended-fitness-class boundary)))
+
+
+;; This is for the calls to CHANGE-CLASS in the graph version.
+(defmethod update-instance-for-different-class :after
+    ((from kp-boundary) (to kpx-boundary) &key)
+  "Initialize KPX BOUNDARY's extended fitness class."
+  (setf (slot-value to 'extended-fitness-class)
+	(kpx-scale-fitness-class (scale to))))
 
 
 
@@ -298,6 +306,11 @@ one-before-last."))
 ;; Layouts
 ;; -------
 
+;; #### NOTE: this is a bit kludgy, but in the function below we change the
+;; boundaries class on the fly in order to make the extended fitness class
+;; available. This avoids too much generalization in the KP infrastructure and
+;; let us reuse KP-GRAPH-BREAK-HARRAY, but this works only because we don't
+;; need KPX boundaries in order to construct the graphs.
 (defun kpx-graph-make-layout
     (breakup path
      &aux (harray (harray breakup))
@@ -327,8 +340,14 @@ one-before-last."))
 	  line1)
   "Create a KPX layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
-  (when (= (fitness-class (first path)) 2)
-    (incf (slot-value layout 'demerits) *adjacent-demerits*))
+  (unless (typep (first path) 'kpx-boundary)
+    (change-class (first path) 'kpx-boundary))
+  (incf (slot-value layout 'demerits)
+	(if (eq *fitness* :knuth-plass)
+	  (kp-fitness-demerits
+	   (fitness-class (first path)) 0)
+	  (kpx-fitness-demerits
+	   (extended-fitness-class (first path)) 0)))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
     (with-slots (demerits bads size) layout
@@ -340,6 +359,8 @@ one-before-last."))
 	    :for boundary2 :in (cdr path)
 	    :for eol2 := (harray-eol-items harray (break-point boundary2))
 	    :for finalp := (eopp boundary2)
+	    :unless (typep boundary2 'kpx-boundary)
+	      :do (change-class boundary2 'kpx-boundary)
 	    :do (incf size)
 	    :unless (numberp (badness boundary2)) :do (incf bads)
 	    :do (incf demerits (demerits boundary2))
@@ -351,10 +372,14 @@ one-before-last."))
 	      :do (incf demerits *double-hyphen-demerits*)
 	    :when (and finalp (hyphenated boundary1))
 	      :do (incf demerits *final-hyphen-demerits*)
-	    :when (> (abs (- (fitness-class boundary1)
-			     (fitness-class boundary2)))
-		     1)
-	      :do (incf demerits *adjacent-demerits*)
+	    :do (incf demerits
+		      (if (eq *fitness* :knuth-plass)
+			(kp-fitness-demerits
+			 (fitness-class boundary1)
+			 (fitness-class boundary2))
+			(kpx-fitness-demerits
+			 (extended-fitness-class boundary1)
+			 (extended-fitness-class boundary2))))
 	     ;; #### NOTE: for now, I'm considering that hyphenated
 	     ;; similarities are even worse than regular ones, so we will
 	     ;; apply both similar and double-hyphen demerits.

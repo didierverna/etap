@@ -398,8 +398,8 @@ This is the Knuth-Plass version for the graph variant.
 	  line1)
   "Create a Knuth-Plass layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
-  (when (= (fitness-class (first path)) 2)
-    (incf (slot-value layout 'demerits) *adjacent-demerits*))
+  (incf (slot-value layout 'demerits)
+	(kp-fitness-demerits (fitness-class (first path)) 0))
   (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
   (when (cdr path)
     (with-slots (demerits bads size) layout
