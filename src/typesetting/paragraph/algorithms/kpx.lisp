@@ -157,15 +157,27 @@ point, in reverse order."
 
 
 ;; ==========================================================================
-;; Adjacency Refinements
+;; Fitness Refinements
 ;; ==========================================================================
 
 (defun kpx-scale-fitness-class (scale)
   "Return KPX fitness class for SCALE."
   (or (unless (numberp scale) scale) (floor (+ (* 10 scale) 1/2))))
 
-(defun kpx-extended-adjacent-demerits (efc1 efc2)
-  "Return KPX adjacent demerits for extended fitness classes EFC1 and EFC2."
+(defun kpx-linear-fitness-demerits (efc1 efc2)
+  "Return linear adjacent demerits for extended fitness classes EFC1 and 2."
+  (if (or (>= efc1 10) (>= efc2 10))
+    (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 5))
+    (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 10))))
+
+(defun kpx-quadratic-fitness-demerits (efc1 efc2)
+  "Return quadratic adjacent demerits for extended fitness classes EFC1 and 2."
+  (if (or (>= efc1 10) (>= efc2 10))
+    (* (expt (abs (- efc1 efc2)) 2) (/ *adjacent-demerits* 25))
+    (* (expt (abs (- efc1 efc2)) 2) (/ *adjacent-demerits* 100))))
+
+(defun kpx-fitness-demerits (efc1 efc2)
+  "Return KPX adjacent demerits for extended fitness classes EFC1 and 2."
   (cond ((eq efc1 efc2)
 	 ;; Includes equally infinite.
 	 0)
@@ -173,9 +185,9 @@ point, in reverse order."
 	 ;; At least one infinity, or both but different.
 	 *adjacent-demerits*)
 	(t ;; All numerical.
-	 (min (if (or (>= efc1 10) (>= efc2 10))
-		  (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 5))
-		  (* (abs (- efc1 efc2)) (/ *adjacent-demerits* 10)))
+	 (min (ecase *fitness*
+		(:linear (kpx-linear-adjacent-demerits efc1 efc2))
+		(:quadratic (kpx-quadratic-adjacent-demerits efc1 efc2)))
 	      *adjacent-demerits*))))
 
 
@@ -412,9 +424,13 @@ one-before-last."))
 	 ;; node's one below, as accessing the node's one would break on the
 	 ;; BOP node. Besides, we also save a couple of accessor calls that
 	 ;; way.
-	 (incf demerits (kpx-extended-adjacent-demerits
-			 (key-fitness-class key)
-			 (extended-fitness-class boundary)))
+	 (incf demerits (if (eq *fitness* :knuth-plass)
+			  (kp-fitness-demerits
+			   (key-fitness-class key)
+			   (fitness-class boundary))
+			  (kpx-fitness-demerits
+			   (key-fitness-class key)
+			   (extended-fitness-class boundary))))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
@@ -440,7 +456,9 @@ one-before-last."))
 	   (incf demerits *similar-demerits*))
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
-				   (extended-fitness-class boundary)))
+				   (if (eq *fitness* :knuth-plass)
+				     (fitness-class boundary)
+				     (extended-fitness-class boundary))))
 		(previous (find new-key new-nodes :test #'equal :key #'car))
 		(new-node
 		  (when (or (not previous)
@@ -477,7 +495,9 @@ one-before-last."))
 	    (list
 	     (cons (make-key break-point
 			     (1+ (key-line-number (car last-deactivation)))
-			     (extended-fitness-class boundary))
+			     (if (eq *fitness* :knuth-plass)
+			       (fitness-class boundary)
+			       (extended-fitness-class boundary)))
 		   (funcall make-node
 		     harray bol boundary (demerits (cdr last-deactivation))
 		     (cdr last-deactivation) eol-items bol-items))))))

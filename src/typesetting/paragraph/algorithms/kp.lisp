@@ -134,6 +134,10 @@ This is an integer ranging from -1 (tight) to 2 (very loose)."
   "Return FITNESS-CLASS's name (a string)."
   (ecase fitness-class (-1 "tight") (0 "decent") (1 "loose") (2 "very loose")))
 
+(defun kp-fitness-demerits (fc1 fc2)
+    "Return Knuth-Plass adjacent demerits for fitness classes FC1 and 2."
+  (if (> (abs (- fc1 fc2)) 1) *adjacent-demerits* 0))
+
 
 
 
