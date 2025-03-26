@@ -209,6 +209,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	(cons :kpx
 	      (append
 	       (radio-selection kpx :variant interface)
+	       (radio-selection kpx :fitness interface)
 	       (slider-value kpx :line-penalty interface)
 	       (slider-value kpx :hyphen-penalty interface)
 	       (slider-value kpx :explicit-hyphen-penalty interface)
@@ -866,6 +867,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-kpx-algorithm
      :reader kpx-variant)
+   (kpx-fitness radio-button-panel
+     :layout-class 'column-layout
+     :visible-max-height nil
+     :title "Fitness" :title-position :frame
+     :items *kpx-fitnesses*
+     :help-keys *kpx-fitnesses-help-keys*
+     :print-function 'title-capitalize
+     :selection-callback 'set-kpx-algorithm
+     :reader kpx-fitness)
    (kpx-line-penalty slider
      :title (format nil "Line Penalty: ~D"
 	      (caliber-default *kpx-line-penalty*))
@@ -1108,7 +1118,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
        kp-explicit-hyphen-penalty kp-final-hyphen-demerits  kp-emergency-stretch
        nil                        nil                       kp-looseness)
      :columns 3)
-   (kpx-settings row-layout '(kpx-variant kpx-sliders))
+   (kpx-settings row-layout '(kpx-variant kpx-fitness kpx-sliders))
    (kpx-sliders grid-layout
      '(kpx-line-penalty            kpx-adjacent-demerits      kpx-pre-tolerance
        kpx-hyphen-penalty          kpx-double-hyphen-demerits kpx-tolerance
@@ -1245,6 +1255,8 @@ This currently includes the initial ZOOMing factor and CLUES."
 	(:kpx
 	 (setf (choice-selection (algorithms etap)) 5)
 	 (set-variant kpx)
+	 (setf (choice-selected-item (kpx-fitness etap))
+	       (or (cadr (member :fitness options)) (car *kpx-fitnesses*)))
 	 (set-sliders kpx
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits

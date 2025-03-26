@@ -529,10 +529,25 @@ ALGORITHM is either a symbol, or a list of the form (NAME OPTIONS...)."
 
 (defmacro default
     (prefix name
-     &aux (variable (intern (format nil "*~A*" name)))
-	  (choices (intern (format nil "*~A-~AS*" prefix name))))
+     &optional plural
+     &aux (variable (intern (format nil "*~A~A*"
+			      name
+			      (if (eq plural :ies) "Y" ""))))
+	  (choices (intern (format nil "*~A-~A~A*"
+			     prefix
+			     name
+			     (ecase plural
+			       (:ies "IES")
+			       (:es "ES")
+			       ((nil) "S"))))))
   "If *NAME* is null, set it to the first *PREFIX-NAMES* choice.
-Note the S appended to NAME in the choices variable name."
+Note the S appended to NAME in the choices variable name; this is the default
+PLURAL behavior.
+
+Otherwise, PLURAL may be either :ies or :es, in which case the variables names
+will be computed as follows:
+- :ies -> *NAMEY* *PREFIX-NAMEIES* (hence NAME must not include the Y),
+- :es  -> *NAME* *PREFIX-NAMEES*."
   `(when (null ,variable) (setq ,variable (car ,choices))))
 
 

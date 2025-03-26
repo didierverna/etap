@@ -15,9 +15,20 @@
 (defparameter *kpx-variants-help-keys*
   '(:kpx-variant-graph :kpx-variant-dynamic))
 
+
+(defparameter *kpx-fitnesses*
+  '(:knuth-plass :linear :quadratic))
+
+(defparameter *kpx-fitnesses-help-keys*
+  '(:kpx-fitness-knuth-plass :kpx-fitness-linear :kpx-fitness-quadratic))
+
+
 (defparameter *kpx-tooltips*
   '(:kpx-variant-graph "Graph-based implementation."
-    :kpx-variant-dynamic "Dynamic programming implementation."))
+    :kpx-variant-dynamic "Dynamic programming implementation."
+    :kpx-fitness-knuth-plass "Knuth-Plass behavior."
+    :kpx-fitness-linear "Linear adjacent demerits."
+    :kpx-fitness-quadratic "Quadratic adjacent demerits."))
 
 
 (defmacro define-kpx-caliber (name min default max)
@@ -37,7 +48,7 @@
 (define-kpx-caliber looseness -10 0 10)
 
 
-(define-global-variables variant line-penalty
+(define-global-variables variant fitness line-penalty
   hyphen-penalty explicit-hyphen-penalty
   adjacent-demerits double-hyphen-demerits final-hyphen-demerits
   similar-demerits
@@ -48,9 +59,9 @@
   "Calibrate NAMEd KPX variable."
   `(calibrate kpx ,name :infinity ,infinity))
 
-(defmacro default-kpx (name)
+(defmacro default-kpx (name &optional plural)
   "Default KPX NAMEd variable."
-  `(default kpx ,name))
+  `(default kpx ,name ,plural))
 
 
 
@@ -578,6 +589,7 @@ one-before-last."))
 (defmethod break-harray
     (harray disposition width (algorithm (eql :kpx))
      &key ((:variant *variant*))
+	  ((:fitness *fitness*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
 	  ((:double-hyphen-demerits *double-hyphen-demerits*))
@@ -589,6 +601,7 @@ one-before-last."))
 	  ((:looseness *looseness*)))
   "Break HARRAY with the KPX algorithm."
   (default-kpx variant)
+  (default-kpx fitness :es)
   (calibrate-kpx line-penalty)
   (calibrate-kpx adjacent-demerits)
   (calibrate-kpx double-hyphen-demerits)
