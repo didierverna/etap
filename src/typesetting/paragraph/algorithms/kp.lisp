@@ -417,10 +417,9 @@ This is the Knuth-Plass version for the graph variant.
 	      :do (incf demerits *double-hyphen-demerits*)
 	    :when (and finalp (hyphenated boundary1))
 	      :do (incf demerits *final-hyphen-demerits*)
-	    :when (> (abs (- (fitness-class boundary1)
-			     (fitness-class boundary2)))
-		     1)
-	      :do (incf demerits *adjacent-demerits*)
+	    :do (incf demerits (kp-fitness-demerits
+				(fitness-class boundary1)
+				(fitness-class boundary2)))
 	    :collect (funcall make-line
 		       harray (break-point boundary1) boundary2 demerits)
 	      :into lines
@@ -574,8 +573,9 @@ or, in case of equality, a lesser amount of demerits."
 	 ;; node's one below, as accessing the node's one would break on
 	 ;; *KP-BOP-NODE*. Besides, we also save a couple of accessor calls
 	 ;; that way.
-	 (when (> (abs (- (fitness-class boundary) (key-fitness-class key))) 1)
-	   (incf demerits *adjacent-demerits*))
+	 (incf demerits (kp-fitness-demerits
+			 (fitness-class boundary)
+			 (key-fitness-class key)))
 	 ;; #### NOTE: according to #859, TeX doesn't consider the admittedly
 	 ;; very rare and weird case where a paragraph would end with an
 	 ;; explicit hyphen. As stipulated in #829, for the purpose of
