@@ -79,7 +79,7 @@ and invalidates the view."
 (defun slider-callback
     (slider value status &aux (interface (top-level-interface slider)))
   "Handle SLIDER's value change."
-  (declare (ignore status))
+  (declare (ignore value status))
   (update-slider-title slider)
   (funcall (context-updater slider) nil interface)
   (update interface))
@@ -155,7 +155,7 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 ;; ----------
 
 ;; Fixed
-(defun set-fixed-algorithm (value interface)
+(defun fixed-update-context (value interface)
   "Set the current algorithm to Fixed in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
@@ -163,17 +163,22 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	      (apply #'append
 		(radio-selection fixed :fallback interface)
 		(slider-value fixed :width-offset interface)
-		(choice-selected-items (fixed-options interface)))))
+		(choice-selected-items (fixed-options interface))))))
+
+(defun set-fixed-algorithm (value interface)
+  (fixed-update-context value interface)
   (update interface))
 
-;; DEFINE-SLIDER-CALLBACK doesn't handle more informative titles than just
-;; displaying the values.
-(defun set-fixed-width-offset (pane value status)
+;; SLIDER-CALLBACK doesn't handle more informative titles than just displaying
+;; the values.
+(defun set-fixed-width-offset
+    (slider value status &aux (interface (top-level-interface slider)))
   (declare (ignore status))
-  (setf (titled-object-title pane)
+  (setf (titled-object-title slider)
 	(format nil "Width Offset: ~Dpt (~Fcm)"
 	  value (/ value 28.452755)))
-  (set-fixed-algorithm nil (top-level-interface pane)))
+  (fixed-update-context nil interface)
+  (update interface))
 
 
 ;; Fit
@@ -192,55 +197,44 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 		(slider-value fit :width-offset interface)
 		(choice-selected-items (fit-options interface))))))
 
-  (defun set-fit-algorithm (value interface)
-  "Set the current algorithm to Fit in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :fit
-	      (apply #'append
-		(radio-selection fit :variant interface)
-		(radio-selection fit :fallback interface)
-		(radio-selection fit :discriminating-function interface)
-		(slider-value fit :line-penalty interface)
-		(slider-value fit :hyphen-penalty interface)
-		(slider-value fit :explicit-hyphen-penalty interface)
-		(slider-value fit :width-offset interface)
-		(choice-selected-items (fit-options interface)))))
+(defun set-fit-algorithm (value interface)
+  (fit-update-context value interface)
   (update interface))
 
-(define-slider-callback fit-line-penalty)
-(define-slider-callback fit-hyphen-penalty)
-(define-slider-callback fit-explicit-hyphen-penalty)
-;; DEFINE-SLIDER-CALLBACK doesn't handle more informative titles than just
-;; displaying the values.
-(defun set-fit-width-offset (pane value status)
+;; SLIDER-CALLBACK doesn't handle more informative titles than just displaying
+;; the values.
+(defun set-fit-width-offset
+    (slider value status &aux (interface (top-level-interface slider)))
   (declare (ignore status))
-  (setf (titled-object-title pane)
+  (setf (titled-object-title slider)
 	(format nil "Width Offset: ~Dpt (~Fcm)"
 	  value (/ value 28.452755)))
-  (set-fit-algorithm nil (top-level-interface pane)))
+  (fit-update-context nil interface)
+  (update interface))
 
 
 ;; Barnett
-(defun set-barnett-algorithm (value interface)
+(defun barnett-update-context (value interface)
   "Set the current algorithm to Barnett in INTERFACE's context."
   (declare (ignore value))
-  (setf (algorithm (context interface)) '(:barnett))
-  (update interface))
+  (setf (algorithm (context interface)) '(:barnett)))
 
 
 ;; Duncan
-(defun set-duncan-algorithm (value interface)
+(defun duncan-update-context (value interface)
   "Set the current algorithm to Duncan in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :duncan
-	      (radio-selection duncan :discriminating-function interface)))
+	      (radio-selection duncan :discriminating-function interface))))
+
+(defun set-duncan-algorithm (value interface)
+  (duncan-update-context value interface)
   (update interface))
 
 
 ;; Knuth-Plass
-(defun set-kp-algorithm (value interface)
+(defun kp-update-context (value interface)
   "Set the current algorithm to Knuth-Plass in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
@@ -256,19 +250,15 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	       (slider-value kp :pre-tolerance interface)
 	       (slider-value kp :tolerance interface)
 	       (slider-value kp :emergency-stretch interface)
-	       (slider-value kp :looseness interface))))
-  (update interface))
+	       (slider-value kp :looseness interface)))))
 
-(define-slider-callbacks kp-line-penalty
-  kp-hyphen-penalty kp-explicit-hyphen-penalty
-  kp-adjacent-demerits kp-double-hyphen-demerits kp-final-hyphen-demerits
-  kp-pre-tolerance kp-tolerance
-  kp-emergency-stretch
-  kp-looseness)
+(defun set-kp-algorithm (value interface)
+  (kp-update-context value interface)
+  (update interface))
 
 
 ;; KPX
-(defun set-kpx-algorithm (value interface)
+(defun kpx-update-context (value interface)
   "Set the current algorithm to KPX in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
@@ -286,27 +276,23 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 	       (slider-value kpx :pre-tolerance interface)
 	       (slider-value kpx :tolerance interface)
 	       (slider-value kpx :emergency-stretch interface)
-	       (slider-value kpx :looseness interface))))
-  (update interface))
+	       (slider-value kpx :looseness interface)))))
 
-(define-slider-callbacks kpx-line-penalty
-  kpx-hyphen-penalty kpx-explicit-hyphen-penalty
-  kpx-adjacent-demerits kpx-double-hyphen-demerits kpx-final-hyphen-demerits
-  kpx-similar-demerits
-  kpx-pre-tolerance kpx-tolerance
-  kpx-emergency-stretch
-  kpx-looseness)
+(defun set-kpx-algorithm (value interface)
+  (kpx-update-context value interface)
+  (update interface))
 
 
 (defun set-algorithm (value interface)
   "Select algorithm specified by VALUE in INTERFACE."
   (case (car value)
-    (:fixed (set-fixed-algorithm value interface))
-    (:fit (set-fit-algorithm value interface))
-    (:barnett (set-barnett-algorithm value interface))
-    (:duncan (set-duncan-algorithm value interface))
-    (:knuth-plass (set-kp-algorithm value interface))
-    (:kpx (set-kpx-algorithm value interface))))
+    (:fixed (fixed-update-context value interface))
+    (:fit (fit-update-context value interface))
+    (:barnett (barnett-update-context value interface))
+    (:duncan (duncan-update-context value interface))
+    (:knuth-plass (kp-update-context value interface))
+    (:kpx (kpx-update-context value interface)))
+  (update interface))
 
 
 ;; Other actions
@@ -794,114 +780,45 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-kp-algorithm
      :reader kp-variant)
-   (kp-line-penalty slider
-     :title (format nil "Line Penalty: ~D"
-	      (caliber-default *kp-line-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-line-penalty*)
-     :end (caliber-max *kp-line-penalty*)
-     :slug-start (caliber-default *kp-line-penalty*)
-     :tick-frequency 0
-     :callback 'set-kp-line-penalty
+   (kp-line-penalty etap-slider
+     :algorithm 'kp
+     :property 'line-penalty
      :reader kp-line-penalty)
-   (kp-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D"
-	      (caliber-default *kp-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-hyphen-penalty*)
-     :end (caliber-max *kp-hyphen-penalty*)
-     :slug-start (caliber-default *kp-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-kp-hyphen-penalty
+   (kp-hyphen-penalty etap-slider
+     :algorithm 'kp
+     :property 'hyphen-penalty
      :reader kp-hyphen-penalty)
-   (kp-explicit-hyphen-penalty slider
-     :title (format nil "Explicit Hyphen Penalty: ~D"
-	      (caliber-default *kp-explicit-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-explicit-hyphen-penalty*)
-     :end (caliber-max *kp-explicit-hyphen-penalty*)
-     :slug-start (caliber-default *kp-explicit-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-kp-explicit-hyphen-penalty
+   (kp-explicit-hyphen-penalty etap-slider
+     :algorithm 'kp
+     :property 'explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
-   (kp-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~D"
-	      (caliber-default *kp-adjacent-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-adjacent-demerits*)
-     :end (caliber-max *kp-adjacent-demerits*)
-     :slug-start (caliber-default *kp-adjacent-demerits*)
-     :tick-frequency 0
-     :callback 'set-kp-adjacent-demerits
+   (kp-adjacent-demerits etap-slider
+     :algorithm 'kp
+     :property 'adjacent-demerits
      :reader kp-adjacent-demerits)
-   (kp-double-hyphen-demerits slider
-     :title (format nil "Double Hyphen Demerits: ~D"
-	      (caliber-default *kp-double-hyphen-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-double-hyphen-demerits*)
-     :end (caliber-max *kp-double-hyphen-demerits*)
-     :slug-start (caliber-default *kp-double-hyphen-demerits*)
-     :tick-frequency 0
-     :callback 'set-kp-double-hyphen-demerits
+   (kp-double-hyphen-demerits etap-slider
+     :algorithm 'kp
+     :property 'double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
-   (kp-final-hyphen-demerits slider
-     :title (format nil "Final Hyphen Demerits: ~D"
-	      (caliber-default *kp-final-hyphen-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-final-hyphen-demerits*)
-     :end (caliber-max *kp-final-hyphen-demerits*)
-     :slug-start (caliber-default *kp-final-hyphen-demerits*)
-     :tick-frequency 0
-     :callback 'set-kp-final-hyphen-demerits
+   (kp-final-hyphen-demerits etap-slider
+     :algorithm 'kp
+     :property 'final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
-   (kp-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~D"
-	      (caliber-default *kp-pre-tolerance*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-pre-tolerance*)
-     :end (caliber-max *kp-pre-tolerance*)
-     :slug-start (caliber-default *kp-pre-tolerance*)
-     :tick-frequency 0
-     :callback 'set-kp-pre-tolerance
+   (kp-pre-tolerance etap-slider
+     :algorithm 'kp
+     :property 'pre-tolerance
      :reader kp-pre-tolerance)
-   (kp-tolerance slider
-     :title (format nil "Tolerance: ~D" (caliber-default *kp-tolerance*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-tolerance*)
-     :end (caliber-max *kp-tolerance*)
-     :slug-start (caliber-default *kp-tolerance*)
-     :tick-frequency 0
-     :callback 'set-kp-tolerance
+   (kp-tolerance etap-slider
+     :algorithm 'kp
+     :property 'tolerance
      :reader kp-tolerance)
-   (kp-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~D"
-	      (caliber-default *kp-emergency-stretch*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-emergency-stretch*)
-     :end (caliber-max *kp-emergency-stretch*)
-     :slug-start (caliber-default *kp-emergency-stretch*)
-     :tick-frequency 0
-     :callback 'set-kp-emergency-stretch
+   (kp-emergency-stretch etap-slider
+     :algorithm 'kp
+     :property 'emergency-stretch
      :reader kp-emergency-stretch)
-   (kp-looseness slider
-     :title (format nil "Looseness: ~D"
-	      (caliber-default *kp-looseness*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kp-looseness*)
-     :end (caliber-max *kp-looseness*)
-     :slug-start (caliber-default *kp-looseness*)
-     :tick-frequency 0
-     :callback 'set-kp-looseness
+   (kp-looseness etap-slider
+     :algorithm 'kp
+     :property 'looseness
      :reader kp-looseness)
    (kpx-variant radio-button-panel
      :layout-class 'column-layout
@@ -921,125 +838,49 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-kpx-algorithm
      :reader kpx-fitness)
-   (kpx-line-penalty slider
-     :title (format nil "Line Penalty: ~D"
-	      (caliber-default *kpx-line-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-line-penalty*)
-     :end (caliber-max *kpx-line-penalty*)
-     :slug-start (caliber-default *kpx-line-penalty*)
-     :tick-frequency 0
-     :callback 'set-kpx-line-penalty
+   (kpx-line-penalty etap-slider
+     :algorithm 'kpx
+     :property 'line-penalty
      :reader kpx-line-penalty)
-   (kpx-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D"
-	      (caliber-default *kpx-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-hyphen-penalty*)
-     :end (caliber-max *kpx-hyphen-penalty*)
-     :slug-start (caliber-default *kpx-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-kpx-hyphen-penalty
+   (kpx-hyphen-penalty etap-slider
+     :algorithm 'kpx
+     :property 'hyphen-penalty
      :reader kpx-hyphen-penalty)
-   (kpx-explicit-hyphen-penalty slider
-     :title (format nil "Explicit Hyphen Penalty: ~D"
-	      (caliber-default *kpx-explicit-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-explicit-hyphen-penalty*)
-     :end (caliber-max *kpx-explicit-hyphen-penalty*)
-     :slug-start (caliber-default *kpx-explicit-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-kpx-explicit-hyphen-penalty
+   (kpx-explicit-hyphen-penalty etap-slider
+     :algorithm 'kpx
+     :property 'explicit-hyphen-penalty
      :reader kpx-explicit-hyphen-penalty)
-   (kpx-adjacent-demerits slider
-     :title (format nil "Adjacent Demerits: ~D"
-	      (caliber-default *kpx-adjacent-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-adjacent-demerits*)
-     :end (caliber-max *kpx-adjacent-demerits*)
-     :slug-start (caliber-default *kpx-adjacent-demerits*)
-     :tick-frequency 0
-     :callback 'set-kpx-adjacent-demerits
+   (kpx-adjacent-demerits etap-slider
+     :algorithm 'kpx
+     :property 'adjacent-demerits
      :reader kpx-adjacent-demerits)
-   (kpx-double-hyphen-demerits slider
-     :title (format nil "Double Hyphen Demerits: ~D"
-	      (caliber-default *kpx-double-hyphen-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-double-hyphen-demerits*)
-     :end (caliber-max *kpx-double-hyphen-demerits*)
-     :slug-start (caliber-default *kpx-double-hyphen-demerits*)
-     :tick-frequency 0
-     :callback 'set-kpx-double-hyphen-demerits
+   (kpx-double-hyphen-demerits etap-slider
+     :algorithm 'kpx
+     :property 'double-hyphen-demerits
      :reader kpx-double-hyphen-demerits)
-   (kpx-final-hyphen-demerits slider
-     :title (format nil "Final Hyphen Demerits: ~D"
-	      (caliber-default *kpx-final-hyphen-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-final-hyphen-demerits*)
-     :end (caliber-max *kpx-final-hyphen-demerits*)
-     :slug-start (caliber-default *kpx-final-hyphen-demerits*)
-     :tick-frequency 0
-     :callback 'set-kpx-final-hyphen-demerits
+   (kpx-final-hyphen-demerits etap-slider
+     :algorithm 'kpx
+     :property 'final-hyphen-demerits
      :reader kpx-final-hyphen-demerits)
-   (kpx-similar-demerits slider
-     :title (format nil "Similar Demerits: ~D"
-	      (caliber-default *kpx-similar-demerits*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-similar-demerits*)
-     :end (caliber-max *kpx-similar-demerits*)
-     :slug-start (caliber-default *kpx-similar-demerits*)
-     :tick-frequency 0
-     :callback 'set-kpx-similar-demerits
+   (kpx-similar-demerits etap-slider
+     :algorithm 'kpx
+     :property 'similar-demerits
      :reader kpx-similar-demerits)
-   (kpx-pre-tolerance slider
-     :title (format nil "Pre Tolerance: ~D"
-	      (caliber-default *kpx-pre-tolerance*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-pre-tolerance*)
-     :end (caliber-max *kpx-pre-tolerance*)
-     :slug-start (caliber-default *kpx-pre-tolerance*)
-     :tick-frequency 0
-     :callback 'set-kpx-pre-tolerance
+   (kpx-pre-tolerance etap-slider
+     :algorithm 'kpx
+     :property 'pre-tolerance
      :reader kpx-pre-tolerance)
-   (kpx-tolerance slider
-     :title (format nil "Tolerance: ~D" (caliber-default *kpx-tolerance*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-tolerance*)
-     :end (caliber-max *kpx-tolerance*)
-     :slug-start (caliber-default *kpx-tolerance*)
-     :tick-frequency 0
-     :callback 'set-kpx-tolerance
+   (kpx-tolerance etap-slider
+     :algorithm 'kpx
+     :property 'tolerance
      :reader kpx-tolerance)
-   (kpx-emergency-stretch slider
-     :title (format nil "Emergency Stretch: ~D"
-	      (caliber-default *kpx-emergency-stretch*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-emergency-stretch*)
-     :end (caliber-max *kpx-emergency-stretch*)
-     :slug-start (caliber-default *kpx-emergency-stretch*)
-     :tick-frequency 0
-     :callback 'set-kpx-emergency-stretch
+   (kpx-emergency-stretch etap-slider
+     :algorithm 'kpx
+     :property 'emergency-stretch
      :reader kpx-emergency-stretch)
-   (kpx-looseness slider
-     :title (format nil "Looseness: ~D"
-	      (caliber-default *kpx-looseness*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *kpx-looseness*)
-     :end (caliber-max *kpx-looseness*)
-     :slug-start (caliber-default *kpx-looseness*)
-     :tick-frequency 0
-     :callback 'set-kpx-looseness
+   (kpx-looseness etap-slider
+     :algorithm 'kpx
+     :property 'looseness
      :reader kpx-looseness)
    (disposition radio-button-panel
      :layout-class 'column-layout
