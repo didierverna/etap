@@ -56,6 +56,57 @@ and invalidates the view."
 ;; Sliders
 ;; -------
 
+(defclass etap-slider (slider)
+  ((property-name :documentation "This slider's property name."
+		  :reader property-name)
+   (context-updater :documentation "This slider's context updater function."
+		    :reader context-updater))
+  (:default-initargs
+   :title "Dummy" ;; #### FIXME: without this, the sliders don't appear.
+   :tick-frequency 0
+   :orientation :horizontal
+   :visible-min-width 220
+   :callback 'slider-callback)
+  (:documentation "The ETAP Slider Class."))
+
+(defun update-slider-title (slider)
+  "Make SLIDER's title reflect its current value."
+  (setf (titled-object-title slider)
+	(concatenate 'string
+	  (property-name slider) ": "
+	  (write-to-string (range-slug-start slider)))))
+
+(defun slider-callback
+    (slider value status &aux (interface (top-level-interface slider)))
+  "Handle SLIDER's value change."
+  (declare (ignore status))
+  (update-slider-title slider)
+  (funcall (context-updater slider) nil interface)
+  (update interface))
+
+(defmethod initialize-instance :after
+    ((slider etap-slider) &key algorithm property)
+  "Post-initialize SLIDER's slots."
+  (setf (slot-value slider 'property-name)
+	(title-capitalize property))
+  (setf (slot-value slider 'context-updater)
+	(symbol-function (intern (concatenate 'string
+				   (symbol-name algorithm)
+				   "-UPDATE-CONTEXT")
+				 :etap)))
+  (let ((caliber (symbol-value (intern (concatenate 'string
+					 "*"
+					 (symbol-name algorithm)
+					 "-"
+					 (symbol-name property)
+					 "*")
+				       :etap))))
+    (setf (range-start slider)      (caliber-min caliber)
+	  (range-end slider)        (caliber-max caliber)
+	  (range-slug-start slider) (caliber-default caliber))
+    (update-slider-title slider)))
+
+
 (defmacro define-slider-callback
     (name &aux (name (string name))
 	       (dash-position (position #\- name))
@@ -126,7 +177,22 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
 
 
 ;; Fit
-(defun set-fit-algorithm (value interface)
+(defun fit-update-context (value interface)
+  "Set the current algorithm to Fit in INTERFACE's context."
+  (declare (ignore value))
+  (setf (algorithm (context interface))
+	(cons :fit
+	      (apply #'append
+		(radio-selection fit :variant interface)
+		(radio-selection fit :fallback interface)
+		(radio-selection fit :discriminating-function interface)
+		(slider-value fit :line-penalty interface)
+		(slider-value fit :hyphen-penalty interface)
+		(slider-value fit :explicit-hyphen-penalty interface)
+		(slider-value fit :width-offset interface)
+		(choice-selected-items (fit-options interface))))))
+
+  (defun set-fit-algorithm (value interface)
   "Set the current algorithm to Fit in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface))
@@ -689,38 +755,17 @@ NAME (a symbol) must be of the form PREFIX-PROPERTY."
      :print-function 'title-capitalize
      :selection-callback 'set-fit-algorithm
      :reader fit-discriminating-function)
-   (fit-line-penalty slider
-     :title (format nil "Line Penalty: ~D"
-	      (caliber-default *fit-line-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *fit-line-penalty*)
-     :end (caliber-max *fit-line-penalty*)
-     :slug-start (caliber-default *fit-line-penalty*)
-     :tick-frequency 0
-     :callback 'set-fit-line-penalty
+   (fit-line-penalty etap-slider
+     :algorithm 'fit
+     :property 'line-penalty
      :reader fit-line-penalty)
-   (fit-hyphen-penalty slider
-     :title (format nil "Hyphen Penalty: ~D"
-	      (caliber-default *fit-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *fit-hyphen-penalty*)
-     :end (caliber-max *fit-hyphen-penalty*)
-     :slug-start (caliber-default *fit-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-fit-hyphen-penalty
+   (fit-hyphen-penalty etap-slider
+     :algorithm 'fit
+     :property 'hyphen-penalty
      :reader fit-hyphen-penalty)
-   (fit-explicit-hyphen-penalty slider
-     :title (format nil "Explicit-Hyphen Penalty: ~D"
-	      (caliber-default *fit-explicit-hyphen-penalty*))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *fit-explicit-hyphen-penalty*)
-     :end (caliber-max *fit-explicit-hyphen-penalty*)
-     :slug-start (caliber-default *fit-explicit-hyphen-penalty*)
-     :tick-frequency 0
-     :callback 'set-fit-explicit-hyphen-penalty
+   (fit-explicit-hyphen-penalty etap-slider
+     :algorithm 'fit
+     :property 'explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
    (fit-width-offset slider
      :title (format nil "Width Offset: ~Dpt (~Fcm))"
