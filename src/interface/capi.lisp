@@ -127,22 +127,24 @@ and invalidates the view."
   (update interface))
 
 
-(defmacro slider-value (prefix key interface)
-  "Return (:KEY (RANGE-SLUG-START (PREFIX-KEY INTERFACE)))."
+(defmacro slider-setting (algorithm property interface)
+  "Return (:PROPERTY (RANGE-SLUG-START (ALGORITHM-PROPERTY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
-			    (string prefix) "-" (string key)))))
-    `(list ,key (range-slug-start (,accessor ,interface)))))
+			    (symbol-name algorithm)
+			    "-"
+			    (symbol-name property)))))
+    `(list ,property (range-slug-start (,accessor ,interface)))))
 
 
 ;; ------
 ;; Radios
 ;; ------
 
-(defmacro radio-selection (prefix key interface)
-  "Return (:KEY (CHOICE-SELECTED-ITEM (PREFIX-KEY INTERFACE)))."
+(defmacro radio-setting (algorithm property interface)
+  "Return (:PROPERTY (CHOICE-SELECTED-ITEM (ALGORITHM-PROPERTY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
-			    (string prefix) "-" (string key)))))
-    `(list ,key (choice-selected-item (,accessor ,interface)))))
+			    (string algorithm) "-" (string property)))))
+    `(list ,property (choice-selected-item (,accessor ,interface)))))
 
 
 
@@ -161,8 +163,8 @@ and invalidates the view."
   (setf (algorithm (context interface))
 	(cons :fixed
 	      (apply #'append
-		(radio-selection fixed :fallback interface)
-		(slider-value fixed :width-offset interface)
+		(radio-setting fixed :fallback interface)
+		(slider-setting fixed :width-offset interface)
 		(choice-selected-items (fixed-options interface))))))
 
 (defun set-fixed-algorithm (value interface)
@@ -177,13 +179,13 @@ and invalidates the view."
   (setf (algorithm (context interface))
 	(cons :fit
 	      (apply #'append
-		(radio-selection fit :variant interface)
-		(radio-selection fit :fallback interface)
-		(radio-selection fit :discriminating-function interface)
-		(slider-value fit :line-penalty interface)
-		(slider-value fit :hyphen-penalty interface)
-		(slider-value fit :explicit-hyphen-penalty interface)
-		(slider-value fit :width-offset interface)
+		(radio-setting fit :variant interface)
+		(radio-setting fit :fallback interface)
+		(radio-setting fit :discriminating-function interface)
+		(slider-setting fit :line-penalty interface)
+		(slider-setting fit :hyphen-penalty interface)
+		(slider-setting fit :explicit-hyphen-penalty interface)
+		(slider-setting fit :width-offset interface)
 		(choice-selected-items (fit-options interface))))))
 
 (defun set-fit-algorithm (value interface)
@@ -204,7 +206,7 @@ and invalidates the view."
   (declare (ignore value))
   (setf (algorithm (context interface))
 	(cons :duncan
-	      (radio-selection duncan :discriminating-function interface))))
+	      (radio-setting duncan :discriminating-function interface))))
 
 (defun set-duncan-algorithm (value interface)
   (duncan-update-context value interface)
@@ -218,17 +220,17 @@ and invalidates the view."
   (setf (algorithm (context interface))
 	(cons :knuth-plass
 	      (append
-	       (radio-selection kp :variant interface)
-	       (slider-value kp :line-penalty interface)
-	       (slider-value kp :hyphen-penalty interface)
-	       (slider-value kp :explicit-hyphen-penalty interface)
-	       (slider-value kp :adjacent-demerits interface)
-	       (slider-value kp :double-hyphen-demerits interface)
-	       (slider-value kp :final-hyphen-demerits interface)
-	       (slider-value kp :pre-tolerance interface)
-	       (slider-value kp :tolerance interface)
-	       (slider-value kp :emergency-stretch interface)
-	       (slider-value kp :looseness interface)))))
+	       (radio-setting kp :variant interface)
+	       (slider-setting kp :line-penalty interface)
+	       (slider-setting kp :hyphen-penalty interface)
+	       (slider-setting kp :explicit-hyphen-penalty interface)
+	       (slider-setting kp :adjacent-demerits interface)
+	       (slider-setting kp :double-hyphen-demerits interface)
+	       (slider-setting kp :final-hyphen-demerits interface)
+	       (slider-setting kp :pre-tolerance interface)
+	       (slider-setting kp :tolerance interface)
+	       (slider-setting kp :emergency-stretch interface)
+	       (slider-setting kp :looseness interface)))))
 
 (defun set-kp-algorithm (value interface)
   (kp-update-context value interface)
@@ -242,19 +244,19 @@ and invalidates the view."
   (setf (algorithm (context interface))
 	(cons :kpx
 	      (append
-	       (radio-selection kpx :variant interface)
-	       (radio-selection kpx :fitness interface)
-	       (slider-value kpx :line-penalty interface)
-	       (slider-value kpx :hyphen-penalty interface)
-	       (slider-value kpx :explicit-hyphen-penalty interface)
-	       (slider-value kpx :adjacent-demerits interface)
-	       (slider-value kpx :double-hyphen-demerits interface)
-	       (slider-value kpx :final-hyphen-demerits interface)
-	       (slider-value kpx :similar-demerits interface)
-	       (slider-value kpx :pre-tolerance interface)
-	       (slider-value kpx :tolerance interface)
-	       (slider-value kpx :emergency-stretch interface)
-	       (slider-value kpx :looseness interface)))))
+	       (radio-setting kpx :variant interface)
+	       (radio-setting kpx :fitness interface)
+	       (slider-setting kpx :line-penalty interface)
+	       (slider-setting kpx :hyphen-penalty interface)
+	       (slider-setting kpx :explicit-hyphen-penalty interface)
+	       (slider-setting kpx :adjacent-demerits interface)
+	       (slider-setting kpx :double-hyphen-demerits interface)
+	       (slider-setting kpx :final-hyphen-demerits interface)
+	       (slider-setting kpx :similar-demerits interface)
+	       (slider-setting kpx :pre-tolerance interface)
+	       (slider-setting kpx :tolerance interface)
+	       (slider-setting kpx :emergency-stretch interface)
+	       (slider-setting kpx :looseness interface)))))
 
 (defun set-kpx-algorithm (value interface)
   (kpx-update-context value interface)
