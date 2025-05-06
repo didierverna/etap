@@ -118,6 +118,7 @@ and invalidates the view."
     (update-etap-slider-title slider)))
 
 
+;; #### NOTE: apparently, slider callbacks signature cannot be changed.
 (defun etap-slider-callback
     (slider value status &aux (interface (top-level-interface slider)))
   "Handle SLIDER's value change."
