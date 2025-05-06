@@ -66,23 +66,34 @@ and invalidates the view."
    :tick-frequency 0
    :orientation :horizontal
    :visible-min-width 220
-   :callback 'slider-callback)
+   :callback 'etap-slider-callback)
   (:documentation "The ETAP Slider Class."))
 
-(defun update-slider-title (slider)
-  "Make SLIDER's title reflect its current value."
-  (setf (titled-object-title slider)
-	(concatenate 'string
-	  (property-name slider) ": "
-	  (write-to-string (range-slug-start slider)))))
+(defclass etap-dimen-slider (etap-slider)
+  ()
+  (:documentation "The ETAP Dimension Slider Class."))
 
-(defun slider-callback
-    (slider value status &aux (interface (top-level-interface slider)))
-  "Handle SLIDER's value change."
-  (declare (ignore value status))
-  (update-slider-title slider)
-  (funcall (context-updater slider) nil interface)
-  (update interface))
+
+(defgeneric etap-slider-title (slider)
+  (:documentation "Compute ETAP SlIDER's title based on its current value.")
+  (:method ((slider etap-slider))
+    "Advertise ETAP SLIDER's value in its title. This is the default method."
+    (concatenate 'string
+      (property-name slider) ": "
+      (write-to-string (range-slug-start slider))))
+  (:method ((slider etap-dimen-slider) &aux (value (range-slug-start slider)))
+    "Advertise ETAP dimension SLIDER's value in its title, in pt and cm."
+    (concatenate 'string
+      (property-name slider) ": "
+      (write-to-string value)
+      "pt ("
+      (write-to-string (float (/ value 28.452755)))
+      "cm)")))
+
+(defun update-etap-slider-title (slider)
+  "Update ETAP SLIDER's title."
+  (setf (titled-object-title slider) (etap-slider-title slider)))
+
 
 (defmethod initialize-instance :after
     ((slider etap-slider) &key algorithm property)
@@ -104,7 +115,16 @@ and invalidates the view."
     (setf (range-start slider)      (caliber-min caliber)
 	  (range-end slider)        (caliber-max caliber)
 	  (range-slug-start slider) (caliber-default caliber))
-    (update-slider-title slider)))
+    (update-etap-slider-title slider)))
+
+
+(defun etap-slider-callback
+    (slider value status &aux (interface (top-level-interface slider)))
+  "Handle SLIDER's value change."
+  (declare (ignore value status))
+  (update-etap-slider-title slider)
+  (funcall (context-updater slider) nil interface)
+  (update interface))
 
 
 (defmacro slider-value (prefix key interface)
@@ -149,17 +169,6 @@ and invalidates the view."
   (fixed-update-context value interface)
   (update interface))
 
-;; SLIDER-CALLBACK doesn't handle more informative titles than just displaying
-;; the values.
-(defun set-fixed-width-offset
-    (slider value status &aux (interface (top-level-interface slider)))
-  (declare (ignore status))
-  (setf (titled-object-title slider)
-	(format nil "Width Offset: ~Dpt (~Fcm)"
-	  value (/ value 28.452755)))
-  (fixed-update-context nil interface)
-  (update interface))
-
 
 ;; Fit
 (defun fit-update-context (value interface)
@@ -179,17 +188,6 @@ and invalidates the view."
 
 (defun set-fit-algorithm (value interface)
   (fit-update-context value interface)
-  (update interface))
-
-;; SLIDER-CALLBACK doesn't handle more informative titles than just displaying
-;; the values.
-(defun set-fit-width-offset
-    (slider value status &aux (interface (top-level-interface slider)))
-  (declare (ignore status))
-  (setf (titled-object-title slider)
-	(format nil "Width Offset: ~Dpt (~Fcm)"
-	  value (/ value 28.452755)))
-  (fit-update-context nil interface)
   (update interface))
 
 
@@ -676,17 +674,9 @@ and invalidates the view."
      :selection-callback 'set-fixed-algorithm
      :retract-callback 'set-fixed-algorithm
      :reader fixed-options)
-   (fixed-width-offset slider
-     :title (format nil "Width Offset: ~Dpt (~Fcm))"
-	      (caliber-default *fixed-width-offset*)
-	      (/ (caliber-default *fixed-width-offset*) 28.452755))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *fixed-width-offset*)
-     :end (caliber-max *fixed-width-offset*)
-     :slug-start (caliber-default *fixed-width-offset*)
-     :tick-frequency 0
-     :callback 'set-fixed-width-offset
+   (fixed-width-offset etap-dimen-slider
+     :algorithm 'fixed
+     :property 'width-offset
      :reader fixed-width-offset)
    (fit-variant radio-button-panel
      :layout-class 'column-layout
@@ -733,17 +723,9 @@ and invalidates the view."
      :algorithm 'fit
      :property 'explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
-   (fit-width-offset slider
-     :title (format nil "Width Offset: ~Dpt (~Fcm))"
-	      (caliber-default *fit-width-offset*)
-	      (/ (caliber-default *fit-width-offset*) 28.452755))
-     :orientation :horizontal
-     :visible-min-width 220
-     :start (caliber-min *fit-width-offset*)
-     :end (caliber-max *fit-width-offset*)
-     :slug-start (caliber-default *fit-width-offset*)
-     :tick-frequency 0
-     :callback 'set-fit-width-offset
+   (fit-width-offset etap-dimen-slider
+     :algorithm 'fit
+     :property 'width-offset
      :reader fit-width-offset)
    (duncan-discriminating-function option-pane
      :title "Discriminating Function:"
@@ -792,7 +774,7 @@ and invalidates the view."
      :algorithm 'kp
      :property 'tolerance
      :reader kp-tolerance)
-   (kp-emergency-stretch etap-slider
+   (kp-emergency-stretch etap-dimen-slider
      :algorithm 'kp
      :property 'emergency-stretch
      :reader kp-emergency-stretch)
@@ -854,7 +836,7 @@ and invalidates the view."
      :algorithm 'kpx
      :property 'tolerance
      :reader kpx-tolerance)
-   (kpx-emergency-stretch etap-slider
+   (kpx-emergency-stretch etap-dimen-slider
      :algorithm 'kpx
      :property 'emergency-stretch
      :reader kpx-emergency-stretch)
