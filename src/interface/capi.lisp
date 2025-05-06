@@ -97,7 +97,7 @@ and invalidates the view."
 
 (defmethod initialize-instance :after
     ((slider etap-slider) &key algorithm property)
-  "Post-initialize SLIDER's slots."
+  "Post-initialize SLIDER."
   (setf (slot-value slider 'property-name)
 	(title-capitalize property))
   (setf (slot-value slider 'context-updater)
@@ -140,6 +140,49 @@ and invalidates the view."
 ;; ------
 ;; Radios
 ;; ------
+
+(defclass etap-radio-button-panel (radio-button-panel)
+  ((context-updater
+    :documentation "This radio button panel's context updater function."
+    :reader context-updater))
+  (:default-initargs
+   :title "Dummy" ;; #### FIXME: without this, the panels don't appear.
+   :title-position :frame
+   :layout-class 'column-layout
+   :visible-max-height nil
+   :print-function 'title-capitalize
+   :callback-type '(:element :interface)
+   :selection-callback 'etap-radio-button-panel-selection-callback)
+  (:documentation "The ETAP Radio Button Panel Class."))
+
+(defmethod initialize-instance :after
+    ((panel etap-radio-button-panel) &key algorithm property plural)
+  "Post-initialize ETAP radio button PANEL's slots."
+  (setf (slot-value panel 'context-updater)
+	(symbol-function (intern (concatenate 'string
+				   (symbol-name algorithm)
+				   "-UPDATE-CONTEXT")
+				 :etap)))
+  (setf (collection-items panel)
+	(symbol-value (intern (concatenate 'string
+				"*"
+				(symbol-name algorithm)
+				"-"
+				(symbol-name property)
+				(ecase plural
+				  (:ies "IES")
+				  (:es "ES")
+				  ((:s nil) "S"))
+				"*")
+			      :etap)))
+  (setf (titled-object-title panel) (title-capitalize property)))
+
+
+(defun etap-radio-button-panel-selection-callback (panel interface)
+  "Handle ETAP radio button PANEL's value change."
+  (funcall (context-updater panel) nil interface)
+  (update interface))
+
 
 (defmacro radio-setting (algorithm property interface)
   "Return (:PROPERTY (CHOICE-SELECTED-ITEM (ALGORITHM-PROPERTY INTERFACE)))."
@@ -660,14 +703,10 @@ and invalidates the view."
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
-   (fixed-fallback radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Fallback" :title-position :frame
-     :items *fixed-fallbacks*
+   (fixed-fallback etap-radio-button-panel
+     :algorithm 'fixed
+     :property 'fallback
      :help-keys *fixed-fallbacks-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-fixed-algorithm
      :reader fixed-fallback)
    (fixed-options check-button-panel
      :layout-class 'column-layout
@@ -683,23 +722,15 @@ and invalidates the view."
      :algorithm 'fixed
      :property 'width-offset
      :reader fixed-width-offset)
-   (fit-variant radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Variant" :title-position :frame
-     :items *fit-variants*
+   (fit-variant etap-radio-button-panel
+     :algorithm 'fit
+     :property 'variant
      :help-keys *fit-variants-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-fit-algorithm
      :reader fit-variant)
-   (fit-fallback radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Fallback" :title-position :frame
-     :items *fit-fallbacks*
+   (fit-fallback etap-radio-button-panel
+     :algorithm 'fit
+     :property 'fallback
      :help-keys *fit-fallbacks-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-fit-algorithm
      :reader fit-fallback)
    (fit-options check-button-panel
      :layout-class 'column-layout
@@ -738,14 +769,10 @@ and invalidates the view."
      :print-function 'title-capitalize
      :selection-callback 'set-duncan-algorithm
      :reader duncan-discriminating-function)
-   (kp-variant radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Variant" :title-position :frame
-     :items *kp-variants*
+   (kp-variant etap-radio-button-panel
+     :algorithm 'kp
+     :property 'variant
      :help-keys *kp-variants-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-kp-algorithm
      :reader kp-variant)
    (kp-line-penalty etap-slider
      :algorithm 'kp
@@ -787,23 +814,16 @@ and invalidates the view."
      :algorithm 'kp
      :property 'looseness
      :reader kp-looseness)
-   (kpx-variant radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Variant" :title-position :frame
-     :items *kpx-variants*
+   (kpx-variant etap-radio-button-panel
+     :algorithm 'kpx
+     :property 'variant
      :help-keys *kpx-variants-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-kpx-algorithm
      :reader kpx-variant)
-   (kpx-fitness radio-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Fitness" :title-position :frame
-     :items *kpx-fitnesses*
+   (kpx-fitness etap-radio-button-panel
+     :algorithm 'kpx
+     :property 'fitness
+     :plural :es
      :help-keys *kpx-fitnesses-help-keys*
-     :print-function 'title-capitalize
-     :selection-callback 'set-kpx-algorithm
      :reader kpx-fitness)
    (kpx-line-penalty etap-slider
      :algorithm 'kpx
