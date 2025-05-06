@@ -137,9 +137,9 @@ and invalidates the view."
     `(list ,property (range-slug-start (,accessor ,interface)))))
 
 
-;; ------
-;; Radios
-;; ------
+;; -------------------
+;; Radio Button Panels
+;; -------------------
 
 (defclass etap-radio-button-panel (radio-button-panel)
   ((context-updater
@@ -157,7 +157,7 @@ and invalidates the view."
 
 (defmethod initialize-instance :after
     ((panel etap-radio-button-panel) &key algorithm property plural)
-  "Post-initialize ETAP radio button PANEL's slots."
+  "Post-initialize ETAP radio button PANEL."
   (setf (slot-value panel 'context-updater)
 	(symbol-function (intern (concatenate 'string
 				   (symbol-name algorithm)
@@ -191,6 +191,51 @@ and invalidates the view."
 			    "-"
 			    (symbol-name property)))))
     `(list ,property (choice-selected-item (,accessor ,interface)))))
+
+
+
+;; -------------------
+;; Check Button Panels
+;; -------------------
+
+(defclass etap-check-button-panel (check-button-panel)
+  ((context-updater
+    :documentation "This check button panel's context updater function."
+    :reader context-updater))
+  (:default-initargs
+   :title "Dummy" ;; #### FIXME: without this, the panels don't appear.
+   :title-position :frame
+   :layout-class 'column-layout
+   :visible-max-height nil
+   :print-function (lambda (item) (title-capitalize (car item)))
+   :callback-type '(:element :interface)
+   :selection-callback 'etap-check-button-panel-callback
+   :retract-callback   'etap-check-button-panel-callback)
+  (:documentation "The ETAP Radio Button Panel Class."))
+
+(defmethod initialize-instance :after
+    ((panel etap-check-button-panel) &key algorithm properties)
+  "Post-initialize ETAP check button PANEL."
+  (setf (slot-value panel 'context-updater)
+	(symbol-function (intern (concatenate 'string
+				   (symbol-name algorithm)
+				   "-UPDATE-CONTEXT")
+				 :etap)))
+  (setf (collection-items panel)
+	(symbol-value (intern (concatenate 'string
+				"*"
+				(symbol-name algorithm)
+				"-"
+				(symbol-name properties)
+				"*")
+			      :etap)))
+  (setf (titled-object-title panel) (title-capitalize properties)))
+
+
+(defun etap-check-button-panel-callback (panel interface)
+  "Handle ETAP check button PANEL's value change."
+  (funcall (context-updater panel) nil interface)
+  (update interface))
 
 
 
@@ -712,15 +757,10 @@ and invalidates the view."
      :property 'fallback
      :help-keys *fixed-fallbacks-help-keys*
      :reader fixed-fallback)
-   (fixed-options check-button-panel
-     :layout-class 'column-layout
-     :visible-max-height nil
-     :title "Options" :title-position :frame
-     :items *fixed-options*
+   (fixed-options etap-check-button-panel
+     :algorithm 'fixed
+     :properties 'options
      :help-keys *fixed-options-help-keys*
-     :print-function (lambda (item) (title-capitalize (car item)))
-     :selection-callback 'set-fixed-algorithm
-     :retract-callback 'set-fixed-algorithm
      :reader fixed-options)
    (fixed-width-offset etap-dimen-slider
      :algorithm 'fixed
@@ -741,14 +781,10 @@ and invalidates the view."
      :property 'discriminating-function
      :help-keys *fit-discriminating-functions-help-keys*
      :reader fit-discriminating-function)
-   (fit-options check-button-panel
-     :layout-class 'column-layout
-     :title "Options" :title-position :frame
-     :items *fit-options*
+   (fit-options etap-check-button-panel
+     :algorithm 'fit
+     :properties 'options
      :help-keys *fit-options-help-keys*
-     :print-function (lambda (item) (title-capitalize (car item)))
-     :selection-callback 'set-fit-algorithm
-     :retract-callback 'set-fit-algorithm
      :reader fit-options)
    (fit-line-penalty etap-slider
      :algorithm 'fit
