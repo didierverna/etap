@@ -553,7 +553,11 @@ and invalidates the view."
 
 (defparameter *tooltips*
   `(,@*interface-tooltips*
-    ,@*fixed-tooltips* ,@*fit-tooltips* ,@*kp-tooltips* ,@*kpx-tooltips*
+    ,@*fixed-tooltips*
+    ,@*fit-tooltips*
+    ,@*duncan-tooltips*
+    ,@*kp-tooltips*
+    ,@*kpx-tooltips*
     ,@*disposition-options-tooltips*)
   "The GUI's tooltips.")
 
@@ -732,6 +736,11 @@ and invalidates the view."
      :property 'fallback
      :help-keys *fit-fallbacks-help-keys*
      :reader fit-fallback)
+   (fit-discriminating-function etap-radio-button-panel
+     :algorithm 'fit
+     :property 'discriminating-function
+     :help-keys *fit-discriminating-functions-help-keys*
+     :reader fit-discriminating-function)
    (fit-options check-button-panel
      :layout-class 'column-layout
      :title "Options" :title-position :frame
@@ -741,12 +750,6 @@ and invalidates the view."
      :selection-callback 'set-fit-algorithm
      :retract-callback 'set-fit-algorithm
      :reader fit-options)
-   (fit-discriminating-function option-pane
-     :title "Discriminating Function:"
-     :items *fit-discriminating-functions*
-     :print-function 'title-capitalize
-     :selection-callback 'set-fit-algorithm
-     :reader fit-discriminating-function)
    (fit-line-penalty etap-slider
      :algorithm 'fit
      :property 'line-penalty
@@ -763,11 +766,10 @@ and invalidates the view."
      :algorithm 'fit
      :property 'width-offset
      :reader fit-width-offset)
-   (duncan-discriminating-function option-pane
-     :title "Discriminating Function:"
-     :items *duncan-discriminating-functions*
-     :print-function 'title-capitalize
-     :selection-callback 'set-duncan-algorithm
+   (duncan-discriminating-function etap-radio-button-panel
+     :algorithm 'duncan
+     :property 'discriminating-function
+     :help-keys *duncan-discriminating-functions-help-keys*
      :reader duncan-discriminating-function)
    (kp-variant etap-radio-button-panel
      :algorithm 'kp
@@ -975,10 +977,11 @@ and invalidates the view."
      :title-position :frame
      :visible-max-height nil)
    (fit-settings row-layout
-		 '(fit-variant fit-fallback fit-options fit-parameters))
+     '(fit-variant fit-fallback fit-discriminating-function fit-options
+       fit-parameters))
    (fit-parameters column-layout
-     '(fit-discriminating-function fit-line-penalty
-       fit-hyphen-penalty fit-explicit-hyphen-penalty fit-width-offset)
+     '(fit-line-penalty fit-hyphen-penalty fit-explicit-hyphen-penalty
+       fit-width-offset)
      :title "Other Parameters"
      :title-position :frame
      :visible-max-height nil)

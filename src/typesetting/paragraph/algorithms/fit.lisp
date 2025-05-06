@@ -92,6 +92,10 @@
 (defparameter *fit-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+(defparameter *fit-discriminating-functions-help-keys*
+  '(:fit-discriminating-function-minimize-distance
+    :fit-discriminating-function-minimize-scaling))
+
 (defparameter *fit-options*
   '((:avoid-hyphens t) (:prefer-overfulls t) (:relax t) (:prefer-shrink t)))
 
@@ -107,6 +111,14 @@
     :fit-fallback-anyfull "Prefer lines closer to the paragraph
 width, whether underfull or overfull."
     :fit-fallback-overfull "Always prefer overfull lines."
+    :fit-discriminating-function-minimize-distance
+    "In the Best/Justified version,
+minimize the distance to natural spacing
+for equally good solutions."
+    :fit-discriminating-function-minimize-scaling
+    "In the Best/Justified version,
+minimize the required scaling
+for equally good solutions."
     :fit-option-avoid-hyphens "Avoid hyphenating words when possible."
     :fit-option-prefer-overfulls
     "In the Anyfull fallback, when the underfull and

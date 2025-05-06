@@ -25,7 +25,21 @@
 (defparameter *duncan-discriminating-functions*
   '(:minimize-distance :minimize-scaling))
 
+(defparameter *duncan-discriminating-functions-help-keys*
+  '(:duncan-discriminating-function-minimize-distance
+    :duncan-discriminating-function-minimize-scaling))
+
+(defparameter *duncan-tooltips*
+  '(:duncan-discriminating-function-minimize-distance
+    "Weight solutions according to
+the distance to natural spacing."
+    :duncan-discriminating-function-minimize-scaling
+    "Weight solutions according to
+the amount of the required scaling."))
+
+
 (defvar *discriminating-function*)
+
 
 (defmacro default-duncan (name)
   "Default Duncan NAMEd variable."
