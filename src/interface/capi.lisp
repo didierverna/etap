@@ -1,8 +1,8 @@
 (in-package :etap)
 
-;; =========
+;; ==========================================================================
 ;; Utilities
-;; =========
+;; ==========================================================================
 
 (defmacro define-gui-caliber (name min default max)
   "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
@@ -52,15 +52,23 @@ and invalidates the view."
     (nsubstitute #\Space #\- (string-capitalize title))))
 
 
+
+
+;; ==========================================================================
+;; GUI Constituents
+;; ==========================================================================
+
 ;; -------
 ;; Sliders
 ;; -------
 
 (defclass etap-slider (slider)
-  ((property-name :documentation "This slider's property name."
-		  :reader property-name)
-   (context-updater :documentation "This slider's context updater function."
-		    :reader context-updater))
+  ((algorithm
+    :documentation "This slider's algorithm."
+    :initarg :algorithm :reader algorithm)
+   (property-name
+    :documentation "This slider's property name."
+    :reader property-name))
   (:default-initargs
    :title "Dummy"
    :tick-frequency 0
@@ -95,19 +103,12 @@ and invalidates the view."
   (setf (titled-object-title slider) (etap-slider-title slider)))
 
 
-(defmethod initialize-instance :after
-    ((slider etap-slider) &key algorithm property)
+(defmethod initialize-instance :after ((slider etap-slider) &key property)
   "Post-initialize SLIDER."
-  (setf (slot-value slider 'property-name)
-	(title-capitalize property))
-  (setf (slot-value slider 'context-updater)
-	(symbol-function (intern (concatenate 'string
-				   (symbol-name algorithm)
-				   "-UPDATE-CONTEXT")
-				 :etap)))
+  (setf (slot-value slider 'property-name) (title-capitalize property))
   (let ((caliber (symbol-value (intern (concatenate 'string
 					 "*"
-					 (symbol-name algorithm)
+					 (symbol-name (algorithm slider))
 					 "-"
 					 (symbol-name property)
 					 "*")
@@ -124,7 +125,7 @@ and invalidates the view."
   "Handle SLIDER's value change."
   (declare (ignore value status))
   (update-etap-slider-title slider)
-  (funcall (context-updater slider) nil interface)
+  (select-algorithm (algorithm slider) interface)
   (update interface))
 
 
@@ -142,9 +143,9 @@ and invalidates the view."
 ;; -------------------
 
 (defclass etap-radio-button-panel (radio-button-panel)
-  ((context-updater
-    :documentation "This radio button panel's context updater function."
-    :reader context-updater))
+  ((algorithm
+    :documentation "This radio button panel's algorithm."
+    :initarg :algorithm :reader algorithm))
   (:default-initargs
    :title "Dummy"
    :title-position :frame
@@ -156,17 +157,12 @@ and invalidates the view."
   (:documentation "The ETAP Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
-    ((panel etap-radio-button-panel) &key algorithm property plural)
+    ((panel etap-radio-button-panel) &key property plural)
   "Post-initialize ETAP radio button PANEL."
-  (setf (slot-value panel 'context-updater)
-	(symbol-function (intern (concatenate 'string
-				   (symbol-name algorithm)
-				   "-UPDATE-CONTEXT")
-				 :etap)))
   (setf (collection-items panel)
 	(symbol-value (intern (concatenate 'string
 				"*"
-				(symbol-name algorithm)
+				(symbol-name (algorithm panel))
 				"-"
 				(symbol-name property)
 				(ecase plural
@@ -180,7 +176,7 @@ and invalidates the view."
 
 (defun etap-radio-button-panel-selection-callback (panel interface)
   "Handle ETAP radio button PANEL's value change."
-  (funcall (context-updater panel) nil interface)
+  (select-algorithm (algorithm panel) interface)
   (update interface))
 
 
@@ -199,9 +195,9 @@ and invalidates the view."
 ;; -------------------
 
 (defclass etap-check-button-panel (check-button-panel)
-  ((context-updater
-    :documentation "This check button panel's context updater function."
-    :reader context-updater))
+  ((algorithm
+    :documentation "This check button panel's algorithm."
+    :initarg :algorithm :reader algorithm))
   (:default-initargs
    :title "Dummy"
    :title-position :frame
@@ -214,17 +210,12 @@ and invalidates the view."
   (:documentation "The ETAP Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
-    ((panel etap-check-button-panel) &key algorithm properties)
+    ((panel etap-check-button-panel) &key properties)
   "Post-initialize ETAP check button PANEL."
-  (setf (slot-value panel 'context-updater)
-	(symbol-function (intern (concatenate 'string
-				   (symbol-name algorithm)
-				   "-UPDATE-CONTEXT")
-				 :etap)))
   (setf (collection-items panel)
 	(symbol-value (intern (concatenate 'string
 				"*"
-				(symbol-name algorithm)
+				(symbol-name (algorithm panel))
 				"-"
 				(symbol-name properties)
 				"*")
@@ -234,114 +225,101 @@ and invalidates the view."
 
 (defun etap-check-button-panel-callback (panel interface)
   "Handle ETAP check button PANEL's value change."
-  (funcall (context-updater panel) nil interface)
+  (select-algorithm (algorithm panel) interface)
   (update interface))
 
 
 
-;; =================
+
+;; ==========================================================================
 ;; Interface Actions
-;; =================
+;; ==========================================================================
 
-;; ----------
-;; Algorithms
-;; ----------
+;; -------------------
+;; Algorithm Selection
+;; -------------------
 
-;; Fixed
-(defun fixed-update-context (value interface)
-  "Set the current algorithm to Fixed in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :fixed
-	      (apply #'append
-		(radio-setting fixed :fallback interface)
-		(slider-setting fixed :width-offset interface)
-		(choice-selected-items (fixed-options interface))))))
-
-;; Fit
-(defun fit-update-context (value interface)
-  "Set the current algorithm to Fit in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :fit
-	      (apply #'append
-		(radio-setting fit :variant interface)
-		(radio-setting fit :fallback interface)
-		(radio-setting fit :discriminating-function interface)
-		(slider-setting fit :line-penalty interface)
-		(slider-setting fit :hyphen-penalty interface)
-		(slider-setting fit :explicit-hyphen-penalty interface)
-		(slider-setting fit :width-offset interface)
-		(choice-selected-items (fit-options interface))))))
-
-;; Barnett
-(defun barnett-update-context (value interface)
-  "Set the current algorithm to Barnett in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface)) '(:barnett)))
-
-;; Duncan
-(defun duncan-update-context (value interface)
-  "Set the current algorithm to Duncan in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :duncan
-	      (radio-setting duncan :discriminating-function interface))))
-
-;; Knuth-Plass
-(defun kp-update-context (value interface)
-  "Set the current algorithm to Knuth-Plass in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :knuth-plass
-	      (append
-	       (radio-setting kp :variant interface)
-	       (slider-setting kp :line-penalty interface)
-	       (slider-setting kp :hyphen-penalty interface)
-	       (slider-setting kp :explicit-hyphen-penalty interface)
-	       (slider-setting kp :adjacent-demerits interface)
-	       (slider-setting kp :double-hyphen-demerits interface)
-	       (slider-setting kp :final-hyphen-demerits interface)
-	       (slider-setting kp :pre-tolerance interface)
-	       (slider-setting kp :tolerance interface)
-	       (slider-setting kp :emergency-stretch interface)
-	       (slider-setting kp :looseness interface)))))
-
-;; KPX
-(defun kpx-update-context (value interface)
-  "Set the current algorithm to KPX in INTERFACE's context."
-  (declare (ignore value))
-  (setf (algorithm (context interface))
-	(cons :kpx
-	      (append
-	       (radio-setting kpx :variant interface)
-	       (radio-setting kpx :fitness interface)
-	       (slider-setting kpx :line-penalty interface)
-	       (slider-setting kpx :hyphen-penalty interface)
-	       (slider-setting kpx :explicit-hyphen-penalty interface)
-	       (slider-setting kpx :adjacent-demerits interface)
-	       (slider-setting kpx :double-hyphen-demerits interface)
-	       (slider-setting kpx :final-hyphen-demerits interface)
-	       (slider-setting kpx :similar-demerits interface)
-	       (slider-setting kpx :pre-tolerance interface)
-	       (slider-setting kpx :tolerance interface)
-	       (slider-setting kpx :emergency-stretch interface)
-	       (slider-setting kpx :looseness interface)))))
+(defgeneric select-algorithm (algorithm interface)
+  (:documentation "Select ALGORITHM in INTERFACE's context.")
+  (:method ((algorithm (eql :fixed)) interface)
+    "Select the Fixed algorithm in INTERFACE's context."
+    (setf (algorithm (context interface))
+	  (cons :fixed
+		(apply #'append
+		  (radio-setting fixed :fallback interface)
+		  (slider-setting fixed :width-offset interface)
+		  (choice-selected-items (fixed-options interface))))))
+  (:method ((algorithm (eql :fit)) interface)
+    "Select the Fit algorithm  in INTERFACE's context."
+    (setf (algorithm (context interface))
+	  (cons :fit
+		(apply #'append
+		  (radio-setting fit :variant interface)
+		  (radio-setting fit :fallback interface)
+		  (radio-setting fit :discriminating-function interface)
+		  (slider-setting fit :line-penalty interface)
+		  (slider-setting fit :hyphen-penalty interface)
+		  (slider-setting fit :explicit-hyphen-penalty interface)
+		  (slider-setting fit :width-offset interface)
+		  (choice-selected-items (fit-options interface))))))
+  (:method ((algorithm (eql :barnett)) interface)
+    "Select the Barnett algorithm in INTERFACE's context."
+    (setf (algorithm (context interface)) '(:barnett)))
+  (:method ((algorithm (eql :duncan)) interface)
+    "Select the Duncan algorithm in INTERFACE's context."
+    (setf (algorithm (context interface))
+	  (cons :duncan
+		(radio-setting duncan :discriminating-function interface))))
+  (:method ((algorithm (eql :kp)) interface)
+    "Select the Knuth-Plass algorithm in INTERFACE's context."
+    (setf (algorithm (context interface))
+	  (cons :knuth-plass
+		(append
+		 (radio-setting kp :variant interface)
+		 (slider-setting kp :line-penalty interface)
+		 (slider-setting kp :hyphen-penalty interface)
+		 (slider-setting kp :explicit-hyphen-penalty interface)
+		 (slider-setting kp :adjacent-demerits interface)
+		 (slider-setting kp :double-hyphen-demerits interface)
+		 (slider-setting kp :final-hyphen-demerits interface)
+		 (slider-setting kp :pre-tolerance interface)
+		 (slider-setting kp :tolerance interface)
+		 (slider-setting kp :emergency-stretch interface)
+		 (slider-setting kp :looseness interface)))))
+  (:method ((algorithm (eql :kpx)) interface)
+    "Select the KPX algorithm in INTERFACE's context."
+    (setf (algorithm (context interface))
+	  (cons :kpx
+		(append
+		 (radio-setting kpx :variant interface)
+		 (radio-setting kpx :fitness interface)
+		 (slider-setting kpx :line-penalty interface)
+		 (slider-setting kpx :hyphen-penalty interface)
+		 (slider-setting kpx :explicit-hyphen-penalty interface)
+		 (slider-setting kpx :adjacent-demerits interface)
+		 (slider-setting kpx :double-hyphen-demerits interface)
+		 (slider-setting kpx :final-hyphen-demerits interface)
+		 (slider-setting kpx :similar-demerits interface)
+		 (slider-setting kpx :pre-tolerance interface)
+		 (slider-setting kpx :tolerance interface)
+		 (slider-setting kpx :emergency-stretch interface)
+		 (slider-setting kpx :looseness interface))))))
 
 
-(defun set-algorithm (value interface)
-  "Select algorithm specified by VALUE in INTERFACE."
-  (case (car value)
-    (:fixed (fixed-update-context value interface))
-    (:fit (fit-update-context value interface))
-    (:barnett (barnett-update-context value interface))
-    (:duncan (duncan-update-context value interface))
-    (:knuth-plass (kp-update-context value interface))
-    (:kpx (kpx-update-context value interface)))
+;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout, except
+;; that it's :knuth-plass in contexts, and also in the interface algorithm
+;; selection pane where the title needs to be human readable. Hence the title
+;; conversion below.
+(defun set-algorithm (value interface &aux (algorithm (car value)))
+  "Set algorithm specified by VALUE in INTERFACE."
+  (when (eq algorithm :knuth-plass) (setq algorithm :kp))
+  (select-algorithm algorithm interface)
   (update interface))
 
 
+;; -------------
 ;; Other actions
+;; -------------
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
