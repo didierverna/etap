@@ -143,7 +143,9 @@ and invalidates the view."
 (defmacro radio-setting (algorithm property interface)
   "Return (:PROPERTY (CHOICE-SELECTED-ITEM (ALGORITHM-PROPERTY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
-			    (string algorithm) "-" (string property)))))
+			    (symbol-name algorithm)
+			    "-"
+			    (symbol-name property)))))
     `(list ,property (choice-selected-item (,accessor ,interface)))))
 
 
