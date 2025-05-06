@@ -728,159 +728,159 @@ and invalidates the view."
      :selection-callback 'set-algorithm
      :reader algorithms)
    (fixed-fallback etap-radio-button-panel
-     :algorithm 'fixed
-     :property 'fallback
+     :algorithm :fixed
+     :property :fallback
      :help-keys *fixed-fallbacks-help-keys*
      :reader fixed-fallback)
    (fixed-options etap-check-button-panel
-     :algorithm 'fixed
-     :properties 'options
+     :algorithm :fixed
+     :properties :options
      :help-keys *fixed-options-help-keys*
      :reader fixed-options)
    (fixed-width-offset etap-dimen-slider
-     :algorithm 'fixed
-     :property 'width-offset
+     :algorithm :fixed
+     :property :width-offset
      :reader fixed-width-offset)
    (fit-variant etap-radio-button-panel
-     :algorithm 'fit
-     :property 'variant
+     :algorithm :fit
+     :property :variant
      :help-keys *fit-variants-help-keys*
      :reader fit-variant)
    (fit-fallback etap-radio-button-panel
-     :algorithm 'fit
-     :property 'fallback
+     :algorithm :fit
+     :property :fallback
      :help-keys *fit-fallbacks-help-keys*
      :reader fit-fallback)
    (fit-discriminating-function etap-radio-button-panel
-     :algorithm 'fit
-     :property 'discriminating-function
+     :algorithm :fit
+     :property :discriminating-function
      :help-keys *fit-discriminating-functions-help-keys*
      :reader fit-discriminating-function)
    (fit-options etap-check-button-panel
-     :algorithm 'fit
-     :properties 'options
+     :algorithm :fit
+     :properties :options
      :help-keys *fit-options-help-keys*
      :reader fit-options)
    (fit-line-penalty etap-slider
-     :algorithm 'fit
-     :property 'line-penalty
+     :algorithm :fit
+     :property :line-penalty
      :reader fit-line-penalty)
    (fit-hyphen-penalty etap-slider
-     :algorithm 'fit
-     :property 'hyphen-penalty
+     :algorithm :fit
+     :property :hyphen-penalty
      :reader fit-hyphen-penalty)
    (fit-explicit-hyphen-penalty etap-slider
-     :algorithm 'fit
-     :property 'explicit-hyphen-penalty
+     :algorithm :fit
+     :property :explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
    (fit-width-offset etap-dimen-slider
-     :algorithm 'fit
-     :property 'width-offset
+     :algorithm :fit
+     :property :width-offset
      :reader fit-width-offset)
    (duncan-discriminating-function etap-radio-button-panel
-     :algorithm 'duncan
-     :property 'discriminating-function
+     :algorithm :duncan
+     :property :discriminating-function
      :help-keys *duncan-discriminating-functions-help-keys*
      :reader duncan-discriminating-function)
    (kp-variant etap-radio-button-panel
-     :algorithm 'kp
-     :property 'variant
+     :algorithm :kp
+     :property :variant
      :help-keys *kp-variants-help-keys*
      :reader kp-variant)
    (kp-line-penalty etap-slider
-     :algorithm 'kp
-     :property 'line-penalty
+     :algorithm :kp
+     :property :line-penalty
      :reader kp-line-penalty)
    (kp-hyphen-penalty etap-slider
-     :algorithm 'kp
-     :property 'hyphen-penalty
+     :algorithm :kp
+     :property :hyphen-penalty
      :reader kp-hyphen-penalty)
    (kp-explicit-hyphen-penalty etap-slider
-     :algorithm 'kp
-     :property 'explicit-hyphen-penalty
+     :algorithm :kp
+     :property :explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
    (kp-adjacent-demerits etap-slider
-     :algorithm 'kp
-     :property 'adjacent-demerits
+     :algorithm :kp
+     :property :adjacent-demerits
      :reader kp-adjacent-demerits)
    (kp-double-hyphen-demerits etap-slider
-     :algorithm 'kp
-     :property 'double-hyphen-demerits
+     :algorithm :kp
+     :property :double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
    (kp-final-hyphen-demerits etap-slider
-     :algorithm 'kp
-     :property 'final-hyphen-demerits
+     :algorithm :kp
+     :property :final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
    (kp-pre-tolerance etap-slider
-     :algorithm 'kp
-     :property 'pre-tolerance
+     :algorithm :kp
+     :property :pre-tolerance
      :reader kp-pre-tolerance)
    (kp-tolerance etap-slider
-     :algorithm 'kp
-     :property 'tolerance
+     :algorithm :kp
+     :property :tolerance
      :reader kp-tolerance)
    (kp-emergency-stretch etap-dimen-slider
-     :algorithm 'kp
-     :property 'emergency-stretch
+     :algorithm :kp
+     :property :emergency-stretch
      :reader kp-emergency-stretch)
    (kp-looseness etap-slider
-     :algorithm 'kp
-     :property 'looseness
+     :algorithm :kp
+     :property :looseness
      :reader kp-looseness)
    (kpx-variant etap-radio-button-panel
-     :algorithm 'kpx
-     :property 'variant
+     :algorithm :kpx
+     :property :variant
      :help-keys *kpx-variants-help-keys*
      :reader kpx-variant)
    (kpx-fitness etap-radio-button-panel
-     :algorithm 'kpx
-     :property 'fitness
+     :algorithm :kpx
+     :property :fitness
      :plural :es
      :help-keys *kpx-fitnesses-help-keys*
      :reader kpx-fitness)
    (kpx-line-penalty etap-slider
-     :algorithm 'kpx
-     :property 'line-penalty
+     :algorithm :kpx
+     :property :line-penalty
      :reader kpx-line-penalty)
    (kpx-hyphen-penalty etap-slider
-     :algorithm 'kpx
-     :property 'hyphen-penalty
+     :algorithm :kpx
+     :property :hyphen-penalty
      :reader kpx-hyphen-penalty)
    (kpx-explicit-hyphen-penalty etap-slider
-     :algorithm 'kpx
-     :property 'explicit-hyphen-penalty
+     :algorithm :kpx
+     :property :explicit-hyphen-penalty
      :reader kpx-explicit-hyphen-penalty)
    (kpx-adjacent-demerits etap-slider
-     :algorithm 'kpx
-     :property 'adjacent-demerits
+     :algorithm :kpx
+     :property :adjacent-demerits
      :reader kpx-adjacent-demerits)
    (kpx-double-hyphen-demerits etap-slider
-     :algorithm 'kpx
-     :property 'double-hyphen-demerits
+     :algorithm :kpx
+     :property :double-hyphen-demerits
      :reader kpx-double-hyphen-demerits)
    (kpx-final-hyphen-demerits etap-slider
-     :algorithm 'kpx
-     :property 'final-hyphen-demerits
+     :algorithm :kpx
+     :property :final-hyphen-demerits
      :reader kpx-final-hyphen-demerits)
    (kpx-similar-demerits etap-slider
-     :algorithm 'kpx
-     :property 'similar-demerits
+     :algorithm :kpx
+     :property :similar-demerits
      :reader kpx-similar-demerits)
    (kpx-pre-tolerance etap-slider
-     :algorithm 'kpx
-     :property 'pre-tolerance
+     :algorithm :kpx
+     :property :pre-tolerance
      :reader kpx-pre-tolerance)
    (kpx-tolerance etap-slider
-     :algorithm 'kpx
-     :property 'tolerance
+     :algorithm :kpx
+     :property :tolerance
      :reader kpx-tolerance)
    (kpx-emergency-stretch etap-dimen-slider
-     :algorithm 'kpx
-     :property 'emergency-stretch
+     :algorithm :kpx
+     :property :emergency-stretch
      :reader kpx-emergency-stretch)
    (kpx-looseness etap-slider
-     :algorithm 'kpx
-     :property 'looseness
+     :algorithm :kpx
+     :property :looseness
      :reader kpx-looseness)
    (disposition radio-button-panel
      :layout-class 'column-layout
