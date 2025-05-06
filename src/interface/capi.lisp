@@ -258,11 +258,6 @@ and invalidates the view."
 		(slider-setting fixed :width-offset interface)
 		(choice-selected-items (fixed-options interface))))))
 
-(defun set-fixed-algorithm (value interface)
-  (fixed-update-context value interface)
-  (update interface))
-
-
 ;; Fit
 (defun fit-update-context (value interface)
   "Set the current algorithm to Fit in INTERFACE's context."
@@ -279,17 +274,11 @@ and invalidates the view."
 		(slider-setting fit :width-offset interface)
 		(choice-selected-items (fit-options interface))))))
 
-(defun set-fit-algorithm (value interface)
-  (fit-update-context value interface)
-  (update interface))
-
-
 ;; Barnett
 (defun barnett-update-context (value interface)
   "Set the current algorithm to Barnett in INTERFACE's context."
   (declare (ignore value))
   (setf (algorithm (context interface)) '(:barnett)))
-
 
 ;; Duncan
 (defun duncan-update-context (value interface)
@@ -298,11 +287,6 @@ and invalidates the view."
   (setf (algorithm (context interface))
 	(cons :duncan
 	      (radio-setting duncan :discriminating-function interface))))
-
-(defun set-duncan-algorithm (value interface)
-  (duncan-update-context value interface)
-  (update interface))
-
 
 ;; Knuth-Plass
 (defun kp-update-context (value interface)
@@ -322,11 +306,6 @@ and invalidates the view."
 	       (slider-setting kp :tolerance interface)
 	       (slider-setting kp :emergency-stretch interface)
 	       (slider-setting kp :looseness interface)))))
-
-(defun set-kp-algorithm (value interface)
-  (kp-update-context value interface)
-  (update interface))
-
 
 ;; KPX
 (defun kpx-update-context (value interface)
@@ -348,10 +327,6 @@ and invalidates the view."
 	       (slider-setting kpx :tolerance interface)
 	       (slider-setting kpx :emergency-stretch interface)
 	       (slider-setting kpx :looseness interface)))))
-
-(defun set-kpx-algorithm (value interface)
-  (kpx-update-context value interface)
-  (update interface))
 
 
 (defun set-algorithm (value interface)
