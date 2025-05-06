@@ -107,26 +107,6 @@ and invalidates the view."
     (update-slider-title slider)))
 
 
-(defmacro define-slider-callback
-    (name &aux (name (string name))
-	       (dash-position (position #\- name))
-	       (prefix (subseq name 0 dash-position))
-	       (generic (subseq name (1+ dash-position))))
-  "Define a SET-NAME slider callback function.
-NAME (a symbol) must be of the form PREFIX-PROPERTY."
-    `(defun ,(intern (concatenate 'string "SET-" name)) (pane value status)
-       (declare (ignore status))
-       (setf (titled-object-title pane)
-	     (format nil
-		 ,(concatenate 'string (title-capitalize generic) ": ~D")
-	       value))
-       (,(intern (concatenate 'string "SET-" prefix "-ALGORITHM"))
-	nil (top-level-interface pane))))
-
-(defmacro define-slider-callbacks (&rest names)
-  "Define slider callback functions for NAMES."
-  `(progn ,@(mapcar (lambda (name) `(define-slider-callback ,name)) names)))
-
 (defmacro slider-value (prefix key interface)
   "Return (:KEY (RANGE-SLUG-START (PREFIX-KEY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
