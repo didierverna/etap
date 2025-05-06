@@ -62,7 +62,7 @@ and invalidates the view."
    (context-updater :documentation "This slider's context updater function."
 		    :reader context-updater))
   (:default-initargs
-   :title "Dummy" ;; #### FIXME: without this, the sliders don't appear.
+   :title "Dummy"
    :tick-frequency 0
    :orientation :horizontal
    :visible-min-width 220
@@ -146,7 +146,7 @@ and invalidates the view."
     :documentation "This radio button panel's context updater function."
     :reader context-updater))
   (:default-initargs
-   :title "Dummy" ;; #### FIXME: without this, the panels don't appear.
+   :title "Dummy"
    :title-position :frame
    :layout-class 'column-layout
    :visible-max-height nil
@@ -203,7 +203,7 @@ and invalidates the view."
     :documentation "This check button panel's context updater function."
     :reader context-updater))
   (:default-initargs
-   :title "Dummy" ;; #### FIXME: without this, the panels don't appear.
+   :title "Dummy"
    :title-position :frame
    :layout-class 'column-layout
    :visible-max-height nil
