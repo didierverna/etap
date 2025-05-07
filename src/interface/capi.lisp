@@ -66,7 +66,7 @@ and invalidates the view."
   ((algorithm
     :documentation "This slider's algorithm."
     :initarg :algorithm :reader algorithm))
-  (:default-initargs :title "Dummy" :callback 'agc-callback)
+  (:default-initargs :title "Dummy")
   (:documentation "The Algorithm GUI Component class.
 This class serves as a mixin for GUI components representing algorithmic
 settings."))
@@ -97,7 +97,8 @@ settings."))
   (:default-initargs
    :tick-frequency 0
    :orientation :horizontal
-   :visible-min-width 220)
+   :visible-min-width 220
+   :callback 'agc-callback)
   (:documentation "The AGC Slider Class."))
 
 (defclass agc-dimen-slider (agc-slider)
@@ -158,26 +159,34 @@ settings."))
 
 
 ;; -------------------
-;; Radio Button Panels
+;; AGC Button Panels
 ;; -------------------
 
-(defclass etap-radio-button-panel (radio-button-panel)
-  ((algorithm
-    :documentation "This radio button panel's algorithm."
-    :initarg :algorithm :reader algorithm))
+(defclass agc-button-panel (agc)
+  ()
   (:default-initargs
-   :title "Dummy"
    :title-position :frame
    :layout-class 'column-layout
    :visible-max-height nil
-   :print-function 'title-capitalize
-   :callback-type '(:element :interface)
-   :selection-callback 'etap-radio-button-panel-selection-callback)
-  (:documentation "The ETAP Radio Button Panel Class."))
+   :callback-type '(:element :data :interface) ; see comment atop AGC
+   :selection-callback 'agc-callback)
+  (:documentation "The Algorithm GUI Component Button Panel class.
+This is the mixin class for AGC radio and check button panels."))
+
+
+;; -------------------
+;; Radio Button Panels
+;; -------------------
+
+(defclass agc-radio-button-panel (agc-button-panel radio-button-panel)
+  ()
+  (:default-initargs
+   :print-function 'title-capitalize)
+  (:documentation "The AGC Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
-    ((panel etap-radio-button-panel) &key property plural)
-  "Post-initialize ETAP radio button PANEL."
+    ((panel agc-radio-button-panel) &key property plural)
+  "Post-initialize AGC radio button PANEL."
   (setf (collection-items panel)
 	(symbol-value (intern (concatenate 'string
 				"*"
@@ -193,13 +202,7 @@ settings."))
   (setf (titled-object-title panel) (title-capitalize property)))
 
 
-(defun etap-radio-button-panel-selection-callback (panel interface)
-  "Handle ETAP radio button PANEL's value change."
-  (select-algorithm (algorithm panel) interface)
-  (update interface))
-
-
-(defmacro radio-setting (algorithm property interface)
+(defmacro agc-radio-setting (algorithm property interface)
   "Return (:PROPERTY (CHOICE-SELECTED-ITEM (ALGORITHM-PROPERTY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
 			    (symbol-name algorithm)
@@ -213,23 +216,15 @@ settings."))
 ;; Check Button Panels
 ;; -------------------
 
-(defclass etap-check-button-panel (check-button-panel)
-  ((algorithm
-    :documentation "This check button panel's algorithm."
-    :initarg :algorithm :reader algorithm))
+(defclass agc-check-button-panel (agc-button-panel check-button-panel)
+  ()
   (:default-initargs
-   :title "Dummy"
-   :title-position :frame
-   :layout-class 'column-layout
-   :visible-max-height nil
    :print-function (lambda (item) (title-capitalize (car item)))
-   :callback-type '(:element :interface)
-   :selection-callback 'etap-check-button-panel-callback
-   :retract-callback   'etap-check-button-panel-callback)
-  (:documentation "The ETAP Radio Button Panel Class."))
+   :retract-callback   'agc-callback)
+  (:documentation "The AGC Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
-    ((panel etap-check-button-panel) &key properties)
+    ((panel agc-check-button-panel) &key properties)
   "Post-initialize ETAP check button PANEL."
   (setf (collection-items panel)
 	(symbol-value (intern (concatenate 'string
@@ -240,12 +235,6 @@ settings."))
 				"*")
 			      :etap)))
   (setf (titled-object-title panel) (title-capitalize properties)))
-
-
-(defun etap-check-button-panel-callback (panel interface)
-  "Handle ETAP check button PANEL's value change."
-  (select-algorithm (algorithm panel) interface)
-  (update interface))
 
 
 
@@ -265,7 +254,7 @@ settings."))
     (setf (algorithm (context interface))
 	  (cons :fixed
 		(apply #'append
-		  (radio-setting fixed :fallback interface)
+		  (agc-radio-setting fixed :fallback interface)
 		  (agc-slider-setting fixed :width-offset interface)
 		  (choice-selected-items (fixed-options interface))))))
   (:method ((algorithm (eql :fit)) interface)
@@ -273,9 +262,9 @@ settings."))
     (setf (algorithm (context interface))
 	  (cons :fit
 		(apply #'append
-		  (radio-setting fit :variant interface)
-		  (radio-setting fit :fallback interface)
-		  (radio-setting fit :discriminating-function interface)
+		  (agc-radio-setting fit :variant interface)
+		  (agc-radio-setting fit :fallback interface)
+		  (agc-radio-setting fit :discriminating-function interface)
 		  (agc-slider-setting fit :line-penalty interface)
 		  (agc-slider-setting fit :hyphen-penalty interface)
 		  (agc-slider-setting fit :explicit-hyphen-penalty interface)
@@ -288,13 +277,13 @@ settings."))
     "Select the Duncan algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :duncan
-		(radio-setting duncan :discriminating-function interface))))
+		(agc-radio-setting duncan :discriminating-function interface))))
   (:method ((algorithm (eql :kp)) interface)
     "Select the Knuth-Plass algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :knuth-plass
 		(append
-		 (radio-setting kp :variant interface)
+		 (agc-radio-setting kp :variant interface)
 		 (agc-slider-setting kp :line-penalty interface)
 		 (agc-slider-setting kp :hyphen-penalty interface)
 		 (agc-slider-setting kp :explicit-hyphen-penalty interface)
@@ -310,8 +299,8 @@ settings."))
     (setf (algorithm (context interface))
 	  (cons :kpx
 		(append
-		 (radio-setting kpx :variant interface)
-		 (radio-setting kpx :fitness interface)
+		 (agc-radio-setting kpx :variant interface)
+		 (agc-radio-setting kpx :fitness interface)
 		 (agc-slider-setting kpx :line-penalty interface)
 		 (agc-slider-setting kpx :hyphen-penalty interface)
 		 (agc-slider-setting kpx :explicit-hyphen-penalty interface)
@@ -724,7 +713,7 @@ settings."))
      :visible-child-function 'second
      :selection-callback 'set-algorithm
      :reader algorithms)
-   (fixed-fallback etap-radio-button-panel
+   (fixed-fallback agc-radio-button-panel
      :algorithm :fixed
      :property :fallback
      :help-keys *fixed-fallbacks-help-keys*
@@ -738,17 +727,17 @@ settings."))
      :algorithm :fixed
      :property :width-offset
      :reader fixed-width-offset)
-   (fit-variant etap-radio-button-panel
+   (fit-variant agc-radio-button-panel
      :algorithm :fit
      :property :variant
      :help-keys *fit-variants-help-keys*
      :reader fit-variant)
-   (fit-fallback etap-radio-button-panel
+   (fit-fallback agc-radio-button-panel
      :algorithm :fit
      :property :fallback
      :help-keys *fit-fallbacks-help-keys*
      :reader fit-fallback)
-   (fit-discriminating-function etap-radio-button-panel
+   (fit-discriminating-function agc-radio-button-panel
      :algorithm :fit
      :property :discriminating-function
      :help-keys *fit-discriminating-functions-help-keys*
@@ -774,12 +763,12 @@ settings."))
      :algorithm :fit
      :property :width-offset
      :reader fit-width-offset)
-   (duncan-discriminating-function etap-radio-button-panel
+   (duncan-discriminating-function agc-radio-button-panel
      :algorithm :duncan
      :property :discriminating-function
      :help-keys *duncan-discriminating-functions-help-keys*
      :reader duncan-discriminating-function)
-   (kp-variant etap-radio-button-panel
+   (kp-variant agc-radio-button-panel
      :algorithm :kp
      :property :variant
      :help-keys *kp-variants-help-keys*
@@ -824,12 +813,12 @@ settings."))
      :algorithm :kp
      :property :looseness
      :reader kp-looseness)
-   (kpx-variant etap-radio-button-panel
+   (kpx-variant agc-radio-button-panel
      :algorithm :kpx
      :property :variant
      :help-keys *kpx-variants-help-keys*
      :reader kpx-variant)
-   (kpx-fitness etap-radio-button-panel
+   (kpx-fitness agc-radio-button-panel
      :algorithm :kpx
      :property :fitness
      :plural :es
