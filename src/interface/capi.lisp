@@ -58,39 +58,62 @@ and invalidates the view."
 ;; GUI Constituents
 ;; ==========================================================================
 
+;; ------------------------
+;; Algorithm GUI Components
+;; ------------------------
+
+(defclass agc ()
+  ((algorithm
+    :documentation "This slider's algorithm."
+    :initarg :algorithm :reader algorithm))
+  (:default-initargs :title "Dummy" :callback 'agc-callback)
+  (:documentation "The Algorithm GUI Component class.
+This class serves as a mixin for GUI components representing algorithmic
+settings."))
+
+;; #### WARNING: CAPI sliders impose a specific signature on callbacks (3
+;; mandatory arguments) so we need to conform to that if we want to use a
+;; single generic function for all kinds of GUI components.
+(defgeneric agc-callback (component arg2 arg3)
+  (:documentation "The callback for all algorithm GUI components.")
+  (:method ((component agc) arg2 arg3
+	    &aux (interface (top-level-interface component)))
+    "Update algorithmic settings in COMPONENT's interface context."
+    (select-algorithm (algorithm component) interface))
+  (:method :after ((component agc) arg2 arg3
+		   &aux (interface (top-level-interface component)))
+    "Update COMPONENT's interface."
+    (update interface)))
+
+
 ;; -------
 ;; Sliders
 ;; -------
 
-(defclass etap-slider (slider)
-  ((algorithm
-    :documentation "This slider's algorithm."
-    :initarg :algorithm :reader algorithm)
-   (property-name
+(defclass agc-slider (agc slider)
+  ((property-name
     :documentation "This slider's property name."
     :reader property-name))
   (:default-initargs
-   :title "Dummy"
    :tick-frequency 0
    :orientation :horizontal
-   :visible-min-width 220
-   :callback 'etap-slider-callback)
-  (:documentation "The ETAP Slider Class."))
+   :visible-min-width 220)
+  (:documentation "The AGC Slider Class."))
 
-(defclass etap-dimen-slider (etap-slider)
+(defclass agc-dimen-slider (agc-slider)
   ()
-  (:documentation "The ETAP Dimension Slider Class."))
+  (:documentation "The AGC Dimension Slider Class."))
 
 
-(defgeneric etap-slider-title (slider)
-  (:documentation "Compute ETAP SlIDER's title based on its current value.")
-  (:method ((slider etap-slider))
-    "Advertise ETAP SLIDER's value in its title. This is the default method."
+(defgeneric agc-slider-title (slider)
+  (:documentation "Compute AGC SlIDER's title based on its current value.")
+  (:method ((slider agc-slider))
+    "Advertise AGC SLIDER's value in its title. This is the default method."
     (concatenate 'string
       (property-name slider) ": "
       (write-to-string (range-slug-start slider))))
-  (:method ((slider etap-dimen-slider) &aux (value (range-slug-start slider)))
-    "Advertise ETAP dimension SLIDER's value in its title, in pt and cm."
+  (:method ((slider agc-dimen-slider) &aux (value (range-slug-start slider)))
+    "Advertise AGC dimension SLIDER's value in its title, in pt and cm."
     (concatenate 'string
       (property-name slider) ": "
       (write-to-string value)
@@ -98,13 +121,13 @@ and invalidates the view."
       (write-to-string (float (/ value 28.452755)))
       "cm)")))
 
-(defun update-etap-slider-title (slider)
-  "Update ETAP SLIDER's title."
-  (setf (titled-object-title slider) (etap-slider-title slider)))
+(defun update-agc-slider-title (slider)
+  "Update AGC SLIDER's title."
+  (setf (titled-object-title slider) (agc-slider-title slider)))
 
 
-(defmethod initialize-instance :after ((slider etap-slider) &key property)
-  "Post-initialize SLIDER."
+(defmethod initialize-instance :after ((slider agc-slider) &key property)
+  "Post-initialize AGC SLIDER."
   (setf (slot-value slider 'property-name) (title-capitalize property))
   (let ((caliber (symbol-value (intern (concatenate 'string
 					 "*"
@@ -116,20 +139,16 @@ and invalidates the view."
     (setf (range-start slider)      (caliber-min caliber)
 	  (range-end slider)        (caliber-max caliber)
 	  (range-slug-start slider) (caliber-default caliber))
-    (update-etap-slider-title slider)))
+    (update-agc-slider-title slider)))
 
 
-;; #### NOTE: apparently, slider callbacks signature cannot be changed.
-(defun etap-slider-callback
-    (slider value status &aux (interface (top-level-interface slider)))
-  "Handle SLIDER's value change."
-  (declare (ignore value status))
-  (update-etap-slider-title slider)
-  (select-algorithm (algorithm slider) interface)
-  (update interface))
+(defmethod agc-callback :before ((slider agc-slider) how where)
+  "Update AGC SLIDER's title."
+  (declare (ignore how where))
+  (update-agc-slider-title slider))
 
 
-(defmacro slider-setting (algorithm property interface)
+(defmacro agc-slider-setting (algorithm property interface)
   "Return (:PROPERTY (RANGE-SLUG-START (ALGORITHM-PROPERTY INTERFACE)))."
   (let ((accessor (intern (concatenate 'string
 			    (symbol-name algorithm)
@@ -247,7 +266,7 @@ and invalidates the view."
 	  (cons :fixed
 		(apply #'append
 		  (radio-setting fixed :fallback interface)
-		  (slider-setting fixed :width-offset interface)
+		  (agc-slider-setting fixed :width-offset interface)
 		  (choice-selected-items (fixed-options interface))))))
   (:method ((algorithm (eql :fit)) interface)
     "Select the Fit algorithm  in INTERFACE's context."
@@ -257,10 +276,10 @@ and invalidates the view."
 		  (radio-setting fit :variant interface)
 		  (radio-setting fit :fallback interface)
 		  (radio-setting fit :discriminating-function interface)
-		  (slider-setting fit :line-penalty interface)
-		  (slider-setting fit :hyphen-penalty interface)
-		  (slider-setting fit :explicit-hyphen-penalty interface)
-		  (slider-setting fit :width-offset interface)
+		  (agc-slider-setting fit :line-penalty interface)
+		  (agc-slider-setting fit :hyphen-penalty interface)
+		  (agc-slider-setting fit :explicit-hyphen-penalty interface)
+		  (agc-slider-setting fit :width-offset interface)
 		  (choice-selected-items (fit-options interface))))))
   (:method ((algorithm (eql :barnett)) interface)
     "Select the Barnett algorithm in INTERFACE's context."
@@ -276,16 +295,16 @@ and invalidates the view."
 	  (cons :knuth-plass
 		(append
 		 (radio-setting kp :variant interface)
-		 (slider-setting kp :line-penalty interface)
-		 (slider-setting kp :hyphen-penalty interface)
-		 (slider-setting kp :explicit-hyphen-penalty interface)
-		 (slider-setting kp :adjacent-demerits interface)
-		 (slider-setting kp :double-hyphen-demerits interface)
-		 (slider-setting kp :final-hyphen-demerits interface)
-		 (slider-setting kp :pre-tolerance interface)
-		 (slider-setting kp :tolerance interface)
-		 (slider-setting kp :emergency-stretch interface)
-		 (slider-setting kp :looseness interface)))))
+		 (agc-slider-setting kp :line-penalty interface)
+		 (agc-slider-setting kp :hyphen-penalty interface)
+		 (agc-slider-setting kp :explicit-hyphen-penalty interface)
+		 (agc-slider-setting kp :adjacent-demerits interface)
+		 (agc-slider-setting kp :double-hyphen-demerits interface)
+		 (agc-slider-setting kp :final-hyphen-demerits interface)
+		 (agc-slider-setting kp :pre-tolerance interface)
+		 (agc-slider-setting kp :tolerance interface)
+		 (agc-slider-setting kp :emergency-stretch interface)
+		 (agc-slider-setting kp :looseness interface)))))
   (:method ((algorithm (eql :kpx)) interface)
     "Select the KPX algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
@@ -293,17 +312,17 @@ and invalidates the view."
 		(append
 		 (radio-setting kpx :variant interface)
 		 (radio-setting kpx :fitness interface)
-		 (slider-setting kpx :line-penalty interface)
-		 (slider-setting kpx :hyphen-penalty interface)
-		 (slider-setting kpx :explicit-hyphen-penalty interface)
-		 (slider-setting kpx :adjacent-demerits interface)
-		 (slider-setting kpx :double-hyphen-demerits interface)
-		 (slider-setting kpx :final-hyphen-demerits interface)
-		 (slider-setting kpx :similar-demerits interface)
-		 (slider-setting kpx :pre-tolerance interface)
-		 (slider-setting kpx :tolerance interface)
-		 (slider-setting kpx :emergency-stretch interface)
-		 (slider-setting kpx :looseness interface))))))
+		 (agc-slider-setting kpx :line-penalty interface)
+		 (agc-slider-setting kpx :hyphen-penalty interface)
+		 (agc-slider-setting kpx :explicit-hyphen-penalty interface)
+		 (agc-slider-setting kpx :adjacent-demerits interface)
+		 (agc-slider-setting kpx :double-hyphen-demerits interface)
+		 (agc-slider-setting kpx :final-hyphen-demerits interface)
+		 (agc-slider-setting kpx :similar-demerits interface)
+		 (agc-slider-setting kpx :pre-tolerance interface)
+		 (agc-slider-setting kpx :tolerance interface)
+		 (agc-slider-setting kpx :emergency-stretch interface)
+		 (agc-slider-setting kpx :looseness interface))))))
 
 
 ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout, except
@@ -715,7 +734,7 @@ and invalidates the view."
      :properties :options
      :help-keys *fixed-options-help-keys*
      :reader fixed-options)
-   (fixed-width-offset etap-dimen-slider
+   (fixed-width-offset agc-dimen-slider
      :algorithm :fixed
      :property :width-offset
      :reader fixed-width-offset)
@@ -739,19 +758,19 @@ and invalidates the view."
      :properties :options
      :help-keys *fit-options-help-keys*
      :reader fit-options)
-   (fit-line-penalty etap-slider
+   (fit-line-penalty agc-slider
      :algorithm :fit
      :property :line-penalty
      :reader fit-line-penalty)
-   (fit-hyphen-penalty etap-slider
+   (fit-hyphen-penalty agc-slider
      :algorithm :fit
      :property :hyphen-penalty
      :reader fit-hyphen-penalty)
-   (fit-explicit-hyphen-penalty etap-slider
+   (fit-explicit-hyphen-penalty agc-slider
      :algorithm :fit
      :property :explicit-hyphen-penalty
      :reader fit-explicit-hyphen-penalty)
-   (fit-width-offset etap-dimen-slider
+   (fit-width-offset agc-dimen-slider
      :algorithm :fit
      :property :width-offset
      :reader fit-width-offset)
@@ -765,43 +784,43 @@ and invalidates the view."
      :property :variant
      :help-keys *kp-variants-help-keys*
      :reader kp-variant)
-   (kp-line-penalty etap-slider
+   (kp-line-penalty agc-slider
      :algorithm :kp
      :property :line-penalty
      :reader kp-line-penalty)
-   (kp-hyphen-penalty etap-slider
+   (kp-hyphen-penalty agc-slider
      :algorithm :kp
      :property :hyphen-penalty
      :reader kp-hyphen-penalty)
-   (kp-explicit-hyphen-penalty etap-slider
+   (kp-explicit-hyphen-penalty agc-slider
      :algorithm :kp
      :property :explicit-hyphen-penalty
      :reader kp-explicit-hyphen-penalty)
-   (kp-adjacent-demerits etap-slider
+   (kp-adjacent-demerits agc-slider
      :algorithm :kp
      :property :adjacent-demerits
      :reader kp-adjacent-demerits)
-   (kp-double-hyphen-demerits etap-slider
+   (kp-double-hyphen-demerits agc-slider
      :algorithm :kp
      :property :double-hyphen-demerits
      :reader kp-double-hyphen-demerits)
-   (kp-final-hyphen-demerits etap-slider
+   (kp-final-hyphen-demerits agc-slider
      :algorithm :kp
      :property :final-hyphen-demerits
      :reader kp-final-hyphen-demerits)
-   (kp-pre-tolerance etap-slider
+   (kp-pre-tolerance agc-slider
      :algorithm :kp
      :property :pre-tolerance
      :reader kp-pre-tolerance)
-   (kp-tolerance etap-slider
+   (kp-tolerance agc-slider
      :algorithm :kp
      :property :tolerance
      :reader kp-tolerance)
-   (kp-emergency-stretch etap-dimen-slider
+   (kp-emergency-stretch agc-dimen-slider
      :algorithm :kp
      :property :emergency-stretch
      :reader kp-emergency-stretch)
-   (kp-looseness etap-slider
+   (kp-looseness agc-slider
      :algorithm :kp
      :property :looseness
      :reader kp-looseness)
@@ -816,47 +835,47 @@ and invalidates the view."
      :plural :es
      :help-keys *kpx-fitnesses-help-keys*
      :reader kpx-fitness)
-   (kpx-line-penalty etap-slider
+   (kpx-line-penalty agc-slider
      :algorithm :kpx
      :property :line-penalty
      :reader kpx-line-penalty)
-   (kpx-hyphen-penalty etap-slider
+   (kpx-hyphen-penalty agc-slider
      :algorithm :kpx
      :property :hyphen-penalty
      :reader kpx-hyphen-penalty)
-   (kpx-explicit-hyphen-penalty etap-slider
+   (kpx-explicit-hyphen-penalty agc-slider
      :algorithm :kpx
      :property :explicit-hyphen-penalty
      :reader kpx-explicit-hyphen-penalty)
-   (kpx-adjacent-demerits etap-slider
+   (kpx-adjacent-demerits agc-slider
      :algorithm :kpx
      :property :adjacent-demerits
      :reader kpx-adjacent-demerits)
-   (kpx-double-hyphen-demerits etap-slider
+   (kpx-double-hyphen-demerits agc-slider
      :algorithm :kpx
      :property :double-hyphen-demerits
      :reader kpx-double-hyphen-demerits)
-   (kpx-final-hyphen-demerits etap-slider
+   (kpx-final-hyphen-demerits agc-slider
      :algorithm :kpx
      :property :final-hyphen-demerits
      :reader kpx-final-hyphen-demerits)
-   (kpx-similar-demerits etap-slider
+   (kpx-similar-demerits agc-slider
      :algorithm :kpx
      :property :similar-demerits
      :reader kpx-similar-demerits)
-   (kpx-pre-tolerance etap-slider
+   (kpx-pre-tolerance agc-slider
      :algorithm :kpx
      :property :pre-tolerance
      :reader kpx-pre-tolerance)
-   (kpx-tolerance etap-slider
+   (kpx-tolerance agc-slider
      :algorithm :kpx
      :property :tolerance
      :reader kpx-tolerance)
-   (kpx-emergency-stretch etap-dimen-slider
+   (kpx-emergency-stretch agc-dimen-slider
      :algorithm :kpx
      :property :emergency-stretch
      :reader kpx-emergency-stretch)
-   (kpx-looseness etap-slider
+   (kpx-looseness agc-slider
      :algorithm :kpx
      :property :looseness
      :reader kpx-looseness)
