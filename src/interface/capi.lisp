@@ -722,7 +722,7 @@ This is the mixin class for AGC radio and check button panels."))
      :property :fallback
      :help-keys *fixed-fallbacks-help-keys*
      :reader fixed-fallback)
-   (fixed-options etap-check-button-panel
+   (fixed-options agc-check-button-panel
      :algorithm :fixed
      :properties :options
      :help-keys *fixed-options-help-keys*
@@ -746,7 +746,7 @@ This is the mixin class for AGC radio and check button panels."))
      :property :discriminating-function
      :help-keys *fit-discriminating-functions-help-keys*
      :reader fit-discriminating-function)
-   (fit-options etap-check-button-panel
+   (fit-options agc-check-button-panel
      :algorithm :fit
      :properties :options
      :help-keys *fit-options-help-keys*
