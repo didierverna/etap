@@ -518,7 +518,6 @@ This is the mixin class for AGC radio and check button panels."))
 				      (+ x (x item) (/ (width item) 2)) y 1
 				      :filled t :foreground :red)))))
 		      (items line)))
-	;; #### FIXME: see PIN-LINE comment about the beds boards.
 	(when (and (button-selected
 		    (rivers-detection (rivers-interface interface)))
 		   rivers)
