@@ -1041,82 +1041,76 @@ This currently includes the initial ZOOMing factor and CLUES."
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
-	((set-variant (prefix)
+	((set-variant (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (string prefix) "-VARIANT")))
+				     (symbol-name alg) "-VARIANT")))
 		 (choices (intern (concatenate 'string
-				    "*" (string prefix) "-VARIANTS*"))))
+				    "*" (symbol-name alg) "-VARIANTS*"))))
 	     `(setf (choice-selected-item (,accessor etap))
 		    (or (cadr (member :variant options)) (car ,choices)))))
-	 (set-fallback (prefix)
+	 (set-fallback (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (string prefix) "-FALLBACK")))
+				     (symbol-name alg) "-FALLBACK")))
 		 (choices (intern (concatenate 'string
-				    "*" (string prefix) "-FALLBACKS*"))))
+				    "*" (symbol-name alg) "-FALLBACKS*"))))
 	     `(setf (choice-selected-item (,accessor etap))
 		    (or (cadr (member :fallback options)) (car ,choices)))))
-	 (set-options (prefix)
+	 (set-options (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (string prefix) "-OPTIONS")))
+				     (symbol-name alg) "-OPTIONS")))
 		 (choices (intern (concatenate 'string
-				    "*" (string prefix) "-OPTIONS*"))))
+				    "*" (symbol-name alg) "-OPTIONS*"))))
 	     `(set-choice-selection (,accessor etap) options ,choices)))
-	 (set-slider (prefix key)
-	   (let ((accessor (intern (concatenate 'string
-				     (string prefix) "-" (string key))))
-		 (caliber (intern (concatenate 'string
-				    "*" (string prefix) "-" (string key) "*"))))
-	     `(progn
-		(setf (range-slug-start (,accessor etap))
-		      (or (cadr (member ,key options))
+	 (set-slider (alg prop)
+	   (let* ((accessor (intern (concatenate 'string
+				      (symbol-name alg)
+				      "-"
+				      (symbol-name prop))))
+		  (caliber (intern (concatenate 'string
+				     "*"
+				     (symbol-name alg)
+				     "-"
+				     (symbol-name prop)
+				     "*")))
+		  (the-slider (gensym "SLIDER")))
+	     `(let ((,the-slider (,accessor etap)))
+		(setf (range-slug-start ,the-slider)
+		      (or (cadr (member ,prop options))
 			  (caliber-default ,caliber)))
-		(setf (titled-object-title (,accessor etap))
-		      (format nil "~A: ~D"
-			,(title-capitalize key)
-			(range-slug-start (,accessor etap)))))))
-	 (set-sliders (prefix &rest sliders)
-	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,prefix ,slider))
+		(update-agc-slider-title ,the-slider))))
+	 (set-sliders (alg &rest sliders)
+	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,alg ,slider))
 		       sliders)))
-	 (set-choice (prefix key)
+	 (set-choice (alg prop)
 	   (let ((accessor
 		   (intern (concatenate 'string
-			     (string prefix) "-" (string key))))
+			     (symbol-name alg)
+			     "-"
+			     (symbol-name prop))))
 		 (choices
 		   (intern (concatenate 'string
-			     "*" (string prefix) "-" (string key) "S*"))))
+			     "*"
+			     (symbol-name alg)
+			     "-"
+			     (symbol-name prop)
+			     "S*"))))
 	     `(setf (choice-selected-item (,accessor etap))
-		    (or (cadr (member ,key options)) (car ,choices))))))
+		    (or (cadr (member ,prop options)) (car ,choices))))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms etap)) 0)
 	 (set-fallback fixed)
 	 (set-options fixed)
-	 ;; SET-SLIDER doesn't handle more informative titles than just
-	 ;; displaying the values.
-	 (setf (range-slug-start (fixed-width-offset etap))
-	       (or (cadr (member :width-offset options))
-		   (caliber-default *fixed-width-offset*)))
-	 (setf (titled-object-title (fixed-width-offset etap))
-	       (format nil "Width Offset: ~Dpt (~Fcm)"
-		 (range-slug-start (fixed-width-offset etap))
-		 (/ (range-slug-start (fixed-width-offset etap)) 28.452755))))
+	 (set-slider fixed :width-offset))
 	(:fit
 	 (setf (choice-selection (algorithms etap)) 1)
 	 (set-variant fit)
 	 (set-fallback fit)
 	 (set-options fit)
 	 (set-choice fit :discriminating-function)
-	 (set-sliders fit :line-penalty
-	   :hyphen-penalty :explicit-hyphen-penalty)
-	 ;; SET-SLIDER doesn't handle more informative titles than just
-	 ;; displaying the values.
-	 (setf (range-slug-start (fit-width-offset etap))
-	       (or (cadr (member :width-offset options))
-		   (caliber-default *fit-width-offset*)))
-	 (setf (titled-object-title (fit-width-offset etap))
-	       (format nil "Width Offset: ~Dpt (~Fcm)"
-		 (range-slug-start (fit-width-offset etap))
-		 (/ (range-slug-start (fit-width-offset etap)) 28.452755))))
+	 (set-sliders fit
+	   :width-offset
+	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty))
 	(:barnett
 	 (setf (choice-selection (algorithms etap)) 2))
 	(:duncan
