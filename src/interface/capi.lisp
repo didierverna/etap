@@ -101,10 +101,6 @@ settings."))
    :callback 'agc-callback)
   (:documentation "The AGC Slider Class."))
 
-(defclass agc-dimen-slider (agc-slider)
-  ()
-  (:documentation "The AGC Dimension Slider Class."))
-
 
 (defgeneric agc-slider-title (slider)
   (:documentation "Compute AGC SlIDER's title based on its current value.")
@@ -112,15 +108,7 @@ settings."))
     "Advertise AGC SLIDER's value in its title. This is the default method."
     (concatenate 'string
       (property-name slider) ": "
-      (write-to-string (range-slug-start slider))))
-  (:method ((slider agc-dimen-slider) &aux (value (range-slug-start slider)))
-    "Advertise AGC dimension SLIDER's value in its title, in pt and cm."
-    (concatenate 'string
-      (property-name slider) ": "
-      (write-to-string value)
-      "pt ("
-      (write-to-string (float (/ value 28.452755)))
-      "cm)")))
+      (write-to-string (range-slug-start slider)))))
 
 (defun update-agc-slider-title (slider)
   "Update AGC SLIDER's title."
@@ -158,6 +146,23 @@ settings."))
     `(list ,property (range-slug-start (,accessor ,interface)))))
 
 
+;; Dimension sliders
+
+(defclass agc-dimen-slider (agc-slider)
+  ()
+  (:documentation "The AGC Dimension Slider Class."))
+
+(defmethod agc-slider-title
+    ((slider agc-dimen-slider) &aux (value (range-slug-start slider)))
+  "Advertise AGC dimension SLIDER's value in its title, in pt and cm."
+  (concatenate 'string
+    (property-name slider) ": "
+    (write-to-string value)
+    "pt ("
+    (write-to-string (float (/ value 28.452755)))
+    "cm)"))
+
+
 ;; -------------------
 ;; AGC Button Panels
 ;; -------------------
@@ -174,9 +179,7 @@ settings."))
 This is the mixin class for AGC radio and check button panels."))
 
 
-;; -------------------
 ;; Radio Button Panels
-;; -------------------
 
 (defclass agc-radio-button-panel (agc-button-panel radio-button-panel)
   ()
@@ -211,10 +214,7 @@ This is the mixin class for AGC radio and check button panels."))
     `(list ,property (choice-selected-item (,accessor ,interface)))))
 
 
-
-;; -------------------
 ;; Check Button Panels
-;; -------------------
 
 (defclass agc-check-button-panel (agc-button-panel check-button-panel)
   ()
