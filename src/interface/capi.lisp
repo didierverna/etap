@@ -314,6 +314,10 @@ This is the mixin class for AGC radio and check button panels."))
 		 (agc-slider-setting kpx :looseness interface))))))
 
 
+;; ---------
+;; Callbacks
+;; ---------
+
 ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout, except
 ;; that it's :knuth-plass in contexts, and also in the interface algorithm
 ;; selection pane where the title needs to be human readable. Hence the title
@@ -323,11 +327,6 @@ This is the mixin class for AGC radio and check button panels."))
   (when (eq algorithm :knuth-plass) (setq algorithm :kp))
   (select-algorithm algorithm interface)
   (update interface))
-
-
-;; -------------
-;; Other actions
-;; -------------
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
@@ -372,6 +371,11 @@ This is the mixin class for AGC radio and check button panels."))
   "Invalidate INTERFACE's view after a change to the clues."
   (declare (ignore value))
   (gp:invalidate-rectangle (view interface)))
+
+
+;; -------------------
+;; Paragraph Rendering
+;; -------------------
 
 (defun render-view
     (pane x y width height
