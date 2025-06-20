@@ -45,35 +45,35 @@
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
 
-(defun collect-scales-mean (lineup widths algorithm &rest options)
-  "Collect ALGORITHM's average line scale per paragraph WIDTHS."
+(defun collect-asar-mean (lineup widths algorithm &rest options)
+  "Collect ALGORITHM's average ASAR per paragraph WIDTHS."
   (mapcar (lambda (width)
-	    (let ((scales
-		    (mapcar #'scale
+	    (let ((asars
+		    (mapcar #'asar
 		      (lines
 		       (get-layout
 			0
 			(apply #'break-harray (harray lineup)
 			       :justified width algorithm options))))))
-	      (float (/ (reduce #'+ scales) (length scales)))))
+	      (float (/ (reduce #'+ asars) (length asars)))))
     widths))
 
-(defun collect-scales-variance (lineup widths algorithm &rest options)
+(defun collect-asars-variance (lineup widths algorithm &rest options)
   "Collect ALGORITHM's line scale variance per paragraph WIDTHS."
   (mapcar (lambda (width)
-	    (let* ((scales
-		     (mapcar #'scale
+	    (let* ((asars
+		     (mapcar #'asar
 		       (lines
 			(get-layout
 			 0
 			 (apply #'break-harray (harray lineup)
 				:justified width algorithm options)))))
-		   (length (length scales))
-		   (mean (float (/ (reduce #'+ scales) length))))
+		   (length (length asars))
+		   (mean (float (/ (reduce #'+ asars) length))))
 	      (sqrt (/ (reduce #'+
-			   (mapcar (lambda (scale)
-				     (expt (- scale mean) 2))
-			     scales))
+			   (mapcar (lambda (asar)
+				     (expt (- asar mean) 2))
+			     asars))
 		       length))))
     widths))
 
@@ -117,19 +117,19 @@
 				   :justified width algorithm options))))
 		   (length (length lines))
 		   (demerits
-		     (let ((badness (scale-badness (scale (car lines)))))
+		     (let ((badness (sar-badness (asar (car lines)))))
 		       (if (numberp badness)
 			 (local-demerits
 			  badness (penalty (car lines)) *line-penalty*)
 			 0))))
-	      (when (= (scale-fitness-class (scale (car lines))) 0)
+	      (when (= (sar-fitness-class (asar (car lines))) 0)
 		(setf demerits (+ demerits *adjacent-demerits*)))
 	      (loop :for line1 :in lines :for line2 :in (cdr lines)
 		    :do (progn
 			  (setq demerits
 				(+ demerits
 				   (let ((badness
-					   (scale-badness (scale line2))))
+					   (sar-badness (asar line2))))
 				     (if (numberp badness)
 				       (local-demerits
 					badness (penalty line2) *line-penalty*)
@@ -137,8 +137,8 @@
 			  (when (and (hyphenated line1) (hyphenated line2))
 			    (setq demerits
 				  (+ demerits *double-hyphen-demerits*)))
-			  (when (> (abs (- (scale-fitness-class (scale line1))
-					   (scale-fitness-class (scale line2))))
+			  (when (> (abs (- (sar-fitness-class (asar line1))
+					   (sar-fitness-class (asar line2))))
 				   1)
 			    (setq demerits (+ demerits *adjacent-demerits*)))))
 	      (when (and (> length 1) (hyphenated (nth (- length 2) lines)))

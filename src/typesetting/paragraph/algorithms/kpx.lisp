@@ -160,9 +160,9 @@ point, in reverse order."
 ;; Fitness Refinements
 ;; ==========================================================================
 
-(defun kpx-scale-fitness-class (scale)
-  "Return KPX fitness class for SCALE."
-  (or (unless (numberp scale) scale) (floor (+ (* 10 scale) 1/2))))
+(defun kpx-sar-fitness-class (sar)
+  "Return KPX fitness class for SAR."
+  (or (unless (numberp sar) sar) (floor (+ (* 10 sar) 1/2))))
 
 (defun kpx-linear-fitness-demerits (efc1 efc2)
   "Return linear adjacent demerits for extended fitness classes EFC1 and 2."
@@ -210,7 +210,7 @@ point, in reverse order."
 (defmethod initialize-instance :after ((boundary kpx-boundary) &key)
   "Initialize KPX BOUNDARY's extended fitness class."
   (setf (slot-value boundary 'extended-fitness-class)
-	(kpx-scale-fitness-class (scale boundary))))
+	(kpx-sar-fitness-class (tsar boundary))))
 
 (defmethod properties strnlcat ((boundary kpx-boundary) &key)
   "Advertise KPX BOUNDARY's extended fitness class."
@@ -223,7 +223,7 @@ point, in reverse order."
     ((from kp-boundary) (to kpx-boundary) &key)
   "Initialize KPX BOUNDARY's extended fitness class."
   (setf (slot-value to 'extended-fitness-class)
-	(kpx-scale-fitness-class (scale to))))
+	(kpx-sar-fitness-class (tsar to))))
 
 
 
@@ -438,12 +438,12 @@ one-before-last."))
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
      ;; points. This is why we need to check explicitly for the EOP below.
-     (when (or ($< (scale boundary) -1)
+     (when (or ($< (tsar boundary) -1)
 	       (eq (penalty boundary) -∞)
 	       (eopp boundary))
        (setq last-deactivation (cons key node))
        (remhash key nodes))
-     (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
+     (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on the
@@ -533,16 +533,16 @@ one-before-last."))
 (defun kpx-make-justified-node
     (harray bol boundary stretch-tolerance overshrink demerits previous
      eol-items bol-items
-     &aux (scale (scale boundary)))
+     &aux (tsar (tsar boundary)))
   "KPX dynamic version of `make-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
-      (actual-scales scale
+  (multiple-value-bind (asar esar)
+      (sars tsar
 	:stretch-tolerance stretch-tolerance
 	:overshrink overshrink
 	:overstretch t)
     (make-instance 'kpx-node
       :harray harray :bol bol :boundary boundary
-      :scale theoretical :effective-scale effective
+      :asar asar :esar esar
       :demerits demerits :previous previous
       :eol-items eol-items :bol-items bol-items)))
 

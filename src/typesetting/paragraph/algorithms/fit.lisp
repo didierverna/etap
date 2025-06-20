@@ -50,10 +50,10 @@
 ;; hyphen penalties. The "Discriminating Function" is used to break the tie.
 ;; For "Minimize Distance", we minimize the difference between the natural
 ;; width of the line and the desired one. For "minimize Scaling", we minimize
-;; the scaling ratio. The difference is that in the second case, we take the
-;; frequent difference between maximum stretching and shrinking into account.
-;; If this leads to equality again, then we necessarily have one short and one
-;; long line. We normally choose the short line (in other words, we prefer
+;; the SAR. The difference is that in the second case, we take the frequent
+;; difference between maximum stretching and shrinking into account. If this
+;; leads to equality again, then we necessarily have one short and one long
+;; line. We normally choose the short line (in other words, we prefer
 ;; stretching) unless the "Prefer Shrink" option is checked.
 
 ;; Note that our notion of "fit" is different from that of Donald Knuth. In
@@ -117,8 +117,8 @@ minimize the distance to natural spacing
 for equally good solutions."
     :fit-discriminating-function-minimize-scaling
     "In the Best/Justified version,
-minimize the required scaling
-for equally good solutions."
+minimize the spacing adjustment
+ratio for equally good solutions."
     :fit-option-avoid-hyphens "Avoid hyphenating words when possible."
     :fit-option-prefer-overfulls
     "In the Anyfull fallback, when the underfull and
@@ -201,7 +201,7 @@ for equally good solutions."))
 ;; flexibility, and those values should in fact represent the algorithm's
 ;; tolerance instead.
 
-;; #### TODO: as for the scale property, it represents the amount required to
+;; #### TODO: as for the TSAR property, it represents the amount required to
 ;; reach a target width, /not/ an algorithm's final choice. Also, this really
 ;; makes sense for justification, much less for ragged dispositions. But on
 ;; the other hand, we don't currently have any sensible ragged formatting.
@@ -213,9 +213,9 @@ for equally good solutions."))
    (max-width
     :documentation "This boundary's theoretical maximum line width."
     :initarg :max-width :reader max-width)
-   (scale
-    :documentation "This boundary's theoretical scaling."
-    :reader scale))
+   (tsar
+    :documentation "This boundary's Theoretical Spacing Adjustment Ratio."
+    :reader tsar))
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
@@ -223,22 +223,22 @@ for equally good solutions."))
      ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
      ;; EXTRA stretch here.
      &key width stretch shrink extra target)
-  "Initialize BOUNDARY's scale."
+  "Initialize BOUNDARY's TSAR."
   (when extra (setq stretch ($+ stretch extra)))
-  (setf (slot-value boundary 'scale)
+  (setf (slot-value boundary 'tsar)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
-	;; already initialized by now, but we're still saving a reader call
-	;; by using the propagated NATURAL-WIDTH keyword argument.
-	(scaling width target stretch shrink)))
+	;; already initialized by now, but we're still saving a reader call by
+	;; using the propagated WIDTH keyword argument.
+	(sar width target stretch shrink)))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
   "Return a string advertising Fit BOUNDARY's natural dimensions.
 This includes the minimum, natural, and maximum theoretical line widths,
-plus the theoretical scaling required to reach the target width."
-  (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical scaling: ~A."
+plus the theoretical SAR required to reach the target width."
+  (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical SAR: ~A."
     (float (min-width boundary))
     ($float (max-width boundary))
-    ($float (scale boundary))))
+    ($float (tsar boundary))))
 
 
 (defclass fit-weighted-boundary (fit-boundary)
@@ -332,7 +332,7 @@ This is the  Best Fit algorithm version."
 	   (let ((possibilities (length fits)))
 	     (mapc (lambda (fit)
 		     (change-class fit 'fit-weighted-boundary
-		       :weight (local-demerits (scale-badness (scale fit))
+		       :weight (local-demerits (sar-badness (tsar fit))
 					       (penalty fit)
 					       *line-penalty*)
 		       :possibilities possibilities))
@@ -350,7 +350,7 @@ This is the  Best Fit algorithm version."
 		       (:minimize-distance
 			(lambda (fit) (abs (- width (width fit)))))
 		       (:minimize-scaling
-			(lambda (fit) (abs (scale fit)))))))
+			(lambda (fit) (abs (tsar fit)))))))
 	       (mapc (lambda (fit)
 		       (setf (weight fit) (funcall new-weight fit)))
 		 fits))
@@ -448,73 +448,72 @@ fit, natural width for the best fit, and min width for thew last fit)."
 ;; ==========================================================================
 
 ;; By default, lines are stretched as much as possible.
-(defun first-fit-make-ragged-line (harray bol boundary width &aux (scale 1))
+(defun first-fit-make-ragged-line (harray bol boundary width &aux (asar 1))
   "First Fit version of `make-line' for ragged lines."
   (when *relax*
-    (setq scale
+    (setq asar
 	  (if (eopp boundary)
 	    ;; There is no constraint on destretching the last line.
 	    0
 	    ;; On the other hand, do not destretch any other line so much that
 	    ;; another chunk would fit in.
-	    (let ((scale (harray-scale
-			  harray
-			  (bol-idx bol)
-			  (eol-idx
-			   (next-break-point harray (break-point boundary)))
-			  width)))
-	      ;; A positive scale means that another chunk would fit in, and
-	      ;; still be underfull (possibly not even elastic), so we can
+	    (let ((sar (harray-sar
+			harray
+			(bol-idx bol)
+			(eol-idx
+			 (next-break-point harray (break-point boundary)))
+			width)))
+	      ;; A positive next SAR means that another chunk would fit in,
+	      ;; and still be underfull (possibly not even elastic), so we can
 	      ;; destretch only up to that (infinity falling back to 0).
 	      ;; Otherwise, we can destretch completely.
-	      (if ($> scale 0) scale 0)))))
-  (make-line harray bol boundary :scale scale))
+	      (if ($> sar 0) sar 0)))))
+  (make-line harray bol boundary :asar asar))
 
 ;; By default, lines are shrunk as much as possible.
-(defun last-fit-make-ragged-line (harray bol boundary width &aux (scale -1))
+(defun last-fit-make-ragged-line (harray bol boundary width &aux (asar -1))
   "Last Fit version of `make-line' for ragged lines."
   (when *relax*
     ;; There is no specific case for the last line here, because we only
     ;; deshrink up to the line's natural width.
     ;; #### WARNING: we're manipulating fixed boundaries here, so there's no
-    ;; calling (SCALE BOUNDARY).
-    (setq scale (let ((scale (harray-scale
-			      harray (bol-idx bol) (eol-idx boundary) width)))
-		  ;; - A positive scale means that the line is naturally
-		  ;;   underfull (maybe not even elastic), so we can deshrink
-		  ;;   completely.
-		  ;; - A scale between -1 and 0 means that the line can fit,
-		  ;;   so we can deshrink up to that.
-		  ;; - Finally, a scale < -1 means that the line cannot fit at
-		  ;;   all, so we must stay at our original -1.
-		  (if ($>= scale 0) 0 ($max scale -1)))))
-  (make-line harray bol boundary :scale scale))
+    ;; calling (TSAR BOUNDARY).
+    (setq asar (let ((tsar (harray-sar
+			    harray (bol-idx bol) (eol-idx boundary) width)))
+		 ;; - A positive TSAR means that the line is naturally
+		 ;;   underfull (maybe not even elastic), so we can deshrink
+		 ;;   completely.
+		 ;; - A TSAR between -1 and 0 means that the line can fit,
+		 ;;   so we can deshrink up to that.
+		 ;; - Finally, a TSAR < -1 means that the line cannot fit at
+		 ;;   all, so we must stay at our original -1.
+		 (if ($>= tsar 0) 0 ($max tsar -1)))))
+  (make-line harray bol boundary :asar asar))
 
 (defun fit-make-justified-line
     (harray bol boundary overstretch overshrink)
   "Fit version of `make-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
+  (multiple-value-bind (asar esar)
       (if (eopp boundary)
 	;; The last line, which almost never fits exactly, needs a special
 	;; treatment. Without paragraph-wide considerations, we want its
 	;; scaling to be close to the general effect of the selected variant.
 	(ecase *variant*
+	  ;; #### FIXME: I think this is all wrong! Review.
 	  (:first
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	   ;; much as possible, without overstretching.
-	   (actual-scales (scale boundary) :overshrink overshrink))
+	   (sars (tsar boundary) :overshrink overshrink))
 	  (:best
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	   ;; normal spacing.
-	   (actual-scales (scale boundary)
-	     :overshrink overshrink :stretch-tolerance 0))
+	   (sars (tsar boundary) :overshrink overshrink :stretch-tolerance 0))
 	  (:last
 	   ;; Shrink as much as possible.
-	   (actual-scales -1 :overshrink overshrink)))
-	(actual-scales (scale boundary)
+	   (sars -1 :overshrink overshrink)))
+	(sars (tsar boundary)
 	  :overshrink overshrink :overstretch overstretch))
-    (make-line harray bol boundary
-      :scale theoretical :effective-scale effective)))
+    (make-line harray bol boundary :asar asar :esar esar)))
 
 
 

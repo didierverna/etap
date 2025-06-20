@@ -67,9 +67,9 @@ This is the Barnett algorithm version."
 	   (return
 	     (cond
 	       ;; A word overfull that fits.
-	       ((and overword ($>= (scale overword) -1)) overword)
+	       ((and overword ($>= (tsar overword) -1)) overword)
 	       ;; A word underfull that fits.
-	       ((and underword ($<= (scale underword) 1)) underword)
+	       ((and underword ($<= (tsar underword) 1)) underword)
 	       ;; For hyphens, we stop at the first solution that needs not
 	       ;; too much shrinking. We don't care if it needs too much
 	       ;; stretching, because that would be less than what's needed
@@ -77,7 +77,7 @@ This is the Barnett algorithm version."
 	       ;; definition.
 	       (hyphens
 		(loop :for hyphen :in hyphens
-		      :when ($>= (scale hyphen) -1) :do (return hyphen)
+		      :when ($>= (tsar hyphen) -1) :do (return hyphen)
 			:finally (return (or underword overword))))
 	       (t
 		(or underword overword))))))
@@ -95,17 +95,16 @@ This is the Barnett algorithm version."
 ;; effect.
 (defun barnett-make-justified-line (harray bol boundary overshrink)
   "Barnett version of `make-line' for justified disposition."
-  (multiple-value-bind (theoretical effective)
+  (multiple-value-bind (asar esar)
       (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
-	(actual-scales (scale boundary)
+	(sars (tsar boundary)
 	  :overshrink overshrink :stretch-tolerance 0)
 	;; Justified regular line: always stretch as needed, and maybe
 	;; overshrink.
-	(actual-scales (scale boundary)
+	(sars (tsar boundary)
 	  :overshrink overshrink :stretch-tolerance +∞))
-    (make-line harray bol boundary
-      :scale theoretical :effective-scale effective)))
+    (make-line harray bol boundary :asar asar :esar esar)))
 
 
 

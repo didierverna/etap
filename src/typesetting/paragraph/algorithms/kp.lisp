@@ -108,9 +108,9 @@ See `kp-process-hlist' for more information."
 ;; Utilities
 ;; ==========================================================================
 
-;; #### WARNING: the logic in ACTUAL-SCALES is to establish scaling
-;; tolerances, whereas TeX uses badness tolerances. Hence I need to convert it
-;; back (from a float to a ratio), which is not very nice.
+;; #### WARNING: the logic in SARS is to establish SAR tolerances, whereas TeX
+;; uses badness tolerances. Hence I need to convert it back (from a float to a
+;; ratio), which is not very nice.
 (defun stretch-tolerance (badness-tolerance)
   "Return the stretch tolerance corresponding to BADNESS-TOLERANCE."
   ;; #### NOTE: we don't get a negative pre-tolerance here because pass 1
@@ -122,13 +122,13 @@ See `kp-process-hlist' for more information."
 ;; #### NOTE: we don't use the same numerical values as in the real
 ;; Knuth-Plass here. The point being that having a decent fitness class of 0
 ;; makes our life simpler for handling extended fitness classes in KPX.
-(defun scale-fitness-class (scale)
-  "Return SCALE's fitness class.
+(defun sar-fitness-class (sar)
+  "Return SAR's fitness class.
 This is an integer ranging from -1 (tight) to 2 (very loose)."
-  (cond (($< scale -1/2) -1)
-	(($<= scale 1/2)  0)
-	(($<= scale 1)    1)
-	(t                2)))
+  (cond (($< sar -1/2) -1)
+	(($<= sar 1/2)  0)
+	(($<= sar 1)    1)
+	(t              2)))
 
 (defun fitness-class-name (fitness-class)
   "Return FITNESS-CLASS's name (a string)."
@@ -165,9 +165,9 @@ This is an integer ranging from -1 (tight) to 2 (very loose)."
     ((boundary kp-boundary) &key width stretch shrink extra target)
   "Initialize Knuth-Plass BOUNDARY's properties.
 This includes its fitness class, badness, and local demerits.
-Possibly also restore BOUNDARY's scale to the real value in case of EXTRA,
+Possibly also restore BOUNDARY's TSAR to the real value in case of EXTRA,
 that is, of an emergency stretch ."
-  ;; #### WARNING: it is possible to get a rigid line here (scale = +/-∞), not
+  ;; #### WARNING: it is possible to get a rigid line here (TSAR = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
   ;; in a rigid underfull. This probably doesn't happen in TeX with its
@@ -176,8 +176,8 @@ that is, of an emergency stretch ."
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
   (setf
-   (slot-value boundary 'fitness-class) (scale-fitness-class (scale boundary))
-   (slot-value boundary 'badness)       (scale-badness (scale boundary)))
+   (slot-value boundary 'fitness-class) (sar-fitness-class (tsar boundary))
+   (slot-value boundary 'badness)       (sar-badness (tsar boundary)))
   (setf (slot-value boundary 'demerits)
 	;; #### NOTE: see TeX's use of the artificial_demerits flag in this
 	;; situation (#854, #855).
@@ -185,11 +185,11 @@ that is, of an emergency stretch ."
 	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
 	  0))
   (when (and extra (not (zerop extra)))
-    (setf (slot-value boundary 'scale)
+    (setf (slot-value boundary 'tsar)
 	  ;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	  ;; already initialized by now, but we're still saving a reader call
 	  ;; by using the propagated NATURAL-WIDTH keyword argument.
-	  (scaling width target stretch shrink))))
+	  (sar width target stretch shrink))))
 
 (defmethod properties strnlcat ((boundary kp-boundary) &key)
   "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
@@ -226,22 +226,20 @@ that is, of an emergency stretch ."
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance overshrink demerits
      &rest keys &key previous
-     &aux (scale (scale boundary)))
+     &aux (tsar (tsar boundary)))
   "KP version of `make-line' for justified lines.
 By default, this function instantiates a KP-LINE. The dynamic version will
 however call this function with a PREVIOUS node, in which case a KP-NODE is
 instantiated instead."
-  (multiple-value-bind (theoretical effective)
-      (actual-scales scale
+  (multiple-value-bind (asar esar)
+      (sars tsar
 	:stretch-tolerance stretch-tolerance
 	:overshrink overshrink
 	:overstretch t)
     (apply #'make-instance
       (if previous 'kp-node 'kp-line) ; kp-node forward reference
       :harray harray :bol bol :boundary boundary
-      :scale theoretical
-      :effective-scale effective
-      :demerits demerits
+      :asar asar :esar esar :demerits demerits
       keys)))
 
 ;; #### NOTE: there's no need for a KP-PINNED-NODE because when pinning lines,
@@ -562,12 +560,12 @@ or, in case of equality, a lesser amount of demerits."
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
      ;; points. This is why we need to check explicitly for the EOP below.
-     (when (or ($< (scale boundary) -1)
+     (when (or ($< (tsar boundary) -1)
 	       (eq (penalty boundary) -∞)
 	       (eopp boundary))
        (setq last-deactivation (cons key node))
        (remhash key nodes))
-     (when (and ($<= -1 (scale boundary)) ($<= (badness boundary) threshold))
+     (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on

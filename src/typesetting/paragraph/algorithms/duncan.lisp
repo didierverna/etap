@@ -2,11 +2,10 @@
 ;; Page, and Margaret G. Robson, Printing Technology 7, 133-151 (1963).
 
 ;; I don't have the article, but the Knuth-Plass paper gives a description of
-;; it. It searches for an acceptable breaking solution (that is, with
-;; adjustment ratios (what I call scales) <= 1 in abs), while minimizing
-;; hyphenation. What I don't really know however is how it chooses the final
-;; solution when there is several possibilities (hence a Fit-like
-;; discriminating function to make a choice).
+;; it. It searches for an acceptable breaking solution (that is, with SARs <=
+;; 1 in absolute value), while minimizing hyphenation. What I don't really
+;; know however is how it chooses the final solution when there is several
+;; possibilities (hence a Fit-like discriminating function to make a choice).
 
 ;; #### FIXME: I don't know if Duncan is restricted to the Justified
 ;; disposition, or if it does something for the ragged ones. Currently, I'm
@@ -35,7 +34,7 @@
 the distance to natural spacing."
     :duncan-discriminating-function-minimize-scaling
     "Weight solutions according to
-the amount of the required scaling."))
+the line spacing adjustment ratios."))
 
 
 (defvar *discriminating-function*)
@@ -85,7 +84,7 @@ The weight is computed according to the discriminating function."
 	  0
 	  (ecase *discriminating-function*
 	    (:minimize-distance (abs (- target width)))
-	    (:minimize-scaling ($abs (scale boundary)))))))
+	    (:minimize-scaling ($abs (tsar boundary)))))))
 
 ;; It's not worth it to advertise the boundary's fitness.
 (defmethod properties strnlcat ((boundary duncan-boundary) &key)
@@ -146,19 +145,17 @@ order (from last to first)."
 
 (defun duncan-make-justified-line
     (harray bol boundary weight overstretch overshrink
-     &aux (scale (scale boundary)))
+     &aux (tsar (tsar boundary)))
   "Duncan version of `make-line' for justified lines."
-  (multiple-value-bind (theoretical effective)
+  (multiple-value-bind (asar esar)
       (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
-	(actual-scales scale :overshrink overshrink :stretch-tolerance 0)
+	(sars tsar :overshrink overshrink :stretch-tolerance 0)
 	;; Justified regular line: make it fit.
-	(actual-scales scale :overshrink overshrink :overstretch overstretch))
+	(sars tsar :overshrink overshrink :overstretch overstretch))
     (make-instance 'duncan-line
       :harray harray :bol bol :boundary boundary
-      :scale theoretical
-      :effective-scale effective
-      :weight weight)))
+      :asar asar :esar esar :weight weight)))
 
 
 (defclass duncan-pinned-line (duncan-line pin)

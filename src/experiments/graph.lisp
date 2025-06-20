@@ -10,7 +10,7 @@
 
 (defun get-boundaries (harray bol width &key fulls strict)
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
-A boundary is acceptable if the required scaling remains within [-1,1].
+A boundary is acceptable if the TSAR remains within [-1,1].
 
 If no acceptable boundary is found, return NIL, unless FULLS, in which case
 return the last underfull and the first overfull (if any) as a fallback

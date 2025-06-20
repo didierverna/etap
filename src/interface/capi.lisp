@@ -435,7 +435,7 @@ This is the mixin class for AGC radio and check button panels."))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (effective-scale line) (scale line))
+		:if ($< (esar line) (asar line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(- y (height line))
@@ -445,7 +445,7 @@ This is the mixin class for AGC radio and check button panels."))
 				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled t :closed t)
-		:else :if ($< (scale line) -1)
+		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(- y (height line))
@@ -455,7 +455,7 @@ This is the mixin class for AGC radio and check button panels."))
 				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled nil :closed t)
-		:else :if ($> (effective-scale line) (scale line))
+		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(+ y (depth line))
@@ -465,7 +465,7 @@ This is the mixin class for AGC radio and check button panels."))
 				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
-		:else :if ($> (scale line) 1)
+		:else :if ($> (asar line) 1)
 		  :do (gp:draw-polygon pane
 			  (list (+ (width paragraph) 5)
 				(+ y (depth line))

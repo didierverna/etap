@@ -5,31 +5,39 @@
 ;; Utilities
 ;; ==========================================================================
 
-(defun scaling (width target stretch shrink)
-  "Return the amount of scaling required to reach TARGET from WIDTH.
-The amount in question is 0 if WIDTH is equal to TARGET.
-Otherwise, it's a possibly infinite stretching (positive) or shrinking
-(negative) ratio relative to the elasticity provided by STRETCH and SHRINK."
+;; -----------------------------
+;; Line Spacing Adjustment Ratio
+;; -----------------------------
+
+(defun sar (width target stretch shrink)
+  "Return the Spacing Adjustment Ratio (SAR) required to reach TARGET width.
+The SAR is 0 if WIDTH = TARGET. Otherwise, it's a stretching (positive) or
+shrinking (negative) ratio relative to the elasticity provided by STRETCH and
+SHRINK.
+
+If no elasticity is available to reach TARGET from WIDTH,
+the value is +∞ or -∞, depending on the scaling direction."
   (cond ((= width target) 0)
 	((< width target) ($/ (- target width) stretch))
 	((< target width) ($/ (- target width) shrink))))
 
-(defun actual-scales (scale &key (shrink-tolerance -1) (stretch-tolerance 1)
-				 (overshrink nil) (overstretch nil))
-  "Compute the actual scales for a line, based on required SCALE.
+(defun sars (sar &key (shrink-tolerance -1) (stretch-tolerance 1)
+		      (overshrink nil) (overstretch nil))
+  "Return the Algorithmic and Effective SARs based on SAR.
 This function returns two values.
-- The theoretical scale computed by the algorithm in use. This value depends
-  on the algorithm's SHRINK / STRETCH-TOLERANCE (-1 / 1 by default).
-- The effective scale, used to pin the line's items. This value further
-  depends on the OVERSHRINK / OVERSTRETCH options (nil by default)."
-  (let ((theoretical-scale scale) (effective-scale scale))
-    (cond (($< scale 0)
-	   (setq theoretical-scale ($max theoretical-scale shrink-tolerance))
-	   (unless overshrink (setq effective-scale theoretical-scale)))
-	  (($> scale 0)
-	   (setq theoretical-scale ($min theoretical-scale stretch-tolerance))
-	   (unless overstretch (setq effective-scale theoretical-scale))))
-    (values theoretical-scale effective-scale)))
+- The Algorithmic SAR (ASAR), which depends on the algorithm's SHRINK and
+  STRETCH-TOLERANCE (-1 / 1 by default).
+- The Effective SAR (ESAR), used to pin the line's items, which further
+  depends on the OVERSHRINK and  OVERSTRETCH disposition options (nil by
+  default)."
+  (let ((asar sar) (esar sar))
+    (cond (($< sar 0)
+	   (setq asar ($max asar shrink-tolerance))
+	   (unless overshrink (setq esar asar)))
+	  (($> sar 0)
+	   (setq asar ($min asar stretch-tolerance))
+	   (unless overstretch (setq esar asar))))
+    (values asar esar)))
 
 
 ;; --------------------
@@ -48,7 +56,7 @@ This function returns two values.
 ;; According to #853 (and this is explained in #851), an "infinitely bad" + 1
 ;; value is returned for lines which can't shrink enough, knowing that it is
 ;; strictly prohibited to shrink more than what's available; that is, for a
-;; scaling < -1. Note that this includes lines which have no shrinkability at
+;; TSAR < -1. Note that this includes lines which have no shrinkability at
 ;; all.
 
 ;; According to #852, an "infinitely bad" value is returned for the whole
@@ -65,14 +73,14 @@ This function returns two values.
 
 ;; In fact, it seems that TeX uses this distinction only to decide whether or
 ;; not to deactivate a node (again, as explained in #851). On the other hand,
-;; in our implementation, we look at the scaling instead of the badness to
-;; make that decision. So it turns out that we can get rid of the clamping
+;; in our implementation, we look at the TSAR instead of the badness to make
+;; that decision. So it turns out that we can get rid of the clamping
 ;; altogether. Note also that the tolerance calibration in our implementation
 ;; turns 10000 into +∞, so we 'll indeed get the same effect as in TeX (cf.
 ;; #828), that is, to accept arbitrarily bad lines.
 
 ;; Consequently, our version of badness below returns +∞ for strictly
-;; prohibited scaling (i.e. no scaling available, or negative below -1) and a
+;; prohibited scaling (i.e. no elasticity available, or TSAR < -1) and a
 ;; numerical positive value otherwise.
 
 ;; #### TODO: we could generalize the notion of badness to allow /some/
@@ -81,20 +89,20 @@ This function returns two values.
 ;; that if we want to switch to +∞ when there is no more space between words,
 ;; the badness computation would then depend on the glue's natural width.
 
-;; #### TODO: we could sign the badness (like the scaling) in order to keep
-;; track of whether we're stretching or shrinking.
+;; #### TODO: we could sign the badness (like the SARs) in order to keep track
+;; of whether we're stretching or shrinking.
 
-(defun scale-badness (scale)
-  (if (or ($< scale -1) ($= scale +∞))
+(defun sar-badness (sar)
+  "Return SAR's badness."
+  (if (or ($< sar -1) ($= sar +∞))
     +∞
-    (* 100 (expt (abs scale) 3))))
+    (* 100 (expt (abs sar) 3))))
 
 (defun local-demerits (badness penalty line-penalty)
   "Return a line's local demerits.
-Local demerits do not account for contextual information such as hyphens
-adjacency or fitness class difference (that's what they are called \"local\").
-They are computed from the line scale's BADNESS, a possible PENALTY where the
-line ends, and also include the LINE-PENALTY parameter."
+Local demerits are computed from the line's BADNESS, end-of-line PENALTY, and
+LINE-PENALTY. They do not account for multi-line / contextual typographical
+traits such as adjacency problems or hyphenation ladders."
   (cond ((and (numberp penalty) (<= 0 penalty))
 	 ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
 	((and (numberp penalty) (< penalty 0))
@@ -183,15 +191,15 @@ stretch and shrink amounts."
 	:finally (return (values width ($+ width stretch) (- width shrink)
 				 stretch shrink))))
 
-(defun harray-scale (harray start stop target &optional extra)
-  "Return the amount of scaling required for HARRAY chunk between START and
-STOP to reach TARGET width, possibly with EXTRA stretch.
-See `scaling' for more information."
+(defun harray-sar (harray start stop target &optional extra)
+  "Return the SAR for HARRAY chunk between START and STOP.
+This is the value required to reach TARGET width, possibly with EXTRA stretch.
+See `sar' for more information."
   (multiple-value-bind (width max min stretch shrink)
       (harray-width harray start stop)
     (declare (ignore max min))
     (when extra (setq stretch ($+ stretch extra)))
-    (scaling width target stretch shrink)))
+    (sar width target stretch shrink)))
 
 ;; #### TODO: this is gross but it works for now (we use a single font). 1.2
 ;; (expressed in ratio to avoid going all floats) is what TeX uses with the
@@ -252,14 +260,14 @@ for that)."))
 ;; Whitespaces
 ;; -----------
 
-;; #### WARNING: do not confuse whitespaces (pinned glues) with blanks
-;; (characters). In fact, newlines are considered blank characters, but they
-;; do not produce whitespaces.
+;; #### WARNING: do not confuse whitespaces (pinned glues) with glues, or
+;; blank characters. In fact, newlines are considered blank characters, but
+;; they do not produce whitespaces.
 
 ;; #### NOTE: glues are currently the only items that cannot be pinned
 ;; directly, hence the class below. The reason is that the width of a pinned
 ;; glue is different from the glue's width in general (it depends on the
-;; line's scaling).
+;; line's SAR).
 (defclass whitespace (pinned)
   ((width
     :documentation "The whitespace's width."
@@ -272,7 +280,7 @@ This class represents pinned glues and stores their width after scaling."))
   (typep item 'whitespace))
 
 (defun pin-glue (glue width board x)
-  "Pin GLUE of (scaled) WIDTH on BOARD at (X, 0)."
+  "Pin GLUE of scaled WIDTH on BOARD at (X, 0)."
   (make-instance 'whitespace :width width :object glue :board board :x x))
 
 
@@ -290,18 +298,22 @@ This class represents pinned glues and stores their width after scaling."))
    (boundary
     :documentation "This line's boundary."
     :initarg :boundary :reader boundary)
-   (scale
-    :documentation "The line'scale, as computed by the algorithm.
-It may be different from the boundary's theoretical scale, and from the
-effective scale used to pin the items, depending on the algorithm itself,
-and on the Overstretch and Overshrink disposition options)."
-    :initform 0 :initarg :scale :reader scale)
-   (effective-scale
-    :documentation "The line's effective scale, used for pinning the items.
-It may be different from the boundary's theoretical scale, and from scale
-computed by the algorithm in use, depending on the algorithm itself, and on
+   ;; #### FIXME: wouldn't it make more sense to default ASAR to the
+   ;; boundary's TSAR ? Except that fixed-boundary don't have any SAR... The
+   ;; design is somewhat broken here. We'd need fixed lines and flexible
+   ;; lines.
+   (asar
+    :documentation "The line's Algorithmic SAR.
+It may be different from the boundary's theoretical one, and from the
+effective one used to pin the items, depending on the algorithm itself, and on
 the Overstretch and Overshrink disposition options)."
-    :initarg :effective-scale :reader effective-scale)
+    :initform 0 :initarg :asar :reader asar)
+   (esar
+    :documentation "The line's Effective SAR, used for pinning the items.
+It may be different from the boundary's theoretical one, and from the
+algorithmic one, depending on the algorithm itself, and on the Overstretch and
+Overshrink disposition options)."
+    :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
 Currently, those are characters, whitespaces, and hyphenation clues.
@@ -316,15 +328,13 @@ cumulative ones (layout properties up to that particular line). For
 layout-independent properties, boundaries should be used instead."))
 
 (defmethod initialize-instance :after ((line line) &key)
-  "Initialize the LINE's effective scale if not already done."
-  (unless (slot-boundp line 'effective-scale)
-    (setf (slot-value line 'effective-scale) (scale line))))
+  "If LINE's ESAR is not already set, initialize it to the ASAR."
+  (unless (slot-boundp line 'esar) (setf (slot-value line 'esar) (asar line))))
 
-(defun make-line
-    (harray bol boundary &rest keys &key scale effective-scale)
+(defun make-line (harray bol boundary &rest keys &key asar esar)
   "Make an HARRAY line from BOL to BOUNDARY.
-Optionally preset SCALE and EFFECTIVE-SCALE."
-  (declare (ignore scale effective-scale))
+Optionally preset ASAR and ESAR."
+  (declare (ignore asar esar))
   (apply #'make-instance 'line
 	 :harray harray :bol bol :boundary boundary keys))
 
@@ -340,7 +350,7 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 
 ;; #### WARNING: the three methods below require the line to be rendered
 ;; already. Doing it otherwise is possible in theory (because we know the
-;; scaling), but would require additional and redundant computation.
+;; ESAR), but would require additional and redundant computation.
 
 (defmethod width ((line line) &aux (item (car (last (items line)))))
   "Return LINE's width."
@@ -364,17 +374,16 @@ Optionally preset SCALE and EFFECTIVE-SCALE."
 
 
 ;; #### WARNING: this method requires the line to have been rendered already.
-;; Doing it otherwise is possible in theory (because we know the scaling), but
+;; Doing it otherwise is possible in theory (because we know the ESAR), but
 ;; would require additional and redundant computation.
 (defmethod properties strnlcat ((line line) &key)
-  "Return a string advertising LINE's properties.
-This includes the line's boundary properties, plus "
+  "Return a string advertising LINE's properties."
   (strnlcat
    (properties (boundary line))
-   (format nil "Scale: ~A~@[ (effective: ~A)~].~%Width: ~Apt."
-     ($float (scale line))
-     (when ($/= (scale line) (effective-scale line))
-       ($float (effective-scale line)))
+   (format nil "Algorithmic SAR: ~A~@[ (Effective: ~A)~].~%Width: ~Apt."
+     ($float (asar line))
+     (when ($/= (asar line) (esar line))
+       ($float (esar line)))
      (float (width line)))))
 
 
@@ -382,13 +391,13 @@ This includes the line's boundary properties, plus "
 ;; Rendering
 ;; ---------
 
-(defun render-line (line &aux (scale (effective-scale line)))
+(defun render-line (line &aux (esar (esar line)))
   "Pin LINE's items and return LINE."
-  ;; #### NOTE: infinite scaling means that we do not have any elasticity.
+  ;; #### NOTE: infinite ESAR means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
-  ;; no elasticity) so we can get the same behavior by resetting SCALE to 0.
-  (unless (numberp scale) (setq scale 0))
+  ;; no elasticity) so we can get the same behavior by resetting ESAR to 0.
+  (unless (numberp esar) (setq esar 0))
   (setf (slot-value line 'items)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
@@ -404,10 +413,10 @@ This includes the line's boundary properties, plus "
 		:do (incf x (width object))
 	      :else :if (gluep object)
 		:do (setq w (width object))
-		:and :unless (zerop scale)
-		  :do (incf w (if (> scale 0)
-				  (* scale (stretch object))
-				  (* scale (shrink object))))
+		:and :unless (zerop esar)
+		  :do (incf w (if (> esar 0)
+				  (* esar (stretch object))
+				  (* esar (shrink object))))
 		  :end
 		:and :collect (pin-glue object w line x)
 		:and :do (incf x w)))
