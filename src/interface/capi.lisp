@@ -377,6 +377,16 @@ This is the mixin class for AGC radio and check button panels."))
 ;; Paragraph Rendering
 ;; -------------------
 
+;; #### FIXME: the bounds are hard-wired, but should really depend on the
+;; defined caliber.
+(defun penalty-hue (penalty)
+  "Return PENALTY's HUE in HSV model.
+Colors are interpolated for penalties ranging from  -∞ (blue),
+through 0 (green), and finally to +∞ (red)."
+  (cond ((eq penalty +∞) (setq penalty 10000))
+	((eq penalty -∞) (setq penalty -10000)))
+  (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
+
 (defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
@@ -507,10 +517,14 @@ This is the mixin class for AGC radio and check button panels."))
 					   (+ x (x item) -3) (+ y 5)
 					   (+ x (x item) +3) (+ y 5)
 					   (+ x (x item)) y)
-				     :filled (not
-					      (explicitp
-					       (discretionary (object item))))
-				     :foreground :orange))
+				     :filled
+				     (not (explicitp
+					   (discretionary (object item))))
+				     :foreground
+				     (color:make-hsv
+				      (penalty-hue
+				       (penalty(discretionary (object item))))
+				      1s0 .7s0)))
 				  ((whitespacep item)
 				   (when (member :river-beds clues)
 				     (gp:draw-circle
