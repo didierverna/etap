@@ -412,7 +412,10 @@ through 0 (green), and finally to +∞ (red)."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	(loop :for rest :on (lines layout)
+	(loop :for full-x := (+ (loop :for line :in (lines layout)
+				      :maximize (+ (x line) (width line)))
+				5)
+	  :for rest :on (lines layout)
 	      :for line := (car rest)
 	      :for x := (x line)
 	      :for y := (+ par-y (y line))
@@ -427,10 +430,8 @@ through 0 (green), and finally to +∞ (red)."
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width line) (width paragraph))
 		  :do (gp:draw-rectangle pane
-			  (+ x (width line) 5)
-			  (- y (height line))
-			  5
-			  (+ (height line) (depth line))
+			  full-x  (- y (height line))
+			  5  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
 		:else :if (and (cdr rest) ;; not the last one
@@ -438,10 +439,8 @@ through 0 (green), and finally to +∞ (red)."
 				   :justified)
 			       (< (width line) (width paragraph)))
 		  :do (gp:draw-rectangle pane
-			  (+ (width paragraph) 5)
-			  (- y (height line))
-			  5
-			  (+ (height line) (depth line))
+			  full-x (- y (height line))
+			  5 (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
