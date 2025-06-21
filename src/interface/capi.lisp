@@ -498,19 +498,19 @@ This is the mixin class for AGC radio and check button panels."))
 					       (tfm:code (object item)))
 					 (+ x (x item))
 					 y)))
-				  ((member (object item)
-					   '(:explicit-hyphenation-clue
-					     :hyphenation-clue))
-				   (when (member :hyphenation-points clues)
-				     (gp:draw-polygon pane
-				       (list (+ x (x item)) y
-					     (+ x (x item) -3) (+ y 5)
-					     (+ x (x item) +3) (+ y 5))
-				       :filled t
-				       :foreground (if (eq (object item)
-							   :hyphenation-clue)
-						     :orange
-						     :blue))))
+				  ((and (discretionary-clue-p (object item))
+					(hyphenation-point-p
+					 (discretionary (object item)))
+					(member :hyphenation-points clues))
+				   (gp:draw-polygon pane
+				     (list (+ x (x item)) y
+					   (+ x (x item) -3) (+ y 5)
+					   (+ x (x item) +3) (+ y 5)
+					   (+ x (x item)) y)
+				     :filled (not
+					      (explicitp
+					       (discretionary (object item))))
+				     :foreground :orange))
 				  ((whitespacep item)
 				   (when (member :river-beds clues)
 				     (gp:draw-circle

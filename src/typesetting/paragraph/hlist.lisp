@@ -2,7 +2,7 @@
 ;; (hashing? but that's not the meaning of the h in hlist ;-)) the input text
 ;; into a list of individual items: characters (font-dependent), kerns (if
 ;; requested), discretionaries for hyphenation points (if requested,
-;; language-dependent) and ligatures (if requested), and interword glues.
+;; language-dependent), ligatures (if requested), and interword glues.
 
 ;; The computation of the hlist is considered a pre-processing stage. No
 ;; aspects of paragraph formatting are known yet (paragraph disposition,
@@ -601,12 +601,4 @@ When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
       ;; done.
       (when ligatures (setq hlist (process-ligatures hlist)))
       (when kerning (setq hlist (process-kerns hlist)))
-      (when hyphenation
-	(mapc (lambda (element)
-		(when (hyphenation-point-p element)
-		  (push (if (explicitp element)
-			  :explicit-hyphenation-clue
-			  :hyphenation-clue)
-			(no-break element))))
-	  hlist))
       hlist)))

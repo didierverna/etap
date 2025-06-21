@@ -122,6 +122,26 @@ traits such as adjacency problems or hyphenation ladders."
 ;; typesetting algorithm in use. Most algorithms post-process the hlist (for
 ;; example by adjusting penalties or adding glues).
 
+(defclass discretionary-clue ()
+  ((width
+    :documentation "This discretionary clue's width (always 0)."
+    :allocation :class :initform 0 :reader width)
+   (discretionary
+    :documentation "The corresponding discretionary."
+    :initarg :discretionary :reader discretionary))
+  (:documentation "The Discretionary Clue class.
+Discretionary clues are 0-width objects used to remember the original
+discretionary in a flattened harray slice."))
+
+(defun make-discretionary-clue (discretionary)
+  "Make a new discretionary clue."
+  (make-instance 'discretionary-clue :discretionary discretionary))
+
+(defun discretionary-clue-p (object)
+  "Return T if OBJECT is a discretionary clue."
+  (typep object 'discretionary-clue))
+
+
 ;; ------
 ;; Access
 ;; ------
@@ -139,8 +159,11 @@ If element is a discretionary, return the appropriate pre/no/post break part."
     (cond ((and (= i start) (not (zerop start)))
 	   (post-break element))
 	  ((and (= i (1- stop)) (not (= stop (length harray))))
-	   (pre-break element))
-	  (t (no-break element)))
+	   (append (pre-break element)
+		   (list (make-discretionary-clue element))))
+	  (t
+	   (cons (make-discretionary-clue element)
+		 (no-break element))))
     element))
 
 (defun flatten-harray (harray start stop)
@@ -316,7 +339,7 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
-Currently, those are characters, whitespaces, and hyphenation clues.
+Currently, those are characters, whitespaces, and discretionary clues.
 These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin."
     :reader items))
@@ -403,8 +426,7 @@ Optionally preset ASAR and ESAR."
 	      :with harray := (harray line)
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
-	      :if (member
-		   object '(:explicit-hyphenation-clue :hyphenation-clue))
+	      :if (discretionary-clue-p object)
 		:collect (pin-object object line x)
 	      :else :if (typep object 'tfm:character-metrics)
 		:collect (pin-object object line x)
