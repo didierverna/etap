@@ -136,7 +136,10 @@ Kerns represent inter-letter horizontal spacing."))
     :reader idx)
    (penalty
     :documentation "The penalty for breaking here."
-    :initform 0 :initarg :penalty :accessor penalty))
+    :initform 0 :initarg :penalty :accessor penalty)
+   (caliber
+    :documentation "The penalty's caliber."
+    :reader caliber))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 

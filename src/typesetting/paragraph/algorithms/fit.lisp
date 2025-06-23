@@ -176,15 +176,22 @@ See `define-caliber' for more information."
     (hlist disposition (algorithm (eql :fit))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Adjust hyphen penalties in HLIST."
+  "Finish setting up hyphenation points.
+This means defaulting their penalties and initializing the corresponding
+caliber.
+Return HLIST."
   (calibrate-fit hyphen-penalty)
   (calibrate-fit explicit-hyphen-penalty)
   (mapc (lambda (item)
 	  (when (hyphenation-point-p item)
-	    (setf (penalty item)
-		  (if (explicitp item)
-		    *explicit-hyphen-penalty*
-		    *hyphen-penalty*))))
+	    (cond ((explicitp item)
+		   (setf (penalty item) *explicit-hyphen-penalty*)
+		   (setf (slot-value item 'caliber)
+			 *fit-explicit-hyphen-penalty*))
+		  (t
+		   (setf (penalty item) *hyphen-penalty*)
+		   (setf (slot-value item 'caliber)
+			 *fit-hyphen-penalty*)))))
     hlist)
   hlist)
 

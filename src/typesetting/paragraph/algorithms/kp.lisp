@@ -78,29 +78,30 @@ See `define-caliber' for more information."
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
 ;; the same here.
 
-;; This function is also used by the KPX algorithm.
-(defun kp-process-hlist (hlist)
-  "Adjust hyphen penalties in HLIST, and append the final glue to it.
-Return HLIST."
-  (mapc (lambda (item)
-	  (when (discretionaryp item)
-	    (setf (penalty item)
-		  (if (pre-break item)
-		    *hyphen-penalty*
-		    *explicit-hyphen-penalty*))))
-    hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
-  hlist)
-
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :knuth-plass))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Process HLIST for DISPOSITION by the Knuth-Plass algorithm. Return HLIST.
-See `kp-process-hlist' for more information."
+  "Process HLIST for DISPOSITION by the Knuth-Plass algorithm.
+Append the final glue to HLIST, and finish setting up hyphenation points.
+This means defaulting their penalties and initializing the corresponding
+caliber.
+Return HLIST."
   (calibrate-kp hyphen-penalty)
   (calibrate-kp explicit-hyphen-penalty)
-  (kp-process-hlist hlist))
+  (mapc (lambda (item)
+	  (when (discretionaryp item)
+	    (cond ((pre-break item)
+		   (setf (penalty item) *hyphen-penalty*)
+		   (setf (slot-value item 'caliber)
+			 *kp-hyphen-penalty*))
+		  (t
+		   (setf (penalty item) *explicit-hyphen-penalty*)
+		   (setf (slot-value item 'caliber)
+			 *kp-explicit-hyphen-penalty*)))))
+    hlist)
+  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
+  hlist)
 
 
 
