@@ -550,7 +550,9 @@ through 0 (green), and finally to +∞ (red)."
 		   rivers))))))
 
 
+;; -------
 ;; Layouts
+;; -------
 
 (defun next-layout
     (op interface
@@ -567,7 +569,9 @@ through 0 (green), and finally to +∞ (red)."
     (gp:invalidate-rectangle (view interface))))
 
 
+;; --------
 ;; Tooltips
+;; --------
 
 (defparameter *interface-tooltips*
   '(:layout-1 "Display previous layout."
@@ -591,33 +595,51 @@ through 0 (green), and finally to +∞ (red)."
      (typecase key
        (symbol (cadr (member key *tooltips*)))))))
 
+
+;; ----------
 ;; Properties
+;; ----------
+
+(defun line-under (y lines)
+  "Return the line from LINES which is under Y coordinate, or NIL."
+  (find-if (lambda (line)
+	     (and (>= y (- (y line) (height line)))
+		  (<= y (+ (y line) (depth line)))))
+	   lines))
+
 (defun display-properties
     (pane x y
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (paragraph (paragraph interface))
-	  (layout-# (1- (layout interface)))
-	  (layout (when (<= 0 layout-#)
-		    (get-layout layout-# (breakup paragraph)))))
+	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
+	  (layout (when layout-# (get-layout layout-# (breakup paragraph)))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+    ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
+    ;; returning 0, but this is borderline.
     (decf y (height layout))
-    (if (and (<= x 0) (<= y (depth layout)))
-      (display-tooltip pane
-	:text (properties paragraph
-		:layout-# (when (<= 0 layout-#) layout-#)))
-      (let ((line (when (and layout (>= x 0) (<= x (width paragraph)))
-		    (find-if (lambda (line)
-			       (and (>= y (- (y line) (height line)))
-				    (<= y (+ (y line) (depth line)))))
-			     (lines layout)))))
-	(if line
-	  (display-tooltip pane :text (properties line))
-	  (display-tooltip pane))))))
+    (if (or (and (<= x 0) (<= y (depth layout)))
+	    (and (<= y (- (height layout))) (<= x (width paragraph))))
+      (display-tooltip pane :text (properties paragraph :layout-# layout-#))
+      (when layout
+	(let (object)
+	  ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
+	  ;; the end of the lines, or in the last line.
+	  (cond ((setq object
+		       (and (>= x 0) (<= x (width paragraph))
+			    (>= y (- (height layout))) (<= y (depth layout))
+			    (line-under y (lines layout))))
+		 (display-tooltip pane :text (properties object)))
+		(t
+		 (display-tooltip pane))))))))
 
+
+;; ----------------
 ;; Rivers detection
+;; ----------------
+
 (defun set-rivers-detection
     (value interface
      &aux (detectionp (button-selected value))
@@ -665,7 +687,11 @@ through 0 (green), and finally to +∞ (red)."
    :title "Rivers Detection"
    :window-styles '(:always-on-top t :toolbox t)))
 
+
+;; -----
 ;; Menus
+;; -----
+
 (defun tools-menu-callback (data interface)
   "Display the rivers interface." ;; Currently what the only button does.
   (declare (ignore data))
@@ -693,7 +719,13 @@ through 0 (green), and finally to +∞ (red)."
 	 *languages*
 	 :key #'car)))
 
+
+
+
+;; ==========================================================================
 ;; Interface
+;; ==========================================================================
+
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
@@ -1170,9 +1202,10 @@ This currently includes the initial ZOOMing factor and CLUES."
 
 
 
-;; ===========
+
+;; ==========================================================================
 ;; Entry Point
-;; ===========
+;; ==========================================================================
 
 (defun run (&key (context *context*) zoom (clues :characters))
   "Run ETAP's GUI for CONTEXT (the global context by default).
