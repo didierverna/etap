@@ -225,12 +225,17 @@ return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
   (declare (ignore pre-break post-break no-break explicit))
   (apply #'make-instance 'hyphenation-point initargs))
 
+(defmethod properties strnlcat ((hyphenation-point hyphenation-point) &key)
+  "Advertise HYPHENATION-POINT's penalty."
+  (format nil "Penalty: ~A." (penalty hyphenation-point)))
+
 (defgeneric hyphenated (object)
   (:documentation "Return OBJECT's hyphenation status.
 Possible values are :explicit, :implicit, or nil.")
   (:method (object)
     "Call `hyphenation-point-p' on OBJECT. This is the default method."
     (hyphenation-point-p object)))
+
 
 
 ;; Glues
