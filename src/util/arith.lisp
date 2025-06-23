@@ -120,19 +120,24 @@
 ;; Calibers
 ;; ==========================================================================
 
-(defstruct (caliber (:constructor make-caliber (min default max)))
+(defstruct
+    (caliber (:constructor make-caliber (min default max &optional infinity)))
   "The CALIBER structure.
 A caliber represents values that have a mininum, a maximum, and a default."
-  min default max)
+  min default max infinity)
 
-(defmacro define-caliber (prefix name min default max)
-  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values."
+;; #### TODO: we could check for a valid infinity argument here.
+(defmacro define-caliber (prefix name min default max &optional infinity)
+  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values.
+If supplied, INFINITY may be :MIN, :MAX, or T meaning both.
+In such a case, a calibrated value equal to MIN (resp. MAX) will be converted
+to -∞ (resp. +∞)."
   `(defparameter ,(intern (format nil "*~A-~A*" prefix name))
-     (make-caliber ,min ,default, max)))
+     (make-caliber ,min ,default, max ,infinity)))
 
 (defmacro calibrate
     (prefix name
-     &key infinity (earmuffs t)
+     &key (earmuffs t)
      &aux (earmuff (if earmuffs "*" ""))
 	  (variable (intern (format nil "~A~A~A" earmuff name earmuff)))
 	  (caliber (intern (format nil "*~A-~A*" prefix name))))
@@ -141,15 +146,14 @@ The variable's name is NAME or *NAME* depending on EARMUFFS (T by default).
 - If variable is null, set it to the caliber's default.
 - If variable is already properly calibrated, leave it be.
 - If variable is out of bounds (large inequality), clamp it or set it to an
-  infinity value of the same sign, according to INFINITY. INFINITY may be NIL
-  (the default), T, :positive, or :negative."
+  infinity value (depending on the caliber's behavior)."
   `(cond ((null ,variable)
 	  (setq ,variable (caliber-default ,caliber)))
 	 ((<= ,variable (caliber-min ,caliber))
-	  (setq ,variable ,(if (member infinity '(t :negative))
+	  (setq ,variable (if (member (caliber-infinity ,caliber) '(t :min))
 			     -∞
-			     `(caliber-min ,caliber))))
+			     (caliber-min ,caliber))))
 	 ((>= ,variable (caliber-max ,caliber))
-	  (setq ,variable ,(if (member infinity '(t :positive))
+	  (setq ,variable (if (member (caliber-infinity ,caliber) '(t :max))
 			     +∞
-			     `(caliber-max ,caliber))))))
+			     (caliber-max ,caliber))))))

@@ -31,19 +31,20 @@
     :kpx-fitness-quadratic "Quadratic adjacent demerits."))
 
 
-(defmacro define-kpx-caliber (name min default max)
-  "Define a NAMEd KPX caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber kpx ,name ,min ,default ,max))
+(defmacro define-kpx-caliber (name min default max &optional infinity)
+  "Define a NAMEd KPX caliber.
+See `define-caliber' for more information."
+  `(define-caliber kpx ,name ,min ,default ,max ,infinity))
 
 (define-kpx-caliber line-penalty 0 10 100)
-(define-kpx-caliber hyphen-penalty -10000 50 10000)
-(define-kpx-caliber explicit-hyphen-penalty -10000 50 10000)
+(define-kpx-caliber hyphen-penalty -10000 50 10000 t)
+(define-kpx-caliber explicit-hyphen-penalty -10000 50 10000 t)
 (define-kpx-caliber adjacent-demerits 0 10000 20000)
 (define-kpx-caliber double-hyphen-demerits 0 10000 20000)
 (define-kpx-caliber final-hyphen-demerits 0 5000 20000)
 (define-kpx-caliber similar-demerits 0 5000 20000)
-(define-kpx-caliber pre-tolerance -1 100 10000)
-(define-kpx-caliber tolerance 0 200 10000)
+(define-kpx-caliber pre-tolerance -1 100 10000 :max)
+(define-kpx-caliber tolerance 0 200 10000 :max)
 (define-kpx-caliber emergency-stretch 0 0 20)
 (define-kpx-caliber looseness -10 0 10)
 
@@ -55,9 +56,9 @@
   pre-tolerance tolerance emergency-stretch looseness)
 
 
-(defmacro calibrate-kpx (name &optional infinity)
+(defmacro calibrate-kpx (name)
   "Calibrate NAMEd KPX variable."
-  `(calibrate kpx ,name :infinity ,infinity))
+  `(calibrate kpx ,name))
 
 (defmacro default-kpx (name &optional plural)
   "Default KPX NAMEd variable."
@@ -76,8 +77,8 @@
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Process HLIST for DISPOSITION by the KPX algorithm. Return HLIST.
 See `kp-process-hlist' for more information."
-  (calibrate-kpx hyphen-penalty t)
-  (calibrate-kpx explicit-hyphen-penalty t)
+  (calibrate-kpx hyphen-penalty)
+  (calibrate-kpx explicit-hyphen-penalty)
   (kp-process-hlist hlist))
 
 
@@ -648,8 +649,8 @@ one-before-last."))
   (calibrate-kpx double-hyphen-demerits)
   (calibrate-kpx final-hyphen-demerits)
   (calibrate-kpx similar-demerits)
-  (calibrate-kpx pre-tolerance :positive)
-  (calibrate-kpx tolerance :positive)
+  (calibrate-kpx pre-tolerance)
+  (calibrate-kpx tolerance)
   (calibrate-kpx emergency-stretch)
   (calibrate-kpx looseness)
   (ecase *variant*

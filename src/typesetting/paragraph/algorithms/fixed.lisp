@@ -91,7 +91,8 @@ the underfull one."))
 
 
 (defmacro define-fixed-caliber (name min default max)
-  "Define a NAMEd Fixed caliber with MIN, DEFAULT, and MAX values."
+  "Define a NAMEd Fixed caliber.
+See `define-caliber' for more information."
   `(define-caliber fixed ,name ,min ,default ,max))
 
 (define-fixed-caliber width-offset -50 0 0)

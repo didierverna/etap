@@ -139,9 +139,10 @@ for equally good solutions."))
   prefer-shrink discriminating-function)
 
 
-(defmacro define-fit-caliber (name min default max)
-  "Define a NAMEd Fit caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber fit ,name ,min ,default ,max))
+(defmacro define-fit-caliber (name min default max &optional infinity)
+  "Define a NAMEd Fit caliber.
+See `define-caliber' for more information."
+  `(define-caliber fit ,name ,min ,default ,max ,infinity))
 
 ;; #### NOTE: the LINE-PENALTY parameter has no impact on the algorithm, since
 ;; it's a constant which affects all line endings in the same way. It's just
@@ -149,8 +150,8 @@ for equally good solutions."))
 ;; and hence compare the two. Hopefully, this mess will go away when we
 ;; parametrize the cost function.
 (define-fit-caliber line-penalty 0 10 100)
-(define-fit-caliber hyphen-penalty -1000 50 1000)
-(define-fit-caliber explicit-hyphen-penalty -1000 50 1000)
+(define-fit-caliber hyphen-penalty -10000 50 10000 t)
+(define-fit-caliber explicit-hyphen-penalty -10000 50 10000 t)
 ;; #### NOTE: no final-hyphen-demerits because that would not be a *-fit
 ;; algorithm anymore (we would need to look one line ahead).
 (define-fit-caliber width-offset -50 0 0)
@@ -160,9 +161,9 @@ for equally good solutions."))
   "Default Fit NAMEd variable."
   `(default fit ,name))
 
-(defmacro calibrate-fit (name &optional infinity)
+(defmacro calibrate-fit (name)
   "Calibrate NAMEd Fit variable."
-  `(calibrate fit ,name :infinity ,infinity))
+  `(calibrate fit ,name))
 
 
 
@@ -176,8 +177,8 @@ for equally good solutions."))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Adjust hyphen penalties in HLIST."
-  (calibrate-fit hyphen-penalty t)
-  (calibrate-fit explicit-hyphen-penalty t)
+  (calibrate-fit hyphen-penalty)
+  (calibrate-fit explicit-hyphen-penalty)
   (mapc (lambda (item)
 	  (when (hyphenation-point-p item)
 	    (setf (penalty item)

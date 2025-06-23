@@ -36,18 +36,19 @@
     :kp-variant-dynamic "Dynamic programming implementation."))
 
 
-(defmacro define-kp-caliber (name min default max)
-  "Define a NAMEd Knuth-Plass caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber kp ,name ,min ,default ,max))
+(defmacro define-kp-caliber (name min default max &optional infinity)
+  "Define a NAMEd Knuth-Plass caliber.
+See `define-caliber' for more information."
+  `(define-caliber kp ,name ,min ,default ,max ,infinity))
 
 (define-kp-caliber line-penalty 0 10 100)
-(define-kp-caliber hyphen-penalty -10000 50 10000)
-(define-kp-caliber explicit-hyphen-penalty -10000 50 10000)
+(define-kp-caliber hyphen-penalty -10000 50 10000 t)
+(define-kp-caliber explicit-hyphen-penalty -10000 50 10000 t)
 (define-kp-caliber adjacent-demerits 0 10000 20000)
 (define-kp-caliber double-hyphen-demerits 0 10000 20000)
 (define-kp-caliber final-hyphen-demerits 0 5000 20000)
-(define-kp-caliber pre-tolerance -1 100 10000)
-(define-kp-caliber tolerance 0 200 10000)
+(define-kp-caliber pre-tolerance -1 100 10000 :max)
+(define-kp-caliber tolerance 0 200 10000 :max)
 (define-kp-caliber emergency-stretch 0 0 20)
 (define-kp-caliber looseness -10 0 10)
 
@@ -58,9 +59,9 @@
   pre-tolerance tolerance emergency-stretch looseness)
 
 
-(defmacro calibrate-kp (name &optional infinity)
+(defmacro calibrate-kp (name)
   "Calibrate NAMEd Knuth-Plass variable."
-  `(calibrate kp ,name :infinity ,infinity))
+  `(calibrate kp ,name))
 
 (defmacro default-kp (name)
   "Default Knuth-Plass NAMEd variable."
@@ -97,8 +98,8 @@ Return HLIST."
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
   "Process HLIST for DISPOSITION by the Knuth-Plass algorithm. Return HLIST.
 See `kp-process-hlist' for more information."
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
+  (calibrate-kp hyphen-penalty)
+  (calibrate-kp explicit-hyphen-penalty)
   (kp-process-hlist hlist))
 
 
@@ -836,8 +837,8 @@ or, in case of equality, a lesser amount of demerits."
   (calibrate-kp adjacent-demerits)
   (calibrate-kp double-hyphen-demerits)
   (calibrate-kp final-hyphen-demerits)
-  (calibrate-kp pre-tolerance :positive)
-  (calibrate-kp tolerance :positive)
+  (calibrate-kp pre-tolerance)
+  (calibrate-kp tolerance)
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
   (funcall (ecase *variant*

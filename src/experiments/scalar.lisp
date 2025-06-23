@@ -99,8 +99,8 @@
   ;; #### WARNING: the lineup is not prepared for collecting demerits here in
   ;; most cases, so we need to mimic the effect of PROCESS-HLIST first
   ;; (although on the harray this time).
-  (calibrate-kp hyphen-penalty t)
-  (calibrate-kp explicit-hyphen-penalty t)
+  (calibrate-kp hyphen-penalty)
+  (calibrate-kp explicit-hyphen-penalty)
   (loop :with harray := (harray lineup)
 	:for i :from 0 :upto (1- (length harray))
 	:for item := (aref harray i)
