@@ -686,6 +686,39 @@ corresponding hyphenation clue."
 	    (display-tooltip pane)))))))
 
 
+;; ---------------
+;; Contextual Menu
+;; ---------------
+
+;; #### TODO: when this gets enriched, we will eventually end up with the same
+;; logic as in DISPLAY-PROPERTIES in order to figure out what's under the
+;; mouse, and we already wish we used CLIM...
+(defun contextual-menu
+    (pane x y
+     &aux (interface (top-level-interface pane))
+	  (zoom (/ (range-slug-start (zoom interface)) 100))
+	  (paragraph (paragraph interface))
+	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
+	  (layout (when layout-# (get-layout layout-# (breakup paragraph)))))
+  (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+  ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
+  ;; returning 0, but this is borderline.
+  (decf y (height layout))
+  (when layout
+    (let ((object (and (member :hyphenation-points
+			       (choice-selected-items (clues interface)))
+		       ;; #### NOTE: the +3 and (+ ... 5) are for hyphenation
+		       ;; clues occurring at the end of the lines, or in the
+		       ;; last line.
+		       (>= x 0)
+		       (<= x (+ (width paragraph) 3))
+		       (>= y 0) ; no need to look above the 1st line
+		       (<= y (+ (y (car (last (lines layout)))) 5))
+		       (hyphenation-point-under x y (lines layout)))))
+      (when object
+	(display-tooltip pane :text (format nil "X: ~S, Y: ~S." x y))))))
+
+
 ;; ----------------
 ;; Rivers detection
 ;; ----------------
@@ -1051,8 +1084,8 @@ corresponding hyphenation clue."
      :vertical-scroll t
      :display-callback 'render-view
      :reader view
-     ;; :input-model '(((:button-1 :press) display-properties))))
-     :input-model '((:motion display-properties))))
+     :input-model '((:motion display-properties)
+		    (:post-menu contextual-menu))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
