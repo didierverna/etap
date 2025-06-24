@@ -701,15 +701,40 @@ through 0 (green), and finally to +∞ (red)."
 ;; Penalty Adjustment
 ;; ------------------
 
+;; #### WARNING: the global variables defining each algorithm's
+;; parametrization are calibrated by the algorithms entry points, because
+;; those entry points can be called programmatically. On the other hand,
+;; penalty sliders affect an already existing lineup and are accessible only
+;; from the GUI. Hence, the returned values below need to be calibrated
+;; (potentially to infinity) here.
+
+(defun calibrated-value (value caliber)
+  "Depending on CALIBER, potentially convert VALUE to +∞/-∞."
+  (cond ((and (= value (caliber-min caliber))
+	      (member (caliber-infinity caliber) '(t :min)))
+	 -∞)
+	((and (= value (caliber-max caliber))
+	      (member (caliber-infinity caliber) '(t :max)))
+	 +∞)
+	(t value)))
+
+(defun uncalibrated-value (value caliber)
+  "Depending on CALIBER, potentially convert an infinity VALUE to min/max."
+  (cond ((eq value +∞) (caliber-max caliber))
+	((eq value -∞) (caliber-min caliber))
+	(t value)))
+
 (defun set-penalty
     (pane value status
      &aux (main-interface (main-interface (top-level-interface pane)))
 	  (hyphenation-point (hyphenation-point (top-level-interface pane)))
+	  (value (calibrated-value
+		  (range-slug-start pane) (caliber hyphenation-point)))
 	  (context (context main-interface)))
   "Set PANE's corresponding break point penalty."
   (declare (ignore status))
-  (setf (titled-object-title pane) (write-to-string (range-slug-start pane)))
-  (setf (penalty hyphenation-point) (range-slug-start pane))
+  (setf (titled-object-title pane) (princ-to-string value))
+  (setf (penalty hyphenation-point) value)
   (let ((lineup (lineup (paragraph main-interface))))
     (update main-interface
 	    :hlist (hlist (paragraph main-interface))
@@ -739,10 +764,11 @@ through 0 (green), and finally to +∞ (red)."
 	 (hyphenation-point (hyphenation-point interface))
 	 (caliber (caliber hyphenation-point)))
     (setf (range-start slider) (caliber-min caliber)
-	  (range-end slider) (caliber-max caliber)
-	  (range-slug-start slider) (penalty hyphenation-point))
+	  (range-end slider)   (caliber-max caliber))
+    (setf (range-slug-start slider)
+	  (uncalibrated-value (penalty hyphenation-point) caliber))
     (setf (titled-object-title slider)
-	  (write-to-string (range-slug-start slider)))))
+	  (princ-to-string (penalty hyphenation-point)))))
 
 
 (defun make-penalty-adjustment (hyphenation-point interface)
