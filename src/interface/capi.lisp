@@ -744,10 +744,23 @@ through 0 (green), and finally to +∞ (red)."
 				    (paragraph-width context)
 				    (algorithm context)))))
 
+(defun reset-penalty
+  (data pane
+   &aux (interface (top-level-interface pane))
+	(penalty-slider (penalty-slider interface))
+	(hyphenation-point (hyphenation-point interface))
+	(value (caliber-default (caliber hyphenation-point))))
+  (declare (ignore data))
+  (setf (range-slug-start penalty-slider) value)
+  (set-penalty penalty-slider value nil))
+
 (define-interface penalty-adjustment ()
   ((hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
    (main-interface :initarg :main-interface :reader main-interface))
   (:panes
+   (reset-button push-button
+     :text "Reset"
+     :callback 'reset-penalty)
    (penalty-slider slider
      :title "dummy"
      :orientation :vertical
@@ -755,7 +768,7 @@ through 0 (green), and finally to +∞ (red)."
      :tick-frequency 0
      :callback 'set-penalty
      :reader penalty-slider))
-  (:layouts (main column-layout '(penalty-slider)))
+  (:layouts (main column-layout '(reset-button penalty-slider)))
   (:default-initargs :title "Penalty Adjustment"))
 
 (defmethod interface-display :before ((interface penalty-adjustment))
