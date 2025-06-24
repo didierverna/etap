@@ -87,20 +87,22 @@ corresponding hyphenation clue."
 	   (get-layout (1- layout) (breakup (paragraph interface)))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
-(defun remake-paragraph (interface)
-  "Remake INTERFACE's paragaph."
-  (let* ((paragraph (make-paragraph :context (context interface)))
+(defun remake-paragraph (interface &rest args)
+  "Remake INTERFACE's paragraph. ARGS are passed along to MAKE-PARAGRAPH."
+  (let* ((paragraph
+	   (apply #'make-paragraph :context (context interface) args))
 	 (layouts-# (layouts-# (breakup paragraph))))
     (setf (paragraph interface) paragraph)
     (setf (layout interface) (if (zerop layouts-#) 0 1))
     (setf (titled-object-title (view interface))
 	  (format nil "Layout ~D/~D" (layout interface) layouts-#))))
 
-(defun update (interface)
+(defun update (interface &rest args)
   "Update INTERFACE.
-This remakes INTERFACE's paragraph and everything that depends on it,
-and invalidates the view."
-  (remake-paragraph interface)
+This remakes INTERFACE's paragraph, everything that depends on it,
+and invalidates the view.
+ARGS are passed along to MAKE-PARAGRAPH."
+  (apply #'remake-paragraph interface args)
   (remake-rivers interface)
   (gp:invalidate-rectangle (view interface)))
 
@@ -701,40 +703,59 @@ through 0 (green), and finally to +∞ (red)."
 
 (defun set-penalty
     (pane value status
-     &aux (main-interface (main-interface (top-level-interface pane))))
-  "Adjust PANE's corresponding break point penalty."
+     &aux (main-interface (main-interface (top-level-interface pane)))
+	  (hyphenation-point (hyphenation-point (top-level-interface pane)))
+	  (context (context main-interface)))
+  "Set PANE's corresponding break point penalty."
   (declare (ignore status))
-  ;(setf (titled-object-title pane) (format nil "Angle: ~D°" value))
-  (gp:invalidate-rectangle (view main-interface)))
+  (setf (titled-object-title pane) (write-to-string (range-slug-start pane)))
+  (setf (penalty hyphenation-point) (range-slug-start pane))
+  (let ((lineup (lineup (paragraph main-interface))))
+    (update main-interface
+	    :hlist (hlist (paragraph main-interface))
+	    :lineup lineup
+	    :breakup (%make-breakup lineup
+				    (disposition context)
+				    (paragraph-width context)
+				    (algorithm context)))))
 
-(define-interface penalty-dialog ()
+(define-interface penalty-adjustment ()
   ((hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
    (main-interface :initarg :main-interface :reader main-interface))
   (:panes
-   (penalty slider
-     :title "Penalty: "
+   (penalty-slider slider
+     :title "dummy"
      :orientation :vertical
-     :visible-min-width 250
+     :visible-min-height 220
      :tick-frequency 0
      :callback 'set-penalty
-     :reader penalty))
-  (:layouts
-   (main column-layout
-	 '(penalty)))
-  (:default-initargs
-   :title "Penalty Adjustment"))
+     :reader penalty-slider))
+  (:layouts (main column-layout '(penalty-slider)))
+  (:default-initargs :title "Penalty Adjustment"))
+
+(defmethod interface-display :before ((interface penalty-adjustment))
+  "Prepare the penalty adjustment INTERFACE for display."
+  (let* ((slider (penalty-slider interface))
+	 (hyphenation-point (hyphenation-point interface))
+	 (caliber (caliber hyphenation-point)))
+    (setf (range-start slider) (caliber-min caliber)
+	  (range-end slider) (caliber-max caliber)
+	  (range-slug-start slider) (penalty hyphenation-point))
+    (setf (titled-object-title slider)
+	  (write-to-string (range-slug-start slider)))))
+
 
 (defun make-penalty-dialog (hyphenation-point interface)
-  "Create and display a penalty adjustment dialog for HYPHENATION-POINT."
-  (display
-   (make-instance 'penalty-dialog
-     :hyphenation-point hyphenation-point
-     :main-interface interface)
-   :owner interface
-   :window-styles '(:toolbox t
-		    :never-iconic t
-		    :always-on-top t
-		    :can-full-screen nil)))
+  "Create and display a penalty adjustment dialog for HYPHENATION-POINT.
+INTERFACE is the main ETAP window."
+  (display (make-instance 'penalty-adjustment
+	     :hyphenation-point hyphenation-point
+	     :main-interface interface)
+	   :owner interface
+	   :window-styles '(:toolbox t
+			    :never-iconic t
+			    :always-on-top t
+			    :can-full-screen nil)))
 
 
 ;; ------------------
