@@ -728,11 +728,11 @@ through 0 (green), and finally to +∞ (red)."
     (pane value status
      &aux (main-interface (main-interface (top-level-interface pane)))
 	  (hyphenation-point (hyphenation-point (top-level-interface pane)))
-	  (value (calibrated-value
-		  (range-slug-start pane) (caliber hyphenation-point)))
 	  (context (context main-interface)))
   "Set PANE's corresponding break point penalty."
   (declare (ignore status))
+  (setq value
+	(calibrated-value (range-slug-start pane) (caliber hyphenation-point)))
   (setf (titled-object-title pane) (princ-to-string value))
   (setf (penalty hyphenation-point) value)
   (let ((lineup (lineup (paragraph main-interface))))
