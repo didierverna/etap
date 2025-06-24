@@ -745,7 +745,7 @@ through 0 (green), and finally to +∞ (red)."
 	  (write-to-string (range-slug-start slider)))))
 
 
-(defun make-penalty-dialog (hyphenation-point interface)
+(defun make-penalty-adjustment (hyphenation-point interface)
   "Create and display a penalty adjustment dialog for HYPHENATION-POINT.
 INTERFACE is the main ETAP window."
   (display (make-instance 'penalty-adjustment
@@ -788,7 +788,7 @@ INTERFACE is the main ETAP window."
 		       (<= y (+ (y (car (last (lines layout)))) 5))
 		       (hyphenation-point-under x y (lines layout)))))
       (when object
-	(make-penalty-dialog object interface)))))
+	(make-penalty-adjustment object interface)))))
 
 
 ;; ----------------
