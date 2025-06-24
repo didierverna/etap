@@ -696,6 +696,48 @@ through 0 (green), and finally to +∞ (red)."
 
 
 ;; ------------------
+;; Penalty Adjustment
+;; ------------------
+
+(defun set-penalty
+    (pane value status
+     &aux (main-interface (main-interface (top-level-interface pane))))
+  "Adjust PANE's corresponding break point penalty."
+  (declare (ignore status))
+  ;(setf (titled-object-title pane) (format nil "Angle: ~D°" value))
+  (gp:invalidate-rectangle (view main-interface)))
+
+(define-interface penalty-dialog ()
+  ((hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
+   (main-interface :initarg :main-interface :reader main-interface))
+  (:panes
+   (penalty slider
+     :title "Penalty: "
+     :orientation :vertical
+     :visible-min-width 250
+     :tick-frequency 0
+     :callback 'set-penalty
+     :reader penalty))
+  (:layouts
+   (main column-layout
+	 '(penalty)))
+  (:default-initargs
+   :title "Penalty Adjustment"))
+
+(defun make-penalty-dialog (hyphenation-point interface)
+  "Create and display a penalty adjustment dialog for HYPHENATION-POINT."
+  (display
+   (make-instance 'penalty-dialog
+     :hyphenation-point hyphenation-point
+     :main-interface interface)
+   :owner interface
+   :window-styles '(:toolbox t
+		    :never-iconic t
+		    :always-on-top t
+		    :can-full-screen nil)))
+
+
+;; ------------------
 ;; Post Menu Callback
 ;; ------------------
 
@@ -725,7 +767,7 @@ through 0 (green), and finally to +∞ (red)."
 		       (<= y (+ (y (car (last (lines layout)))) 5))
 		       (hyphenation-point-under x y (lines layout)))))
       (when object
-	(display-tooltip pane :text (format nil "X: ~S, Y: ~S." x y))))))
+	(make-penalty-dialog object interface)))))
 
 
 ;; ----------------
