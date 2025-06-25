@@ -893,10 +893,14 @@ INTERFACE is the main ETAP window."
 ;; Menus
 ;; -----
 
-(defun tools-menu-callback (data interface)
-  "Display the rivers interface." ;; Currently what the only button does.
+(defun etap-menu-callback (data interface)
+  "ETAP menu callback."
   (declare (ignore data))
-  (display (rivers-interface interface) :owner interface))
+  (ecase data
+    (:reset-paragraph
+     (update interface))
+    (:rivers-detection
+     (display (rivers-interface interface) :owner interface))))
 
 (defun text-menu-callback
     (data interface &aux (context (context interface)))
@@ -937,16 +941,16 @@ INTERFACE is the main ETAP window."
    (rivers-interface :initform (make-instance 'rivers-detection)
 		     :reader rivers-interface))
   (:menus
-   (tools-menu "Tools" (:rivers-detection)
+   (etap-menu "ETAP" (:reset-paragraph :rivers-detection)
      :print-function 'title-capitalize
-     :callback 'tools-menu-callback)
+     :callback 'etap-menu-callback)
    (text-menu nil ;; Ignore popup menu's title
     (:reset)
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
      nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
-  (:menu-bar tools-menu)
+  (:menu-bar etap-menu)
   (:panes
    (algorithms tab-layout
      :title "Algorithms"
