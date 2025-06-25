@@ -121,19 +121,24 @@
 ;; ==========================================================================
 
 (defstruct
-    (caliber (:constructor make-caliber (min default max &optional infinity)))
+    (caliber
+     (:constructor make-caliber (property min default max &optional infinity)))
   "The CALIBER structure.
-A caliber represents values that have a mininum, a maximum, and a default."
-  min default max infinity)
+A caliber defines MIN, DEFAULT, and MAX values for PROPERTY.
+Additionally, extreme values will be converted to -∞ (resp. +∞) depending on
+INFINITY (:MIN, :MAX, or T meaning both)."
+  property min default max infinity)
 
 ;; #### TODO: we could check for a valid infinity argument here.
-(defmacro define-caliber (prefix name min default max &optional infinity)
-  "Define a *PREFIX-NAME* caliber with MIN, DEFAULT, and MAX values.
+(defmacro define-caliber (prefix property min default max &optional infinity)
+  "Define a *PREFIX-PROPERTY* caliber with MIN, DEFAULT, and MAX values.
+The corresponding PROPERTY is automatically interned in the keyword package.
 If supplied, INFINITY may be :MIN, :MAX, or T meaning both.
 In such a case, a calibrated value equal to MIN (resp. MAX) will be converted
 to -∞ (resp. +∞)."
-  `(defparameter ,(intern (format nil "*~A-~A*" prefix name))
-     (make-caliber ,min ,default, max ,infinity)))
+  `(defparameter ,(intern (format nil "*~A-~A*" prefix property))
+     (make-caliber ,(intern (symbol-name property) :keyword)
+		   ,min ,default, max ,infinity)))
 
 (defmacro calibrate
     (prefix name

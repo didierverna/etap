@@ -723,21 +723,22 @@ through 0 (green), and finally to +∞ (red)."
 
 ;; #### WARNING: the global variables defining each algorithm's
 ;; parametrization are calibrated by the algorithms entry points, because
-;; those entry points can be called programmatically. On the other hand,
-;; penalty sliders affect an already existing lineup and are accessible only
-;; from the GUI. Hence, the returned values below need to be calibrated
-;; (potentially to infinity) here.
+;; those entry points can be called programmatically. On the other hand, the
+;; penalty sliders and reset buttons below affect an already existing lineup
+;; and are accessible only from the GUI. Hence, the returned values need to be
+;; calibrated (potentially to infinity) here.
 
-(defun set-penalty
+(defun penalty-slider-callback
     (pane value status
-     &aux (main-interface (main-interface (top-level-interface pane)))
-	  (hyphenation-point (hyphenation-point (top-level-interface pane)))
+     &aux (interface (top-level-interface pane))
+	  (main-interface (main-interface interface))
+	  (hyphenation-point (hyphenation-point interface))
 	  (context (context main-interface)))
   "Set PANE's corresponding break point penalty."
   (declare (ignore status))
   (setq value
 	(calibrated-value (range-slug-start pane) (caliber hyphenation-point)))
-  (setf (titled-object-title pane) (princ-to-string value))
+  (setf (title-pane-text (title interface)) (princ-to-string value))
   (setf (penalty hyphenation-point) value)
   (let ((lineup (lineup (paragraph main-interface))))
     (update main-interface
@@ -748,32 +749,61 @@ through 0 (green), and finally to +∞ (red)."
 				    (paragraph-width context)
 				    (algorithm context)))))
 
-(defun reset-penalty
+(defun reset-buttons-callback
   (data pane
    &aux (interface (top-level-interface pane))
 	(penalty-slider (penalty-slider interface))
 	(hyphenation-point (hyphenation-point interface))
-	(value (caliber-default (caliber hyphenation-point))))
-  (declare (ignore data))
+	(caliber (caliber hyphenation-point))
+	(value (ecase data
+		 (:reset-to-original
+		  (original-value interface))
+		 (:reset-to-global
+		  ;; Note that when this interface is popped up, the algorithm
+		  ;; was previously selected, so its description in the
+		  ;; context is complete (all options are there, be it with
+		  ;; default values). As a consequence, we can't get NIL here.
+		  (getf (cdr (algorithm (context (main-interface interface))))
+			(caliber-property caliber)))
+		 (:reset-to-default
+		  (caliber-default caliber)))))
   (setf (range-slug-start penalty-slider) value)
-  (set-penalty penalty-slider value nil))
+  (penalty-slider-callback penalty-slider value nil))
 
+;; #### FIXME: since this interface is not currently used as a dialog, it
+;; remains on the screen, which is wrong if anything is changed underneath
+;; (algorithm, text, etc.)
 (define-interface penalty-adjustment ()
-  ((hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
+  ((original-value :reader original-value)
+   (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
    (main-interface :initarg :main-interface :reader main-interface))
   (:panes
-   (reset-button push-button
-     :text "Reset"
-     :callback 'reset-penalty)
+   (title title-pane
+     :reader title)
    (penalty-slider slider
-     :title "dummy"
      :orientation :vertical
      :visible-min-height 220
      :tick-frequency 0
-     :callback 'set-penalty
-     :reader penalty-slider))
-  (:layouts (main column-layout '(reset-button penalty-slider)))
+     :callback 'penalty-slider-callback
+     :reader penalty-slider)
+   (reset-buttons push-button-panel
+     :items '(:reset-to-original :reset-to-global :reset-to-default)
+     :print-function 'title-capitalize
+     :layout-class 'column-layout
+     :selection-callback 'reset-buttons-callback))
+  (:layouts
+   (main column-layout '(title row))
+   (row row-layout '(penalty-slider reset-buttons)))
   (:default-initargs :title "Penalty Adjustment"))
+
+(defmethod initialize-instance :after
+    ((interface penalty-adjustment)
+     &key
+     &aux (hyphenation-point (hyphenation-point interface)))
+  "Memorize the original penalty value."
+  (setf (slot-value interface 'original-value)
+	(uncalibrated-value
+	 (penalty hyphenation-point) (caliber hyphenation-point))))
 
 (defmethod interface-display :before ((interface penalty-adjustment))
   "Prepare the penalty adjustment INTERFACE for display."
@@ -782,9 +812,8 @@ through 0 (green), and finally to +∞ (red)."
 	 (caliber (caliber hyphenation-point)))
     (setf (range-start slider) (caliber-min caliber)
 	  (range-end slider)   (caliber-max caliber))
-    (setf (range-slug-start slider)
-	  (uncalibrated-value (penalty hyphenation-point) caliber))
-    (setf (titled-object-title slider)
+    (setf (range-slug-start slider) (original-value interface))
+    (setf (title-pane-text (title interface))
 	  (princ-to-string (penalty hyphenation-point)))))
 
 
@@ -895,7 +924,6 @@ INTERFACE is the main ETAP window."
 
 (defun etap-menu-callback (data interface)
   "ETAP menu callback."
-  (declare (ignore data))
   (ecase data
     (:reset-paragraph
      (update interface))
