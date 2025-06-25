@@ -791,14 +791,17 @@ through 0 (green), and finally to +∞ (red)."
 (defun make-penalty-adjustment (hyphenation-point interface)
   "Create and display a penalty adjustment dialog for HYPHENATION-POINT.
 INTERFACE is the main ETAP window."
-  (display (make-instance 'penalty-adjustment
-	     :hyphenation-point hyphenation-point
-	     :main-interface interface)
-	   :owner interface
-	   :window-styles '(:toolbox t
-			    :never-iconic t
-			    :always-on-top t
-			    :can-full-screen nil)))
+  (let ((dialog (make-instance 'penalty-adjustment
+		  :hyphenation-point hyphenation-point
+		  :main-interface interface)))
+    (multiple-value-bind (x y) (top-level-interface-geometry interface)
+      (set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200)))
+    (display dialog
+      :owner interface
+      :window-styles '(:toolbox t
+		       :never-iconic t
+		       :always-on-top t
+		       :can-full-screen nil))))
 
 
 ;; ------------------
