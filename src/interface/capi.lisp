@@ -16,6 +16,23 @@
   `(calibrate gui ,name :earmuffs nil))
 
 
+(defun calibrated-value (value caliber)
+  "Depending on CALIBER, potentially convert VALUE to +∞/-∞."
+  (cond ((and (= value (caliber-min caliber))
+	      (member (caliber-infinity caliber) '(t :min)))
+	 -∞)
+	((and (= value (caliber-max caliber))
+	      (member (caliber-infinity caliber) '(t :max)))
+	 +∞)
+	(t value)))
+
+(defun uncalibrated-value (value caliber)
+  "Depending on CALIBER, potentially convert an infinity VALUE to min/max."
+  (cond ((eq value +∞) (caliber-max caliber))
+	((eq value -∞) (caliber-min caliber))
+	(t value)))
+
+
 ;; --------------------------------------
 ;; CLIM-less object under mouse detection
 ;; --------------------------------------
@@ -153,7 +170,10 @@ settings."))
 (defclass agc-slider (agc slider)
   ((property-name
     :documentation "This slider's property name."
-    :reader property-name))
+    :reader property-name)
+   (caliber
+    :documentation "This slider's corresponding caliber."
+    :reader caliber))
   (:default-initargs
    :tick-frequency 0
    :orientation :horizontal
@@ -166,9 +186,9 @@ settings."))
   (:documentation "Compute AGC SlIDER's title based on its current value.")
   (:method ((slider agc-slider))
     "Advertise AGC SLIDER's value in its title. This is the default method."
-    (concatenate 'string
-      (property-name slider) ": "
-      (write-to-string (range-slug-start slider)))))
+    (format nil "~A: ~A"
+      (property-name slider)
+      (calibrated-value (range-slug-start slider) (caliber slider)))))
 
 (defun update-agc-slider-title (slider)
   "Update AGC SLIDER's title."
@@ -185,6 +205,7 @@ settings."))
 					 (symbol-name property)
 					 "*")
 				       :etap))))
+    (setf (slot-value slider 'caliber) caliber)
     (setf (range-start slider)      (caliber-min caliber)
 	  (range-end slider)        (caliber-max caliber)
 	  (range-slug-start slider) (caliber-default caliber))
@@ -213,14 +234,13 @@ settings."))
   (:documentation "The AGC Dimension Slider Class."))
 
 (defmethod agc-slider-title
-    ((slider agc-dimen-slider) &aux (value (range-slug-start slider)))
+    ((slider agc-dimen-slider)
+     &aux (value (calibrated-value (range-slug-start slider) (caliber slider))))
   "Advertise AGC dimension SLIDER's value in its title, in pt and cm."
-  (concatenate 'string
-    (property-name slider) ": "
-    (write-to-string value)
-    "pt ("
-    (write-to-string (float (/ value 28.452755)))
-    "cm)"))
+  (format nil "~A: ~A~@[pt (~Acm)~]"
+    (property-name slider)
+    value
+    (when (numberp value) (float (/ value 28.452755)))))
 
 
 ;; -------------------
@@ -707,22 +727,6 @@ through 0 (green), and finally to +∞ (red)."
 ;; penalty sliders affect an already existing lineup and are accessible only
 ;; from the GUI. Hence, the returned values below need to be calibrated
 ;; (potentially to infinity) here.
-
-(defun calibrated-value (value caliber)
-  "Depending on CALIBER, potentially convert VALUE to +∞/-∞."
-  (cond ((and (= value (caliber-min caliber))
-	      (member (caliber-infinity caliber) '(t :min)))
-	 -∞)
-	((and (= value (caliber-max caliber))
-	      (member (caliber-infinity caliber) '(t :max)))
-	 +∞)
-	(t value)))
-
-(defun uncalibrated-value (value caliber)
-  "Depending on CALIBER, potentially convert an infinity VALUE to min/max."
-  (cond ((eq value +∞) (caliber-max caliber))
-	((eq value -∞) (caliber-min caliber))
-	(t value)))
 
 (defun set-penalty
     (pane value status
