@@ -759,12 +759,10 @@ through 0 (green), and finally to +∞ (red)."
 		 (:reset-to-original
 		  (original-value interface))
 		 (:reset-to-global
-		  ;; Note that when this interface is popped up, the algorithm
-		  ;; was previously selected, so its description in the
-		  ;; context is complete (all options are there, be it with
-		  ;; default values). As a consequence, we can't get NIL here.
-		  (getf (cdr (algorithm (context (main-interface interface))))
-			(caliber-property caliber)))
+		  (or
+		   (getf (cdr (algorithm (context (main-interface interface))))
+			 (caliber-property caliber))
+		   (caliber-default caliber)))
 		 (:reset-to-default
 		  (caliber-default caliber)))))
   (setf (range-slug-start penalty-slider) value)
