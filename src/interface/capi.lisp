@@ -1283,7 +1283,7 @@ or the current algorithm's one otherwise."
 		    (:post-menu post-menu-callback))))
   (:layouts
    (main column-layout '(settings view))
-   (settings row-layout '(settings-1 settings-2) :reader settings)
+   (settings row-layout '(settings-1 settings-2))
    (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
      :reader settings-1)
    (layouts-ctrl row-layout '(layout--1 layout-+1))
