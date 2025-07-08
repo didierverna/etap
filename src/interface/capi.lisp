@@ -4,9 +4,8 @@
 ;; Utilities
 ;; ==========================================================================
 
-;; #### NOTE: SIMPLE-PANE-ENABLED doesn't do what I would expect on interfaces
-;; or layouts (namely, to recursively enable or disable its components), so we
-;; need to do it by hand..
+;; #### NOTE: there is no mechanism to globally enable or disable an
+;; interface or a layout's components, so we need to do it by hand.
 (defgeneric enable-interface (interface &optional enabled)
   (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
 
@@ -409,10 +408,9 @@ This is the mixin class for AGC radio and check button panels."))
 ;; Callbacks
 ;; ---------
 
-;; #### NOTE: this callback does nothing when the interface is virtually
-;; disabled.
 (defun set-algorithm (value interface)
-  "Set algorithm specified by VALUE in INTERFACE."
+  "If INTERFACE is enabled, set algorithm specified by VALUE.
+Otherwise, do nothing."
   (if (enabled interface)
     (let ((algorithm (car value)))
       ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
@@ -422,14 +420,17 @@ This is the mixin class for AGC radio and check button panels."))
       (when (eq algorithm :knuth-plass) (setq algorithm :kp))
       (select-algorithm algorithm interface)
       (update interface))
+    ;; #### NOTE: in fact, we're not really doing nothing here. The call to
+    ;; (SETF CHOICE-SELECTION) below allows the correct tab layout button to
+    ;; remain highlighted. Beware however that doing it triggers this very
+    ;; same callback again, so we need to take care of avoiding an infinite
+    ;; callback loop by changing the choice selection only when necessary.
     (let* ((algorithms-tab-layout (algorithms interface))
 	   (old-selection
 	     (position (algorithm-type (algorithm (context interface)))
 		       (collection-items algorithms-tab-layout)
 		       :key #'car))
 	   (new-selection (choice-selection algorithms-tab-layout)))
-      ;; Blindly restoring the old selection would probably lead to an
-      ;; infinite loop in the callback, so better be clever here...
       (unless (eq old-selection new-selection)
 	(setf (choice-selection algorithms-tab-layout) old-selection)))))
 
@@ -793,9 +794,6 @@ through 0 (green), and finally to +∞ (red)."
   (setf (range-slug-start penalty-slider) value)
   (penalty-slider-callback penalty-slider value nil))
 
-;; #### FIXME: since this interface is not currently used as a dialog, it
-;; remains on the screen, which is wrong if anything is changed underneath
-;; (algorithm, text, etc.)
 (define-interface penalty-adjustment ()
   ((original-value :reader original-value)
    (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
@@ -986,17 +984,15 @@ INTERFACE is the main ETAP window."
 ;; Interface
 ;; ==========================================================================
 
-;; #### NOTE: as there's apparently no way to disable a tab layout, we need to
-;; emulate this be simply doing nothing on clicks.
 (defun algorithms-tab-layout-visible-child-function (item interface)
-  "Return the appropriate algorithm pane.
-This is either ITEM's second element if the interface is enabled,
+  "Return the appropriate algorithm pane to display.
+This is either ITEM's second element if INTERFACE is enabled,
 or the current algorithm's one otherwise."
-  (if (enabled interface)
-    (second item)
-    (second (find (algorithm-type (algorithm (context interface)))
-		(collection-items (algorithms interface))
-	      :key #'car))))
+  (unless (enabled interface)
+    (setq item (find (algorithm-type (algorithm (context interface)))
+		   (collection-items (algorithms interface))
+		 :key #'car)))
+  (second item))
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
