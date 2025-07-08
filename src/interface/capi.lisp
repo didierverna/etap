@@ -654,8 +654,8 @@ through 0 (green), and finally to +∞ (red)."
 ;; --------
 
 (defparameter *interface-tooltips*
-  '(:layout-1 "Display previous layout."
-    :layout+1 "Display next layout."))
+  '(:layout--1 "Display previous layout."
+    :layout-+1 "Display next layout."))
 
 (defparameter *tooltips*
   `(,@*interface-tooltips*
@@ -1191,16 +1191,18 @@ INTERFACE is the main ETAP window."
      :tick-frequency 0
      :callback 'set-zoom
      :reader zoom)
-   (layout-1 push-button
+   (layout--1 push-button
      :text "<"
      :data #'1-
      :callback 'next-layout
-     :help-key :layout-1)
-   (layout+1 push-button
+     :help-key :layout--1
+     :reader layout--1)
+   (layout-+1 push-button
      :text ">"
      :data #'1+
      :callback 'next-layout
-     :help-key :layout+1)
+     :help-key :layout-+1
+     :reader layout-+1)
    (clues check-button-panel
      :layout-class 'column-layout
      :title "Characters and Clues" :title-position :frame
