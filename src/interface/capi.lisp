@@ -4,6 +4,17 @@
 ;; Utilities
 ;; ==========================================================================
 
+;; #### NOTE: SIMPLE-PANE-ENABLED doesn't do what I would expect on interfaces
+;; or layouts (namely, to recursively enable or disable its components), so we
+;; need to do it by hand..
+(defgeneric enable-interface (interface &optional enabled)
+  (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
+
+
+;; --------
+;; Calibers
+;; --------
+
 (defmacro define-gui-caliber (name min default max)
   "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber gui ,name ,min ,default ,max))
@@ -398,15 +409,18 @@ This is the mixin class for AGC radio and check button panels."))
 ;; Callbacks
 ;; ---------
 
-;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout, except
-;; that it's :knuth-plass in contexts, and also in the interface algorithm
-;; selection pane where the title needs to be human readable. Hence the title
-;; conversion below.
+;; #### NOTE: this callback does nothing when the interface is virtually
+;; disabled.
 (defun set-algorithm (value interface &aux (algorithm (car value)))
   "Set algorithm specified by VALUE in INTERFACE."
-  (when (eq algorithm :knuth-plass) (setq algorithm :kp))
-  (select-algorithm algorithm interface)
-  (update interface))
+  (when (enabled interface)
+    ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
+    ;; except that it's :knuth-plass in contexts, and also in the interface
+    ;; algorithm selection pane where the title needs to be human readable.
+    ;; Hence the title conversion below.
+    (when (eq algorithm :knuth-plass) (setq algorithm :kp))
+    (select-algorithm algorithm interface)
+    (update interface)))
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
@@ -820,7 +834,10 @@ through 0 (green), and finally to +∞ (red)."
 INTERFACE is the main ETAP window."
   (let ((dialog (make-instance 'penalty-adjustment
 		  :hyphenation-point hyphenation-point
-		  :main-interface interface)))
+		  :main-interface interface
+		  :destroy-callback (lambda (dialog)
+				      (declare (ignore dialog))
+				      (enable-interface interface)))))
     (multiple-value-bind (x y) (top-level-interface-geometry interface)
       (set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200)))
     (display dialog
@@ -828,7 +845,8 @@ INTERFACE is the main ETAP window."
       :window-styles '(:toolbox t
 		       :never-iconic t
 		       :always-on-top t
-		       :can-full-screen nil))))
+		       :can-full-screen nil))
+    (enable-interface interface nil)))
 
 
 ;; ------------------
@@ -957,10 +975,23 @@ INTERFACE is the main ETAP window."
 ;; Interface
 ;; ==========================================================================
 
+;; #### NOTE: as there's apparently no way to disable a tab layout, we need to
+;; emulate this be simply doing nothing on clicks.
+(defun algorithms-tab-layout-visible-child-function (item interface)
+  "Return the appropriate algorithm pane.
+This is either ITEM's second element if the interface is enabled,
+or the current algorithm's one otherwise."
+  (if (enabled interface)
+    (second item)
+    (second (find (algorithm-type (algorithm (context interface)))
+		(collection-items (algorithms interface))
+	      :key #'car))))
+
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (paragraph :accessor paragraph)
    (layout :initform 0 :accessor layout)
+   (enabled :initform t :accessor enabled)
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
@@ -989,7 +1020,8 @@ INTERFACE is the main ETAP window."
 	      (:knuth-plass kp-settings)
 	      (:kpx kpx-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
-     :visible-child-function 'second
+     ;; #### NOTE: :VISIBLE-CHILD-FUNCTION is set in the INITIALIZE-INSTANCE
+     ;; :after method.
      :selection-callback 'set-algorithm
      :reader algorithms)
    (fixed-fallback agc-radio-button-panel
@@ -1216,8 +1248,10 @@ INTERFACE is the main ETAP window."
      :selection-callback 'set-clues
      :retract-callback 'set-clues
      :reader clues)
-   (text-button popup-menu-button :text "Source text" :menu text-menu)
-   (language-button popup-menu-button :text "Language" :menu language-menu)
+   (text-button popup-menu-button
+     :text "Source text" :menu text-menu :reader text-button)
+   (language-button popup-menu-button
+     :text "Language" :menu language-menu :reader language-button)
    (text editor-pane
      :visible-min-width '(character 80)
      ;;:visible-max-width '(character 80)
@@ -1238,10 +1272,10 @@ INTERFACE is the main ETAP window."
 		    (:post-menu post-menu-callback))))
   (:layouts
    (main column-layout '(settings view))
-   (settings row-layout '(settings-1 settings-2))
+   (settings row-layout '(settings-1 settings-2) :reader settings)
    (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
      :reader settings-1)
-   (layouts-ctrl row-layout '(layout-1 layout+1))
+   (layouts-ctrl row-layout '(layout--1 layout-+1))
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(disposition disposition-options features))
    (options-2 column-layout '(clues))
@@ -1287,7 +1321,24 @@ This currently includes the initial ZOOMing factor and CLUES."
   (setf (titled-object-title (zoom etap))
 	(format nil "Paragraph zoom: ~3D%" zoom))
   (setf (range-slug-start (zoom etap)) zoom)
-  (setf (choice-selected-items (clues etap)) clues))
+  (setf (choice-selected-items (clues etap)) clues)
+  (setf (tab-layout-visible-child-function (algorithms etap))
+	(lambda (item)
+	  (algorithms-tab-layout-visible-child-function item etap))))
+
+(defmethod enable-interface ((interface etap) &optional (enabled t))
+  "Change ETAP INTERFACE's enabled status."
+  (setf (enabled interface) enabled)
+  (setf (simple-pane-enabled (disposition interface)) enabled
+	(simple-pane-enabled (disposition-options-panel interface)) enabled
+	(simple-pane-enabled (features interface)) enabled
+	(simple-pane-enabled (paragraph-width interface)) enabled
+	(simple-pane-enabled (layout--1 interface)) enabled
+	(simple-pane-enabled (layout-+1 interface)) enabled
+	(simple-pane-enabled (clues interface)) enabled
+	(simple-pane-enabled (text-button interface)) enabled
+	(simple-pane-enabled (language-button interface)) enabled
+	(simple-pane-enabled (text interface)) enabled))
 
 
 ;; Interface display
