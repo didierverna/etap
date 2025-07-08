@@ -850,25 +850,39 @@ through 0 (green), and finally to +∞ (red)."
     (setf (title-pane-text (title interface))
 	  (princ-to-string (penalty hyphenation-point)))))
 
+(defun penalty-adjustment-dialog-destroy-callback (dialog)
+  "Possibly re-enable the main interface if DIALOG was the last one."
+  (let ((interface (main-interface dialog)))
+    (setf (penalty-adjustment-dialogs interface)
+	  (remove dialog (penalty-adjustment-dialogs interface)))
+    (unless (penalty-adjustment-dialogs interface)
+      (enable-interface interface))))
 
 (defun make-penalty-adjustment (hyphenation-point interface)
-  "Create and display a penalty adjustment dialog for HYPHENATION-POINT.
+  "Display a penalty adjustment dialog for HYPHENATION-POINT.
+If one already exists, activate it and give it the focus.
+Otherwise, create the dialog first.
+
 INTERFACE is the main ETAP window."
-  (let ((dialog (make-instance 'penalty-adjustment
-		  :hyphenation-point hyphenation-point
-		  :main-interface interface
-		  :destroy-callback (lambda (dialog)
-				      (declare (ignore dialog))
-				      (enable-interface interface)))))
-    (multiple-value-bind (x y) (top-level-interface-geometry interface)
-      (set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200)))
-    (display dialog
-      :owner interface
-      :window-styles '(:toolbox t
-		       :never-iconic t
-		       :always-on-top t
-		       :can-full-screen nil))
-    (enable-interface interface nil)))
+  (let ((dialog (find hyphenation-point (penalty-adjustment-dialogs interface)
+		  :key #'hyphenation-point)))
+    (if dialog
+      (activate-pane dialog)
+      (multiple-value-bind (x y) (top-level-interface-geometry interface)
+	(setq dialog (make-instance 'penalty-adjustment
+		       :hyphenation-point hyphenation-point
+		       :main-interface interface
+		       :destroy-callback
+		       'penalty-adjustment-dialog-destroy-callback))
+	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
+	(push dialog (penalty-adjustment-dialogs interface))
+	(display dialog
+		 :owner interface
+		 :window-styles '(:toolbox t
+				  :never-iconic t
+				  :always-on-top t
+				  :can-full-screen nil)))))
+  (when (enabled interface) (enable-interface interface nil)))
 
 
 ;; ------------------
@@ -1012,6 +1026,9 @@ or the current algorithm's one otherwise."
    (paragraph :accessor paragraph)
    (layout :initform 0 :accessor layout)
    (enabled :initform t :accessor enabled)
+   (penalty-adjustment-dialogs
+    :initform nil
+    :accessor penalty-adjustment-dialogs)
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
@@ -1520,5 +1537,7 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
 	     :zoom zoom
 	     :clues clues
 	     :help-callback 'show-help
-	     :destroy-callback (lambda (interface)
-				 (destroy (rivers-interface interface))))))
+	     :destroy-callback
+	     (lambda (interface)
+	       (destroy (rivers-interface interface))
+	       (mapc #'destroy (penalty-adjustment-dialogs interface))))))
