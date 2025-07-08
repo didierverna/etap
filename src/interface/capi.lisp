@@ -411,16 +411,27 @@ This is the mixin class for AGC radio and check button panels."))
 
 ;; #### NOTE: this callback does nothing when the interface is virtually
 ;; disabled.
-(defun set-algorithm (value interface &aux (algorithm (car value)))
+(defun set-algorithm (value interface)
   "Set algorithm specified by VALUE in INTERFACE."
-  (when (enabled interface)
-    ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
-    ;; except that it's :knuth-plass in contexts, and also in the interface
-    ;; algorithm selection pane where the title needs to be human readable.
-    ;; Hence the title conversion below.
-    (when (eq algorithm :knuth-plass) (setq algorithm :kp))
-    (select-algorithm algorithm interface)
-    (update interface)))
+  (if (enabled interface)
+    (let ((algorithm (car value)))
+      ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
+      ;; except that it's :knuth-plass in contexts, and also in the interface
+      ;; algorithm selection pane where the title needs to be human readable.
+      ;; Hence the title conversion below.
+      (when (eq algorithm :knuth-plass) (setq algorithm :kp))
+      (select-algorithm algorithm interface)
+      (update interface))
+    (let* ((algorithms-tab-layout (algorithms interface))
+	   (old-selection
+	     (position (algorithm-type (algorithm (context interface)))
+		       (collection-items algorithms-tab-layout)
+		       :key #'car))
+	   (new-selection (choice-selection algorithms-tab-layout)))
+      ;; Blindly restoring the old selection would probably lead to an
+      ;; infinite loop in the callback, so better be clever here...
+      (unless (eq old-selection new-selection)
+	(setf (choice-selection algorithms-tab-layout) old-selection)))))
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
