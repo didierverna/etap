@@ -4,10 +4,23 @@
 ;; Utilities
 ;; ==========================================================================
 
+;; ------------------------
+;; Panes hierarchy enabling
+;; ------------------------
+
 ;; #### NOTE: there is no mechanism to globally enable or disable an
 ;; interface or a layout's components, so we need to do it by hand.
+
 (defgeneric enable-interface (interface &optional enabled)
   (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
+
+(defun enable-panes (pane &optional (enabled t))
+  "Set PANE and its descendants'enabled status to ENABLED (T by default)."
+  (map-pane-descendant-children
+   pane (lambda (child) (setf (simple-pane-enabled child) enabled))
+   :test (lambda (child) (typep child 'simple-pane))
+   :visible t)
+  (when (typep pane 'simple-pane) (setf (simple-pane-enabled pane) enabled)))
 
 
 ;; --------
@@ -1282,9 +1295,11 @@ or the current algorithm's one otherwise."
    (settings row-layout '(settings-1 settings-2))
    (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
      :reader settings-1)
-   (layouts-ctrl row-layout '(layout--1 layout-+1))
+   (layouts-ctrl row-layout '(layout--1 layout-+1)
+     :reader layouts-ctrl)
    (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(disposition disposition-options features))
+   (options-1 column-layout '(disposition disposition-options features)
+     :reader options-1)
    (options-2 column-layout '(clues))
    (settings-2 column-layout '(algorithms text-options text)
      :reader settings-2)
@@ -1334,18 +1349,15 @@ This currently includes the initial ZOOMing factor and CLUES."
 	  (algorithms-tab-layout-visible-child-function item etap))))
 
 (defmethod enable-interface ((interface etap) &optional (enabled t))
-  "Change ETAP INTERFACE's enabled status."
-  (setf (enabled interface) enabled)
-  (setf (simple-pane-enabled (disposition interface)) enabled
-	(simple-pane-enabled (disposition-options-panel interface)) enabled
-	(simple-pane-enabled (features interface)) enabled
-	(simple-pane-enabled (paragraph-width interface)) enabled
-	(simple-pane-enabled (layout--1 interface)) enabled
-	(simple-pane-enabled (layout-+1 interface)) enabled
-	(simple-pane-enabled (clues interface)) enabled
-	(simple-pane-enabled (text-button interface)) enabled
-	(simple-pane-enabled (language-button interface)) enabled
-	(simple-pane-enabled (text interface)) enabled))
+  "Change ETAP INTERFACE's enabled status.
+The zooming and clues controls are always enabled.
+The only interface controls which are subject to enabling / disabling are
+those which may affect the typesetting."
+  (setf (simple-pane-enabled (paragraph-width interface)) enabled)
+  (enable-panes (layouts-ctrl interface) enabled)
+  (enable-panes (options-1 interface) enabled)
+  (enable-panes (settings-2 interface) enabled)
+  (setf (enabled interface) enabled))
 
 
 ;; Interface display
