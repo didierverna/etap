@@ -146,6 +146,22 @@ ARGS are passed along to MAKE-PARAGRAPH."
   (remake-rivers interface)
   (gp:invalidate-rectangle (view interface)))
 
+(defun update-from-lineup
+    (interface
+     &aux (context (context interface))
+	  (paragraph (paragraph interface))
+	  (hlist (hlist paragraph))
+	  (lineup (lineup paragraph)))
+  "Update INTERFACE sarting from the current lineup.
+See `update' for more information."
+  (update interface
+    :hlist hlist
+    :lineup lineup
+    :breakup (%make-breakup lineup
+			    (disposition context)
+			    (paragraph-width context)
+			    (algorithm context))))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun title-capitalize (title)
     "Capitalize TITLE and substitute dashes with spaces."
@@ -478,7 +494,7 @@ Otherwise, do nothing."
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  value (/ value 28.452755)))
   (setf (paragraph-width (context interface)) value)
-  (update interface))
+  (update-from-lineup interface))
 
 (defun set-zoom (pane value status)
   "Set PANE's zooming to to VALUE."
@@ -780,13 +796,7 @@ through 0 (green), and finally to +∞ (red)."
   (setf (title-pane-text (title interface)) (princ-to-string value))
   (setf (penalty hyphenation-point) value)
   (let ((lineup (lineup (paragraph main-interface))))
-    (update main-interface
-	    :hlist (hlist (paragraph main-interface))
-	    :lineup lineup
-	    :breakup (%make-breakup lineup
-				    (disposition context)
-				    (paragraph-width context)
-				    (algorithm context)))))
+    (update-from-lineup  main-interface)))
 
 (defun reset-buttons-callback
   (data pane
