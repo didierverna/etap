@@ -3,10 +3,10 @@
 (defclass nlstring ()
   ((text
     :documentation "The nlstring's text (a string or NIL; *TEXT* by default)."
-    :initform *text* :initarg :text :reader text)
+    :initform *text* :initarg :text :accessor text)
    (language
     :documentation "The nlstring's language (*LANGUAGE* by default)."
-    :initform *language* :initarg :language :reader language))
+    :initform *language* :initarg :language :accessor language))
   (:documentation "The NLString (Natural Language String) class."))
 
 (defun make-nlstring (&rest initargs &key text language)
