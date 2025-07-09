@@ -78,79 +78,135 @@ A context object stores the requested parameters for one experiment."))
 - TEXT and LANGUAGE are defaulted from NLSTRING, or to *TEXT* and *LANGUAGE*
   respectively.
 - FEATURES is defaulted from CONTEXT, or to NIL.
-- KERNING, LIGATURES, and HYPHENATION are defaulted from FEATURES."
+- KERNING, LIGATURES, and HYPHENATION are defaulted from FEATURES.
+
+NLSTRING may be overridden if one of its dependencies is passed explicitly."
   (when (or (null nlstring) textp languagep)
     (setq nlstring (make-nlstring :text text :language language)))
   (%make-hlist nlstring font kerning ligatures hyphenation))
 
-;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
-;; argument on purpose: it's more convenient to provide access to TEXT and
-;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
 (defun make-lineup
-    (&key (context *context*)
-	  (text (if context (text context) *text*))
-	  (language (if context (language context) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
+    (&rest keys
+     &key (context *context*)
+	  (nlstring (when context (nlstring context)) nlstringp)
+	  (text (if nlstring (text nlstring) *text*) textp)
+	  (language (if nlstring (language nlstring) *language*) languagep)
+	  (font (if context (font context) *font*) fontp)
+	  (features (when context (features context)) featuresp)
+	  (kerning (getf features :kerning) kerningp)
+	  (ligatures (getf features :ligatures) ligaturesp)
+	  (hyphenation (getf features :hyphenation) hyphenationp)
 	  (disposition (if context (disposition context) :flush-left))
 	  (algorithm (if context (algorithm context) :fixed))
-	  (hlist (%make-hlist text language font kerning ligatures
-			      hyphenation)))
+	  hlist)
   "Make a new lineup.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
-global variables, KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES, DISPOSITION is defaulted to :flush-left, and ALGORITHM to :fixed."
+- DISPOSITION and ALGORITHM are defaulted from CONTEXT, or to :FLUSH-LEFT and
+  :FIXED respectively.
+
+HLIST may be overridden if one of its dependencies is passed explicitly, or
+needs to be overridden itself. See `make-hlist' for the behavior of the other
+parameters."
+  (declare (ignore text language font kerning ligatures hyphenation))
+  (when (or (null hlist)
+	    nlstringp textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp)
+    (setq hlist (apply #'make-hlist
+		  (remove-keys keys :disposition :algorithm))))
   (%make-lineup hlist disposition algorithm))
 
 (defun make-breakup
-    (&key (context *context*)
-	  (text (if context (text context) *text*))
-	  (language (if context (language context) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
-	  (disposition (if context (disposition context) :flush-left))
-	  (algorithm (if context (algorithm context) :fixed))
-	  (width (if context (paragraph-width context) *paragraph-width*))
-	  ;; #### WARNING: no mutual coherency checks for these three.
-	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
-	  (lineup (%make-lineup hlist disposition algorithm)))
+    (&rest keys
+     &key (context *context*)
+	  (nlstring (when context (nlstring context)) nlstringp)
+	  (text (if nlstring (text nlstring) *text*) textp)
+	  (language (if nlstring (language nlstring) *language*) languagep)
+	  (font (if context (font context) *font*) fontp)
+	  (features (when context (features context)) featuresp)
+	  (kerning (getf features :kerning) kerningp)
+	  (ligatures (getf features :ligatures) ligaturesp)
+	  (hyphenation (getf features :hyphenation) hyphenationp)
+	  (disposition (if context (disposition context) :flush-left)
+		       dispositionp)
+	  (algorithm (if context (algorithm context) :fixed) algorithmp)
+	  (hlist nil hlistp)
+	  lineup
+	  (width (if context (paragraph-width context) *paragraph-width*)))
   "Make a new breakup.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
-corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
-defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
-ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
-subsequently computed."
+- WIDTH is defaulted from CONTEXT, or to *PARAGRAPH-WIDTH*.
+
+LINEUP may be overridden if one of its dependencies is passed explicitly, or
+needs to be overridden itself. See `make-lineup' for the behavior of the other
+parameters."
+  (declare (ignore text language font kerning ligatures hyphenation hlist))
+  (when (or (null lineup)
+	    nlstringp textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp
+	    dispositionp
+	    algorithmp
+	    hlistp)
+    (setq lineup (apply #'make-lineup (remove-keys keys :lineup :width))))
   (%make-breakup lineup disposition width algorithm))
 
 (defun make-paragraph
-    (&key (context *context*)
-	  (text (if context (text context) *text*))
-	  (language (if context (language context) *language*))
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation))
-	  (disposition (if context (disposition context) :flush-left))
-	  (algorithm (if context (algorithm context) :fixed))
-	  (width (if context (paragraph-width context) *paragraph-width*))
-	  ;; #### WARNING: no mutual coherency checks for these three.
-	  (hlist (%make-hlist text language font kerning ligatures hyphenation))
-	  (lineup (%make-lineup hlist disposition algorithm))
-	  (breakup (%make-breakup lineup disposition width algorithm)))
+    (&rest keys
+     &key (context *context*)
+	  (nlstring (when context (nlstring context)) nlstringp)
+	  (text (if nlstring (text nlstring) *text*) textp)
+	  (language (if nlstring (language nlstring) *language*) languagep)
+	  (font (if context (font context) *font*) fontp)
+	  (features (when context (features context)) featuresp)
+	  (kerning (getf features :kerning) kerningp)
+	  (ligatures (getf features :ligatures) ligaturesp)
+	  (hyphenation (getf features :hyphenation) hyphenationp)
+	  (disposition (if context (disposition context) :flush-left)
+		       dispositionp)
+	  (algorithm (if context (algorithm context) :fixed) algorithmp)
+	  (hlist nil hlistp)
+	  (lineup nil lineupp)
+	  (width (if context (paragraph-width context) *paragraph-width*)
+		 widthp)
+	  breakup)
   "Make a new paragraph.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, FONT, and (paragraph) WIDTH, are defaulted from the
-corresponding global variables, KERNING, LIGATURES, and HYPHENATION are
-defaulted from FEATURES, DISPOSITION is defaulted to :flush-left, and
-ALGORITHM to :fixed. Unless provided, HLIST, LINEUP, and BREAKUP are
-subsequently computed."
+
+BREAKUP may be overridden if one of its dependencies is passed explicitly, or
+needs to be overridden itself. See `make-breakup' for the behavior of the
+other parameters."
+  (declare (ignore text language font kerning ligatures hyphenation
+		   disposition algorithm width))
+  ;; #### FIXME: this is ugly. There's a lot of redundancy in the various data
+  ;; structures dependencies, and this is apparent below.
+  (when (or (null hlist)
+	    nlstringp textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp)
+    (setq hlist (apply #'make-hlist
+		  (remove-keys keys
+		    :disposition :algorithm :hlist :lineup :width :breakup))
+	  hlistp t)
+    (push hlist keys)
+    (push :hlist keys))
+  (when (or (null lineup)
+	    nlstringp textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp
+	    dispositionp
+	    algorithmp
+	    hlistp)
+    (setq lineup (apply #'make-lineup
+		   (remove-keys keys :lineup :width :breakup))
+	  lineupp t)
+    (push lineup keys)
+    (push :lineup keys))
+  (when (or (null breakup)
+	    nlstringp textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp
+	    dispositionp
+	    algorithmp
+	    hlistp
+	    lineupp
+	    widthp)
+    (setq breakup (apply #'make-breakup (remove-keys keys :breakup))))
   (%make-paragraph hlist lineup breakup))
