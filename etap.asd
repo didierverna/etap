@@ -36,7 +36,8 @@
 		 (:file "load")
 		 (:file "hyphenate")))
        (:file "language")
-       (:file "text")))
+       (:file "text")
+       (:file "nlstring")))
      (:module "typesetting"
       :serial t
       :components
