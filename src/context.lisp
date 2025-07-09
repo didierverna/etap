@@ -64,8 +64,8 @@ A context object stores the requested parameters for one experiment."))
 (defun make-hlist
     (&key (context *context*)
 	  (nlstring (when context (nlstring context)))
-	  (text (if nlstring (text nlstring) *text*))
-	  (language (if nlstring (language nlstring) *language*))
+	  (text (if nlstring (text nlstring) *text*) textp)
+	  (language (if nlstring (language nlstring) *language*) languagep)
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
@@ -79,7 +79,9 @@ A context object stores the requested parameters for one experiment."))
   respectively.
 - FEATURES is defaulted from CONTEXT, or to NIL.
 - KERNING, LIGATURES, and HYPHENATION are defaulted from FEATURES."
-  (%make-hlist text language font kerning ligatures hyphenation))
+  (when (or (null nlstring) textp languagep)
+    (setq nlstring (make-nlstring :text text :language language)))
+  (%make-hlist nlstring font kerning ligatures hyphenation))
 
 ;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
 ;; argument on purpose: it's more convenient to provide access to TEXT and
