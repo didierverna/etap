@@ -599,7 +599,7 @@ consecutive blanks are replaced with a single interword glue."
 
 (defun %make-hlist
     (nlstring font kerning ligatures hyphenation
-     &aux (text (text nlstring) (language (language nlstring)))
+     &aux (text (text nlstring)) (language (language nlstring)))
   "Make a new hlist for NLSTRING in FONT.
 When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
   (unless (zerop (length text)) ; works for both NIL and ""
