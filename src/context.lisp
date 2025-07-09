@@ -61,23 +61,24 @@ A context object stores the requested parameters for one experiment."))
 ;; Entry Points
 ;; ==========================================================================
 
-;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
-;; argument on purpose: it's more convenient to provide access to TEXT and
-;; LANGUAGE directly, or rely on CONTEXT for either, or both of these.
 (defun make-hlist
     (&key (context *context*)
-	  (text (if context (text context) *text*))
-	  (language (if context (language context) *language*))
+	  (nlstring (when context (nlstring context)))
+	  (text (if nlstring (text nlstring) *text*))
+	  (language (if nlstring (language nlstring) *language*))
 	  (font (if context (font context) *font*))
 	  (features (when context (features context)))
 	  (kerning (getf features :kerning))
 	  (ligatures (getf features :ligatures))
 	  (hyphenation (getf features :hyphenation)))
   "Make a new hlist.
-When provided, CONTEXT is used to default the other parameters.
-Otherwise, TEXT, LANGUAGE, and FONT are defaulted from the corresponding
-global variables, and KERNING, LIGATURES, and HYPHENATION are defaulted from
-FEATURES."
+- CONTEXT defaults to *CONTEXT*.
+- NLSTRING, FONT, and FEATURES are defaulted from CONTEXT, or to NIL, *FONT*,
+  and NIL respectively.
+- TEXT and LANGUAGE are defaulted from NLSTRING, or to *TEXT* and *LANGUAGE*
+  respectively.
+- FEATURES is defaulted from CONTEXT, or to NIL.
+- KERNING, LIGATURES, and HYPHENATION are defaulted from FEATURES."
   (%make-hlist text language font kerning ligatures hyphenation))
 
 ;; #### NOTE: this function's interface doesn't have an NLSTRING keyword
