@@ -5,6 +5,9 @@
 ;; Lineup Breaking
 ;; ==========================================================================
 
+;; #### TODO: maybe use PROGV to avoid the need for keyword arguments to
+;; BREAK-LINEUP?
+
 ;; #### NOTE: each algorithm is responsible for instantiating the appropriate
 ;; breakup class, so we cannot short-circuit anything here in case of an empty
 ;; harray. ALGORITHM-TYPE is redundant with what's inside LINEUP already, but
@@ -97,9 +100,6 @@ Care is taken to render the layout first."
 ;; ==========================================================================
 ;; Entry Point
 ;; ==========================================================================
-
-;; #### TODO: maybe use PROGV to avoid the need for keyword arguments to
-;; BREAK-LINEUP?
 
 (defun %make-breakup (lineup width)
   "Break LINEUP for paragraph WIDTH. Return the resulting breakup."
