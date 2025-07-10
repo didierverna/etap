@@ -1249,7 +1249,7 @@ or the current algorithm's one otherwise."
      :title "Features" :title-position :frame
      :visible-max-width nil
      :visible-max-height nil
-     :items *typesetting-features*
+     :items *lineup-features*
      :print-function (lambda (item) (title-capitalize (car item)))
      :selection-callback 'set-features
      :retract-callback 'set-features
@@ -1514,7 +1514,7 @@ those which may affect the typesetting."
 			*disposition-options*)
   (set-choice-selection (features etap)
 			(features context)
-			*typesetting-features*)
+			*lineup-features*)
   (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
   (setf (titled-object-title (paragraph-width etap))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"

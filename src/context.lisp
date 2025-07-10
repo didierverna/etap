@@ -61,6 +61,9 @@ A context object stores the requested parameters for one experiment."))
 ;; Entry Points
 ;; ==========================================================================
 
+;; #### NOTE: I'm keeping this function around for debugging purposes only.
+;; HLists are internal temporary objects which are not supposed to be kept
+;; around. The other entry points do not accept hlists arguments anymore.
 (defun make-hlist
     (&key (context *context*)
 	  (nlstring (when context (nlstring context)))
@@ -81,9 +84,12 @@ A context object stores the requested parameters for one experiment."))
 - KERNING, LIGATURES, and HYPHENATION are defaulted from FEATURES.
 
 NLSTRING may be overridden if one of its dependencies is passed explicitly."
+  (setq features (list :kerning kerning
+		       :ligatures ligatures
+		       :hyphenation hyphenation))
   (when (or (null nlstring) textp languagep)
     (setq nlstring (make-nlstring :text text :language language)))
-  (%make-hlist nlstring font kerning ligatures hyphenation))
+  (%make-hlist nlstring font features))
 
 (defun make-lineup
     (&rest keys

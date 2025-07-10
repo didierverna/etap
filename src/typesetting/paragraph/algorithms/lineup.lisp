@@ -10,6 +10,10 @@
 
 (in-package :etap)
 
+(defparameter *lineup-features*
+  '((:kerning t) (:ligatures t) (:hyphenation t))
+  "The lineup features, as advertised by the interface.")
+
 (defclass lineup ()
   ((harray
     :documentation "The lineup's harray."
