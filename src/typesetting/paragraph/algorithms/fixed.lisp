@@ -283,17 +283,17 @@ This is the Fixed algorithm version."
 ;; Breakup
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :fixed))
+(defmethod break-lineup
+    (lineup width (algorithm (eql :fixed))
      &key ((:fallback *fallback*))
 	  ((:width-offset *width-offset*))
 	  ((:avoid-hyphens *avoid-hyphens*))
 	  ((:prefer-overfulls *prefer-overfulls*)))
-  "Break HARRAY with the Fixed algorithm."
+  "Break LINEUP for paragraph WIDTH with the Fixed algorithm."
   (default-fixed fallback)
   (calibrate-fixed width-offset)
-  (make-greedy-breakup harray disposition width
-		       (case (disposition-type disposition)
+  (make-greedy-breakup lineup width
+		       (case (disposition-type (disposition lineup))
 			 (:justified #'fixed-get-justified-boundary)
 			 (t          #'fixed-get-ragged-boundary))
 		       #'make-line))

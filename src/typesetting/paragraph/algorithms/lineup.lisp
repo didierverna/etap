@@ -42,6 +42,10 @@ All primary methods must return a (possibly modified) HLIST.")
   '((:kerning t) (:ligatures t) (:hyphenation t))
   "The lineup features, as advertised by the interface.")
 
+;; #### NOTE: contrary to breakups, there is currently no need for
+;; algorithm-specific lineup subclasses, even though it would make the
+;; specification (and the generic dispatch) of BREAK-LINEUP much cleaner.
+
 (defclass lineup ()
   ((nlstring
     :documentation "The lineup's original nlstring."

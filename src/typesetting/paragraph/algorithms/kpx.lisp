@@ -570,7 +570,7 @@ one-before-last."))
     (breakup
      &aux (harray (harray breakup))
 	  (pass (pass breakup))
-	  (width (width breakup))
+	  (width (paragraph-width breakup))
 	  (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
 	  (overshrink (getf (disposition-options disposition) :overshrink))
@@ -647,8 +647,8 @@ one-before-last."))
 ;; Variant Dispatch
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :kpx))
+(defmethod break-lineup
+    (lineup width (algorithm (eql :kpx))
      &key ((:variant *variant*))
 	  ((:fitness *fitness*))
 	  ((:line-penalty *line-penalty*))
@@ -660,7 +660,7 @@ one-before-last."))
 	  ((:tolerance *tolerance*))
 	  ((:emergency-stretch *emergency-stretch*))
 	  ((:looseness *looseness*)))
-  "Break HARRAY with the KPX algorithm."
+  "Break LINEUP for paragraph WIDTH with the KPX algorithm."
   (default-kpx variant)
   (default-kpx fitness :es)
   (calibrate-kpx line-penalty)
@@ -674,6 +674,6 @@ one-before-last."))
   (calibrate-kpx looseness)
   (ecase *variant*
     (:graph
-     (kp-graph-break-harray harray disposition width #'kpx-graph-make-layout))
+     (kp-graph-break-lineup lineup width #'kpx-graph-make-layout))
     (:dynamic
-     (kp-dynamic-break-harray harray disposition width #'kpx-create-nodes))))
+     (kp-dynamic-break-lineup lineup width #'kpx-create-nodes))))
