@@ -84,10 +84,11 @@ global properties."))
 
 (defmethod properties strnlcat
     ((breakup breakup) &key layout-# &aux (layouts (layouts breakup)))
-  "Return a string advertising BREAKUP's layouts number.
+  "Return a string advertising BREAKUP's lineup properties and layouts number.
 When LAYOUT-#, also advertise BREAKUP's LAYOUT-#th layout properties.
 Care is taken to render the layout first."
   (strnlcat
+   (properties (lineup breakup))
    (when layouts (format nil "~A layout~:P" (length layouts)))
    (when layout-#
      (assert layouts)

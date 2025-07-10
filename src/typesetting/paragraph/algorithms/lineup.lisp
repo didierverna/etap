@@ -104,7 +104,6 @@ This currently involves:
 			   (slot-value lineup 'theoretical-solutions-#)
 			   (expt 2 break-points-#))))))
 
-;; #### FIXME: do we need to advertise the new slots ?
 (defmethod properties strnlcat ((lineup lineup) &key)
   "Return a string advertising LINEUP's properties.
 This includes the total number of break points, and the theoretical number of
