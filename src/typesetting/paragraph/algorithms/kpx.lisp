@@ -75,7 +75,7 @@ See `define-caliber' for more information."
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
 ;; the same here.
 
-(defmethod process-hlist
+(defmethod post-process-hlist
     (hlist disposition (algorithm (eql :kpx))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
