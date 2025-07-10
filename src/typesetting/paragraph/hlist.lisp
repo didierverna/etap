@@ -1,46 +1,45 @@
 ;; An `hlist' (borrowing terminology from TeX) is the result of slicing
 ;; (hashing? but that's not the meaning of the h in hlist ;-)) the input text
-;; into a list of individual items: characters (font-dependent), kerns (if
-;; requested), discretionaries for hyphenation points (if requested,
-;; language-dependent), ligatures (if requested), and interword glues.
+;; into a list of items. The basic items are font characters and interword
+;; glues. Depending on the requested (lineup) features, an hlist may also
+;; contain kerns, ligatured font characters, and hyphenation discretionaries.
 
-;; The computation of the hlist is considered a pre-processing stage. No
-;; aspects of paragraph formatting are known yet (paragraph disposition,
-;; typesetting algorithm, or anything else). Most typesetting algorithms
-;; post-process the hlist (for example by adjusting penalties or adding
-;; glues).
-
-;; After this is done, the hlist (an actual list) is transformed into an array
-;; called the `harray', itself stored into a lineup object.
-
-;; #### WARNING: there are a number of characteristics in the hlist that
-;; affect the way algorithms are implemented. These specificities should be
-;; kept in mind because should they change, said algorithms may become buggy.
+;; There are a number of characteristics in the hlist that affect the way
+;; algorithms are implemented. These specificities should be kept in mind
+;; because should they change, said algorithms may become buggy.
 ;; In particular:
 ;; - the paragraph string has leading and trailing spaces removed. There is a
 ;;   single glue between words (the KP algorithm adds an infinitely
 ;;   stretchable one at the end),
 ;; - the only discretionaries that we have come from the hyphenation step, so
 ;;   they originally appear only in the middle of words. However, they may
-;;   turn out to be anywhere after processing ligatures and kerns.
+;;   turn out to be anywhere after adding ligatures and kerns.
+
+;; HLists created by the function %MAKE-HLIST below are independent from
+;; paragraph formatting considerations (paragraph width, disposition,
+;; algorithm), so in theory they could be reified into an actual data
+;; structure and reused multiple times (when the nlstring, font, and lineup
+;; features do not change). However, most typesetting algorithms modify the
+;; hlist right after it is created (adjusting penalties, adding a final glue,
+;; etc.). Consequently, in order to share the original hlist, we would need
+;; the algorithms to work on fresh copies of it. It would in fact be more
+;; complicated to do (and perhaps not even more efficient) than recreating it
+;; from scratch. Because of that, hlists are currently just temporary objects
+;; owned by the algorithms.
+
+;; HLists are lists because it makes it easier for algorithms to modified them
+;; during their pre-processing stage. Afterwards, an hlist is transformed into
+;; an array (called the `harray') which is stored in a lineup object.
+
 
 (in-package :etap)
 
 
 ;; ==========================================================================
-;; Specification
-;; ==========================================================================
-
-(defparameter *typesetting-features*
-  '((:kerning t) (:ligatures t) (:hyphenation t))
-  "The typesetting features, as advertised by the interface.")
-
-
-
-
-;; ==========================================================================
 ;; Geometry
 ;; ==========================================================================
+
+;; #### FIXME: this does not belong in this file.
 
 (defgeneric width (object)
   (:documentation "Return OBJECT's width.")
@@ -315,7 +314,7 @@ This is the default method."
 
 
 ;; ==========================================================================
-;; HList Creation
+;; Features Processing
 ;; ==========================================================================
 
 ;; #### NOTE: the procedures handling ligatures and kerns below are aware of
@@ -593,22 +592,20 @@ consecutive blanks are replaced with a single interword glue."
 	  :and :do (incf i)))
 
 
-;; -----------------
-;; HList computation
-;; -----------------
 
-(defun %make-hlist
-    (nlstring font kerning ligatures hyphenation
-     &aux (text (text nlstring)) (language (language nlstring)))
-  "Make a new hlist for NLSTRING in FONT.
-When requested, include KERNING, LIGATURES, and HYPHENATION constituents."
-  (unless (zerop (length text)) ; works for both NIL and ""
-    (let ((hlist (slice text language font hyphenation)))
-      ;; #### WARNING: the order is important below. Kerning must be computed
-      ;; after ligature characters have been inserted, and the processing of
-      ;; ligatures and kerning may affect the contents of discretionaries, so
-      ;; we must add hyphenation clues only after everything else has been
-      ;; done.
-      (when ligatures (setq hlist (process-ligatures hlist)))
-      (when kerning (setq hlist (process-kerns hlist)))
+
+;; ==========================================================================
+;; Entry Point
+;; ==========================================================================
+
+(defun %make-hlist (nlstring font features &aux (text (text nlstring)))
+  "Make a new hlist for NLSTRING in FONT, with FEATURES.
+FEATURES is a Boolean property list possibly requesting :kerning, :ligatures,
+and :hyphenation."
+  (when (and text (not (equal text "")))
+    (let ((hlist (slice text (language nlstring) font
+			(getf features :hyphenation))))
+      ;; #### NOTE: ligatures first, kerning next.
+      (when (getf features :ligatures) (setq hlist (process-ligatures hlist)))
+      (when (getf features :kerning) (setq hlist (process-kerns hlist)))
       hlist)))
