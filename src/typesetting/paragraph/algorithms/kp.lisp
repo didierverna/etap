@@ -457,12 +457,13 @@ or, in case of equality, a lesser amount of demerits."
 ;; #### NOTE: according to #872, TeX will attempt to match a non-zero
 ;; looseness exactly, or try another pass unless it's already the final one. I
 ;; got that wrong for quite some time...
-(defun kp-graph-break-harray
-    (harray disposition width
+(defun kp-graph-break-lineup
+    (lineup width
      &optional (make-layout #'kp-graph-make-layout)
-     &aux (breakup (make-instance 'kp-graph-breakup
-		     :harray harray :disposition disposition :width width)))
-  "Break HARRAY with the Knuth-Plass algorithm, graph version."
+     &aux (harray (harray lineup)) breakup)
+  "Break LINEUP for paragraph WIDTH with the unoptimized Knuth-Plass algorithm."
+  (setq breakup (make-instance 'kp-graph-breakup
+		  :lineup lineup :paragraph-width width))
   (unless (zerop (length harray))
     (let (graph layouts)
 
@@ -683,7 +684,7 @@ or, in case of equality, a lesser amount of demerits."
     (breakup
      &aux (harray (harray breakup))
 	  (pass (pass breakup))
-	  (width (width breakup))
+	  (width (paragraph-width breakup))
 	  (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
 	  (overshrink (getf (disposition-options disposition) :overshrink))
@@ -770,13 +771,12 @@ or, in case of equality, a lesser amount of demerits."
 ;; #### NOTE: according to #872, TeX will attempt to match a non-zero
 ;; looseness exactly, or try another pass unless it's already the final one. I
 ;; got that wrong for quite some time...
-(defun kp-dynamic-break-harray
-    (harray disposition width
-     &optional (create-nodes #'kp-create-nodes)
-     &aux (breakup (make-instance 'kp-dynamic-breakup
-		     :harray harray :disposition disposition :width width)))
-  "Break HARRAY with the Knuth-Plass algorithm, dynamic programming version."
-  (unless (zerop (length harray))
+(defun kp-dynamic-break-lineup
+    (lineup width &optional (create-nodes #'kp-create-nodes) &aux breakup)
+  "Break LINEUP for paragraph WIDTH with the optimized Knuth-Plass algorithm."
+  (setq breakup (make-instance 'kp-dynamic-breakup
+		  :lineup lineup :paragraph-width width))
+  (unless (zerop (length (harray lineup)))
     (let (nodes layouts)
 
       ;; Pass 1, never final.
@@ -821,8 +821,8 @@ or, in case of equality, a lesser amount of demerits."
 ;; Variant Dispatch
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :knuth-plass))
+(defmethod break-lineup
+    (lineup width (algorithm (eql :knuth-plass))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:adjacent-demerits *adjacent-demerits*))
@@ -832,7 +832,7 @@ or, in case of equality, a lesser amount of demerits."
 	  ((:tolerance *tolerance*))
 	  ((:emergency-stretch *emergency-stretch*))
 	  ((:looseness *looseness*)))
-  "Break HARRAY with the Knuth-Plass algorithm."
+  "Break LINEUP for paragraph WIDTH with the Knuth-Plass algorithm."
   (default-kp variant)
   (calibrate-kp line-penalty)
   (calibrate-kp adjacent-demerits)
@@ -843,6 +843,6 @@ or, in case of equality, a lesser amount of demerits."
   (calibrate-kp emergency-stretch)
   (calibrate-kp looseness)
   (funcall (ecase *variant*
-	     (:graph #'kp-graph-break-harray)
-	     (:dynamic #'kp-dynamic-break-harray))
-    harray disposition width))
+	     (:graph #'kp-graph-break-lineup)
+	     (:dynamic #'kp-dynamic-break-lineup))
+    lineup width))

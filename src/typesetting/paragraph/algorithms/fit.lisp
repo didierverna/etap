@@ -530,8 +530,8 @@ fit, natural width for the best fit, and min width for thew last fit)."
 ;; Breakup
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :fit))
+(defmethod break-lineup
+    (lineup width (algorithm (eql :fit))
      &key ((:variant *variant*))
 	  ((:line-penalty *line-penalty*))
 	  ((:fallback *fallback*))
@@ -541,9 +541,10 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	  ((:relax *relax*))
 	  ((:prefer-shrink *prefer-shrink*))
 	  ((:discriminating-function *discriminating-function*))
-     &aux (disposition-type (disposition-type disposition))
+     &aux (disposition (disposition lineup))
+	  (disposition-type (disposition-type disposition))
 	  (disposition-options (disposition-options disposition)))
-  "Break HARRAY with the Fit algorithm."
+  "Break lineup for paragraph WIDTH with the Fit algorithm."
   (default-fit variant)
   (calibrate-fit line-penalty)
   (default-fit fallback)
@@ -580,4 +581,4 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	       (:last
 		(lambda (harray bol boundary)
 		  (last-fit-make-ragged-line harray bol boundary width))))))))
-    (make-greedy-breakup harray disposition width get-boundary make-line)))
+    (make-greedy-breakup lineup width get-boundary make-line)))

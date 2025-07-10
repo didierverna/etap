@@ -113,9 +113,10 @@ This is the Barnett algorithm version."
 ;; Breakup
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :barnett)) &key)
-  "Break HARRAY with the Barnett algorithm."
+(defmethod break-lineup
+    (lineup width (algorithm (eql :barnett))
+     &key &aux (disposition (disposition lineup)))
+  "Break LINEUP for paragraph WIDTH with the Barnett algorithm."
   (let ((make-line
 	  (case (disposition-type disposition)
 	    (:justified
@@ -125,5 +126,4 @@ This is the Barnett algorithm version."
 		 (barnett-make-justified-line
 		  harray bol boundary overshrink))))
 	    (t #'make-line))))
-    (make-greedy-breakup harray disposition width
-			 #'barnett-get-boundary make-line)))
+    (make-greedy-breakup lineup width #'barnett-get-boundary make-line)))

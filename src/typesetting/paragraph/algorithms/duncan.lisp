@@ -234,12 +234,13 @@ order (from last to first)."
 ;; Breakup
 ;; ==========================================================================
 
-(defmethod break-harray
-    (harray disposition width (algorithm (eql :duncan))
+(defmethod break-lineup
+    (lineup width (algorithm (eql :duncan))
      &key ((:discriminating-function *discriminating-function*))
-     &aux (breakup (make-instance 'graph-breakup
-		     :harray harray :disposition disposition :width width)))
+     &aux (harray (harray lineup)) breakup)
   "Break HARRAY with the Duncan algorithm."
+  (setq breakup (make-instance 'graph-breakup
+		  :lineup lineup :paragraph-width width))
   (default-duncan discriminating-function)
   (unless (zerop (length harray))
     ;; #### TODO: this is in fact not specific to Duncan but... here we avoid

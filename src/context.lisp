@@ -132,25 +132,24 @@ paragraph typesetting."))
 	  (disposition (if context (disposition context) :flush-left)
 		       dispositionp)
 	  (algorithm (if context (algorithm context) :fixed) algorithmp)
-	  (hlist nil hlistp)
 	  lineup
 	  (width (if context (paragraph-width context) *paragraph-width*)))
-  "Make a new breakup.
-- WIDTH is defaulted from CONTEXT, or to *PARAGRAPH-WIDTH*.
-
-LINEUP may be overridden if one of its dependencies is passed explicitly, or
-needs to be overridden itself. See `make-lineup' for the behavior of the other
-parameters."
-  (declare (ignore text language font kerning ligatures hyphenation hlist))
+  "Make a new breakup. See `context' for an explanation of the keywords.
+- CONTEXT defaults to *CONTEXT*.
+- Most other options are defaulted from the context, or to their corresponding
+  global variable otherwise, but may be overridden on demand.
+- Providing any option except for :context, :width, and :lineup will force
+  recomputing the lineup (see `make-lineup' for more information."
+  (declare (ignore text language font kerning ligatures hyphenation
+		   disposition algorithm))
   (when (or (null lineup)
 	    nlstringp textp languagep
 	    fontp
 	    featuresp kerningp ligaturesp hyphenationp
 	    dispositionp
-	    algorithmp
-	    hlistp)
+	    algorithmp)
     (setq lineup (apply #'make-lineup (remove-keys keys :lineup :width))))
-  (%make-breakup lineup disposition width algorithm))
+  (%make-breakup lineup width))
 
 (defun make-paragraph
     (&rest keys
