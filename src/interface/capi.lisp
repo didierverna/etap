@@ -124,43 +124,31 @@ corresponding hyphenation clue."
 		    (rivers-detection (rivers-interface interface)))
 		   (not (zerop layout)))
 	  (detect-rivers
-	   (get-layout (1- layout) (breakup (paragraph interface)))
+	   (get-layout (1- layout) (breakup interface))
 	   (range-slug-start (rivers-angle rivers-interface))))))
 
-(defun remake-paragraph (interface &rest args)
-  "Remake INTERFACE's paragraph. ARGS are passed along to MAKE-PARAGRAPH."
-  (let* ((paragraph
-	   (apply #'make-paragraph :context (context interface) args))
-	 (layouts-# (layouts-# (breakup paragraph))))
-    (setf (paragraph interface) paragraph)
+(defun remake-breakup (interface &rest args)
+  "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
+  (let* ((breakup (apply #'make-breakup :context (context interface) args))
+	 (layouts-# (layouts-# breakup)))
+    (setf (breakup interface) breakup)
     (setf (layout interface) (if (zerop layouts-#) 0 1))
     (setf (titled-object-title (view interface))
 	  (format nil "Layout ~D/~D" (layout interface) layouts-#))))
 
 (defun update (interface &rest args)
   "Update INTERFACE.
-This remakes INTERFACE's paragraph, everything that depends on it,
+This remakes INTERFACE's breakup, everything that depends on it,
 and invalidates the view.
-ARGS are passed along to MAKE-PARAGRAPH."
-  (apply #'remake-paragraph interface args)
+ARGS are passed along to MAKE-BREAKUP."
+  (apply #'remake-breakup interface args)
   (remake-rivers interface)
   (gp:invalidate-rectangle (view interface)))
 
-(defun update-from-lineup
-    (interface
-     &aux (context (context interface))
-	  (paragraph (paragraph interface))
-	  (hlist (hlist paragraph))
-	  (lineup (lineup paragraph)))
+(defun update-from-lineup (interface)
   "Update INTERFACE sarting from the current lineup.
 See `update' for more information."
-  (update interface
-    :hlist hlist
-    :lineup lineup
-    :breakup (%make-breakup lineup
-			    (disposition context)
-			    (paragraph-width context)
-			    (algorithm context))))
+  (update interface :lineup (lineup (breakup interface))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun title-capitalize (title)
@@ -525,25 +513,23 @@ through 0 (green), and finally to +∞ (red)."
 (defun render-view
     (pane x y width height
      &aux (interface (top-level-interface pane))
-	  (paragraph (paragraph interface))
+	  (breakup (breakup interface))
+	  (par-width (paragraph-width breakup))
 	  (layout-# (layout interface))
-	  (layout (unless (zerop layout-#)
-		    (get-layout (1- layout-#) (breakup paragraph))))
+	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
 	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
-  "Render PANE's view, including paragraph, clues, etc."
+  "Render PANE's view."
   (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters pane
-    :max-range (+ (* (width paragraph) zoom) 40))
-  (set-vertical-scroll-parameters pane
-    :max-range (+ (* par-h+d zoom) 40))
+  (set-horizontal-scroll-parameters pane :max-range (+ (* par-width zoom) 40))
+  (set-vertical-scroll-parameters pane :max-range (+ (* par-h+d zoom) 40))
   (gp:with-graphics-translation (pane 20 20)
     (gp:with-graphics-scale (pane zoom zoom)
       (when (member :paragraph-box clues)
-	(gp:draw-rectangle pane 0 0 (width paragraph) par-h+d
+	(gp:draw-rectangle pane 0 0 par-width par-h+d
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
@@ -563,16 +549,16 @@ through 0 (green), and finally to +∞ (red)."
 		      :foreground :blue
 		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
-		:if (> (width line) (width paragraph))
+		:if (> (width line) par-width)
 		  :do (gp:draw-rectangle pane
 			  full-x  (- y (height line))
 			  5  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
 		:else :if (and (cdr rest) ;; not the last one
-			       (eq (disposition-type (disposition paragraph))
+			       (eq (disposition-type (disposition breakup))
 				   :justified)
-			       (< (width line) (width paragraph)))
+			       (< (width line) par-width))
 		  :do (gp:draw-rectangle pane
 			  full-x (- y (height line))
 			  5 (+ (height line) (depth line))
@@ -581,41 +567,41 @@ through 0 (green), and finally to +∞ (red)."
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if ($< (esar line) (asar line))
 		  :do (gp:draw-polygon pane
-			  (list (+ (width paragraph) 5)
+			  (list (+ par-width 5)
 				(- y (height line))
-				(+ (width paragraph) 11)
+				(+ par-width 11)
 				(- y (height line))
-				(+ (width paragraph) 8)
+				(+ par-width 8)
 				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled t :closed t)
 		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon pane
-			  (list (+ (width paragraph) 5)
+			  (list (+ par-width 5)
 				(- y (height line))
-				(+ (width paragraph) 11)
+				(+ par-width 11)
 				(- y (height line))
-				(+ (width paragraph) 8)
+				(+ par-width 8)
 				(+ y (depth line)))
 			  :foreground :blue
 			  :scale-thickness nil :filled nil :closed t)
 		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon pane
-			  (list (+ (width paragraph) 5)
+			  (list (+ par-width 5)
 				(+ y (depth line))
-				(+ (width paragraph) 11)
+				(+ par-width 11)
 				(+ y (depth line))
-				(+ (width paragraph) 8)
+				(+ par-width 8)
 				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($> (asar line) 1)
 		  :do (gp:draw-polygon pane
-			  (list (+ (width paragraph) 5)
+			  (list (+ par-width 5)
 				(+ y (depth line))
-				(+ (width paragraph) 11)
+				(+ par-width 11)
 				(+ y (depth line))
-				(+ (width paragraph) 8)
+				(+ par-width 8)
 				(- y (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
@@ -691,7 +677,7 @@ through 0 (green), and finally to +∞ (red)."
 
 (defun next-layout
     (op interface
-     &aux (layouts-# (layouts-# (breakup (paragraph interface))))
+     &aux (layouts-# (layouts-# (breakup interface)))
 	  (layout (layout interface)))
   "Select the next OP layout."
   (unless (zerop layouts-#)
@@ -739,9 +725,10 @@ through 0 (green), and finally to +∞ (red)."
     (pane x y
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
-	  (paragraph (paragraph interface))
+	  (breakup (breakup interface))
+	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
-	  (layout (when layout-# (get-layout layout-# (breakup paragraph)))))
+	  (layout (when layout-# (get-layout layout-# breakup))))
   "Display the properties of the paragraph, or the line clicked on."
   (when (member :properties-tooltips (choice-selected-items (clues interface)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
@@ -749,8 +736,8 @@ through 0 (green), and finally to +∞ (red)."
     ;; returning 0, but this is borderline.
     (decf y (height layout))
     (if (or (and (<= x 0) (<= y (depth layout)))
-	    (and (<= y (- (height layout))) (<= x (width paragraph))))
-      (display-tooltip pane :text (properties paragraph :layout-# layout-#))
+	    (and (<= y (- (height layout))) (<= x par-width)))
+      (display-tooltip pane :text (properties breakup :layout-# layout-#))
       (when layout
 	(let (object)
 	  (if (setq object
@@ -761,11 +748,11 @@ through 0 (green), and finally to +∞ (red)."
 			     ;; hyphenation clues occurring at the end of the
 			     ;; lines, or in the last line.
 			     (>= x 0)
-			     (<= x (+ (width paragraph) 3))
+			     (<= x (+ par-width 3))
 			     (>= y 0) ; no need to look above the 1st line
 			     (<= y (+ (y (car (last (lines layout)))) 5))
 			     (hyphenation-point-under x y (lines layout)))
-			(and (>= x 0) (<= x (width paragraph))
+			(and (>= x 0) (<= x par-width)
 			     (>= y (- (height layout))) (<= y (depth layout))
 			     (line-under y (lines layout)))))
 	    (display-tooltip pane :text (properties object))
@@ -787,16 +774,14 @@ through 0 (green), and finally to +∞ (red)."
     (pane value status
      &aux (interface (top-level-interface pane))
 	  (main-interface (main-interface interface))
-	  (hyphenation-point (hyphenation-point interface))
-	  (context (context main-interface)))
+	  (hyphenation-point (hyphenation-point interface)))
   "Set PANE's corresponding break point penalty."
   (declare (ignore status))
   (setq value
 	(calibrated-value (range-slug-start pane) (caliber hyphenation-point)))
   (setf (title-pane-text (title interface)) (princ-to-string value))
   (setf (penalty hyphenation-point) value)
-  (let ((lineup (lineup (paragraph main-interface))))
-    (update-from-lineup  main-interface)))
+  (update-from-lineup main-interface))
 
 (defun reset-buttons-callback
   (data pane
@@ -906,9 +891,10 @@ INTERFACE is the main ETAP window."
     (pane x y
      &aux (interface (top-level-interface pane))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
-	  (paragraph (paragraph interface))
+	  (breakup (breakup interface))
+	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
-	  (layout (when layout-# (get-layout layout-# (breakup paragraph)))))
+	  (layout (when layout-# (get-layout layout-# breakup))))
   (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
   ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
   ;; returning 0, but this is borderline.
@@ -920,7 +906,7 @@ INTERFACE is the main ETAP window."
 		       ;; clues occurring at the end of the lines, or in the
 		       ;; last line.
 		       (>= x 0)
-		       (<= x (+ (width paragraph) 3))
+		       (<= x (+ par-width 3))
 		       (>= y 0) ; no need to look above the 1st line
 		       (<= y (+ (y (car (last (lines layout)))) 5))
 		       (hyphenation-point-under x y (lines layout)))))
@@ -1033,7 +1019,7 @@ or the current algorithm's one otherwise."
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
-   (paragraph :accessor paragraph)
+   (breakup :accessor breakup)
    (layout :initform 0 :accessor layout)
    (enabled :initform t :accessor enabled)
    (penalty-adjustment-dialogs
