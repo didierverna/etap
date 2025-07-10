@@ -15,5 +15,5 @@
   (:export
     :*language* :*text* :*paragraph-width*
     :*context* :make-context
-    :make-hlist :make-lineup :make-breakup :make-paragraph
+    :make-hlist :make-lineup :make-breakup
     #+lispworks :run))
