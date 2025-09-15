@@ -571,7 +571,6 @@ through 0 (green), and finally to +∞ (red)."
 	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
-	  (rivers (rivers interface))
 	  (zoom (/ (range-slug-start (zoom interface)) 100))
 	  (clues (choice-selected-items (clues interface))))
   "Render PANE's view."
@@ -696,15 +695,9 @@ through 0 (green), and finally to +∞ (red)."
 				     (color:make-hsv
 				      (penalty-hue
 				       (penalty(discretionary (object item))))
-				      1s0 .7s0)))
-				  ((whitespacep item)
-				   (when (member :river-beds clues)
-				     (gp:draw-circle
-				      pane
-				      (+ x (x item) (/ (width item) 2)) y 1
-				      :filled t :foreground :red)))))
+				      1s0 .7s0)))))
 		      (items line)))
-	(when (and (river-detection-p interface) rivers)
+	(when (and (member :rivers clues) (rivers interface))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
 			     (gp:draw-line pane
@@ -718,7 +711,7 @@ through 0 (green), and finally to +∞ (red)."
 				 (+ par-y (y (board mouth)) (y mouth))
 			       :foreground :red :scale-thickness nil))
 		       arms))
-		   rivers))))))
+		   (rivers interface)))))))
 
 
 ;; -------
@@ -1273,9 +1266,10 @@ or the current algorithm's one otherwise."
      :visible-max-width nil
      :visible-max-height nil
      :items '(:characters :hyphenation-points
-	      :paragraph-box :line-boxes :character-boxes :baselines
 	      :over/underfull-boxes :overshrunk/stretched-boxes
-	      :properties-tooltips :river-beds)
+	      :rivers
+	      :paragraph-box :line-boxes :character-boxes :baselines
+	      :properties-tooltips)
      :print-function 'title-capitalize
      :selection-callback 'set-clues
      :retract-callback 'set-clues
