@@ -67,32 +67,6 @@ paragraph typesetting."))
 ;; Entry Points
 ;; ==========================================================================
 
-;; #### NOTE: I'm keeping this function around for debugging purposes only.
-;; HLists are internal temporary objects which are not supposed to be kept
-;; around. The other entry points do not accept hlists arguments anymore.
-(defun make-hlist
-    (&key (context *context*)
-	  (nlstring (when context (nlstring context)))
-	  (text (if nlstring (text nlstring) *text*) textp)
-	  (language (if nlstring (language nlstring) *language*) languagep)
-	  (font (if context (font context) *font*))
-	  (features (when context (features context)))
-	  (kerning (getf features :kerning))
-	  (ligatures (getf features :ligatures))
-	  (hyphenation (getf features :hyphenation)))
-  "Make a new hlist. See `context' for an explanation of the keywords.
-- CONTEXT defaults to *CONTEXT*.
-- Most other options are defaulted from the context, or to their corresponding
-  global variable otherwise, but may be overridden on demand.
-- Providing either :text or :language will force recomputing the nlstring.
-- Explicit features take precedence over FEATURES."
-  (when (or (null nlstring) textp languagep)
-    (setq nlstring (make-nlstring :text text :language language)))
-  (setq features (list :kerning kerning
-		       :ligatures ligatures
-		       :hyphenation hyphenation))
-  (%make-hlist nlstring font features))
-
 (defun make-lineup
     (&key (context *context*)
 	  (nlstring (when context (nlstring context)))
