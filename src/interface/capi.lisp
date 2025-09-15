@@ -4,6 +4,13 @@
 ;; Utilities
 ;; ==========================================================================
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun title-capitalize (title)
+    "Capitalize TITLE and substitute dashes with spaces."
+    (nsubstitute #\Space #\- (string-capitalize title))))
+
+
+
 ;; --------
 ;; Calibers
 ;; --------
@@ -20,6 +27,7 @@
   `(calibrate gui ,name :earmuffs nil))
 
 
+
 ;; --------------------------------------
 ;; CLIM-less object under mouse detection
 ;; --------------------------------------
@@ -74,6 +82,7 @@ corresponding hyphenation clue."
 	   lines))
 
 
+
 ;; ------------------------
 ;; Panes hierarchy enabling
 ;; ------------------------
@@ -93,22 +102,25 @@ corresponding hyphenation clue."
   (when (typep pane 'simple-pane) (setf (simple-pane-enabled pane) enabled)))
 
 
-;; --------
-;; Updaters
-;; --------
 
+
+
+;; ==========================================================================
+;; Updaters
+;; ==========================================================================
+
+;; #### FIXME: see comment in rivers.lisp
 (defun remake-rivers
     (interface
-     &aux (rivers-interface (rivers-interface interface))
+     &aux (river-detection-panel (river-detection-panel interface))
 	  (layout (layout interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
-	(when (and (button-selected
-		    (rivers-detection (rivers-interface interface)))
+	(when (and (button-selected (activation-switch river-detection-panel))
 		   (not (zerop layout)))
 	  (detect-rivers
 	   (get-layout (1- layout) (breakup interface))
-	   (range-slug-start (rivers-angle rivers-interface))))))
+	   (range-slug-start (angle-slider river-detection-panel))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -133,10 +145,59 @@ ARGS are passed along to MAKE-BREAKUP."
 See `update' for more information."
   (update interface :lineup (lineup (breakup interface))))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun title-capitalize (title)
-    "Capitalize TITLE and substitute dashes with spaces."
-    (nsubstitute #\Space #\- (string-capitalize title))))
+
+
+
+;; ==========================================================================
+;; River Detection Interface
+;; ==========================================================================
+
+(defun river-detection-activation-switch-callback
+    (switch interface
+     &aux (detectionp (button-selected switch))
+	  (main-interface (main-interface interface)))
+  "Function called when the river detection activation SWITCH is toggled."
+  (when (and detectionp (null (rivers main-interface)))
+    (remake-rivers main-interface))
+  (setf (simple-pane-enabled (angle-slider interface)) detectionp)
+  (gp:invalidate-rectangle (view main-interface)))
+
+(defun river-detection-angle-slider-callback
+    (slider value status
+     &aux (main-interface (main-interface (top-level-interface slider))))
+  "Function called when the river detection angle slider is moved."
+  (declare (ignore status))
+  (setf (titled-object-title slider) (format nil "Angle: ~D°" value))
+  (remake-rivers main-interface)
+  (gp:invalidate-rectangle (view main-interface)))
+
+(define-interface river-detection-panel ()
+  ((main-interface :reader main-interface))
+  (:panes
+   (activation-switch check-button
+     :text "Detect rivers"
+     :selection-callback 'river-detection-activation-switch-callback
+     :retract-callback 'river-detection-activation-switch-callback
+     :callback-type :item-interface
+     :reader activation-switch)
+   (angle-slider slider
+     :title "Angle: 0°"
+     :orientation :horizontal
+     :visible-min-width 250
+     :visible-max-width 250
+     :start 0
+     :end 45
+     :slug-start 0
+     :tick-frequency 0
+     :enabled nil
+     :callback 'river-detection-angle-slider-callback
+     :reader angle-slider))
+  (:layouts
+   (main column-layout
+     '(activation-switch angle-slider)))
+  (:default-initargs
+   :title "River Detection"
+   :window-styles '(:always-on-top t :toolbox t)))
 
 
 
@@ -636,7 +697,7 @@ through 0 (green), and finally to +∞ (red)."
 				      :filled t :foreground :red)))))
 		      (items line)))
 	(when (and (button-selected
-		    (rivers-detection (rivers-interface interface)))
+		    (activation-switch (river-detection-panel interface)))
 		   rivers)
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
@@ -666,7 +727,7 @@ through 0 (green), and finally to +∞ (red)."
   (unless (zerop layouts-#)
     (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
     (setf (layout interface) layout)
-    (when (button-selected (rivers-detection (rivers-interface interface)))
+    (when (button-selected (activation-switch (river-detection-panel interface)))
       (remake-rivers interface))
     (setf (titled-object-title (view interface))
 	  (format nil "Layout ~D/~D" layout layouts-#))
@@ -897,58 +958,6 @@ INTERFACE is the main ETAP window."
 	(make-penalty-adjustment object interface)))))
 
 
-;; ----------------
-;; Rivers detection
-;; ----------------
-
-(defun set-rivers-detection
-    (value interface
-     &aux (detectionp (button-selected value))
-	  (main-interface (main-interface interface)))
-  "Toggle rivers detection."
-  (when (and detectionp (null (rivers main-interface)))
-    (remake-rivers main-interface))
-  (setf (simple-pane-enabled (rivers-angle interface)) detectionp)
-  (gp:invalidate-rectangle (view main-interface)))
-
-(defun set-rivers-angle
-    (pane value status
-     &aux (main-interface (main-interface (top-level-interface pane))))
-  "Set the rivers detection angle threshold to VALUE in PANE's context."
-  (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Angle: ~D°" value))
-  (remake-rivers main-interface)
-  (gp:invalidate-rectangle (view main-interface)))
-
-(define-interface rivers-detection ()
-  ((main-interface :reader main-interface))
-  (:panes
-   (rivers-detection check-button
-     :text "Detect rivers"
-     :selection-callback 'set-rivers-detection
-     :retract-callback 'set-rivers-detection
-     :callback-type :item-interface
-     :reader rivers-detection)
-   (rivers-angle slider
-     :title "Angle: 0°"
-     :orientation :horizontal
-     :visible-min-width 250
-     :visible-max-width 250
-     :start 0
-     :end 45
-     :slug-start 0
-     :tick-frequency 0
-     :enabled nil
-     :callback 'set-rivers-angle
-     :reader rivers-angle))
-  (:layouts
-   (main column-layout
-     '(rivers-detection rivers-angle)))
-  (:default-initargs
-   :title "Rivers Detection"
-   :window-styles '(:always-on-top t :toolbox t)))
-
-
 ;; -----
 ;; Menus
 ;; -----
@@ -958,8 +967,8 @@ INTERFACE is the main ETAP window."
   (ecase data
     (:reset-paragraph
      (update interface))
-    (:rivers-detection
-     (display (rivers-interface interface) :owner interface))))
+    (:river-detection
+     (display (river-detection-panel interface) :owner interface))))
 
 (defun text-menu-callback
     (data interface &aux (context (context interface)))
@@ -1011,10 +1020,11 @@ or the current algorithm's one otherwise."
    (rivers :documentation "The paragraph's detected rivers."
 	   :initform nil
 	   :accessor rivers)
-   (rivers-interface :initform (make-instance 'rivers-detection)
-		     :reader rivers-interface))
+   (river-detection-panel
+    :initform (make-instance 'river-detection-panel)
+    :reader river-detection-panel))
   (:menus
-   (etap-menu "ETAP" (:reset-paragraph :rivers-detection)
+   (etap-menu "ETAP" (:reset-paragraph :river-detection)
      :print-function 'title-capitalize
      :callback 'etap-menu-callback)
    (text-menu nil ;; Ignore popup menu's title
@@ -1483,7 +1493,7 @@ those which may affect the typesetting."
 
 (defmethod interface-display :before ((etap etap))
   "Prepare ETAP GUI for display."
-  (setf (slot-value (rivers-interface etap) 'main-interface) etap)
+  (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
   (setf (menu-items (slot-value etap 'language-menu))
 	(list (make-instance 'menu-component
@@ -1523,5 +1533,5 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
 	     :help-callback 'show-help
 	     :destroy-callback
 	     (lambda (interface)
-	       (destroy (rivers-interface interface))
+	       (destroy (river-detection-panel interface))
 	       (mapc #'destroy (penalty-adjustment-dialogs interface))))))
