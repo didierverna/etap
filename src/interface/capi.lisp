@@ -4,25 +4,6 @@
 ;; Utilities
 ;; ==========================================================================
 
-;; ------------------------
-;; Panes hierarchy enabling
-;; ------------------------
-
-;; #### NOTE: there is no mechanism to globally enable or disable an
-;; interface or a layout's components, so we need to do it by hand.
-
-(defgeneric enable-interface (interface &optional enabled)
-  (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
-
-(defun enable-panes (pane &optional (enabled t))
-  "Set PANE and its descendants'enabled status to ENABLED (T by default)."
-  (map-pane-descendant-children
-   pane (lambda (child) (setf (simple-pane-enabled child) enabled))
-   :test (lambda (child) (typep child 'simple-pane))
-   :visible t)
-  (when (typep pane 'simple-pane) (setf (simple-pane-enabled pane) enabled)))
-
-
 ;; --------
 ;; Calibers
 ;; --------
@@ -37,23 +18,6 @@
 (defmacro calibrate-gui (name)
   "Calibrate NAMEd GUI variable."
   `(calibrate gui ,name :earmuffs nil))
-
-
-(defun calibrated-value (value caliber)
-  "Depending on CALIBER, potentially convert VALUE to +∞/-∞."
-  (cond ((and (= value (caliber-min caliber))
-	      (member (caliber-infinity caliber) '(t :min)))
-	 -∞)
-	((and (= value (caliber-max caliber))
-	      (member (caliber-infinity caliber) '(t :max)))
-	 +∞)
-	(t value)))
-
-(defun uncalibrated-value (value caliber)
-  "Depending on CALIBER, potentially convert an infinity VALUE to min/max."
-  (cond ((eq value +∞) (caliber-max caliber))
-	((eq value -∞) (caliber-min caliber))
-	(t value)))
 
 
 ;; --------------------------------------
@@ -108,6 +72,25 @@ corresponding hyphenation clue."
 	     (and (>= y (- (y line) (height line)))
 		  (<= y (+ (y line) (depth line)))))
 	   lines))
+
+
+;; ------------------------
+;; Panes hierarchy enabling
+;; ------------------------
+
+;; #### NOTE: there is no mechanism to globally enable or disable an
+;; interface or a layout's components, so we need to do it by hand.
+
+(defgeneric enable-interface (interface &optional enabled)
+  (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
+
+(defun enable-panes (pane &optional (enabled t))
+  "Set PANE and its descendants'enabled status to ENABLED (T by default)."
+  (map-pane-descendant-children
+   pane (lambda (child) (setf (simple-pane-enabled child) enabled))
+   :test (lambda (child) (typep child 'simple-pane))
+   :visible t)
+  (when (typep pane 'simple-pane) (setf (simple-pane-enabled pane) enabled)))
 
 
 ;; --------
@@ -831,7 +814,7 @@ through 0 (green), and finally to +∞ (red)."
      &aux (hyphenation-point (hyphenation-point interface)))
   "Memorize the original penalty value."
   (setf (slot-value interface 'original-value)
-	(uncalibrated-value
+	(decalibrated-value
 	 (penalty hyphenation-point) (caliber hyphenation-point))))
 
 (defmethod interface-display :before ((interface penalty-adjustment))

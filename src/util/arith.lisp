@@ -129,7 +129,6 @@ Additionally, extreme values will be converted to -∞ (resp. +∞) depending on
 INFINITY (:MIN, :MAX, or T meaning both)."
   property min default max infinity)
 
-;; #### TODO: we could check for a valid infinity argument here.
 (defmacro define-caliber (prefix property min default max &optional infinity)
   "Define a *PREFIX-PROPERTY* caliber with MIN, DEFAULT, and MAX values.
 The corresponding PROPERTY is automatically interned in the keyword package.
@@ -139,6 +138,29 @@ to -∞ (resp. +∞)."
   `(defparameter ,(intern (format nil "*~A-~A*" prefix property))
      (make-caliber ,(intern (symbol-name property) :keyword)
 		   ,min ,default, max ,infinity)))
+
+(defun calibrated-value (value caliber)
+  "Return CALIBERated VALUE."
+  (cond ((null value)
+	 (caliber-default caliber))
+	((<= value (caliber-min caliber))
+	 (if (member (caliber-infinity caliber) '(t :min))
+	   -∞
+	   (caliber-min caliber)))
+	((>= value (caliber-max caliber))
+	 (if (member (caliber-infinity caliber) '(t :max))
+	   +∞
+	   (caliber-max caliber)))
+	(t value)))
+
+(defun decalibrated-value (value caliber)
+  "Return deCALIBERated VALUE (VALUE is supposed to be CALIBERated)."
+  ;; The checks are simpler here since we're supposed to be working on a
+  ;; previously calibrated value, so not NULL, and if not +/-∞, within the
+  ;; caliber's min and max bounds.
+  (cond ((eq value +∞) (caliber-max caliber))
+	((eq value -∞) (caliber-min caliber))
+	(t value)))
 
 (defmacro calibrate
     (prefix name
@@ -152,13 +174,4 @@ The variable's name is NAME or *NAME* depending on EARMUFFS (T by default).
 - If variable is already properly calibrated, leave it be.
 - If variable is out of bounds (large inequality), clamp it or set it to an
   infinity value (depending on the caliber's behavior)."
-  `(cond ((null ,variable)
-	  (setq ,variable (caliber-default ,caliber)))
-	 ((<= ,variable (caliber-min ,caliber))
-	  (setq ,variable (if (member (caliber-infinity ,caliber) '(t :min))
-			     -∞
-			     (caliber-min ,caliber))))
-	 ((>= ,variable (caliber-max ,caliber))
-	  (setq ,variable (if (member (caliber-infinity ,caliber) '(t :max))
-			     +∞
-			     (caliber-max ,caliber))))))
+  `(setq ,variable (calibrated-value ,variable ,caliber)))
