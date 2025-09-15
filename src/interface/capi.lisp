@@ -1386,18 +1386,8 @@ those which may affect the typesetting."
   "Set PANE's choice selection from CHOICES in OPTIONS."
   (setf (choice-selection pane) (collect-options-indices options choices)))
 
-(defmethod interface-display :before
-    ((etap etap) &aux (context (context etap)))
-  "Prepare ETAP GUI for display."
-  (setf (slot-value (rivers-interface etap) 'main-interface) etap)
-  ;; #### NOTE: this menu's selection is updated on pop-up.
-  (setf (menu-items (slot-value etap 'language-menu))
-	(list (make-instance 'menu-component
-		:items (mapcar #'car *languages*)
-		:interaction :single-selection
-		:print-function 'title-capitalize
-		:callback 'language-menu-callback
-		:popup-callback 'language-menu-popup-callback)))
+(defun update-interface (interface &aux (context (context interface)))
+  "Update INTERFACE after a context change."
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
@@ -1406,21 +1396,21 @@ those which may affect the typesetting."
 				     (symbol-name alg) "-VARIANT")))
 		 (choices (intern (concatenate 'string
 				    "*" (symbol-name alg) "-VARIANTS*"))))
-	     `(setf (choice-selected-item (,accessor etap))
+	     `(setf (choice-selected-item (,accessor interface))
 		    (or (cadr (member :variant options)) (car ,choices)))))
 	 (set-fallback (alg)
 	   (let ((accessor (intern (concatenate 'string
 				     (symbol-name alg) "-FALLBACK")))
 		 (choices (intern (concatenate 'string
 				    "*" (symbol-name alg) "-FALLBACKS*"))))
-	     `(setf (choice-selected-item (,accessor etap))
+	     `(setf (choice-selected-item (,accessor interface))
 		    (or (cadr (member :fallback options)) (car ,choices)))))
 	 (set-options (alg)
 	   (let ((accessor (intern (concatenate 'string
 				     (symbol-name alg) "-OPTIONS")))
 		 (choices (intern (concatenate 'string
 				    "*" (symbol-name alg) "-OPTIONS*"))))
-	     `(set-choice-selection (,accessor etap) options ,choices)))
+	     `(set-choice-selection (,accessor interface) options ,choices)))
 	 (set-slider (alg prop)
 	   (let* ((accessor (intern (concatenate 'string
 				      (symbol-name alg)
@@ -1433,7 +1423,7 @@ those which may affect the typesetting."
 				     (symbol-name prop)
 				     "*")))
 		  (the-slider (gensym "SLIDER")))
-	     `(let ((,the-slider (,accessor etap)))
+	     `(let ((,the-slider (,accessor interface)))
 		(setf (range-slug-start ,the-slider)
 		      (or (cadr (member ,prop options))
 			  (caliber-default ,caliber)))
@@ -1454,16 +1444,16 @@ those which may affect the typesetting."
 			     "-"
 			     (symbol-name prop)
 			     "S*"))))
-	     `(setf (choice-selected-item (,accessor etap))
+	     `(setf (choice-selected-item (,accessor interface))
 		    (or (cadr (member ,prop options)) (car ,choices))))))
       (case algorithm
 	(:fixed
-	 (setf (choice-selection (algorithms etap)) 0)
+	 (setf (choice-selection (algorithms interface)) 0)
 	 (set-fallback fixed)
 	 (set-options fixed)
 	 (set-slider fixed :width-offset))
 	(:fit
-	 (setf (choice-selection (algorithms etap)) 1)
+	 (setf (choice-selection (algorithms interface)) 1)
 	 (set-variant fit)
 	 (set-fallback fit)
 	 (set-options fit)
@@ -1472,49 +1462,64 @@ those which may affect the typesetting."
 	   :width-offset
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty))
 	(:barnett
-	 (setf (choice-selection (algorithms etap)) 2))
+	 (setf (choice-selection (algorithms interface)) 2))
 	(:duncan
-	 (setf (choice-selection (algorithms etap)) 3)
+	 (setf (choice-selection (algorithms interface)) 3)
 	 (set-choice duncan :discriminating-function))
 	(:knuth-plass
-	 (setf (choice-selection (algorithms etap)) 4)
+	 (setf (choice-selection (algorithms interface)) 4)
 	 (set-variant kp)
 	 (set-sliders kp
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness))
 	(:kpx
-	 (setf (choice-selection (algorithms etap)) 5)
+	 (setf (choice-selection (algorithms interface)) 5)
 	 (set-variant kpx)
-	 (setf (choice-selected-item (kpx-fitness etap))
+	 (setf (choice-selected-item (kpx-fitness interface))
 	       (or (cadr (member :fitness options)) (car *kpx-fitnesses*)))
 	 (set-sliders kpx
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
 	   :similar-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
-  (setf (choice-selected-item (disposition etap))
+  (setf (choice-selected-item (disposition interface))
 	(disposition-type (disposition context)))
-  (set-choice-selection (disposition-options-panel etap)
+  (set-choice-selection (disposition-options-panel interface)
 			(disposition-options (disposition context))
 			*disposition-options*)
-  (set-choice-selection (features etap)
+  (set-choice-selection (features interface)
 			(features context)
 			*lineup-features*)
-  (setf (range-slug-start (paragraph-width etap)) (paragraph-width context))
-  (setf (titled-object-title (paragraph-width etap))
+  (setf (range-slug-start (paragraph-width interface)) (paragraph-width context))
+  (setf (titled-object-title (paragraph-width interface))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
-  (setf (editor-pane-text (text etap)) (text context))
+  (setf (editor-pane-text (text interface)) (text context))
+  (values))
+
+(defmethod interface-display :before ((etap etap))
+  "Prepare ETAP GUI for display."
+  (setf (slot-value (rivers-interface etap) 'main-interface) etap)
+  ;; #### NOTE: this menu's selection is updated on pop-up.
+  (setf (menu-items (slot-value etap 'language-menu))
+	(list (make-instance 'menu-component
+		:items (mapcar #'car *languages*)
+		:interaction :single-selection
+		:print-function 'title-capitalize
+		:callback 'language-menu-callback
+		:popup-callback 'language-menu-popup-callback)))
   (let ((size
 	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)
-      `(:visible-min-width ,(car size) :visible-max-width t
-	:visible-min-height ,(cadr size) :visible-max-height t)))
+		    `(:visible-min-width ,(car size) :visible-max-width t
+		      :visible-min-height ,(cadr size) :visible-max-height t)))
   (let ((size
 	  (multiple-value-list (simple-pane-visible-size (settings-2 etap)))))
     (set-hint-table (settings-2 etap)
-      `(:visible-min-height ,(cadr size) :visible-max-height t))))
+		    `(:visible-min-height ,(cadr size) :visible-max-height
+					  t)))
+  (update-interface etap))
 
 
 
