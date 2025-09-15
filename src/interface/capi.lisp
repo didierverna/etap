@@ -102,6 +102,14 @@ corresponding hyphenation clue."
   (when (typep pane 'simple-pane) (setf (simple-pane-enabled pane) enabled)))
 
 
+
+;; -------------------------
+;; Various utility protocols
+;; -------------------------
+
+(defgeneric river-detection-p (interface)
+  (:documentation "Return T if river detection is enabled in INTERFACE."))
+
 
 
 
@@ -110,17 +118,14 @@ corresponding hyphenation clue."
 ;; ==========================================================================
 
 ;; #### FIXME: see comment in rivers.lisp
-(defun remake-rivers
-    (interface
-     &aux (river-detection-panel (river-detection-panel interface))
-	  (layout (layout interface)))
+(defun remake-rivers (interface &aux (layout (layout interface)))
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
-	(when (and (button-selected (activation-switch river-detection-panel))
-		   (not (zerop layout)))
+	(when (and (river-detection-p interface) (not (zerop layout)))
 	  (detect-rivers
 	   (get-layout (1- layout) (breakup interface))
-	   (range-slug-start (angle-slider river-detection-panel))))))
+	   (range-slug-start
+	    (angle-slider (river-detection-panel interface)))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -198,6 +203,10 @@ See `update' for more information."
   (:default-initargs
    :title "River Detection"
    :window-styles '(:always-on-top t :toolbox t)))
+
+(defmethod river-detection-p ((interface river-detection-panel))
+  "Return T if river detection is enabled in INTERFACE."
+  (button-selected (activation-switch interface)))
 
 
 
@@ -696,9 +705,7 @@ through 0 (green), and finally to +∞ (red)."
 				      (+ x (x item) (/ (width item) 2)) y 1
 				      :filled t :foreground :red)))))
 		      (items line)))
-	(when (and (button-selected
-		    (activation-switch (river-detection-panel interface)))
-		   rivers)
+	(when (and (river-detection-p interface) rivers)
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
 			     (gp:draw-line pane
@@ -727,8 +734,7 @@ through 0 (green), and finally to +∞ (red)."
   (unless (zerop layouts-#)
     (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
     (setf (layout interface) layout)
-    (when (button-selected (activation-switch (river-detection-panel interface)))
-      (remake-rivers interface))
+    (when (river-detection-p interface) (remake-rivers interface))
     (setf (titled-object-title (view interface))
 	  (format nil "Layout ~D/~D" layout layouts-#))
     (gp:invalidate-rectangle (view interface))))
@@ -1017,9 +1023,10 @@ or the current algorithm's one otherwise."
    (penalty-adjustment-dialogs
     :initform nil
     :accessor penalty-adjustment-dialogs)
-   (rivers :documentation "The paragraph's detected rivers."
-	   :initform nil
-	   :accessor rivers)
+   (rivers
+    :documentation "The paragraph's detected rivers."
+    :initform nil
+    :accessor rivers)
    (river-detection-panel
     :initform (make-instance 'river-detection-panel)
     :reader river-detection-panel))
@@ -1364,6 +1371,10 @@ those which may affect the typesetting."
   (enable-pane (options-1 interface) enabled)
   (enable-pane (settings-2 interface) enabled)
   (setf (enabled interface) enabled))
+
+(defmethod river-detection-p ((interface etap))
+  "Return T if river detection is enabled in INTERFACE."
+  (river-detection-p (river-detection-panel interface)))
 
 
 ;; Interface display
