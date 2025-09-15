@@ -16,7 +16,7 @@
 ;; (they all return a last-resort fallback solution) so we can save a couple
 ;; of checks below.
 
-(defun collect-fulls (lineup widths algorithm &rest options)
+(defun collect-fulls (lineup widths)
   "Collect ALGORITHM's number of under/full lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (loop :with fulls := 0
@@ -24,8 +24,7 @@
 		    :on (lines
 			 (get-layout
 			  0
-			  (apply #'break-harray (harray lineup)
-				 :justified width algorithm options)))
+			  (make-breakup :lineup lineup :width width)))
 		  :for w := (width (car lines))
 		  :when (or (> w width)
 			    ;; Do not count an underfull last line.
@@ -34,31 +33,29 @@
 		  :finally (return fulls)))
     widths))
 
-(defun collect-hyphenation (lineup widths algorithm &rest options)
+(defun collect-hyphenation (lineup widths)
   "Collect ALGORITHM's number of hyphenated lines per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (reduce #'+ (lines
 			 (get-layout
 			  0
-			  (apply #'break-harray (harray lineup)
-				 :justified width algorithm options)))
+			  (make-breakup :lineup lineup :width width)))
 	      :key (lambda (line) (if (hyphenated line) 1 0))))
     widths))
 
-(defun collect-asar-mean (lineup widths algorithm &rest options)
-  "Collect ALGORITHM's average ASAR per paragraph WIDTHS."
+(defun collect-asar-mean (lineup widths)
+  "Collect LINEUP's average ASAR per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (let ((asars
 		    (mapcar #'asar
 		      (lines
 		       (get-layout
 			0
-			(apply #'break-harray (harray lineup)
-			       :justified width algorithm options))))))
+			(make-breakup :lineup lineup :width width))))))
 	      (float (/ (reduce #'+ asars) (length asars)))))
     widths))
 
-(defun collect-asars-variance (lineup widths algorithm &rest options)
+(defun collect-asars-variance (lineup widths)
   "Collect ALGORITHM's line scale variance per paragraph WIDTHS."
   (mapcar (lambda (width)
 	    (let* ((asars
@@ -66,8 +63,7 @@
 		       (lines
 			(get-layout
 			 0
-			 (apply #'break-harray (harray lineup)
-				:justified width algorithm options)))))
+			 (make-breakup :lineup lineup :width width)))))
 		   (length (length asars))
 		   (mean (float (/ (reduce #'+ asars) length))))
 	      (sqrt (/ (reduce #'+
@@ -77,17 +73,7 @@
 		       length))))
     widths))
 
-(defun collect-demerits
-    (lineup widths algorithm
-     &rest options
-     &key
-     ((:line-penalty *line-penalty*))
-     ((:hyphen-penalty *hyphen-penalty*))
-     ((:explicit-hyphen-penalty *explicit-hyphen-penalty*))
-     ((:adjacent-demerits *adjacent-demerits*))
-     ((:double-hyphen-demerits *double-hyphen-demerits*))
-     ((:final-hyphen-demerits *final-hyphen-demerits*))
-     &allow-other-keys)
+(defun collect-demerits (lineup widths)
   "Collect TeX's demerits evaluation per paragraph WIDTHS."
   (declare (special *line-penalty* *hyphen-penalty* *explicit-hyphen-penalty*
 		    *adjacent-demerits* *double-hyphen-demerits*
@@ -113,8 +99,7 @@
 	    (let* ((lines (lines
 			   (get-layout
 			    0
-			    (apply #'break-harray (harray lineup)
-				   :justified width algorithm options))))
+			    (make-breakup :lineup lineup :width  width))))
 		   (length (length lines))
 		   (demerits
 		     (let ((badness (sar-badness (asar (car lines)))))
@@ -171,11 +156,8 @@ width2 scalar1 scalar2 ...
 	 (values
 	   (mapcar
 	       (lambda (algorithm)
-		 (apply collect
-		   (make-lineup :algorithm (cdr algorithm))
-		   widths
-		   (cadr algorithm)
-		   (cddr algorithm)))
+		 (funcall collect
+		   (make-lineup :algorithm (cdr algorithm)) widths))
 	     algorithms)))
     (apply #'mapc (lambda (width &rest values)
 		    (format t "~A~{ ~A~}~%" width values))
