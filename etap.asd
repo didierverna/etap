@@ -66,9 +66,4 @@
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))
-     (:module "experiments"
-      :serial t
-      :components
-      ((:file "scalar")
-       (:file "graph")))
      (:file "post")))))
