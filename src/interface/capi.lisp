@@ -159,12 +159,11 @@ See `update' for more information."
 
 (defun river-detection-activation-switch-callback
     (switch interface
-     &aux (detectionp (button-selected switch))
-	  (main-interface (main-interface interface)))
+     &aux (main-interface (main-interface interface)))
   "Function called when the river detection activation SWITCH is toggled."
-  (when (and detectionp (null (rivers main-interface)))
-    (remake-rivers main-interface))
-  (setf (simple-pane-enabled (angle-slider interface)) detectionp)
+  (remake-rivers main-interface)
+  (setf (simple-pane-enabled (angle-slider interface))
+	(button-selected switch))
   (gp:invalidate-rectangle (view main-interface)))
 
 (defun river-detection-angle-slider-callback
