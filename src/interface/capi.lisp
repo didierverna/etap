@@ -84,7 +84,7 @@ corresponding hyphenation clue."
 (defgeneric enable-interface (interface &optional enabled)
   (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
 
-(defun enable-panes (pane &optional (enabled t))
+(defun enable-pane (pane &optional (enabled t))
   "Set PANE and its descendants'enabled status to ENABLED (T by default)."
   (map-pane-descendant-children
    pane (lambda (child) (setf (simple-pane-enabled child) enabled))
@@ -1350,9 +1350,9 @@ The zooming and clues controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
 those which may affect the typesetting."
   (setf (simple-pane-enabled (paragraph-width interface)) enabled)
-  (enable-panes (layouts-ctrl interface) enabled)
-  (enable-panes (options-1 interface) enabled)
-  (enable-panes (settings-2 interface) enabled)
+  (enable-pane (layouts-ctrl interface) enabled)
+  (enable-pane (options-1 interface) enabled)
+  (enable-pane (settings-2 interface) enabled)
   (setf (enabled interface) enabled))
 
 
