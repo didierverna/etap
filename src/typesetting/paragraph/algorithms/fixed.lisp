@@ -67,7 +67,7 @@
   '(:fixed-fallback-underfull :fixed-fallback-anyfull :fixed-fallback-overfull))
 
 (defparameter *fixed-options*
-  '((:avoid-hyphens t) (:prefer-overfulls t)))
+  '(:avoid-hyphens :prefer-overfulls))
 
 (defparameter *fixed-options-help-keys*
   '(:fixed-option-avoid-hyphens :fixed-option-prefer-overfulls))

@@ -390,7 +390,7 @@ This is the mixin class for AGC radio and check button panels."))
 (defclass agc-check-button-panel (agc-button-panel check-button-panel)
   ()
   (:default-initargs
-   :print-function (lambda (item) (title-capitalize (car item)))
+   :print-function 'title-capitalize
    :retract-callback   'agc-callback)
   (:documentation "The AGC Radio Button Panel Class."))
 
@@ -406,6 +406,29 @@ This is the mixin class for AGC radio and check button panels."))
 				"*")
 			      :etap)))
   (setf (titled-object-title panel) (title-capitalize properties)))
+
+(defun selection-plist (selected all)
+  "Return a property list for ALL items.
+The values are T if the item is SELECTED, or NIL otherwise."
+  (loop :for item :across all ; collection items are in a vector
+	:collect item
+	:if (member item selected)
+	  :collect t
+	:else
+	  :collect nil))
+
+(defun choice-selection-plist (choice)
+  "Return CHOICE's selection property list.
+See `selection-plist' for more information."
+  (selection-plist (choice-selected-items choice) (collection-items choice)))
+
+(defmacro agc-check-settings (algorithm properties interface)
+  "Return (CHOICE-SELECTION-PLIST (ALGORITHM-PROPERTIES INTERFACE))."
+  (let ((accessor (intern (concatenate 'string
+			    (symbol-name algorithm)
+			    "-"
+			    (symbol-name properties)))))
+    `(choice-selection-plist (,accessor ,interface))))
 
 
 
@@ -424,15 +447,15 @@ This is the mixin class for AGC radio and check button panels."))
     "Select the Fixed algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :fixed
-		(apply #'append
+		(append
 		  (agc-radio-setting fixed :fallback interface)
 		  (agc-slider-setting fixed :width-offset interface)
-		  (choice-selected-items (fixed-options interface))))))
+		  (agc-check-settings fixed options interface)))))
   (:method ((algorithm (eql :fit)) interface)
     "Select the Fit algorithm  in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :fit
-		(apply #'append
+		(append
 		  (agc-radio-setting fit :variant interface)
 		  (agc-radio-setting fit :fallback interface)
 		  (agc-radio-setting fit :discriminating-function interface)
@@ -440,7 +463,7 @@ This is the mixin class for AGC radio and check button panels."))
 		  (agc-slider-setting fit :hyphen-penalty interface)
 		  (agc-slider-setting fit :explicit-hyphen-penalty interface)
 		  (agc-slider-setting fit :width-offset interface)
-		  (choice-selected-items (fit-options interface))))))
+		  (agc-check-settings fit options interface)))))
   (:method ((algorithm (eql :barnett)) interface)
     "Select the Barnett algorithm in INTERFACE's context."
     (setf (algorithm (context interface)) '(:barnett)))
@@ -1384,16 +1407,15 @@ those which may affect the typesetting."
 
 ;; Interface display
 
-(defun collect-options-indices (options choices)
-  "Collect each CHOICES option's index in OPTIONS."
+(defun selected-items (options choices)
+  "Collect the CHOICES being true in OPTIONS."
   (loop :for option :in choices
-	:for i :from 0
-	:when (cadr (member (car option) options))
-	  :collect i))
+	:when (getf options option)
+	  :collect option))
 
 (defun set-choice-selection (pane options choices)
-  "Set PANE's choice selection from CHOICES in OPTIONS."
-  (setf (choice-selection pane) (collect-options-indices options choices)))
+  "Set PANE's choice selection to the CHOICES being true in OPTIONS."
+  (setf (choice-selected-items pane) (selected-items options choices)))
 
 (defun update-interface (interface &aux (context (context interface)))
   "Update INTERFACE after a context change."

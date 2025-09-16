@@ -97,7 +97,7 @@
     :fit-discriminating-function-minimize-scaling))
 
 (defparameter *fit-options*
-  '((:avoid-hyphens t) (:prefer-overfulls t) (:relax t) (:prefer-shrink t)))
+  '(:avoid-hyphens :prefer-overfulls :relax :prefer-shrink))
 
 (defparameter *fit-options-help-keys*
   '(:fit-option-avoid-hyphens :fit-option-prefer-overfulls :fit-option-relax
