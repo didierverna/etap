@@ -216,27 +216,24 @@ See `update' for more information."
 
 
 ;; ==========================================================================
-;; GUI Constituents
+;; Algorithmic GUI Components
 ;; ==========================================================================
-
-;; ------------------------
-;; Algorithm GUI Components
-;; ------------------------
 
 (defclass agc ()
   ((algorithm
-    :documentation "This slider's algorithm."
+    :documentation "This component's algorithm."
     :initarg :algorithm :reader algorithm))
   (:default-initargs :title "Dummy")
-  (:documentation "The Algorithm GUI Component class.
+  (:documentation "The Algorithmic GUI Component class.
 This class serves as a mixin for GUI components representing algorithmic
 settings."))
 
 ;; #### WARNING: CAPI sliders impose a specific signature on callbacks (3
-;; mandatory arguments) so we need to conform to that if we want to use a
-;; single generic function for all kinds of GUI components.
+;; mandatory arguments: pane, value, and gesture) so we need to conform to
+;; that if we want to use a single generic function for all kinds of GUI
+;; components.
 (defgeneric agc-callback (component arg2 arg3)
-  (:documentation "The callback for all algorithm GUI components.")
+  (:documentation "The algorithmic GUI components callback.")
   (:method ((component agc) arg2 arg3
 	    &aux (interface (top-level-interface component)))
     "Update algorithmic settings in COMPONENT's interface context."
@@ -247,9 +244,10 @@ settings."))
     (update interface)))
 
 
-;; -------
-;; Sliders
-;; -------
+
+;; -----------
+;; AGC Sliders
+;; -----------
 
 (defclass agc-slider (agc slider)
   ((property-name
@@ -275,7 +273,7 @@ settings."))
       (calibrated-value (range-slug-start slider) (caliber slider)))))
 
 (defun update-agc-slider-title (slider)
-  "Update AGC SLIDER's title."
+  "Update AGC SLIDER's title to its current value."
   (setf (titled-object-title slider) (agc-slider-title slider)))
 
 
@@ -296,9 +294,17 @@ settings."))
     (update-agc-slider-title slider)))
 
 
-(defmethod agc-callback :before ((slider agc-slider) how where)
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defmethod agc-callback :around ((slider agc-slider) value gesture)
+  (when (eq gesture :drag) (call-next-method)))
+
+(defmethod agc-callback :before ((slider agc-slider) value gesture)
   "Update AGC SLIDER's title."
-  (declare (ignore how where))
+  (declare (ignore value gesture))
   (update-agc-slider-title slider))
 
 
@@ -311,7 +317,7 @@ settings."))
     `(list ,property (range-slug-start (,accessor ,interface)))))
 
 
-;; Dimension sliders
+;; AGC Dimension sliders
 
 (defclass agc-dimen-slider (agc-slider)
   ()
@@ -327,9 +333,10 @@ settings."))
     (when (numberp value) (float (/ value 28.452755)))))
 
 
-;; -------------------
+
+;; -----------------
 ;; AGC Button Panels
-;; -------------------
+;; -----------------
 
 (defclass agc-button-panel (agc)
   ()
