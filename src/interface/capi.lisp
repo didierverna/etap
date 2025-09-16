@@ -166,14 +166,19 @@ See `update' for more information."
 	(button-selected switch))
   (gp:invalidate-rectangle (view main-interface)))
 
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
 (defun river-detection-angle-slider-callback
-    (slider value status
+    (slider value gesture
      &aux (main-interface (main-interface (top-level-interface slider))))
   "Function called when the river detection angle slider is moved."
-  (declare (ignore status))
-  (setf (titled-object-title slider) (format nil "Angle: ~D°" value))
-  (remake-rivers main-interface)
-  (gp:invalidate-rectangle (view main-interface)))
+  (when (eq gesture :drag)
+    (setf (titled-object-title slider) (format nil "Angle: ~D°" value))
+    (remake-rivers main-interface)
+    (gp:invalidate-rectangle (view main-interface))))
 
 (define-interface river-detection-panel ()
   ((main-interface :reader main-interface))
