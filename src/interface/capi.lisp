@@ -187,7 +187,7 @@ See `update' for more information."
      :text "Detect rivers"
      :selection-callback 'river-detection-activation-switch-callback
      :retract-callback 'river-detection-activation-switch-callback
-     :callback-type :item-interface
+     :callback-type '(:element :interface)
      :reader activation-switch)
    (angle-slider slider
      :title "Angle: 0°"
