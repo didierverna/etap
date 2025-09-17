@@ -660,7 +660,7 @@ Otherwise, do nothing."
   "Set the current features in INTERFACE's context."
   (declare (ignore value))
   (setf (features (context interface))
-	(apply #'append (choice-selected-items (features interface))))
+	(cdr (widget-state (features interface))))
   (update interface))
 
 (defun set-text (pane point old-length new-length
@@ -1360,13 +1360,9 @@ or the current algorithm's one otherwise."
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
      :reader disposition-options-panel)
-   (features check-button-panel
-     :layout-class 'column-layout
-     :title "Features" :title-position :frame
-     :visible-max-width nil
-     :visible-max-height nil
+   (features check-box
+     :property :features
      :items *lineup-features*
-     :print-function 'title-capitalize
      :selection-callback 'set-features
      :retract-callback 'set-features
      :reader features)
@@ -1611,7 +1607,7 @@ those which may affect the typesetting."
 	(disposition-type (disposition context)))
   (setf (widget-state (disposition-options-panel interface))
 	(disposition-options (disposition context)))
-  (set-choice-selection (features interface) (features context))
+  (setf (widget-state (features interface)) (features context))
   (setf (range-slug-start (paragraph-width interface))
 	(paragraph-width context))
   (setf (titled-object-title (paragraph-width interface))
