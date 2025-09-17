@@ -344,6 +344,7 @@ settings."))
    :title-position :frame
    :layout-class 'column-layout
    :visible-max-height nil
+   :print-function 'title-capitalize
    :callback-type '(:element :data :interface) ; see comment atop AGC
    :selection-callback 'agc-callback)
   (:documentation "The Algorithm GUI Component Button Panel class.
@@ -354,8 +355,6 @@ This is the mixin class for AGC radio and check button panels."))
 
 (defclass agc-radio-button-panel (agc-button-panel radio-button-panel)
   ()
-  (:default-initargs
-   :print-function 'title-capitalize)
   (:documentation "The AGC Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
@@ -389,9 +388,7 @@ This is the mixin class for AGC radio and check button panels."))
 
 (defclass agc-check-button-panel (agc-button-panel check-button-panel)
   ()
-  (:default-initargs
-   :print-function 'title-capitalize
-   :retract-callback   'agc-callback)
+  (:default-initargs :retract-callback 'agc-callback)
   (:documentation "The AGC Radio Button Panel Class."))
 
 (defmethod initialize-instance :after
