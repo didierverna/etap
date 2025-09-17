@@ -231,7 +231,7 @@ See `update' for more information."
 This class is a mixin class for ETAP widgets."))
 
 (defgeneric widget-state (widget)
-  (:documentation "Return WIDGET's state as a property list."))
+  (:documentation "Return a property list representing the state of WIDGET."))
 
 (defgeneric (setf widget-state) (plist widget)
   (:documentation "Set WIDGET's state according to PLIST."))
@@ -257,8 +257,9 @@ This class is a mixin class for ETAP widgets."))
 This is the base class for radio and check boxes."))
 
 (defmethod initialize-instance :after ((box button-box) &key)
-  "Use button BOX's property as its title."
+  "Set button BOX's title to <Property>."
   (setf (titled-object-title box) (title-capitalize (property box))))
+
 
 
 ;; Radio Boxes
@@ -269,7 +270,7 @@ This is the base class for radio and check boxes."))
 
 (defmethod widget-state ((box radio-box))
   "Return a property list representing the state of radio BOX.
-This is a list of the form (<BOX's property> <selected-item>)."
+This is a list of the form (<property> <selected item>)."
   (list (property box) (choice-selected-item box)))
 
 ;; #### NOTE: the reason we have two methods below is because we have two ways
@@ -281,7 +282,7 @@ This is a list of the form (<BOX's property> <selected-item>)."
 ;;    disposition which is extracted by calling DISPOSITION-TYPE.
 
 (defmethod (setf widget-state) ((plist list) (box radio-box))
-  "Set radio BOX's state according to PLIST.
+  "Set radio BOX' state according to PLIST.
 More specifically, BOX' selection is set to the value of BOX's property
 in PLIST if found (the value must be one of BOX's items). Otherwise, the
 first item in BOX is selected."
@@ -289,7 +290,7 @@ first item in BOX is selected."
 	(or (getf plist (property box)) (svref (collection-items box) 0))))
 
 (defmethod (setf widget-state) ((item symbol) (box radio-box))
-  "Set radio BOX's selected item to ITEM (must be one of BOX's items)."
+  "Set radio BOX' selected item to ITEM (must be one of BOX's items)."
   (setf (choice-selected-item box) item))
 
 
@@ -302,9 +303,9 @@ first item in BOX is selected."
 
 (defmethod widget-state ((box check-box))
   "Return a property list representing the state of check BOX.
-This is a list of the form (<BOX's property> <item> <state> ...).
-Note that the list is exhaustive: all items are present with their state being
-T or NIL."
+This is a list of the form (<property> <item> <state> ...).
+Note that the list is exhaustive: all BOX items are present, with their state
+being T or NIL."
   (cons (property box)
 	(loop :with selection := (choice-selected-items box)
 	      :for item :across (collection-items box) ; a vector
