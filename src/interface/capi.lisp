@@ -652,7 +652,7 @@ Otherwise, do nothing."
   "Set the current disposition in INTERFACE's context."
   (declare (ignore value))
   (setf (disposition (context interface))
-	`(,(choice-selected-item (disposition interface))
+	`(,(second (widget-state (disposition interface)))
 	  ,@(apply #'append
 	      (choice-selected-items (disposition-options-panel interface)))))
   (update interface))
@@ -1349,12 +1349,9 @@ or the current algorithm's one otherwise."
      :algorithm :kpx
      :property :looseness
      :reader kpx-looseness)
-   (disposition radio-button-panel
-     :layout-class 'column-layout
-     :title "Disposition" :title-position :frame
-     :visible-max-width nil
+   (disposition radio-box
+     :property :disposition
      :items *dispositions*
-     :print-function 'title-capitalize
      :selection-callback 'set-disposition
      :reader disposition)
    (disposition-options check-button-panel
@@ -1526,23 +1523,28 @@ those which may affect the typesetting."
 
 ;; Interface display
 
-(defun selected-items (options choices)
-  "Collect the CHOICES being true in OPTIONS."
-  (loop :for option :across choices ; collection items are in a vector
-	:when (getf options option)
-	  :collect option))
-
 (defun set-choice-selection (pane options)
   "Set PANE's choice selection to the choices being true in OPTIONS."
   (setf (choice-selected-items pane)
-	(selected-items options (collection-items pane))))
+	(loop :for option :across (collection-items pane) ; a vector
+	      :when (getf options option)
+		:collect option)))
 
 (defun update-interface (interface &aux (context (context interface)))
   "Update INTERFACE after a context change."
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
     (macrolet
-	((set-variant (alg)
+	((set-choice (alg prop)
+	   (let ((accessor
+		   (intern (concatenate 'string
+			     (symbol-name alg)
+			     "-"
+			     (symbol-name prop)))))
+	     `(setf (choice-selected-item (,accessor interface))
+		    (or (cadr (member ,prop options))
+			(svref (collection-items (,accessor interface)) 0)))))
+	 (set-variant (alg)
 	   (let ((accessor (intern (concatenate 'string
 				     (symbol-name alg) "-VARIANT"))))
 	     `(setf (choice-selected-item (,accessor interface))
@@ -1571,16 +1573,7 @@ those which may affect the typesetting."
 		(update-agc-slider-title ,the-slider))))
 	 (set-sliders (alg &rest sliders)
 	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,alg ,slider))
-		       sliders)))
-	 (set-choice (alg prop)
-	   (let ((accessor
-		   (intern (concatenate 'string
-			     (symbol-name alg)
-			     "-"
-			     (symbol-name prop)))))
-	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member ,prop options))
-			(svref (collection-items (,accessor interface)) 0))))))
+		       sliders))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms interface)) 0)
@@ -1618,7 +1611,7 @@ those which may affect the typesetting."
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
 	   :similar-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
-  (setf (choice-selected-item (disposition interface))
+  (setf (widget-state (disposition interface))
 	(disposition-type (disposition context)))
   (set-choice-selection (disposition-options-panel interface)
 			(disposition-options (disposition context)))
