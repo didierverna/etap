@@ -19,7 +19,7 @@
   "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
   `(define-caliber gui ,name ,min ,default ,max))
 
-(define-gui-caliber zoom 100 100 999)
+(define-gui-caliber zoom 10 100 500)
 
 
 (defmacro calibrate-gui (name)
@@ -224,9 +224,13 @@ See `update' for more information."
 ;; and they provide a two-way translation mechanism to and from property
 ;; lists.
 
+;; #### WARNING: dynamically setting a widget title in the initialization
+;; after method doesn't make the title appear (nore the widget's frame),
+;; unless a dummy title is specified below.
 (defclass widget ()
   ((property :documentation "This widget's property (a keyword)."
 	     :initarg :property :reader property))
+  (:default-initargs :title "Dummy")
   (:documentation "The Widget class.
 This class is a mixin class for ETAP widgets."))
 
@@ -242,13 +246,9 @@ This class is a mixin class for ETAP widgets."))
 ;; Button Boxes
 ;; ------------
 
-;; #### WARNING: dynamically setting a widget title in the initialization
-;; after method doesn't make the title appear (nore the widget's frame),
-;; unless a dummy title is specified below.
 (defclass button-box (widget)
   ()
   (:default-initargs
-   :title "Dummy"
    :title-position :frame
    :layout-class 'column-layout
    :visible-max-height nil
@@ -316,13 +316,91 @@ being T or NIL."
 		:collect nil)))
 
 (defmethod (setf widget-state) (plist (box check-box))
-  "Set check BOX's state according to PLIST.
+  "Set check BOX' state according to PLIST.
 More specifically, every BOX item found to be true in PLIST is selected. The
-rest is deselected (i.e., no items are left in their previous state."
+rest is deselected (i.e., no items are left in their previous state)."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
 	      :when (getf plist item)
 		:collect item)))
+
+
+
+;; Cursors
+
+(defclass cursor (widget slider)
+  ((caliber
+    :documentation "This cursor's corresponding caliber."
+    :initarg :caliber :reader caliber))
+  (:default-initargs
+   :tick-frequency 0
+   :orientation :horizontal
+   :visible-min-width 220)
+  (:documentation "The Cursor class."))
+
+(defmethod initialize-instance :after
+    ((cursor cursor) &key &aux (caliber (caliber cursor)))
+  "Initialize CURSOR's range start and end based on its caliber."
+  (setf (range-start cursor) (caliber-min caliber)
+	(range-end cursor)   (caliber-max caliber)))
+
+
+(defun calibrated-cursor-value (cursor)
+  "Return the calibrated current CURSOR value."
+  (calibrated-value (range-slug-start cursor) (caliber cursor)))
+
+
+(defgeneric cursor-title (cursor)
+  (:documentation "Compute CURSOR's title based on its current value.")
+  (:method ((cursor cursor))
+    "Return a string of the form \"<Property>: <calibrated value>\".
+This is the default method."
+    (format nil "~A: ~A"
+      (title-capitalize (property cursor))
+      (calibrated-cursor-value cursor))))
+
+(defun update-cursor-title (cursor)
+  "Update CURSOR's title with its current value."
+  (setf (titled-object-title cursor) (cursor-title cursor)))
+
+
+(defmethod widget-state ((cursor cursor))
+  "Return a property list representing the sate of CURSOR.
+This is a list of the form (<property> <calibrated value>)."
+  (list (property cursor) (calibrated-cursor-value cursor)))
+
+(defmethod (setf widget-state)
+    (plist (cursor cursor) &aux (caliber (caliber cursor)))
+  "Set CURSOR's state according to PLIST.
+More specifically, CURSOR' value is set to the decalibrated value of CURSOR's
+property in PLIST if found. Otherwise, the default value of CURSOR's caliber
+is used.
+
+Cursors' title is updated accordingly."
+  (setf (range-slug-start cursor)
+	(decalibrated-value (or (getf plist (property cursor))
+				(caliber-default caliber))
+			    caliber))
+  (update-cursor-title cursor))
+
+
+
+;; Percentage cursors
+
+(defclass %-cursor (cursor)
+  ()
+  (:documentation "The Percentage Cursor class."))
+
+;; #### TODO: ~3D in the format string below will not like +/-∞ if one day we
+;; use percentage cursors with infinity handling calibers. This just doesn't
+;; happen for now.
+(defmethod cursor-title ((cursor %-cursor))
+  "Return a string of the form \"<Property>: <calibrated value>%\".
+The calibrated value is displayed with 3 digits."
+  (format nil "~A: ~3D%"
+    (title-capitalize (property cursor))
+    (calibrated-cursor-value cursor)))
+
 
 
 
@@ -681,11 +759,17 @@ Otherwise, do nothing."
   (setf (paragraph-width (context interface)) value)
   (update-from-lineup interface))
 
-(defun set-zoom (pane value status)
-  "Set PANE's zooming to to VALUE."
-  (declare (ignore status))
-  (setf (titled-object-title pane) (format nil "Paragraph zoom: ~3D%" value))
-  (gp:invalidate-rectangle (view (top-level-interface pane))))
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defun zoom-callback (zoom value gesture)
+  "Update ZOOM's title and invalidate the paragraph view."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title zoom)
+    (gp:invalidate-rectangle (view (top-level-interface zoom)))))
 
 (defun set-clues (value interface)
   "Invalidate INTERFACE's view after a change to the clues."
@@ -1375,13 +1459,10 @@ or the current algorithm's one otherwise."
      :tick-frequency 0
      :callback 'set-paragraph-width
      :reader paragraph-width)
-   (zoom slider
-     :title "Paragraph zoom: XXX%"
-     :orientation :horizontal
-     :start (caliber-min *gui-zoom*)
-     :end (caliber-max *gui-zoom*)
-     :tick-frequency 0
-     :callback 'set-zoom
+   (zoom %-cursor
+     :property :zoom
+     :caliber *gui-zoom*
+     :callback 'zoom-callback
      :reader zoom)
    (layout--1 push-button
      :text "<"
@@ -1478,9 +1559,10 @@ or the current algorithm's one otherwise."
      :columns 3))
   (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
 
-(defmethod initialize-instance :after ((etap etap) &key zoom clues)
+(defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
+  (declare (ignore zoom))
   (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
   (setf (menu-items (slot-value etap 'language-menu))
@@ -1490,9 +1572,7 @@ This currently includes the initial ZOOMing factor and CLUES."
 		:print-function 'title-capitalize
 		:callback 'language-menu-callback
 		:popup-callback 'language-menu-popup-callback)))
-  (setf (titled-object-title (zoom etap))
-	(format nil "Paragraph zoom: ~3D%" zoom))
-  (setf (range-slug-start (zoom etap)) zoom)
+  (setf (widget-state (zoom etap)) keys)
   (setf (choice-selected-items (clues etap)) clues)
   (setf (tab-layout-visible-child-function (algorithms etap))
 	(lambda (item)
