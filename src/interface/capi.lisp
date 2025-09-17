@@ -216,6 +216,116 @@ See `update' for more information."
 
 
 ;; ==========================================================================
+;; Widgets
+;; ==========================================================================
+
+;; Our specific widgets currently include radio boxes, check boxes, and
+;; cursors. They are all associated with a property name (used in the title),
+;; and they provide a two-way translation mechanism to and from property
+;; lists.
+
+(defclass widget ()
+  ((property :documentation "This widget's property (a keyword)."
+	     :initarg :property :reader property))
+  (:documentation "The Widget class.
+This class is a mixin class for ETAP widgets."))
+
+(defgeneric widget-state (widget)
+  (:documentation "Return WIDGET's state as a property list."))
+
+(defgeneric (setf widget-state) (plist widget)
+  (:documentation "Set WIDGET's state according to PLIST."))
+
+
+
+;; ------------
+;; Button Boxes
+;; ------------
+
+;; #### WARNING: dynamically setting a widget title in the initialization
+;; after method doesn't make the title appear (nore the widget's frame),
+;; unless a dummy title is specified below.
+(defclass button-box (widget)
+  ()
+  (:default-initargs
+   :title "Dummy"
+   :title-position :frame
+   :layout-class 'column-layout
+   :visible-max-height nil
+   :print-function 'title-capitalize)
+  (:documentation "The Button Box class.
+This is the base class for radio and check boxes."))
+
+(defmethod initialize-instance :after ((box button-box) &key)
+  "Use button BOX's property as its title."
+  (setf (titled-object-title box) (title-capitalize (property box))))
+
+
+;; Radio Boxes
+
+(defclass radio-box (button-box radio-button-panel)
+  ()
+  (:documentation "The Radio Box class."))
+
+(defmethod widget-state ((box radio-box))
+  "Return a property list representing the state of radio BOX.
+This is a list of the form (<BOX's property> <selected-item>)."
+  (list (property box) (choice-selected-item box)))
+
+;; #### NOTE: the reason we have two methods below is because we have two ways
+;; of using radio boxes.
+;; 1. The value can be in the middle of a plist, for example, in an algorithm
+;;    specification: (... :fallback :anyfull ...). There, the method on lists
+;;    applies.
+;; 2. The value can also be specific, for example in the case of a
+;;    disposition which is extracted by calling DISPOSITION-TYPE.
+
+(defmethod (setf widget-state) ((plist list) (box radio-box))
+  "Set radio BOX's state according to PLIST.
+More specifically, BOX' selection is set to the value of BOX's property
+in PLIST if found (the value must be one of BOX's items). Otherwise, the
+first item in BOX is selected."
+  (setf (choice-selected-item box)
+	(or (getf plist (property box)) (svref (collection-items box) 0))))
+
+(defmethod (setf widget-state) ((item symbol) (box radio-box))
+  "Set radio BOX's selected item to ITEM (must be one of BOX's items)."
+  (setf (choice-selected-item box) item))
+
+
+
+;; Check Boxes
+
+(defclass check-box (button-box check-button-panel)
+  ()
+  (:documentation "The Check Box class."))
+
+(defmethod widget-state ((box check-box))
+  "Return a property list representing the state of check BOX.
+This is a list of the form (<BOX's property> <item> <state> ...).
+Note that the list is exhaustive: all items are present with their state being
+T or NIL."
+  (cons (property box)
+	(loop :with selection := (choice-selected-items box)
+	      :for item :across (collection-items box) ; a vector
+	      :collect item
+	      :if (member item selection)
+		:collect t
+	      :else
+		:collect nil)))
+
+(defmethod (setf widget-state) (plist (box check-box))
+  "Set check BOX's state according to PLIST.
+More specifically, every BOX item found to be true in PLIST is selected. The
+rest is deselected (i.e., no items are left in their previous state."
+  (setf (choice-selected-items box)
+	(loop :for item :across (collection-items box) ; a vector
+	      :when (getf item plist)
+		:collect item)))
+
+
+
+;; ==========================================================================
 ;; Algorithmic GUI Components
 ;; ==========================================================================
 
