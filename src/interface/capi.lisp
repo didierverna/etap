@@ -320,7 +320,7 @@ More specifically, every BOX item found to be true in PLIST is selected. The
 rest is deselected (i.e., no items are left in their previous state."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
-	      :when (getf item plist)
+	      :when (getf plist item)
 		:collect item)))
 
 
@@ -652,9 +652,8 @@ Otherwise, do nothing."
   "Set the current disposition in INTERFACE's context."
   (declare (ignore value))
   (setf (disposition (context interface))
-	`(,(second (widget-state (disposition interface)))
-	  ,@(apply #'append
-	      (choice-selected-items (disposition-options-panel interface)))))
+	(cons (second (widget-state (disposition interface)))
+	      (cdr (widget-state (disposition-options-panel interface)))))
   (update interface))
 
 (defun set-features (value interface)
@@ -1354,13 +1353,10 @@ or the current algorithm's one otherwise."
      :items *dispositions*
      :selection-callback 'set-disposition
      :reader disposition)
-   (disposition-options check-button-panel
-     :layout-class 'column-layout
-     :title "Disposition Options" :title-position :frame
-     :visible-max-width nil
+   (disposition-options check-box
+     :property :disposition-options
      :items *disposition-options*
      :help-keys *disposition-options-help-keys*
-     :print-function 'title-capitalize
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
      :reader disposition-options-panel)
@@ -1613,8 +1609,8 @@ those which may affect the typesetting."
 	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
   (setf (widget-state (disposition interface))
 	(disposition-type (disposition context)))
-  (set-choice-selection (disposition-options-panel interface)
-			(disposition-options (disposition context)))
+  (setf (widget-state (disposition-options-panel interface))
+	(disposition-options (disposition context)))
   (set-choice-selection (features interface) (features context))
   (setf (range-slug-start (paragraph-width interface))
 	(paragraph-width context))
