@@ -7,7 +7,7 @@
 (defparameter *dispositions*
   '(:flush-left :centered :flush-right :justified))
 
-(defparameter *disposition-options* '((:overstretch t) (:overshrink t)))
+(defparameter *disposition-options* '(:overstretch :overshrink))
 
 (defparameter *disposition-options-help-keys*
   '(:disposition-option-overstretch :disposition-option-overshrink))

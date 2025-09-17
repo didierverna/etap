@@ -39,7 +39,7 @@ All primary methods must return a (possibly modified) HLIST.")
 ;; ==========================================================================
 
 (defparameter *lineup-features*
-  '((:kerning t) (:ligatures t) (:hyphenation t))
+  '(:kerning :ligatures :hyphenation)
   "The lineup features, as advertised by the interface.")
 
 ;; #### NOTE: contrary to breakups, there is currently no need for

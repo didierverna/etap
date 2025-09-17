@@ -249,6 +249,9 @@ settings."))
 ;; AGC Sliders
 ;; -----------
 
+;; #### NOTE: even though the caliber's min and max values could be retrieved
+;; through the slider's range start and end, it's still useful to keep the
+;; caliber around because of its default value and behavior wrt infinity.
 (defclass agc-slider (agc slider)
   ((property-name
     :documentation "This slider's property name."
@@ -1250,7 +1253,7 @@ or the current algorithm's one otherwise."
      :visible-max-width nil
      :items *disposition-options*
      :help-keys *disposition-options-help-keys*
-     :print-function (lambda (item) (title-capitalize (car item)))
+     :print-function 'title-capitalize
      :selection-callback 'set-disposition
      :retract-callback 'set-disposition
      :reader disposition-options-panel)
@@ -1260,7 +1263,7 @@ or the current algorithm's one otherwise."
      :visible-max-width nil
      :visible-max-height nil
      :items *lineup-features*
-     :print-function (lambda (item) (title-capitalize (car item)))
+     :print-function 'title-capitalize
      :selection-callback 'set-features
      :retract-callback 'set-features
      :reader features)
@@ -1415,13 +1418,14 @@ those which may affect the typesetting."
 
 (defun selected-items (options choices)
   "Collect the CHOICES being true in OPTIONS."
-  (loop :for option :in choices
+  (loop :for option :across choices ; collection items are in a vector
 	:when (getf options option)
 	  :collect option))
 
-(defun set-choice-selection (pane options choices)
-  "Set PANE's choice selection to the CHOICES being true in OPTIONS."
-  (setf (choice-selected-items pane) (selected-items options choices)))
+(defun set-choice-selection (pane options)
+  "Set PANE's choice selection to the choices being true in OPTIONS."
+  (setf (choice-selected-items pane)
+	(selected-items options (collection-items pane))))
 
 (defun update-interface (interface &aux (context (context interface)))
   "Update INTERFACE after a context change."
@@ -1430,40 +1434,30 @@ those which may affect the typesetting."
     (macrolet
 	((set-variant (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-VARIANT")))
-		 (choices (intern (concatenate 'string
-				    "*" (symbol-name alg) "-VARIANTS*"))))
+				     (symbol-name alg) "-VARIANT"))))
 	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member :variant options)) (car ,choices)))))
+		    (or (cadr (member :variant options))
+			(svref (collection-items (,accessor interface)) 0)))))
 	 (set-fallback (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-FALLBACK")))
-		 (choices (intern (concatenate 'string
-				    "*" (symbol-name alg) "-FALLBACKS*"))))
+				     (symbol-name alg) "-FALLBACK"))))
 	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member :fallback options)) (car ,choices)))))
+		    (or (cadr (member :fallback options))
+			(svref (collection-items (,accessor interface)) 0)))))
 	 (set-options (alg)
 	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-OPTIONS")))
-		 (choices (intern (concatenate 'string
-				    "*" (symbol-name alg) "-OPTIONS*"))))
-	     `(set-choice-selection (,accessor interface) options ,choices)))
+				     (symbol-name alg) "-OPTIONS"))))
+	     `(set-choice-selection (,accessor interface) options)))
 	 (set-slider (alg prop)
 	   (let* ((accessor (intern (concatenate 'string
 				      (symbol-name alg)
 				      "-"
 				      (symbol-name prop))))
-		  (caliber (intern (concatenate 'string
-				     "*"
-				     (symbol-name alg)
-				     "-"
-				     (symbol-name prop)
-				     "*")))
 		  (the-slider (gensym "SLIDER")))
 	     `(let ((,the-slider (,accessor interface)))
 		(setf (range-slug-start ,the-slider)
 		      (or (cadr (member ,prop options))
-			  (caliber-default ,caliber)))
+			  (caliber-default (caliber ,the-slider))))
 		(update-agc-slider-title ,the-slider))))
 	 (set-sliders (alg &rest sliders)
 	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,alg ,slider))
@@ -1473,16 +1467,10 @@ those which may affect the typesetting."
 		   (intern (concatenate 'string
 			     (symbol-name alg)
 			     "-"
-			     (symbol-name prop))))
-		 (choices
-		   (intern (concatenate 'string
-			     "*"
-			     (symbol-name alg)
-			     "-"
-			     (symbol-name prop)
-			     "S*"))))
+			     (symbol-name prop)))))
 	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member ,prop options)) (car ,choices))))))
+		    (or (cadr (member ,prop options))
+			(svref (collection-items (,accessor interface)) 0))))))
       (case algorithm
 	(:fixed
 	 (setf (choice-selection (algorithms interface)) 0)
@@ -1523,12 +1511,10 @@ those which may affect the typesetting."
   (setf (choice-selected-item (disposition interface))
 	(disposition-type (disposition context)))
   (set-choice-selection (disposition-options-panel interface)
-			(disposition-options (disposition context))
-			*disposition-options*)
-  (set-choice-selection (features interface)
-			(features context)
-			*lineup-features*)
-  (setf (range-slug-start (paragraph-width interface)) (paragraph-width context))
+			(disposition-options (disposition context)))
+  (set-choice-selection (features interface) (features context))
+  (setf (range-slug-start (paragraph-width interface))
+	(paragraph-width context))
   (setf (titled-object-title (paragraph-width interface))
 	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
 	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
