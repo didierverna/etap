@@ -4,6 +4,9 @@
 ;; Contexts
 ;; ==========================================================================
 
+;; #### NOTE: the paragraph width comes from a caliber, but outside the GUI,
+;; we let it be whatever people want (so no calibration here).
+
 (defclass context ()
   ((font
     :documentation "The TFM font."
@@ -24,8 +27,8 @@ It is a property list of `*lineup-features*'."
     :initform nil :initarg :features :accessor features)
    (paragraph-width
     :documentation "The paragraph width, in points.
-Defaults to *PARAGRAPH-WIDTH*."
-    :initform *paragraph-width* :initarg :paragraph-width
+Defaults to the default value of the *PARAGRAPH-WIDTH* caliber (284pt)."
+    :initform (caliber-default *paragraph-width*) :initarg :paragraph-width
     :accessor paragraph-width)
    (nlstring
     :documentation "The paragraph's `nlstring'."
@@ -107,7 +110,8 @@ paragraph typesetting."))
 		       dispositionp)
 	  (algorithm (if context (algorithm context) :fixed) algorithmp)
 	  lineup
-	  (width (if context (paragraph-width context) *paragraph-width*)))
+	  (width (if context (paragraph-width context)
+		     (caliber-default *paragraph-width*))))
   "Make a new breakup. See `context' for an explanation of the keywords.
 - CONTEXT defaults to *CONTEXT*.
 - Most other options are defaulted from the context, or to their corresponding

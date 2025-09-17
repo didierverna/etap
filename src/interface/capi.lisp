@@ -402,6 +402,23 @@ The calibrated value is displayed with 3 digits."
     (calibrated-cursor-value cursor)))
 
 
+
+;; Dimension (pt) cursors
+
+(defclass pt-cursor (cursor)
+  ()
+  (:documentation "The Dimension (pt) Cursor class."))
+
+(defmethod cursor-title
+    ((cursor pt-cursor) &aux (value (calibrated-cursor-value cursor)))
+  "Return a string of the form \"<Property>: <calibrated value>pt (<in>cm)\".
+The cm equivalent part is not displayed if the value is +/-∞."
+  (format nil "~A: ~A~@[pt (~Acm)~]"
+    (title-capitalize (property cursor))
+    value
+    (when (numberp value) (float (/ value 28.452755)))))
+
+
 
 
 ;; ==========================================================================
@@ -749,27 +766,30 @@ Otherwise, do nothing."
   (setf (text (nlstring (context interface))) (editor-pane-text pane))
   (update interface))
 
-(defun set-paragraph-width
-    (pane value status &aux (interface (top-level-interface pane)))
-  "Set the current paragraph width to VALUE in PANE's context."
-  (declare (ignore status))
-  (setf (titled-object-title pane)
-	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
-	  value (/ value 28.452755)))
-  (setf (paragraph-width (context interface)) value)
-  (update-from-lineup interface))
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defun paragraph-width-callback
+    (cursor value gesture &aux (interface (top-level-interface cursor)))
+  "Update paragraph width CURSOR's title and re-break the current lineup."
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (setf (paragraph-width (context interface)) value)
+    (update-from-lineup interface)))
 
 ;; #### WARNING: moving the slider with the mouse (dragging or clicking
 ;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
 ;; it seems that I can safely ignore :MOVE callbacks which means saving two
 ;; calls out of 3! I will need to check this again when I introduce focus and
 ;; keyboard control though.
-(defun zoom-callback (zoom value gesture)
-  "Update ZOOM's title and invalidate the paragraph view."
+(defun zoom-callback (cursor value gesture)
+  "Update zoom CURSOR's title and invalidate the paragraph view."
   (declare (ignore value))
   (when (eq gesture :drag)
-    (update-cursor-title zoom)
-    (gp:invalidate-rectangle (view (top-level-interface zoom)))))
+    (update-cursor-title cursor)
+    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
 
 (defun set-clues (value interface)
   "Invalidate INTERFACE's view after a change to the clues."
@@ -1451,13 +1471,10 @@ or the current algorithm's one otherwise."
      :selection-callback 'set-features
      :retract-callback 'set-features
      :reader features)
-   (paragraph-width slider
-     :title "Paragraph width: XXXpt (XXcm)"
-     :orientation :horizontal
-     :start *paragraph-min-width*
-     :end *paragraph-max-width*
-     :tick-frequency 0
-     :callback 'set-paragraph-width
+   (paragraph-width pt-cursor
+     :property :paragraph-width
+     :caliber *paragraph-width*
+     :callback 'paragraph-width-callback
      :reader paragraph-width)
    (zoom %-cursor
      :property :zoom
@@ -1689,11 +1706,11 @@ those which may affect the typesetting."
   (setf (widget-state (disposition-options-panel interface))
 	(disposition-options (disposition context)))
   (setf (widget-state (features interface)) (features context))
-  (setf (range-slug-start (paragraph-width interface))
-	(paragraph-width context))
-  (setf (titled-object-title (paragraph-width interface))
-	(format nil "Paragraph width: ~Dpt (~,2Fcm)"
-	  (paragraph-width context) (/ (paragraph-width context) 28.452755)))
+  ;; #### TODO: the fake plist below is necessary because we don't have a
+  ;; paragraph-width property (we have a context slot). This will be fixed
+  ;; when this function understands the same keys as the entry points.
+  (setf (widget-state (paragraph-width interface))
+	(list :paragraph-width (paragraph-width context)))
   (setf (editor-pane-text (text interface)) (text context))
   (values))
 

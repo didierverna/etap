@@ -1,14 +1,17 @@
 (in-package :etap)
 
 ;; ==========================================================================
-;; Specification
+;; Calibers
 ;; ==========================================================================
 
-(defparameter *paragraph-min-width* 142 ;; 142.26378pt = 5cm
-  "The paragraph's minimum width in points.")
+(defmacro define-paragraph-caliber (name min default max)
+  "Define a NAMEd paragraph caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber paragraph ,name ,min ,default ,max))
 
-(defvar *paragraph-width* 284 ;; 284.52756pt = 10cm
-  "The default paragraph width.")
+;; 142.26378pt = 5cm, 284.52756pt = 10cm, 569.0551pt = 20cm
+(define-paragraph-caliber width 142 284 569)
 
-(defparameter *paragraph-max-width* 569 ;; 569.0551pt = 20cm
-  "The paragraph's maximum width in points.")
+
+(defmacro calibrate-paragraph (name)
+  "Calibrate NAMEd paragraph variable."
+  `(calibrate paragraph ,name))
