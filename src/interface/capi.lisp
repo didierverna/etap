@@ -1381,6 +1381,15 @@ or the current algorithm's one otherwise."
 (defmethod initialize-instance :after ((etap etap) &key zoom clues)
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
+  (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
+  ;; #### NOTE: this menu's selection is updated on pop-up.
+  (setf (menu-items (slot-value etap 'language-menu))
+	(list (make-instance 'menu-component
+		:items (mapcar #'car *languages*)
+		:interaction :single-selection
+		:print-function 'title-capitalize
+		:callback 'language-menu-callback
+		:popup-callback 'language-menu-popup-callback)))
   (setf (titled-object-title (zoom etap))
 	(format nil "Paragraph zoom: ~3D%" zoom))
   (setf (range-slug-start (zoom etap)) zoom)
@@ -1529,27 +1538,21 @@ those which may affect the typesetting."
   (setf (editor-pane-text (text interface)) (text context))
   (values))
 
+;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
+;; better done here than in an INITIALIZE-INSTANCE :after method.
 (defmethod interface-display :before ((etap etap))
-  "Prepare ETAP GUI for display."
-  (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
-  ;; #### NOTE: this menu's selection is updated on pop-up.
-  (setf (menu-items (slot-value etap 'language-menu))
-	(list (make-instance 'menu-component
-		:items (mapcar #'car *languages*)
-		:interaction :single-selection
-		:print-function 'title-capitalize
-		:callback 'language-menu-callback
-		:popup-callback 'language-menu-popup-callback)))
-  (let ((size
-	  (multiple-value-list (simple-pane-visible-size (settings-1 etap)))))
+  "Finalize ETAP GUI's display settings.
+This currently involves fixating the geometry of option panes so that resizing
+the interface is done sensibly."
+  (let ((size (multiple-value-list
+	       (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)
-		    `(:visible-min-width ,(car size) :visible-max-width t
-		      :visible-min-height ,(cadr size) :visible-max-height t)))
-  (let ((size
-	  (multiple-value-list (simple-pane-visible-size (settings-2 etap)))))
+      `(:visible-min-width ,(car size) :visible-max-width t
+	:visible-min-height ,(cadr size) :visible-max-height t)))
+  (let ((size (multiple-value-list
+	       (simple-pane-visible-size (settings-2 etap)))))
     (set-hint-table (settings-2 etap)
-		    `(:visible-min-height ,(cadr size) :visible-max-height
-					  t)))
+      `(:visible-min-height ,(cadr size) :visible-max-height t)))
   (update-interface etap))
 
 
