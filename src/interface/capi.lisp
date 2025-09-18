@@ -1,5 +1,16 @@
 (in-package :etap)
 
+(defparameter *clues*
+  '(:characters :hyphenation-points
+    :over/underfull-boxes :overshrunk/stretched-boxes
+    :rivers
+    :paragraph-box :line-boxes :character-boxes :baselines
+    :properties-tooltips)
+  "The visual clues available for conditional display.")
+
+
+
+
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -791,9 +802,8 @@ Otherwise, do nothing."
     (update-cursor-title cursor)
     (gp:invalidate-rectangle (view (top-level-interface cursor)))))
 
-(defun set-clues (value interface)
-  "Invalidate INTERFACE's view after a change to the clues."
-  (declare (ignore value))
+(defun clues-callback (interface)
+  "Invalidate INTERFACE's paragraph view."
   (gp:invalidate-rectangle (view interface)))
 
 
@@ -1493,19 +1503,12 @@ or the current algorithm's one otherwise."
      :callback 'next-layout
      :help-key :layout-+1
      :reader layout-+1)
-   (clues check-button-panel
-     :layout-class 'column-layout
-     :title "Characters and Clues" :title-position :frame
-     :visible-max-width nil
-     :visible-max-height nil
-     :items '(:characters :hyphenation-points
-	      :over/underfull-boxes :overshrunk/stretched-boxes
-	      :rivers
-	      :paragraph-box :line-boxes :character-boxes :baselines
-	      :properties-tooltips)
-     :print-function 'title-capitalize
-     :selection-callback 'set-clues
-     :retract-callback 'set-clues
+   (clues check-box
+     :property :characters-&-clues
+     :items *clues*
+     :callback-type :interface
+     :selection-callback 'clues-callback
+     :retract-callback 'clues-callback
      :reader clues)
    (text-button popup-menu-button
      :text "Source text" :menu text-menu :reader text-button)
