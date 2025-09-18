@@ -727,11 +727,11 @@ See `selection-plist' for more information."
 ;; Callbacks
 ;; ---------
 
-(defun set-algorithm (value interface)
-  "If INTERFACE is enabled, set algorithm specified by VALUE.
+(defun algorithms-tab-callback (tab interface)
+  "If INTERFACE is enabled, set algorithm to the selected one in TAB.
 Otherwise, do nothing."
   (if (enabled interface)
-    (let ((algorithm (car value)))
+    (let ((algorithm (car (choice-selected-item tab))))
       ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
       ;; except that it's :knuth-plass in contexts, and also in the interface
       ;; algorithm selection pane where the title needs to be human readable.
@@ -741,12 +741,11 @@ Otherwise, do nothing."
       (update interface))
     ;; #### NOTE: in fact, we're not really doing nothing here. The call to
     ;; (SETF CHOICE-SELECTION) below allows the correct tab layout button to
-    ;; remain highlighted, even when the user tries to select another choice.
-    (let ((algorithms-tab-layout (algorithms interface)))
-      (setf (choice-selection algorithms-tab-layout)
-	    (position (algorithm-type (algorithm (context interface)))
-		      (collection-items algorithms-tab-layout)
-		      :key #'car)))))
+    ;; remain highlighted, even when the user tries to select another one.
+    (setf (choice-selected-item tab)
+	  (find (algorithm-type (algorithm (context interface)))
+	      (collection-items tab)
+	    :key #'first))))
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
@@ -1249,15 +1248,13 @@ INTERFACE is the main ETAP window."
 ;; Interface
 ;; ==========================================================================
 
-(defun algorithms-tab-layout-visible-child-function (item interface)
-  "Return the appropriate algorithm pane to display.
-This is either ITEM's second element if INTERFACE is enabled,
-or the current algorithm's one otherwise."
-  (unless (enabled interface)
-    (setq item (find (algorithm-type (algorithm (context interface)))
-		   (collection-items (algorithms interface))
-		 :key #'car)))
-  (second item))
+;; #### WARNING: it seems that this function can be called before the whole
+;; interface is ready, in which case the call to TOP-LEVEL-INTERFACE below
+;; would return NIL. To prevent that from happening, we only set this function
+;; in an initialize-instance after method on the interface.
+(defun algorithms-tab-visible-child-function (interface)
+  "Return ITEM's second element (the appropriate algorithm pane to display)."
+  (second (choice-selected-item (algorithms-tab interface))))
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
@@ -1286,7 +1283,7 @@ or the current algorithm's one otherwise."
      nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
   (:menu-bar etap-menu)
   (:panes
-   (algorithms tab-layout
+   (algorithms-tab tab-layout
      :title "Algorithms"
      :visible-max-width nil
      :combine-child-constraints t
@@ -1297,10 +1294,10 @@ or the current algorithm's one otherwise."
 	      (:knuth-plass kp-settings)
 	      (:kpx kpx-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
-     ;; #### NOTE: :VISIBLE-CHILD-FUNCTION is set in the INITIALIZE-INSTANCE
-     ;; :after method.
-     :selection-callback 'set-algorithm
-     :reader algorithms)
+     :callback-type '(:element :interface)
+     :selection-callback 'algorithms-tab-callback
+     ;; #### NOTE: see comment above ALGORITHMS-TAB-VISIBLE-CHILD-FUNCTION.
+     :reader algorithms-tab)
    (fixed-fallback agc-radio-button-panel
      :algorithm :fixed
      :property :fallback
@@ -1536,7 +1533,7 @@ or the current algorithm's one otherwise."
    (options-1 column-layout '(disposition disposition-options features)
      :reader options-1)
    (options-2 column-layout '(clues))
-   (settings-2 column-layout '(algorithms text-options text)
+   (settings-2 column-layout '(algorithms-tab text-options text)
      :reader settings-2)
    (text-options row-layout '(text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
@@ -1576,6 +1573,11 @@ or the current algorithm's one otherwise."
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
+  ;; #### NOTE: see comment above ALGORITHMS-TAB-VISIBLE-CHILD-FUNCTION.
+  (setf (tab-layout-visible-child-function (algorithms-tab etap))
+	(lambda (item)
+	  (declare (ignore item))
+	  (algorithms-tab-visible-child-function etap)))
   (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
   (setf (menu-items (slot-value etap 'language-menu))
@@ -1586,10 +1588,7 @@ This currently includes the initial ZOOMing factor and CLUES."
 		:callback 'language-menu-callback
 		:popup-callback 'language-menu-popup-callback)))
   (setf (widget-state (zoom etap)) keys)
-  (setf (choice-selected-items (clues etap)) clues)
-  (setf (tab-layout-visible-child-function (algorithms etap))
-	(lambda (item)
-	  (algorithms-tab-layout-visible-child-function item etap))))
+  (setf (choice-selected-items (clues etap)) clues))
 
 (defmethod enable-interface ((interface etap) &optional (enabled t))
   "Change ETAP INTERFACE's enabled status.
@@ -1662,12 +1661,12 @@ those which may affect the typesetting."
 		       sliders))))
       (case algorithm
 	(:fixed
-	 (setf (choice-selection (algorithms interface)) 0)
+	 (setf (choice-selection (algorithms-tab interface)) 0)
 	 (set-fallback fixed)
 	 (set-options fixed)
 	 (set-slider fixed :width-offset))
 	(:fit
-	 (setf (choice-selection (algorithms interface)) 1)
+	 (setf (choice-selection (algorithms-tab interface)) 1)
 	 (set-variant fit)
 	 (set-fallback fit)
 	 (set-options fit)
@@ -1676,19 +1675,19 @@ those which may affect the typesetting."
 	   :width-offset
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty))
 	(:barnett
-	 (setf (choice-selection (algorithms interface)) 2))
+	 (setf (choice-selection (algorithms-tab interface)) 2))
 	(:duncan
-	 (setf (choice-selection (algorithms interface)) 3)
+	 (setf (choice-selection (algorithms-tab interface)) 3)
 	 (set-choice duncan :discriminating-function))
 	(:knuth-plass
-	 (setf (choice-selection (algorithms interface)) 4)
+	 (setf (choice-selection (algorithms-tab interface)) 4)
 	 (set-variant kp)
 	 (set-sliders kp
 	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
 	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
 	   :pre-tolerance :tolerance :emergency-stretch :looseness))
 	(:kpx
-	 (setf (choice-selection (algorithms interface)) 5)
+	 (setf (choice-selection (algorithms-tab interface)) 5)
 	 (set-variant kpx)
 	 (setf (choice-selected-item (kpx-fitness interface))
 	       (or (cadr (member :fitness options)) (car *kpx-fitnesses*)))
