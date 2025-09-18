@@ -349,17 +349,6 @@ rest is deselected (i.e., no items are left in their previous state)."
    :visible-min-width 220)
   (:documentation "The Cursor class."))
 
-(defmethod initialize-instance :after
-    ((cursor cursor) &key &aux (caliber (caliber cursor)))
-  "Initialize CURSOR's range start and end based on its caliber."
-  (setf (range-start cursor) (caliber-min caliber)
-	(range-end cursor)   (caliber-max caliber)))
-
-
-(defun calibrated-cursor-value (cursor)
-  "Return the calibrated current CURSOR value."
-  (calibrated-value (range-slug-start cursor) (caliber cursor)))
-
 
 (defgeneric cursor-title (cursor)
   (:documentation "Compute CURSOR's title based on its current value.")
@@ -373,6 +362,22 @@ This is the default method."
 (defun update-cursor-title (cursor)
   "Update CURSOR's title with its current value."
   (setf (titled-object-title cursor) (cursor-title cursor)))
+
+;; #### NOTE: it's important to initialize the value and title because
+;; otherwise, only the initial algorithm's widgets would have those settings
+;; properly set.
+(defmethod initialize-instance :after
+    ((cursor cursor) &key &aux (caliber (caliber cursor)))
+  "Initialize CURSOR based on its caliber.
+This means setting its range start and end, default value, and title."
+  (setf (range-start cursor) (caliber-min caliber)
+	(range-end cursor)   (caliber-max caliber))
+  (setf (widget-state cursor) nil))
+
+
+(defun calibrated-cursor-value (cursor)
+  "Return the calibrated current CURSOR value."
+  (calibrated-value (range-slug-start cursor) (caliber cursor)))
 
 
 (defmethod widget-state ((cursor cursor))
@@ -431,224 +436,6 @@ The cm equivalent part is not displayed if the value is +/-∞."
 
 
 ;; ==========================================================================
-;; Algorithmic GUI Components
-;; ==========================================================================
-
-(defclass agc ()
-  ((algorithm
-    :documentation "This component's algorithm."
-    :initarg :algorithm :reader algorithm))
-  (:default-initargs :title "Dummy")
-  (:documentation "The Algorithmic GUI Component class.
-This class serves as a mixin for GUI components representing algorithmic
-settings."))
-
-;; #### WARNING: CAPI sliders impose a specific signature on callbacks (3
-;; mandatory arguments: pane, value, and gesture) so we need to conform to
-;; that if we want to use a single generic function for all kinds of GUI
-;; components.
-(defgeneric agc-callback (component arg2 arg3)
-  (:documentation "The algorithmic GUI components callback.")
-  (:method ((component agc) arg2 arg3
-	    &aux (interface (top-level-interface component)))
-    "Update algorithmic settings in COMPONENT's interface context."
-    (select-algorithm (algorithm component) interface))
-  (:method :after ((component agc) arg2 arg3
-		   &aux (interface (top-level-interface component)))
-    "Update COMPONENT's interface."
-    (update interface)))
-
-
-
-;; -----------
-;; AGC Sliders
-;; -----------
-
-;; #### NOTE: even though the caliber's min and max values could be retrieved
-;; through the slider's range start and end, it's still useful to keep the
-;; caliber around because of its default value and behavior wrt infinity.
-(defclass agc-slider (agc slider)
-  ((property-name
-    :documentation "This slider's property name."
-    :reader property-name)
-   (caliber
-    :documentation "This slider's corresponding caliber."
-    :reader caliber))
-  (:default-initargs
-   :tick-frequency 0
-   :orientation :horizontal
-   :visible-min-width 220
-   :callback 'agc-callback)
-  (:documentation "The AGC Slider Class."))
-
-
-(defgeneric agc-slider-title (slider)
-  (:documentation "Compute AGC SlIDER's title based on its current value.")
-  (:method ((slider agc-slider))
-    "Advertise AGC SLIDER's value in its title. This is the default method."
-    (format nil "~A: ~A"
-      (property-name slider)
-      (calibrated-value (range-slug-start slider) (caliber slider)))))
-
-(defun update-agc-slider-title (slider)
-  "Update AGC SLIDER's title to its current value."
-  (setf (titled-object-title slider) (agc-slider-title slider)))
-
-
-(defmethod initialize-instance :after ((slider agc-slider) &key property)
-  "Post-initialize AGC SLIDER."
-  (setf (slot-value slider 'property-name) (title-capitalize property))
-  (let ((caliber (symbol-value (intern (concatenate 'string
-					 "*"
-					 (symbol-name (algorithm slider))
-					 "-"
-					 (symbol-name property)
-					 "*")
-				       :etap))))
-    (setf (slot-value slider 'caliber) caliber)
-    (setf (range-start slider)      (caliber-min caliber)
-	  (range-end slider)        (caliber-max caliber)
-	  (range-slug-start slider) (caliber-default caliber))
-    (update-agc-slider-title slider)))
-
-
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defmethod agc-callback :around ((slider agc-slider) value gesture)
-  (when (eq gesture :drag) (call-next-method)))
-
-(defmethod agc-callback :before ((slider agc-slider) value gesture)
-  "Update AGC SLIDER's title."
-  (declare (ignore value gesture))
-  (update-agc-slider-title slider))
-
-
-(defmacro agc-slider-setting (algorithm property interface)
-  "Return (:PROPERTY (RANGE-SLUG-START (ALGORITHM-PROPERTY INTERFACE)))."
-  (let ((accessor (intern (concatenate 'string
-			    (symbol-name algorithm)
-			    "-"
-			    (symbol-name property)))))
-    `(list ,property (range-slug-start (,accessor ,interface)))))
-
-
-;; AGC Dimension sliders
-
-(defclass agc-dimen-slider (agc-slider)
-  ()
-  (:documentation "The AGC Dimension Slider Class."))
-
-(defmethod agc-slider-title
-    ((slider agc-dimen-slider)
-     &aux (value (calibrated-value (range-slug-start slider) (caliber slider))))
-  "Advertise AGC dimension SLIDER's value in its title, in pt and cm."
-  (format nil "~A: ~A~@[pt (~Acm)~]"
-    (property-name slider)
-    value
-    (when (numberp value) (float (/ value 28.452755)))))
-
-
-
-;; -----------------
-;; AGC Button Panels
-;; -----------------
-
-(defclass agc-button-panel (agc)
-  ()
-  (:default-initargs
-   :title-position :frame
-   :layout-class 'column-layout
-   :visible-max-height nil
-   :print-function 'title-capitalize
-   :callback-type '(:element :data :interface) ; see comment atop AGC
-   :selection-callback 'agc-callback)
-  (:documentation "The Algorithm GUI Component Button Panel class.
-This is the mixin class for AGC radio and check button panels."))
-
-
-;; Radio Button Panels
-
-(defclass agc-radio-button-panel (agc-button-panel radio-button-panel)
-  ()
-  (:documentation "The AGC Radio Button Panel Class."))
-
-(defmethod initialize-instance :after
-    ((panel agc-radio-button-panel) &key property plural)
-  "Post-initialize AGC radio button PANEL."
-  (setf (collection-items panel)
-	(symbol-value (intern (concatenate 'string
-				"*"
-				(symbol-name (algorithm panel))
-				"-"
-				(symbol-name property)
-				(ecase plural
-				  (:ies "IES")
-				  (:es "ES")
-				  ((:s nil) "S"))
-				"*")
-			      :etap)))
-  (setf (titled-object-title panel) (title-capitalize property)))
-
-
-(defmacro agc-radio-setting (algorithm property interface)
-  "Return (:PROPERTY (CHOICE-SELECTED-ITEM (ALGORITHM-PROPERTY INTERFACE)))."
-  (let ((accessor (intern (concatenate 'string
-			    (symbol-name algorithm)
-			    "-"
-			    (symbol-name property)))))
-    `(list ,property (choice-selected-item (,accessor ,interface)))))
-
-
-;; Check Button Panels
-
-(defclass agc-check-button-panel (agc-button-panel check-button-panel)
-  ()
-  (:default-initargs :retract-callback 'agc-callback)
-  (:documentation "The AGC Radio Button Panel Class."))
-
-(defmethod initialize-instance :after
-    ((panel agc-check-button-panel) &key properties)
-  "Post-initialize ETAP check button PANEL."
-  (setf (collection-items panel)
-	(symbol-value (intern (concatenate 'string
-				"*"
-				(symbol-name (algorithm panel))
-				"-"
-				(symbol-name properties)
-				"*")
-			      :etap)))
-  (setf (titled-object-title panel) (title-capitalize properties)))
-
-(defun selection-plist (selected all)
-  "Return a property list for ALL items.
-The values are T if the item is SELECTED, or NIL otherwise."
-  (loop :for item :across all ; collection items are in a vector
-	:collect item
-	:if (member item selected)
-	  :collect t
-	:else
-	  :collect nil))
-
-(defun choice-selection-plist (choice)
-  "Return CHOICE's selection property list.
-See `selection-plist' for more information."
-  (selection-plist (choice-selected-items choice) (collection-items choice)))
-
-(defmacro agc-check-settings (algorithm properties interface)
-  "Return (CHOICE-SELECTION-PLIST (ALGORITHM-PROPERTIES INTERFACE))."
-  (let ((accessor (intern (concatenate 'string
-			    (symbol-name algorithm)
-			    "-"
-			    (symbol-name properties)))))
-    `(choice-selection-plist (,accessor ,interface))))
-
-
-
-
-;; ==========================================================================
 ;; Interface Actions
 ;; ==========================================================================
 
@@ -656,29 +443,29 @@ See `selection-plist' for more information."
 ;; Algorithm Selection
 ;; -------------------
 
-(defgeneric select-algorithm (algorithm interface)
+(defgeneric %select-algorithm (algorithm interface)
   (:documentation "Select ALGORITHM in INTERFACE's context.")
   (:method ((algorithm (eql :fixed)) interface)
     "Select the Fixed algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :fixed
 		(append
-		  (agc-radio-setting fixed :fallback interface)
-		  (agc-slider-setting fixed :width-offset interface)
-		  (agc-check-settings fixed options interface)))))
+		 (widget-state (fixed-fallback interface))
+		 (cdr (widget-state (fixed-options interface)))
+		 (widget-state (fixed-width-offset interface))))))
   (:method ((algorithm (eql :fit)) interface)
     "Select the Fit algorithm  in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :fit
 		(append
-		  (agc-radio-setting fit :variant interface)
-		  (agc-radio-setting fit :fallback interface)
-		  (agc-radio-setting fit :discriminating-function interface)
-		  (agc-slider-setting fit :line-penalty interface)
-		  (agc-slider-setting fit :hyphen-penalty interface)
-		  (agc-slider-setting fit :explicit-hyphen-penalty interface)
-		  (agc-slider-setting fit :width-offset interface)
-		  (agc-check-settings fit options interface)))))
+		 (widget-state (fit-variant interface))
+		 (widget-state (fit-fallback interface))
+		 (widget-state (fit-discriminating-function interface))
+		 (cdr (widget-state (fit-options interface)))
+		 (widget-state (fit-line-penalty interface))
+		 (widget-state (fit-hyphen-penalty interface))
+		 (widget-state (fit-explicit-hyphen-penalty interface))
+		 (widget-state (fit-width-offset interface))))))
   (:method ((algorithm (eql :barnett)) interface)
     "Select the Barnett algorithm in INTERFACE's context."
     (setf (algorithm (context interface)) '(:barnett)))
@@ -686,41 +473,71 @@ See `selection-plist' for more information."
     "Select the Duncan algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :duncan
-		(agc-radio-setting duncan :discriminating-function interface))))
+		(widget-state (duncan-discriminating-function interface)))))
   (:method ((algorithm (eql :kp)) interface)
     "Select the Knuth-Plass algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :knuth-plass
 		(append
-		 (agc-radio-setting kp :variant interface)
-		 (agc-slider-setting kp :line-penalty interface)
-		 (agc-slider-setting kp :hyphen-penalty interface)
-		 (agc-slider-setting kp :explicit-hyphen-penalty interface)
-		 (agc-slider-setting kp :adjacent-demerits interface)
-		 (agc-slider-setting kp :double-hyphen-demerits interface)
-		 (agc-slider-setting kp :final-hyphen-demerits interface)
-		 (agc-slider-setting kp :pre-tolerance interface)
-		 (agc-slider-setting kp :tolerance interface)
-		 (agc-slider-setting kp :emergency-stretch interface)
-		 (agc-slider-setting kp :looseness interface)))))
+		 (widget-state (kp-variant interface))
+		 (widget-state (kp-line-penalty interface))
+		 (widget-state (kp-hyphen-penalty interface))
+		 (widget-state (kp-explicit-hyphen-penalty interface))
+		 (widget-state (kp-adjacent-demerits interface))
+		 (widget-state (kp-double-hyphen-demerits interface))
+		 (widget-state (kp-final-hyphen-demerits interface))
+		 (widget-state (kp-pre-tolerance interface))
+		 (widget-state (kp-tolerance interface))
+		 (widget-state (kp-emergency-stretch interface))
+		 (widget-state (kp-looseness interface))))))
   (:method ((algorithm (eql :kpx)) interface)
     "Select the KPX algorithm in INTERFACE's context."
     (setf (algorithm (context interface))
 	  (cons :kpx
 		(append
-		 (agc-radio-setting kpx :variant interface)
-		 (agc-radio-setting kpx :fitness interface)
-		 (agc-slider-setting kpx :line-penalty interface)
-		 (agc-slider-setting kpx :hyphen-penalty interface)
-		 (agc-slider-setting kpx :explicit-hyphen-penalty interface)
-		 (agc-slider-setting kpx :adjacent-demerits interface)
-		 (agc-slider-setting kpx :double-hyphen-demerits interface)
-		 (agc-slider-setting kpx :final-hyphen-demerits interface)
-		 (agc-slider-setting kpx :similar-demerits interface)
-		 (agc-slider-setting kpx :pre-tolerance interface)
-		 (agc-slider-setting kpx :tolerance interface)
-		 (agc-slider-setting kpx :emergency-stretch interface)
-		 (agc-slider-setting kpx :looseness interface))))))
+		 (widget-state (kpx-variant interface))
+		 (widget-state (kpx-fitness interface))
+		 (widget-state (kpx-line-penalty interface))
+		 (widget-state (kpx-hyphen-penalty interface))
+		 (widget-state (kpx-explicit-hyphen-penalty interface))
+		 (widget-state (kpx-adjacent-demerits interface))
+		 (widget-state (kpx-double-hyphen-demerits interface))
+		 (widget-state (kpx-final-hyphen-demerits interface))
+		 (widget-state (kpx-similar-demerits interface))
+		 (widget-state (kpx-pre-tolerance interface))
+		 (widget-state (kpx-tolerance interface))
+		 (widget-state (kpx-emergency-stretch interface))
+		 (widget-state (kpx-looseness interface)))))))
+
+(defun select-algorithm
+    (interface
+     &aux (algorithm (first (choice-selected-item (algorithms-tab interface)))))
+  "Select INTERFACE's algorithm."
+  ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
+  ;; except that it's :knuth-plass in contexts, and also in the interface
+  ;; algorithm selection pane where the title needs to be human readable.
+  ;; Hence the title conversion below.
+  (when (eq algorithm :knuth-plass) (setq algorithm :kp))
+  (%select-algorithm algorithm interface))
+
+(defun algorithm-callback (interface)
+  "Select INTERFACE's algorithm and update everything."
+  (select-algorithm interface)
+  (update interface))
+
+;; #### WARNING: moving a slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defun algorithm-cursor-callback (cursor value gesture)
+  "Update CURSOR's title, select INTERFACE's algorithm, and update everything."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (let ((interface (top-level-interface cursor)))
+      (select-algorithm interface)
+      (update interface))))
 
 
 ;; ---------
@@ -730,19 +547,14 @@ See `selection-plist' for more information."
 (defun algorithms-tab-callback (tab interface)
   "If INTERFACE is enabled, set algorithm to the selected one in TAB.
 Otherwise, reselect the previously selected one."
-  (if (enabled interface)
-    (let ((algorithm (car (choice-selected-item tab))))
-      ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
-      ;; except that it's :knuth-plass in contexts, and also in the interface
-      ;; algorithm selection pane where the title needs to be human readable.
-      ;; Hence the title conversion below.
-      (when (eq algorithm :knuth-plass) (setq algorithm :kp))
-      (select-algorithm algorithm interface)
-      (update interface))
-    (setf (choice-selected-item tab)
-	  (find (algorithm-type (algorithm (context interface)))
-	      (collection-items tab)
-	    :key #'first))))
+  (cond ((enabled interface)
+	 (select-algorithm interface)
+	 (update interface))
+	(t
+	 (setf (choice-selected-item tab)
+	       (find (algorithm-type (algorithm (context interface)))
+		   (collection-items tab)
+		 :key #'first)))))
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
@@ -1296,160 +1108,205 @@ INTERFACE is the main ETAP window."
 			       (declare (ignore item))
 			       (second (choice-selected-item algorithms-tab)))
      :reader algorithms-tab)
-   (fixed-fallback agc-radio-button-panel
-     :algorithm :fixed
+   (fixed-fallback radio-box
      :property :fallback
+     :items *fixed-fallbacks*
      :help-keys *fixed-fallbacks-help-keys*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :reader fixed-fallback)
-   (fixed-options agc-check-button-panel
-     :algorithm :fixed
-     :properties :options
+   (fixed-options check-box
+     :property :options
+     :items *fixed-options*
      :help-keys *fixed-options-help-keys*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :reader fixed-options)
-   (fixed-width-offset agc-dimen-slider
-     :algorithm :fixed
+   (fixed-width-offset pt-cursor
      :property :width-offset
+     :caliber *fixed-width-offset*
+     :callback 'algorithm-cursor-callback
      :reader fixed-width-offset)
-   (fit-variant agc-radio-button-panel
-     :algorithm :fit
+   (fit-variant radio-box
      :property :variant
+     :items *fit-variants*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *fit-variants-help-keys*
      :reader fit-variant)
-   (fit-fallback agc-radio-button-panel
-     :algorithm :fit
+   (fit-fallback radio-box
      :property :fallback
+     :items *fit-fallbacks*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *fit-fallbacks-help-keys*
      :reader fit-fallback)
-   (fit-discriminating-function agc-radio-button-panel
-     :algorithm :fit
+   (fit-discriminating-function radio-box
      :property :discriminating-function
+     :items *fit-discriminating-functions*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *fit-discriminating-functions-help-keys*
      :reader fit-discriminating-function)
-   (fit-options agc-check-button-panel
-     :algorithm :fit
-     :properties :options
+   (fit-options check-box
+     :property :options
+     :items *fit-options*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *fit-options-help-keys*
      :reader fit-options)
-   (fit-line-penalty agc-slider
-     :algorithm :fit
+   (fit-line-penalty cursor
      :property :line-penalty
+     :caliber *fit-line-penalty*
+     :callback 'algorithm-cursor-callback
      :reader fit-line-penalty)
-   (fit-hyphen-penalty agc-slider
-     :algorithm :fit
+   (fit-hyphen-penalty cursor
      :property :hyphen-penalty
+     :caliber *fit-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader fit-hyphen-penalty)
-   (fit-explicit-hyphen-penalty agc-slider
-     :algorithm :fit
+   (fit-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
+     :caliber *fit-explicit-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader fit-explicit-hyphen-penalty)
-   (fit-width-offset agc-dimen-slider
-     :algorithm :fit
+   (fit-width-offset pt-cursor
      :property :width-offset
+     :caliber *fit-width-offset*
+     :callback 'algorithm-cursor-callback
      :reader fit-width-offset)
-   (duncan-discriminating-function agc-radio-button-panel
-     :algorithm :duncan
+   (duncan-discriminating-function radio-box
      :property :discriminating-function
+     :items *duncan-discriminating-functions*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *duncan-discriminating-functions-help-keys*
      :reader duncan-discriminating-function)
-   (kp-variant agc-radio-button-panel
-     :algorithm :kp
+   (kp-variant radio-box
      :property :variant
+     :items *kp-variants*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *kp-variants-help-keys*
      :reader kp-variant)
-   (kp-line-penalty agc-slider
-     :algorithm :kp
+   (kp-line-penalty cursor
      :property :line-penalty
+     :caliber *kp-line-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kp-line-penalty)
-   (kp-hyphen-penalty agc-slider
-     :algorithm :kp
+   (kp-hyphen-penalty cursor
      :property :hyphen-penalty
+     :caliber *kp-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kp-hyphen-penalty)
-   (kp-explicit-hyphen-penalty agc-slider
-     :algorithm :kp
+   (kp-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
+     :caliber *kp-explicit-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kp-explicit-hyphen-penalty)
-   (kp-adjacent-demerits agc-slider
-     :algorithm :kp
+   (kp-adjacent-demerits cursor
      :property :adjacent-demerits
+     :caliber *kp-adjacent-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kp-adjacent-demerits)
-   (kp-double-hyphen-demerits agc-slider
-     :algorithm :kp
+   (kp-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
+     :caliber *kp-double-hyphen-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kp-double-hyphen-demerits)
-   (kp-final-hyphen-demerits agc-slider
-     :algorithm :kp
+   (kp-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
+     :caliber *kp-final-hyphen-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kp-final-hyphen-demerits)
-   (kp-pre-tolerance agc-slider
-     :algorithm :kp
+   (kp-pre-tolerance cursor
      :property :pre-tolerance
+     :caliber *kp-pre-tolerance*
+     :callback 'algorithm-cursor-callback
      :reader kp-pre-tolerance)
-   (kp-tolerance agc-slider
-     :algorithm :kp
+   (kp-tolerance cursor
      :property :tolerance
+     :caliber *kp-tolerance*
+     :callback 'algorithm-cursor-callback
      :reader kp-tolerance)
-   (kp-emergency-stretch agc-dimen-slider
-     :algorithm :kp
+   (kp-emergency-stretch pt-cursor
      :property :emergency-stretch
+     :caliber *kp-emergency-stretch*
+     :callback 'algorithm-cursor-callback
      :reader kp-emergency-stretch)
-   (kp-looseness agc-slider
-     :algorithm :kp
+   (kp-looseness cursor
      :property :looseness
+     :caliber *kp-looseness*
+     :callback 'algorithm-cursor-callback
      :reader kp-looseness)
-   (kpx-variant agc-radio-button-panel
-     :algorithm :kpx
+   (kpx-variant radio-box
      :property :variant
+     :items *kpx-variants*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *kpx-variants-help-keys*
      :reader kpx-variant)
-   (kpx-fitness agc-radio-button-panel
-     :algorithm :kpx
+   (kpx-fitness radio-box
      :property :fitness
-     :plural :es
+     :items *kpx-fitnesses*
+     :callback-type :interface
+     :selection-callback 'algorithm-callback
      :help-keys *kpx-fitnesses-help-keys*
      :reader kpx-fitness)
-   (kpx-line-penalty agc-slider
-     :algorithm :kpx
+   (kpx-line-penalty cursor
      :property :line-penalty
+     :caliber *kpx-line-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kpx-line-penalty)
-   (kpx-hyphen-penalty agc-slider
-     :algorithm :kpx
+   (kpx-hyphen-penalty cursor
      :property :hyphen-penalty
+     :caliber *kpx-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kpx-hyphen-penalty)
-   (kpx-explicit-hyphen-penalty agc-slider
-     :algorithm :kpx
+   (kpx-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
+     :caliber *kpx-explicit-hyphen-penalty*
+     :callback 'algorithm-cursor-callback
      :reader kpx-explicit-hyphen-penalty)
-   (kpx-adjacent-demerits agc-slider
-     :algorithm :kpx
+   (kpx-adjacent-demerits cursor
      :property :adjacent-demerits
+     :caliber *kpx-adjacent-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kpx-adjacent-demerits)
-   (kpx-double-hyphen-demerits agc-slider
-     :algorithm :kpx
+   (kpx-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
+     :caliber *kpx-double-hyphen-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kpx-double-hyphen-demerits)
-   (kpx-final-hyphen-demerits agc-slider
-     :algorithm :kpx
+   (kpx-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
+     :caliber *kpx-final-hyphen-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kpx-final-hyphen-demerits)
-   (kpx-similar-demerits agc-slider
-     :algorithm :kpx
+   (kpx-similar-demerits cursor
      :property :similar-demerits
+     :caliber *kpx-similar-demerits*
+     :callback 'algorithm-cursor-callback
      :reader kpx-similar-demerits)
-   (kpx-pre-tolerance agc-slider
-     :algorithm :kpx
+   (kpx-pre-tolerance cursor
      :property :pre-tolerance
+     :caliber *kpx-pre-tolerance*
+     :callback 'algorithm-cursor-callback
      :reader kpx-pre-tolerance)
-   (kpx-tolerance agc-slider
-     :algorithm :kpx
+   (kpx-tolerance cursor
      :property :tolerance
+     :caliber *kpx-tolerance*
+     :callback 'algorithm-cursor-callback
      :reader kpx-tolerance)
-   (kpx-emergency-stretch agc-dimen-slider
-     :algorithm :kpx
+   (kpx-emergency-stretch pt-cursor
      :property :emergency-stretch
+     :caliber *kpx-emergency-stretch*
+     :callback 'algorithm-cursor-callback
      :reader kpx-emergency-stretch)
-   (kpx-looseness agc-slider
-     :algorithm :kpx
+   (kpx-looseness cursor
      :property :looseness
+     :caliber *kpx-looseness*
+     :callback 'algorithm-cursor-callback
      :reader kpx-looseness)
    (disposition radio-box
      :property :disposition
@@ -1612,83 +1469,56 @@ those which may affect the typesetting."
   "Update INTERFACE after a context change."
   (let ((algorithm (algorithm-type (algorithm context)))
 	(options (algorithm-options (algorithm context))))
-    (macrolet
-	((set-choice (alg prop)
-	   (let ((accessor
-		   (intern (concatenate 'string
-			     (symbol-name alg)
-			     "-"
-			     (symbol-name prop)))))
-	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member ,prop options))
-			(svref (collection-items (,accessor interface)) 0)))))
-	 (set-variant (alg)
-	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-VARIANT"))))
-	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member :variant options))
-			(svref (collection-items (,accessor interface)) 0)))))
-	 (set-fallback (alg)
-	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-FALLBACK"))))
-	     `(setf (choice-selected-item (,accessor interface))
-		    (or (cadr (member :fallback options))
-			(svref (collection-items (,accessor interface)) 0)))))
-	 (set-options (alg)
-	   (let ((accessor (intern (concatenate 'string
-				     (symbol-name alg) "-OPTIONS"))))
-	     `(set-choice-selection (,accessor interface) options)))
-	 (set-slider (alg prop)
-	   (let* ((accessor (intern (concatenate 'string
-				      (symbol-name alg)
-				      "-"
-				      (symbol-name prop))))
-		  (the-slider (gensym "SLIDER")))
-	     `(let ((,the-slider (,accessor interface)))
-		(setf (range-slug-start ,the-slider)
-		      (or (cadr (member ,prop options))
-			  (caliber-default (caliber ,the-slider))))
-		(update-agc-slider-title ,the-slider))))
-	 (set-sliders (alg &rest sliders)
-	   `(progn ,@(mapcar (lambda (slider) `(set-slider ,alg ,slider))
-		       sliders))))
-      (case algorithm
-	(:fixed
-	 (setf (choice-selection (algorithms-tab interface)) 0)
-	 (set-fallback fixed)
-	 (set-options fixed)
-	 (set-slider fixed :width-offset))
-	(:fit
-	 (setf (choice-selection (algorithms-tab interface)) 1)
-	 (set-variant fit)
-	 (set-fallback fit)
-	 (set-options fit)
-	 (set-choice fit :discriminating-function)
-	 (set-sliders fit
-	   :width-offset
-	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty))
-	(:barnett
-	 (setf (choice-selection (algorithms-tab interface)) 2))
-	(:duncan
-	 (setf (choice-selection (algorithms-tab interface)) 3)
-	 (set-choice duncan :discriminating-function))
-	(:knuth-plass
-	 (setf (choice-selection (algorithms-tab interface)) 4)
-	 (set-variant kp)
-	 (set-sliders kp
-	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
-	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
-	   :pre-tolerance :tolerance :emergency-stretch :looseness))
-	(:kpx
-	 (setf (choice-selection (algorithms-tab interface)) 5)
-	 (set-variant kpx)
-	 (setf (choice-selected-item (kpx-fitness interface))
-	       (or (cadr (member :fitness options)) (car *kpx-fitnesses*)))
-	 (set-sliders kpx
-	   :line-penalty :hyphen-penalty :explicit-hyphen-penalty
-	   :adjacent-demerits :double-hyphen-demerits :final-hyphen-demerits
-	   :similar-demerits
-	   :pre-tolerance :tolerance :emergency-stretch :looseness)))))
+    (case algorithm
+      (:fixed
+       (setf (choice-selection (algorithms-tab interface)) 0)
+       (setf (widget-state (fixed-fallback interface)) options)
+       (setf (widget-state (fixed-options interface)) options)
+       (setf (widget-state (fixed-width-offset interface)) options))
+      (:fit
+       (setf (choice-selection (algorithms-tab interface)) 1)
+       (setf (widget-state (fit-variant interface)) options)
+       (setf (widget-state (fit-fallback interface)) options)
+       (setf (widget-state (fit-options interface)) options)
+       (setf (widget-state (fit-discriminating-function interface)) options)
+       (setf (widget-state (fit-width-offset interface)) options)
+       (setf (widget-state (fit-line-penalty interface)) options)
+       (setf (widget-state (fit-hyphen-penalty interface)) options)
+       (setf (widget-state (fit-explicit-hyphen-penalty interface)) options))
+      (:barnett
+       (setf (choice-selection (algorithms-tab interface)) 2))
+      (:duncan
+       (setf (choice-selection (algorithms-tab interface)) 3)
+       (setf (widget-state (duncan-discriminating-function interface))
+	     options))
+      (:knuth-plass
+       (setf (choice-selection (algorithms-tab interface)) 4)
+       (setf (widget-state (kp-variant interface)) options)
+       (setf (widget-state (kp-line-penalty interface)) options)
+       (setf (widget-state (kp-hyphen-penalty interface)) options)
+       (setf (widget-state (kp-explicit-hyphen-penalty interface)) options)
+       (setf (widget-state (kp-adjacent-demerits interface)) options)
+       (setf (widget-state (kp-double-hyphen-demerits interface)) options)
+       (setf (widget-state (kp-final-hyphen-demerits interface)) options)
+       (setf (widget-state (kp-pre-tolerance interface)) options)
+       (setf (widget-state (kp-tolerance interface)) options)
+       (setf (widget-state (kp-emergency-stretch interface)) options)
+       (setf (widget-state (kp-looseness interface)) options))
+      (:kpx
+       (setf (choice-selection (algorithms-tab interface)) 5)
+       (setf (widget-state (kpx-variant interface)) options)
+       (setf (widget-state (kpx-fitness interface)) options)
+       (setf (widget-state (kpx-line-penalty interface)) options)
+       (setf (widget-state (kpx-hyphen-penalty interface)) options)
+       (setf (widget-state (kpx-explicit-hyphen-penalty interface)) options)
+       (setf (widget-state (kpx-adjacent-demerits interface)) options)
+       (setf (widget-state (kpx-double-hyphen-demerits interface)) options)
+       (setf (widget-state (kpx-final-hyphen-demerits interface)) options)
+       (setf (widget-state (kpx-similar-demerits interface)) options)
+       (setf (widget-state (kpx-pre-tolerance interface)) options)
+       (setf (widget-state (kpx-tolerance interface)) options)
+       (setf (widget-state (kpx-emergency-stretch interface)) options)
+       (setf (widget-state (kpx-looseness interface)) options))))
   (setf (widget-state (disposition interface))
 	(disposition-type (disposition context)))
   (setf (widget-state (disposition-options-panel interface))
