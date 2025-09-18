@@ -743,17 +743,12 @@ Otherwise, do nothing."
       (update interface))
     ;; #### NOTE: in fact, we're not really doing nothing here. The call to
     ;; (SETF CHOICE-SELECTION) below allows the correct tab layout button to
-    ;; remain highlighted. Beware however that doing it triggers this very
-    ;; same callback again, so we need to take care of avoiding an infinite
-    ;; callback loop by changing the choice selection only when necessary.
-    (let* ((algorithms-tab-layout (algorithms interface))
-	   (old-selection
-	     (position (algorithm-type (algorithm (context interface)))
-		       (collection-items algorithms-tab-layout)
-		       :key #'car))
-	   (new-selection (choice-selection algorithms-tab-layout)))
-      (unless (eq old-selection new-selection)
-	(setf (choice-selection algorithms-tab-layout) old-selection)))))
+    ;; remain highlighted, even when the user tries to select another choice.
+    (let ((algorithms-tab-layout (algorithms interface)))
+      (setf (choice-selection algorithms-tab-layout)
+	    (position (algorithm-type (algorithm (context interface)))
+		      (collection-items algorithms-tab-layout)
+		      :key #'car)))))
 
 (defun set-disposition (value interface)
   "Set the current disposition in INTERFACE's context."
