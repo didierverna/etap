@@ -729,7 +729,7 @@ See `selection-plist' for more information."
 
 (defun algorithms-tab-callback (tab interface)
   "If INTERFACE is enabled, set algorithm to the selected one in TAB.
-Otherwise, do nothing."
+Otherwise, reselect the previously selected one."
   (if (enabled interface)
     (let ((algorithm (car (choice-selected-item tab))))
       ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
@@ -739,9 +739,6 @@ Otherwise, do nothing."
       (when (eq algorithm :knuth-plass) (setq algorithm :kp))
       (select-algorithm algorithm interface)
       (update interface))
-    ;; #### NOTE: in fact, we're not really doing nothing here. The call to
-    ;; (SETF CHOICE-SELECTION) below allows the correct tab layout button to
-    ;; remain highlighted, even when the user tries to select another one.
     (setf (choice-selected-item tab)
 	  (find (algorithm-type (algorithm (context interface)))
 	      (collection-items tab)
@@ -1248,14 +1245,6 @@ INTERFACE is the main ETAP window."
 ;; Interface
 ;; ==========================================================================
 
-;; #### WARNING: it seems that this function can be called before the whole
-;; interface is ready, in which case the call to TOP-LEVEL-INTERFACE below
-;; would return NIL. To prevent that from happening, we only set this function
-;; in an initialize-instance after method on the interface.
-(defun algorithms-tab-visible-child-function (interface)
-  "Return ITEM's second element (the appropriate algorithm pane to display)."
-  (second (choice-selected-item (algorithms-tab interface))))
-
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
    (breakup :accessor breakup)
@@ -1296,7 +1285,16 @@ INTERFACE is the main ETAP window."
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:element :interface)
      :selection-callback 'algorithms-tab-callback
-     ;; #### NOTE: see comment above ALGORITHMS-TAB-VISIBLE-CHILD-FUNCTION.
+     ;; #### WARNING: with my emulation of an enabled/disabled status for the
+     ;; main interface, the algorithms tab's selection callback may override
+     ;; the selection that triggered its call. However, even though the
+     ;; visible child function is called afterwards, the item passed along is
+     ;; the old one (probably bound before the execution of the callback). The
+     ;; solution around this is to ignore the (obsolete) item, and work
+     ;; directly with the tab's selection.
+     :visible-child-function (lambda (item)
+			       (declare (ignore item))
+			       (second (choice-selected-item algorithms-tab)))
      :reader algorithms-tab)
    (fixed-fallback agc-radio-button-panel
      :algorithm :fixed
@@ -1573,11 +1571,6 @@ INTERFACE is the main ETAP window."
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
-  ;; #### NOTE: see comment above ALGORITHMS-TAB-VISIBLE-CHILD-FUNCTION.
-  (setf (tab-layout-visible-child-function (algorithms-tab etap))
-	(lambda (item)
-	  (declare (ignore item))
-	  (algorithms-tab-visible-child-function etap)))
   (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
   (setf (menu-items (slot-value etap 'language-menu))
