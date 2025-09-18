@@ -246,10 +246,10 @@ See `update' for more information."
 This class is a mixin class for ETAP widgets."))
 
 (defgeneric widget-state (widget)
-  (:documentation "Return a property list representing the state of WIDGET."))
+  (:documentation "Return a property list representing WIDGET's state."))
 
 (defgeneric (setf widget-state) (plist widget)
-  (:documentation "Set WIDGET's state according to PLIST."))
+  (:documentation "Set WIDGET's state based on PLIST."))
 
 
 
@@ -280,7 +280,7 @@ This is the base class for radio and check boxes."))
   (:documentation "The Radio Box class."))
 
 (defmethod widget-state ((box radio-box))
-  "Return a property list representing the state of radio BOX.
+  "Return a property list representing radio BOX's state.
 This is a list of the form (<property> <selected item>)."
   (list (property box) (choice-selected-item box)))
 
@@ -293,15 +293,15 @@ This is a list of the form (<property> <selected item>)."
 ;;    disposition which is extracted by calling DISPOSITION-TYPE.
 
 (defmethod (setf widget-state) ((plist list) (box radio-box))
-  "Set radio BOX' state according to PLIST.
-More specifically, BOX' selection is set to the value of BOX's property
+  "Set radio BOX's state based on PLIST.
+More specifically, BOX's selection is set to the value of BOX's property
 in PLIST if found (the value must be one of BOX's items). Otherwise, the
 first item in BOX is selected."
   (setf (choice-selected-item box)
 	(or (getf plist (property box)) (svref (collection-items box) 0))))
 
 (defmethod (setf widget-state) ((item symbol) (box radio-box))
-  "Set radio BOX' selected item to ITEM (must be one of BOX's items)."
+  "Set radio BOX's selected item to ITEM (must be one of BOX's items)."
   (setf (choice-selected-item box) item))
 
 
@@ -313,7 +313,7 @@ first item in BOX is selected."
   (:documentation "The Check Box class."))
 
 (defmethod widget-state ((box check-box))
-  "Return a property list representing the state of check BOX.
+  "Return a property list representing check BOX's state.
 This is a list of the form (<property> <item> <state> ...).
 Note that the list is exhaustive: all BOX items are present, with their state
 being T or NIL."
@@ -327,7 +327,7 @@ being T or NIL."
 		:collect nil)))
 
 (defmethod (setf widget-state) (plist (box check-box))
-  "Set check BOX' state according to PLIST.
+  "Set check BOX's state based on PLIST.
 More specifically, every BOX item found to be true in PLIST is selected. The
 rest is deselected (i.e., no items are left in their previous state)."
   (setf (choice-selected-items box)
@@ -376,18 +376,16 @@ This is the default method."
 
 
 (defmethod widget-state ((cursor cursor))
-  "Return a property list representing the sate of CURSOR.
+  "Return a property list representing CURSOR's state.
 This is a list of the form (<property> <calibrated value>)."
   (list (property cursor) (calibrated-cursor-value cursor)))
 
 (defmethod (setf widget-state)
     (plist (cursor cursor) &aux (caliber (caliber cursor)))
-  "Set CURSOR's state according to PLIST.
-More specifically, CURSOR' value is set to the decalibrated value of CURSOR's
+  "Set CURSOR's state based on PLIST.
+More specifically, CURSOR's value is set to the decalibrated value of CURSOR's
 property in PLIST if found. Otherwise, the default value of CURSOR's caliber
-is used.
-
-Cursors' title is updated accordingly."
+is used. CURSOR's title is updated accordingly."
   (setf (range-slug-start cursor)
 	(decalibrated-value (or (getf plist (property cursor))
 				(caliber-default caliber))
