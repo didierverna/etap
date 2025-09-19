@@ -133,10 +133,10 @@ corresponding hyphenation clue."
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
 	(when (and (river-detection-p interface) (not (zerop layout)))
-	  (detect-rivers
-	   (get-layout (1- layout) (breakup interface))
-	   (range-slug-start
-	    (angle-slider (river-detection-panel interface)))))))
+	  (apply #'detect-rivers
+	    (get-layout (1- layout) (breakup interface))
+	    (widget-state
+	     (angle (river-detection-panel interface)))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -160,68 +160,6 @@ ARGS are passed along to MAKE-BREAKUP."
   "Update INTERFACE sarting from the current lineup.
 See `update' for more information."
   (update interface :lineup (lineup (breakup interface))))
-
-
-
-
-;; ==========================================================================
-;; River Detection Interface
-;; ==========================================================================
-
-(defun river-detection-activation-switch-callback
-    (switch interface
-     &aux (main-interface (main-interface interface)))
-  "Function called when the river detection activation SWITCH is toggled."
-  (remake-rivers main-interface)
-  (setf (simple-pane-enabled (angle-slider interface))
-	(button-selected switch))
-  (gp:invalidate-rectangle (view main-interface)))
-
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun river-detection-angle-slider-callback
-    (slider value gesture
-     &aux (main-interface (main-interface (top-level-interface slider))))
-  "Function called when the river detection angle slider is moved."
-  (when (eq gesture :drag)
-    (setf (titled-object-title slider) (format nil "Angle: ~D°" value))
-    (remake-rivers main-interface)
-    (gp:invalidate-rectangle (view main-interface))))
-
-(define-interface river-detection-panel ()
-  ((main-interface :reader main-interface))
-  (:panes
-   (activation-switch check-button
-     :text "Detect rivers"
-     :selection-callback 'river-detection-activation-switch-callback
-     :retract-callback 'river-detection-activation-switch-callback
-     :callback-type '(:element :interface)
-     :reader activation-switch)
-   (angle-slider slider
-     :title "Angle: 0°"
-     :orientation :horizontal
-     :visible-min-width 250
-     :visible-max-width 250
-     :start 0
-     :end 45
-     :slug-start 0
-     :tick-frequency 0
-     :enabled nil
-     :callback 'river-detection-angle-slider-callback
-     :reader angle-slider))
-  (:layouts
-   (main column-layout
-     '(activation-switch angle-slider)))
-  (:default-initargs
-   :title "River Detection"
-   :window-styles '(:always-on-top t :toolbox t)))
-
-(defmethod river-detection-p ((interface river-detection-panel))
-  "Return T if river detection is enabled in INTERFACE."
-  (button-selected (activation-switch interface)))
 
 
 
@@ -339,6 +277,12 @@ rest is deselected (i.e., no items are left in their previous state)."
 
 ;; Cursors
 
+;; #### NOTE: we have a redundancy here. Both widgets and calibers have an
+;; associated property, so cursors get both (and they'd better be the same).
+;; Caliber properties are useful to be remembered in lineup items such as
+;; hyphenation points. We could limit widget properties to button boxes, and
+;; this is not such a big deal.
+
 (defclass cursor (widget slider)
   ((caliber
     :documentation "This cursor's corresponding caliber."
@@ -431,6 +375,83 @@ The cm equivalent part is not displayed if the value is +/-∞."
     (title-capitalize (property cursor))
     value
     (when (numberp value) (float (/ value 28.452755)))))
+
+
+
+;; Degree cursors
+
+(defclass dg-cursor (cursor)
+  ()
+  (:documentation "The Degree Cursor class."))
+
+;; #### TODO: ~3D in the format string below will not like +/-∞ if one day we
+;; use percentage cursors with infinity handling calibers. This just doesn't
+;; happen for now.
+(defmethod cursor-title ((cursor dg-cursor))
+  "Return a string of the form \"<Property>: <calibrated value>°\".
+The calibrated value is displayed with 3 digits."
+  (format nil "~A: ~3D°"
+    (title-capitalize (property cursor))
+    (calibrated-cursor-value cursor)))
+
+
+
+
+;; ==========================================================================
+;; River Detection Interface
+;; ==========================================================================
+
+;; #### TODO: in cases like this one, it would make sense for caliber clamping
+;; to take circularity into account (i.e. 360 = 0, etc.).
+(define-gui-caliber river-angle 0 0 45)
+
+(defun river-detection-activation-switch-callback
+    (switch interface
+     &aux (main-interface (main-interface interface)))
+  "Function called when the river detection activation SWITCH is toggled."
+  (remake-rivers main-interface)
+  (setf (simple-pane-enabled (angle interface)) (button-selected switch))
+  (gp:invalidate-rectangle (view main-interface)))
+
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defun river-detection-angle-cursor-callback
+    (cursor value gesture
+     &aux (main-interface (main-interface (top-level-interface cursor))))
+  "Function called when the river detection angle cursor is moved."
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (remake-rivers main-interface)
+    (gp:invalidate-rectangle (view main-interface))))
+
+(define-interface river-detection-panel ()
+  ((main-interface :reader main-interface))
+  (:panes
+   (activation-switch check-button
+     :text "Detect rivers"
+     :selection-callback 'river-detection-activation-switch-callback
+     :retract-callback 'river-detection-activation-switch-callback
+     :callback-type '(:element :interface)
+     :reader activation-switch)
+   (angle dg-cursor
+     :property :angle
+     :caliber *gui-river-angle*
+     :enabled nil
+     :callback 'river-detection-angle-cursor-callback
+     :reader angle))
+  (:layouts
+   (main column-layout
+     '(activation-switch angle)))
+  (:default-initargs
+   :title "River Detection"
+   :window-styles '(:always-on-top t :toolbox t)))
+
+(defmethod river-detection-p ((interface river-detection-panel))
+  "Return T if river detection is enabled in INTERFACE."
+  (button-selected (activation-switch interface)))
 
 
 
@@ -1055,201 +1076,165 @@ INTERFACE is the main ETAP window."
      :items *fixed-fallbacks*
      :help-keys *fixed-fallbacks-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
-     :reader fixed-fallback)
+     :selection-callback 'algorithm-callback)
    (fixed-options check-box
      :property :options
      :items *fixed-options*
      :help-keys *fixed-options-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
-     :reader fixed-options)
+     :selection-callback 'algorithm-callback)
    (fixed-width-offset pt-cursor
      :property :width-offset
      :caliber *fixed-width-offset*
-     :callback 'algorithm-cursor-callback
-     :reader fixed-width-offset)
+     :callback 'algorithm-cursor-callback)
    (fit-variant radio-box
      :property :variant
      :items *fit-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-variants-help-keys*
-     :reader fit-variant)
+     :help-keys *fit-variants-help-keys*)
    (fit-fallback radio-box
      :property :fallback
      :items *fit-fallbacks*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-fallbacks-help-keys*
-     :reader fit-fallback)
+     :help-keys *fit-fallbacks-help-keys*)
    (fit-discriminating-function radio-box
      :property :discriminating-function
      :items *fit-discriminating-functions*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-discriminating-functions-help-keys*
-     :reader fit-discriminating-function)
+     :help-keys *fit-discriminating-functions-help-keys*)
    (fit-options check-box
      :property :options
      :items *fit-options*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-options-help-keys*
-     :reader fit-options)
+     :help-keys *fit-options-help-keys*)
    (fit-line-penalty cursor
      :property :line-penalty
      :caliber *fit-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *fit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *fit-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-width-offset pt-cursor
      :property :width-offset
      :caliber *fit-width-offset*
-     :callback 'algorithm-cursor-callback
-     :reader fit-width-offset)
+     :callback 'algorithm-cursor-callback)
    (duncan-discriminating-function radio-box
      :property :discriminating-function
      :items *duncan-discriminating-functions*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *duncan-discriminating-functions-help-keys*
-     :reader duncan-discriminating-function)
+     :help-keys *duncan-discriminating-functions-help-keys*)
    (kp-variant radio-box
      :property :variant
      :items *kp-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kp-variants-help-keys*
-     :reader kp-variant)
+     :help-keys *kp-variants-help-keys*)
    (kp-line-penalty cursor
      :property :line-penalty
      :caliber *kp-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *kp-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *kp-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-adjacent-demerits cursor
      :property :adjacent-demerits
      :caliber *kp-adjacent-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-adjacent-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
      :caliber *kp-double-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-double-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
      :caliber *kp-final-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-final-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-pre-tolerance cursor
      :property :pre-tolerance
      :caliber *kp-pre-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kp-pre-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kp-tolerance cursor
      :property :tolerance
      :caliber *kp-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kp-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kp-emergency-stretch pt-cursor
      :property :emergency-stretch
      :caliber *kp-emergency-stretch*
-     :callback 'algorithm-cursor-callback
-     :reader kp-emergency-stretch)
+     :callback 'algorithm-cursor-callback)
    (kp-looseness cursor
      :property :looseness
      :caliber *kp-looseness*
-     :callback 'algorithm-cursor-callback
-     :reader kp-looseness)
+     :callback 'algorithm-cursor-callback)
    (kpx-variant radio-box
      :property :variant
      :items *kpx-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kpx-variants-help-keys*
-     :reader kpx-variant)
+     :help-keys *kpx-variants-help-keys*)
    (kpx-fitness radio-box
      :property :fitness
      :items *kpx-fitnesses*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kpx-fitnesses-help-keys*
-     :reader kpx-fitness)
+     :help-keys *kpx-fitnesses-help-keys*)
    (kpx-line-penalty cursor
      :property :line-penalty
      :caliber *kpx-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *kpx-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *kpx-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-adjacent-demerits cursor
      :property :adjacent-demerits
      :caliber *kpx-adjacent-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-adjacent-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
      :caliber *kpx-double-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-double-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
      :caliber *kpx-final-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-final-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-similar-demerits cursor
      :property :similar-demerits
      :caliber *kpx-similar-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-similar-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-pre-tolerance cursor
      :property :pre-tolerance
      :caliber *kpx-pre-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-pre-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kpx-tolerance cursor
      :property :tolerance
      :caliber *kpx-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kpx-emergency-stretch pt-cursor
      :property :emergency-stretch
      :caliber *kpx-emergency-stretch*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-emergency-stretch)
+     :callback 'algorithm-cursor-callback)
    (kpx-looseness cursor
      :property :looseness
      :caliber *kpx-looseness*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-looseness)
+     :callback 'algorithm-cursor-callback)
    (disposition radio-box
      :property :disposition
      :items *dispositions*
