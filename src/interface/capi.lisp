@@ -339,6 +339,12 @@ rest is deselected (i.e., no items are left in their previous state)."
 
 ;; Cursors
 
+;; #### NOTE: we have a redundancy here. Both widgets and calibers have an
+;; associated property, so cursors get both (and they'd better be the same).
+;; Caliber properties are useful to be remembered in lineup items such as
+;; hyphenation points. We could limit widget properties to button boxes, and
+;; this is not such a big deal.
+
 (defclass cursor (widget slider)
   ((caliber
     :documentation "This cursor's corresponding caliber."
