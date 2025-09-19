@@ -1458,13 +1458,6 @@ those which may affect the typesetting."
 
 ;; Interface display
 
-(defun set-choice-selection (pane options)
-  "Set PANE's choice selection to the choices being true in OPTIONS."
-  (setf (choice-selected-items pane)
-	(loop :for option :across (collection-items pane) ; a vector
-	      :when (getf options option)
-		:collect option)))
-
 (defun update-interface (interface &aux (context (context interface)))
   "Update INTERFACE after a context change."
   (let* ((algorithm (algorithm-type (algorithm context)))
