@@ -133,10 +133,10 @@ corresponding hyphenation clue."
   "Remake INTERFACE's rivers."
   (setf (rivers interface)
 	(when (and (river-detection-p interface) (not (zerop layout)))
-	  (detect-rivers
-	   (get-layout (1- layout) (breakup interface))
-	   (range-slug-start
-	    (angle-slider (river-detection-panel interface)))))))
+	  (apply #'detect-rivers
+	    (get-layout (1- layout) (breakup interface))
+	    (widget-state
+	     (angle (river-detection-panel interface)))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -160,68 +160,6 @@ ARGS are passed along to MAKE-BREAKUP."
   "Update INTERFACE sarting from the current lineup.
 See `update' for more information."
   (update interface :lineup (lineup (breakup interface))))
-
-
-
-
-;; ==========================================================================
-;; River Detection Interface
-;; ==========================================================================
-
-(defun river-detection-activation-switch-callback
-    (switch interface
-     &aux (main-interface (main-interface interface)))
-  "Function called when the river detection activation SWITCH is toggled."
-  (remake-rivers main-interface)
-  (setf (simple-pane-enabled (angle-slider interface))
-	(button-selected switch))
-  (gp:invalidate-rectangle (view main-interface)))
-
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun river-detection-angle-slider-callback
-    (slider value gesture
-     &aux (main-interface (main-interface (top-level-interface slider))))
-  "Function called when the river detection angle slider is moved."
-  (when (eq gesture :drag)
-    (setf (titled-object-title slider) (format nil "Angle: ~D°" value))
-    (remake-rivers main-interface)
-    (gp:invalidate-rectangle (view main-interface))))
-
-(define-interface river-detection-panel ()
-  ((main-interface :reader main-interface))
-  (:panes
-   (activation-switch check-button
-     :text "Detect rivers"
-     :selection-callback 'river-detection-activation-switch-callback
-     :retract-callback 'river-detection-activation-switch-callback
-     :callback-type '(:element :interface)
-     :reader activation-switch)
-   (angle-slider slider
-     :title "Angle: 0°"
-     :orientation :horizontal
-     :visible-min-width 250
-     :visible-max-width 250
-     :start 0
-     :end 45
-     :slug-start 0
-     :tick-frequency 0
-     :enabled nil
-     :callback 'river-detection-angle-slider-callback
-     :reader angle-slider))
-  (:layouts
-   (main column-layout
-     '(activation-switch angle-slider)))
-  (:default-initargs
-   :title "River Detection"
-   :window-styles '(:always-on-top t :toolbox t)))
-
-(defmethod river-detection-p ((interface river-detection-panel))
-  "Return T if river detection is enabled in INTERFACE."
-  (button-selected (activation-switch interface)))
 
 
 
@@ -437,6 +375,83 @@ The cm equivalent part is not displayed if the value is +/-∞."
     (title-capitalize (property cursor))
     value
     (when (numberp value) (float (/ value 28.452755)))))
+
+
+
+;; Degree cursors
+
+(defclass dg-cursor (cursor)
+  ()
+  (:documentation "The Degree Cursor class."))
+
+;; #### TODO: ~3D in the format string below will not like +/-∞ if one day we
+;; use percentage cursors with infinity handling calibers. This just doesn't
+;; happen for now.
+(defmethod cursor-title ((cursor dg-cursor))
+  "Return a string of the form \"<Property>: <calibrated value>°\".
+The calibrated value is displayed with 3 digits."
+  (format nil "~A: ~3D°"
+    (title-capitalize (property cursor))
+    (calibrated-cursor-value cursor)))
+
+
+
+
+;; ==========================================================================
+;; River Detection Interface
+;; ==========================================================================
+
+;; #### TODO: in cases like this one, it would make sense for caliber clamping
+;; to take circularity into account (i.e. 360 = 0, etc.).
+(define-gui-caliber river-angle 0 0 45)
+
+(defun river-detection-activation-switch-callback
+    (switch interface
+     &aux (main-interface (main-interface interface)))
+  "Function called when the river detection activation SWITCH is toggled."
+  (remake-rivers main-interface)
+  (setf (simple-pane-enabled (angle interface)) (button-selected switch))
+  (gp:invalidate-rectangle (view main-interface)))
+
+;; #### WARNING: moving the slider with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that I can safely ignore :MOVE callbacks which means saving two
+;; calls out of 3! I will need to check this again when I introduce focus and
+;; keyboard control though.
+(defun river-detection-angle-cursor-callback
+    (cursor value gesture
+     &aux (main-interface (main-interface (top-level-interface cursor))))
+  "Function called when the river detection angle cursor is moved."
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (remake-rivers main-interface)
+    (gp:invalidate-rectangle (view main-interface))))
+
+(define-interface river-detection-panel ()
+  ((main-interface :reader main-interface))
+  (:panes
+   (activation-switch check-button
+     :text "Detect rivers"
+     :selection-callback 'river-detection-activation-switch-callback
+     :retract-callback 'river-detection-activation-switch-callback
+     :callback-type '(:element :interface)
+     :reader activation-switch)
+   (angle dg-cursor
+     :property :angle
+     :caliber *gui-river-angle*
+     :enabled nil
+     :callback 'river-detection-angle-cursor-callback
+     :reader angle))
+  (:layouts
+   (main column-layout
+     '(activation-switch angle)))
+  (:default-initargs
+   :title "River Detection"
+   :window-styles '(:always-on-top t :toolbox t)))
+
+(defmethod river-detection-p ((interface river-detection-panel))
+  "Return T if river detection is enabled in INTERFACE."
+  (button-selected (activation-switch interface)))
 
 
 

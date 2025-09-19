@@ -10,7 +10,7 @@
 ;; Utilities
 ;; =========
 
-(defun magnitude (dx dy)
+(defun vector-magnitude (dx dy)
   "Return the magnitude of vector (dx, dy)."
   (sqrt (+ (* dx dx) (* dy dy))))
 
@@ -18,7 +18,7 @@
   "Return the scalar product of vectors (dx1 dy1) and (dx2 dy2)."
   (+ (* dx1 dx2) (* dy1 dy2)))
 
-(defun angle (dx dy &aux (magnitude (magnitude dx dy)))
+(defun vector-orientation (dx dy &aux (magnitude (vector-magnitude dx dy)))
   "Return the orientation of vector (dx, dy) in degrees.
 The orientation is relative to the downward vertical direction,
 that is, vector (0, 1)."
@@ -43,10 +43,10 @@ River arms are relative a source whitespace."))
   "Compute ARM's orientation relative to the downward vertical direction.
 ARM goes from SOURCE to its mouth."
   (setf (slot-value arm 'orientation)
-	(angle (- (+ (x (board mouth))  (x mouth))
-		  (+ (x (board source)) (x source)))
-	       (- (+ (y (board mouth))  (y mouth))
-		  (+ (y (board source)) (y source))))))
+	(vector-orientation (- (+ (x (board mouth))  (x mouth))
+			       (+ (x (board source)) (x source)))
+			    (- (+ (y (board mouth))  (y mouth))
+			       (+ (y (board source)) (y source))))))
 
 (defun make-arm (source mouth)
   "Mkae a river arm from SOURCE to MOUTH."
@@ -69,7 +69,7 @@ it, and the closest to SOURCE's right, all of these X-wise."
 	  :finally (return (append left below)))))
 
 (defun detect-rivers
-    (layout angle &aux (lines (lines layout)) (hash (make-hash-table)))
+    (layout &key (angle 0) &aux (lines (lines layout)) (hash (make-hash-table)))
   "Detect rivers of at most ANGLE threshold in LINES.
 The return value is a hash table mapping source whitespaces to a list of arms."
   (loop :for line1 :in lines
