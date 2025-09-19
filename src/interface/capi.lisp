@@ -1061,201 +1061,165 @@ INTERFACE is the main ETAP window."
      :items *fixed-fallbacks*
      :help-keys *fixed-fallbacks-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
-     :reader fixed-fallback)
+     :selection-callback 'algorithm-callback)
    (fixed-options check-box
      :property :options
      :items *fixed-options*
      :help-keys *fixed-options-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
-     :reader fixed-options)
+     :selection-callback 'algorithm-callback)
    (fixed-width-offset pt-cursor
      :property :width-offset
      :caliber *fixed-width-offset*
-     :callback 'algorithm-cursor-callback
-     :reader fixed-width-offset)
+     :callback 'algorithm-cursor-callback)
    (fit-variant radio-box
      :property :variant
      :items *fit-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-variants-help-keys*
-     :reader fit-variant)
+     :help-keys *fit-variants-help-keys*)
    (fit-fallback radio-box
      :property :fallback
      :items *fit-fallbacks*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-fallbacks-help-keys*
-     :reader fit-fallback)
+     :help-keys *fit-fallbacks-help-keys*)
    (fit-discriminating-function radio-box
      :property :discriminating-function
      :items *fit-discriminating-functions*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-discriminating-functions-help-keys*
-     :reader fit-discriminating-function)
+     :help-keys *fit-discriminating-functions-help-keys*)
    (fit-options check-box
      :property :options
      :items *fit-options*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *fit-options-help-keys*
-     :reader fit-options)
+     :help-keys *fit-options-help-keys*)
    (fit-line-penalty cursor
      :property :line-penalty
      :caliber *fit-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *fit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *fit-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader fit-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (fit-width-offset pt-cursor
      :property :width-offset
      :caliber *fit-width-offset*
-     :callback 'algorithm-cursor-callback
-     :reader fit-width-offset)
+     :callback 'algorithm-cursor-callback)
    (duncan-discriminating-function radio-box
      :property :discriminating-function
      :items *duncan-discriminating-functions*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *duncan-discriminating-functions-help-keys*
-     :reader duncan-discriminating-function)
+     :help-keys *duncan-discriminating-functions-help-keys*)
    (kp-variant radio-box
      :property :variant
      :items *kp-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kp-variants-help-keys*
-     :reader kp-variant)
+     :help-keys *kp-variants-help-keys*)
    (kp-line-penalty cursor
      :property :line-penalty
      :caliber *kp-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *kp-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *kp-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kp-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kp-adjacent-demerits cursor
      :property :adjacent-demerits
      :caliber *kp-adjacent-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-adjacent-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
      :caliber *kp-double-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-double-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
      :caliber *kp-final-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kp-final-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kp-pre-tolerance cursor
      :property :pre-tolerance
      :caliber *kp-pre-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kp-pre-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kp-tolerance cursor
      :property :tolerance
      :caliber *kp-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kp-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kp-emergency-stretch pt-cursor
      :property :emergency-stretch
      :caliber *kp-emergency-stretch*
-     :callback 'algorithm-cursor-callback
-     :reader kp-emergency-stretch)
+     :callback 'algorithm-cursor-callback)
    (kp-looseness cursor
      :property :looseness
      :caliber *kp-looseness*
-     :callback 'algorithm-cursor-callback
-     :reader kp-looseness)
+     :callback 'algorithm-cursor-callback)
    (kpx-variant radio-box
      :property :variant
      :items *kpx-variants*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kpx-variants-help-keys*
-     :reader kpx-variant)
+     :help-keys *kpx-variants-help-keys*)
    (kpx-fitness radio-box
      :property :fitness
      :items *kpx-fitnesses*
      :callback-type :interface
      :selection-callback 'algorithm-callback
-     :help-keys *kpx-fitnesses-help-keys*
-     :reader kpx-fitness)
+     :help-keys *kpx-fitnesses-help-keys*)
    (kpx-line-penalty cursor
      :property :line-penalty
      :caliber *kpx-line-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-line-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-hyphen-penalty cursor
      :property :hyphen-penalty
      :caliber *kpx-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-explicit-hyphen-penalty cursor
      :property :explicit-hyphen-penalty
      :caliber *kpx-explicit-hyphen-penalty*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-explicit-hyphen-penalty)
+     :callback 'algorithm-cursor-callback)
    (kpx-adjacent-demerits cursor
      :property :adjacent-demerits
      :caliber *kpx-adjacent-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-adjacent-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-double-hyphen-demerits cursor
      :property :double-hyphen-demerits
      :caliber *kpx-double-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-double-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-final-hyphen-demerits cursor
      :property :final-hyphen-demerits
      :caliber *kpx-final-hyphen-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-final-hyphen-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-similar-demerits cursor
      :property :similar-demerits
      :caliber *kpx-similar-demerits*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-similar-demerits)
+     :callback 'algorithm-cursor-callback)
    (kpx-pre-tolerance cursor
      :property :pre-tolerance
      :caliber *kpx-pre-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-pre-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kpx-tolerance cursor
      :property :tolerance
      :caliber *kpx-tolerance*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-tolerance)
+     :callback 'algorithm-cursor-callback)
    (kpx-emergency-stretch pt-cursor
      :property :emergency-stretch
      :caliber *kpx-emergency-stretch*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-emergency-stretch)
+     :callback 'algorithm-cursor-callback)
    (kpx-looseness cursor
      :property :looseness
      :caliber *kpx-looseness*
-     :callback 'algorithm-cursor-callback
-     :reader kpx-looseness)
+     :callback 'algorithm-cursor-callback)
    (disposition radio-box
      :property :disposition
      :items *dispositions*
