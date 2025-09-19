@@ -139,10 +139,11 @@ for equally good solutions."))
   prefer-shrink discriminating-function)
 
 
-(defmacro define-fit-caliber (name min default max &optional infinity)
+(defmacro define-fit-caliber (name min default max &rest keys &key infinity)
   "Define a NAMEd Fit caliber.
 See `define-caliber' for more information."
-  `(define-caliber fit ,name ,min ,default ,max ,infinity))
+  (declare (ignore infinity))
+  `(define-caliber fit ,name ,min ,default ,max ,@keys))
 
 ;; #### NOTE: the LINE-PENALTY parameter has no impact on the algorithm, since
 ;; it's a constant which affects all line endings in the same way. It's just
@@ -150,8 +151,8 @@ See `define-caliber' for more information."
 ;; and hence compare the two. Hopefully, this mess will go away when we
 ;; parametrize the cost function.
 (define-fit-caliber line-penalty 0 10 100)
-(define-fit-caliber hyphen-penalty -10000 50 10000 t)
-(define-fit-caliber explicit-hyphen-penalty -10000 50 10000 t)
+(define-fit-caliber hyphen-penalty -10000 50 10000 :infinity t)
+(define-fit-caliber explicit-hyphen-penalty -10000 50 10000 :infinity t)
 ;; #### NOTE: no final-hyphen-demerits because that would not be a *-fit
 ;; algorithm anymore (we would need to look one line ahead).
 (define-fit-caliber width-offset -50 0 0)
