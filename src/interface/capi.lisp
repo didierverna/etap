@@ -443,82 +443,24 @@ The cm equivalent part is not displayed if the value is +/-∞."
 ;; Algorithm Selection
 ;; -------------------
 
-(defgeneric %select-algorithm (algorithm interface)
-  (:documentation "Select ALGORITHM in INTERFACE's context.")
-  (:method ((algorithm (eql :fixed)) interface)
-    "Select the Fixed algorithm in INTERFACE's context."
-    (setf (algorithm (context interface))
-	  (cons :fixed
-		(append
-		 (widget-state (fixed-fallback interface))
-		 (cdr (widget-state (fixed-options interface)))
-		 (widget-state (fixed-width-offset interface))))))
-  (:method ((algorithm (eql :fit)) interface)
-    "Select the Fit algorithm  in INTERFACE's context."
-    (setf (algorithm (context interface))
-	  (cons :fit
-		(append
-		 (widget-state (fit-variant interface))
-		 (widget-state (fit-fallback interface))
-		 (widget-state (fit-discriminating-function interface))
-		 (cdr (widget-state (fit-options interface)))
-		 (widget-state (fit-line-penalty interface))
-		 (widget-state (fit-hyphen-penalty interface))
-		 (widget-state (fit-explicit-hyphen-penalty interface))
-		 (widget-state (fit-width-offset interface))))))
-  (:method ((algorithm (eql :barnett)) interface)
-    "Select the Barnett algorithm in INTERFACE's context."
-    (setf (algorithm (context interface)) '(:barnett)))
-  (:method ((algorithm (eql :duncan)) interface)
-    "Select the Duncan algorithm in INTERFACE's context."
-    (setf (algorithm (context interface))
-	  (cons :duncan
-		(widget-state (duncan-discriminating-function interface)))))
-  (:method ((algorithm (eql :kp)) interface)
-    "Select the Knuth-Plass algorithm in INTERFACE's context."
-    (setf (algorithm (context interface))
-	  (cons :knuth-plass
-		(append
-		 (widget-state (kp-variant interface))
-		 (widget-state (kp-line-penalty interface))
-		 (widget-state (kp-hyphen-penalty interface))
-		 (widget-state (kp-explicit-hyphen-penalty interface))
-		 (widget-state (kp-adjacent-demerits interface))
-		 (widget-state (kp-double-hyphen-demerits interface))
-		 (widget-state (kp-final-hyphen-demerits interface))
-		 (widget-state (kp-pre-tolerance interface))
-		 (widget-state (kp-tolerance interface))
-		 (widget-state (kp-emergency-stretch interface))
-		 (widget-state (kp-looseness interface))))))
-  (:method ((algorithm (eql :kpx)) interface)
-    "Select the KPX algorithm in INTERFACE's context."
-    (setf (algorithm (context interface))
-	  (cons :kpx
-		(append
-		 (widget-state (kpx-variant interface))
-		 (widget-state (kpx-fitness interface))
-		 (widget-state (kpx-line-penalty interface))
-		 (widget-state (kpx-hyphen-penalty interface))
-		 (widget-state (kpx-explicit-hyphen-penalty interface))
-		 (widget-state (kpx-adjacent-demerits interface))
-		 (widget-state (kpx-double-hyphen-demerits interface))
-		 (widget-state (kpx-final-hyphen-demerits interface))
-		 (widget-state (kpx-similar-demerits interface))
-		 (widget-state (kpx-pre-tolerance interface))
-		 (widget-state (kpx-tolerance interface))
-		 (widget-state (kpx-emergency-stretch interface))
-		 (widget-state (kpx-looseness interface)))))))
-
 (defun select-algorithm
     (interface
-     &aux (algorithm (first (choice-selected-item (algorithms-tab interface)))))
+     &aux (item (choice-selected-item (algorithms-tab interface)))
+	  (algorithm (first item)))
   "Select INTERFACE's algorithm."
-  ;; #### WARNING: hack alert. The Knuth-Plass prefix is :kp throughout,
-  ;; except that it's :knuth-plass in contexts, and also in the interface
-  ;; algorithm selection pane where the title needs to be human readable.
-  ;; Hence the title conversion below.
-  (when (eq algorithm :knuth-plass) (setq algorithm :kp))
-  (%select-algorithm algorithm interface))
+  (setf (algorithm (context interface))
+	(cons algorithm
+	      (let ((options))
+		(map-pane-descendant-children
+		 (slot-value interface (second item))
+		 (lambda (child)
+		   (typecase child
+		     (check-box
+		      (setq options
+			    (append options (cdr (widget-state child)))))
+		     (widget
+		      (setq options (append options (widget-state child)))))))
+		options))))
 
 (defun algorithm-callback (interface)
   "Select INTERFACE's algorithm and update everything."
