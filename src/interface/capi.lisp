@@ -135,8 +135,7 @@ corresponding hyphenation clue."
 	(when (and (river-detection-p interface) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup interface))
-	    (widget-state
-	     (angle (river-detection-panel interface)))))))
+	    (widget-state (angle (river-detection interface)))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -405,10 +404,9 @@ The calibrated value is displayed with 3 digits."
 ;; to take circularity into account (i.e. 360 = 0, etc.).
 (define-gui-caliber river-angle 0 0 45)
 
-(defun river-detection-activation-switch-callback
-    (switch interface
-     &aux (main-interface (main-interface interface)))
-  "Function called when the river detection activation SWITCH is toggled."
+(defun river-detection-switch-callback
+    (switch interface &aux (main-interface (main-interface interface)))
+  "Function called when the river detection SWITCH is toggled."
   (remake-rivers main-interface)
   (setf (simple-pane-enabled (angle interface)) (button-selected switch))
   (gp:invalidate-rectangle (view main-interface)))
@@ -418,40 +416,40 @@ The calibrated value is displayed with 3 digits."
 ;; it seems that I can safely ignore :MOVE callbacks which means saving two
 ;; calls out of 3! I will need to check this again when I introduce focus and
 ;; keyboard control though.
-(defun river-detection-angle-cursor-callback
+(defun river-detection-angle-callback
     (cursor value gesture
      &aux (main-interface (main-interface (top-level-interface cursor))))
-  "Function called when the river detection angle cursor is moved."
+  "Function called when the river detection angle CURSOR is dragged."
+  (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (remake-rivers main-interface)
     (gp:invalidate-rectangle (view main-interface))))
 
-(define-interface river-detection-panel ()
+(define-interface river-detection ()
   ((main-interface :reader main-interface))
   (:panes
-   (activation-switch check-button
+   (switch check-button
      :text "Detect rivers"
-     :selection-callback 'river-detection-activation-switch-callback
-     :retract-callback 'river-detection-activation-switch-callback
+     :selection-callback 'river-detection-switch-callback
+     :retract-callback 'river-detection-switch-callback
      :callback-type '(:element :interface)
-     :reader activation-switch)
+     :reader switch)
    (angle dg-cursor
      :property :angle
      :caliber *gui-river-angle*
      :enabled nil
-     :callback 'river-detection-angle-cursor-callback
+     :callback 'river-detection-angle-callback
      :reader angle))
   (:layouts
-   (main column-layout
-     '(activation-switch angle)))
+   (main column-layout '(switch angle)))
   (:default-initargs
    :title "River Detection"
    :window-styles '(:always-on-top t :toolbox t)))
 
-(defmethod river-detection-p ((interface river-detection-panel))
+(defmethod river-detection-p ((interface river-detection))
   "Return T if river detection is enabled in INTERFACE."
-  (button-selected (activation-switch interface)))
+  (button-selected (switch interface)))
 
 
 
@@ -989,7 +987,7 @@ INTERFACE is the main ETAP window."
     (:reset-paragraph
      (update interface))
     (:river-detection
-     (display (river-detection-panel interface) :owner interface))))
+     (display (river-detection interface) :owner interface))))
 
 (defun text-menu-callback
     (data interface &aux (context (context interface)))
@@ -1032,9 +1030,9 @@ INTERFACE is the main ETAP window."
     :documentation "The paragraph's detected rivers."
     :initform nil
     :accessor rivers)
-   (river-detection-panel
-    :initform (make-instance 'river-detection-panel)
-    :reader river-detection-panel))
+   (river-detection
+    :initform (make-instance 'river-detection)
+    :reader river-detection))
   (:menus
    (etap-menu "ETAP" (:reset-paragraph :river-detection)
      :print-function 'title-capitalize
@@ -1355,7 +1353,7 @@ INTERFACE is the main ETAP window."
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
-  (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
+  (setf (slot-value (river-detection etap) 'main-interface) etap)
   ;; #### NOTE: this menu's selection is updated on pop-up.
   (setf (menu-items (slot-value etap 'language-menu))
 	(list (make-instance 'menu-component
@@ -1380,7 +1378,7 @@ those which may affect the typesetting."
 
 (defmethod river-detection-p ((interface etap))
   "Return T if river detection is enabled in INTERFACE."
-  (river-detection-p (river-detection-panel interface)))
+  (river-detection-p (river-detection interface)))
 
 
 ;; Interface display
@@ -1445,5 +1443,5 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
 	     :help-callback 'show-help
 	     :destroy-callback
 	     (lambda (interface)
-	       (destroy (river-detection-panel interface))
+	       (destroy (river-detection interface))
 	       (mapc #'destroy (penalty-adjustment-dialogs interface))))))
