@@ -1335,7 +1335,7 @@ through 0 (green), and finally to +∞ (red)."
      :caliber *kpx-looseness*
      :callback 'algorithm-cursor-callback)
    (text-button popup-menu-button
-     :text "Source text" :menu text-menu :reader text-button)
+     :text "Source text" :menu text-menu)
    (language-button popup-menu-button
      :text "Language" :menu language-menu)
    (text editor-pane
