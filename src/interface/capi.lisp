@@ -7,17 +7,6 @@
 ;; keyboard control though.
 
 
-(defparameter *clues*
-  '(:characters :hyphenation-points
-    :over/underfull-boxes :overshrunk/stretched-boxes
-    :rivers
-    :paragraph-box :line-boxes :character-boxes :baselines
-    :properties-tooltips)
-  "The visual clues available for conditional display.")
-
-
-
-
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -594,10 +583,35 @@ INTERFACE is the main ETAP window."
 ;; Main Interface
 ;; ==========================================================================
 
+(defparameter *clues*
+  '(:characters :hyphenation-points
+    :over/underfull-boxes :overshrunk/stretched-boxes
+    :rivers
+    :paragraph-box :line-boxes :character-boxes :baselines
+    :properties-tooltips)
+  "The visual clues available for conditional display.")
+
+
+
 ;; ---------
 ;; Callbacks
 ;; ---------
 
+;; Help
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *etap-tooltips*
+    '(:layout--1 "Display previous layout."
+      :layout-+1 "Display next layout.")))
+
+(defun help-callback (interface pane type key)
+  "Function called when a user gesture requests help.
+- Currently handle tooltips."
+  (declare (ignore pane))
+  (case type (:tooltip (getf (tooltips interface) key))))
+
+
+
 ;; ETAP menu
 
 (defun etap-menu-callback (item interface)
@@ -658,6 +672,8 @@ INTERFACE is the main ETAP window."
 
 
 
+;; Zoom
+
 (defun zoom-callback (cursor value gesture)
   "Function called when zoom CURSOR is dragged.
 - Update CURSOR's title.
@@ -669,7 +685,6 @@ INTERFACE is the main ETAP window."
 
 
 
-
 ;; Layouts
 
 ;; #### TODO: we should probably disable the buttons when there's no (other)
@@ -963,34 +978,7 @@ through 0 (green), and finally to +∞ (red)."
 		       arms))
 		   (rivers interface)))))))
 
-
-;; --------
-;; Tooltips
-;; --------
-
-(defparameter *interface-tooltips*
-  '(:layout--1 "Display previous layout."
-    :layout-+1 "Display next layout."))
-
-(defparameter *tooltips*
-  `(,@*interface-tooltips*
-    ,@*fixed-tooltips*
-    ,@*fit-tooltips*
-    ,@*duncan-tooltips*
-    ,@*kp-tooltips*
-    ,@*kpx-tooltips*
-    ,@*disposition-options-tooltips*)
-  "The GUI's tooltips.")
-
-(defun show-help (interface pane type key)
-  "The GUI's help callback."
-  (declare (ignore interface pane))
-  (case type
-    (:tooltip
-     (typecase key
-       (symbol (cadr (member key *tooltips*)))))))
-
-
+
 ;; ---------------
 ;; Motion Callback
 ;; ---------------
@@ -1078,16 +1066,27 @@ through 0 (green), and finally to +∞ (red)."
    (breakup :accessor breakup)
    (layout :initform 0 :accessor layout)
    (enabled :initform t :accessor enabled)
-   (penalty-adjustment-dialogs
-    :initform nil
-    :accessor penalty-adjustment-dialogs)
    (rivers
     :documentation "The paragraph's detected rivers."
     :initform nil
     :accessor rivers)
+   (penalty-adjustment-dialogs
+    :initform nil
+    :accessor penalty-adjustment-dialogs)
    (river-detection
     :initform (make-instance 'river-detection)
-    :reader river-detection))
+    :reader river-detection)
+   (tooltips
+    :documentation "This interface's tooltips."
+    :allocation :class
+    :reader tooltips
+    :initform `(,@*etap-tooltips*
+		,@*disposition-options-tooltips*
+		,@*fixed-tooltips*
+		,@*fit-tooltips*
+		,@*duncan-tooltips*
+		,@*kp-tooltips*
+		,@*kpx-tooltips*)))
   (:menus
    (etap-menu "ETAP" (:reset-paragraph :river-detection)
      :print-function 'title-capitalize
@@ -1405,7 +1404,9 @@ through 0 (green), and finally to +∞ (red)."
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
-  (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
+  (:default-initargs
+   :title "Experimental Typesetting Algorithms Platform"
+   :help-callback 'help-callback))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
@@ -1498,7 +1499,6 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
 	     :context context
 	     :zoom zoom
 	     :clues clues
-	     :help-callback 'show-help
 	     :destroy-callback
 	     (lambda (interface)
 	       (destroy (river-detection interface))
