@@ -67,6 +67,7 @@
 	 (layouts-# (layouts-# breakup)))
     (setf (breakup etap) breakup)
     (setf (layout etap) (if (zerop layouts-#) 0 1))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
     (setf (titled-object-title (view etap))
 	  (format nil "Layout ~D/~D" (layout etap) layouts-#))))
 
@@ -643,9 +644,6 @@ new dialog and display it."
 
 ;; Layouts
 
-;; #### TODO: we should probably disable the buttons when there's no (other)
-;; layout to select, rather than testing for zero (in fact should also be one)
-;; layouts below.
 (defun layout-callback
     (+/-1 etap
      &aux (layouts-# (layouts-# (breakup etap)))
@@ -655,13 +653,12 @@ new dialog and display it."
 - Possibly remake rivers.
 - Update the paragraph view's title.
 - Invalidate the paragraph view."
-  (unless (zerop layouts-#)
-    (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
-    (setf (layout etap) layout)
-    (when (river-detection-p etap) (remake-rivers etap))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" layout layouts-#))
-    (gp:invalidate-rectangle (view etap))))
+  (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
+  (setf (layout etap) layout)
+  (when (river-detection-p etap) (remake-rivers etap))
+  (setf (titled-object-title (view etap))
+	(format nil "Layout ~D/~D" layout layouts-#))
+  (gp:invalidate-rectangle (view etap)))
 
 
 
@@ -1138,14 +1135,12 @@ Min and max values depend on BREAK-POINT's caliber."
      :text "<"
      :data #'1-
      :callback 'layout-callback
-     :help-key :layout--1
-     :reader layout--1)
+     :help-key :layout--1)
    (layout-+1 push-button
      :text ">"
      :data #'1+
      :callback 'layout-callback
-     :help-key :layout-+1
-     :reader layout-+1)
+     :help-key :layout-+1)
    (algorithms-tab tab-layout
      :title "Algorithms"
      :visible-max-width nil
