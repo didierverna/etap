@@ -468,7 +468,11 @@ Perform as if the value slider had been dragged.
   (:layouts
    (main column-layout '(title row))
    (row row-layout '(value reset)))
-  (:default-initargs :title "Penalty Adjustment"))
+  (:default-initargs
+   :title "Penalty Adjustment"
+   :window-styles '(:toolbox t
+		    :never-iconic t :always-on-top t
+		    :can-full-screen nil)))
 
 (defmethod initialize-instance :after
     ((dialog penalty-adjustment)
@@ -513,11 +517,7 @@ new dialog and display it."
 		       :destroy-callback 'penalty-adjustment-destroy-callback))
 	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
 	(push dialog (penalty-adjustment-dialogs etap))
-	(display dialog
-	  :owner etap
-	  :window-styles '(:toolbox t
-			   :never-iconic t :always-on-top t
-			   :can-full-screen nil)))))
+	(display dialog :owner etap))))
   (when (enabled etap) (enable-interface etap nil)))
 
 
