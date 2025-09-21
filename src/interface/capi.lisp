@@ -591,6 +591,8 @@ INTERFACE is the main ETAP window."
     :properties-tooltips)
   "The visual clues available for conditional display.")
 
+(defparameter *zoom* (make-caliber :zoom 10 100 500))
+
 
 
 ;; ---------
@@ -1135,7 +1137,7 @@ through 0 (green), and finally to +∞ (red)."
      :reader paragraph-width)
    (zoom %-cursor
      :property :zoom
-     :caliber *gui-zoom*
+     :caliber *zoom*
      :callback 'zoom-callback
      :reader zoom)
    (layout--1 push-button
@@ -1497,7 +1499,7 @@ the interface is done sensibly."
 (defun run (&key (context *context*) zoom (clues :characters))
   "Run ETAP's GUI for CONTEXT (the global context by default).
 Optionally provide initial ZOOMing and CLUES (characters by default)."
-  (calibrate-gui zoom)
+  (setq zoom (calibrated-value zoom *zoom*))
   (unless (listp clues) (setq clues (list clues)))
   (display (make-instance 'etap
 	     :context context
