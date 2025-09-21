@@ -733,15 +733,6 @@ Otherwise, reselect the previously selected one."
   (setf (language (nlstring (context etap))) language)
   (update etap))
 
-(defun language-menu-popup-callback (language-menu)
-  "Function called when LANGUAGE-MENU is popped up.
-- Update LANGUAGE-MENU to the current language."
-  (setf (choice-selection language-menu)
-	(position
-	 (language (context (element-interface-for-callback language-menu)))
-	 *languages*
-	 :key #'car)))
-
 
 
 ;; Text editor
@@ -1101,7 +1092,8 @@ through 0 (green), and finally to +∞ (red)."
     :callback-type :interface
     :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
-     nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
+     nil ;; The items will be created dynamically in INTERFACE-DISPLAY.
+     :reader language-menu))
   (:menu-bar etap-menu)
   (:panes
    (disposition radio-box
@@ -1345,7 +1337,7 @@ through 0 (green), and finally to +∞ (red)."
    (text-button popup-menu-button
      :text "Source text" :menu text-menu :reader text-button)
    (language-button popup-menu-button
-     :text "Language" :menu language-menu :reader language-button)
+     :text "Language" :menu language-menu)
    (text editor-pane
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
@@ -1421,14 +1413,12 @@ through 0 (green), and finally to +∞ (red)."
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
   (setf (slot-value (river-detection-dialog etap) 'etap) etap)
-  ;; #### FIXME: this menu's selection is updated on pop-up and this is wrong.
-  (setf (menu-items (slot-value etap 'language-menu))
+  (setf (menu-items (language-menu etap))
 	(list (make-instance 'menu-component
 		:items (mapcar #'car *languages*)
 		:interaction :single-selection
 		:print-function 'title-capitalize
-		:callback 'language-menu-callback
-		:popup-callback 'language-menu-popup-callback)))
+		:callback 'language-menu-callback)))
   (setf (widget-state (zoom etap)) keys)
   (setf (choice-selected-items (clues etap)) clues))
 
@@ -1471,6 +1461,8 @@ those which may affect the typesetting."
   ;; when this function understands the same keys as the entry points.
   (setf (widget-state (paragraph-width etap))
 	(list :paragraph-width (paragraph-width context)))
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	(language (nlstring context)))
   (setf (editor-pane-text (text etap)) (text context))
   (values))
 
