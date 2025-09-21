@@ -1082,20 +1082,12 @@ through 0 (green), and finally to +∞ (red)."
 		,@*duncan-tooltips*
 		,@*kp-tooltips*
 		,@*kpx-tooltips*)))
-  (:menus
-   (etap-menu "ETAP" (:reset-paragraph :river-detection)
-     :print-function 'title-capitalize
-     :callback 'etap-menu-callback)
-   (text-menu nil ;; Ignore popup menu's title
-    (:reset)
-    :print-function 'title-capitalize
-    :callback-type :interface
-    :callback 'text-menu-callback)
-   (language-menu nil ;; Ignore popup menu's title
-     nil ;; The items will be created dynamically in INTERFACE-DISPLAY.
-     :reader language-menu))
-  (:menu-bar etap-menu)
   (:panes
+   (language-menu-component menu-component
+     :items (mapcar #'car *languages*)
+     :interaction :single-selection
+     :print-function 'title-capitalize
+     :callback 'language-menu-callback)
    (disposition radio-box
      :property :disposition
      :items *dispositions*
@@ -1400,6 +1392,17 @@ through 0 (green), and finally to +∞ (red)."
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
+  (:menus
+   (etap-menu "ETAP" (:reset-paragraph :river-detection)
+     :print-function 'title-capitalize
+     :callback 'etap-menu-callback)
+   (text-menu nil #| no title |# (:reset)
+    :print-function 'title-capitalize
+    :callback-type :interface
+    :callback 'text-menu-callback)
+   (language-menu nil #| no title |# (language-menu-component)
+     :reader language-menu))
+  (:menu-bar etap-menu)
   (:default-initargs
    :title "Experimental Typesetting Algorithms Platform"
    :help-callback 'help-callback
@@ -1413,12 +1416,6 @@ through 0 (green), and finally to +∞ (red)."
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
   (setf (slot-value (river-detection-dialog etap) 'etap) etap)
-  (setf (menu-items (language-menu etap))
-	(list (make-instance 'menu-component
-		:items (mapcar #'car *languages*)
-		:interaction :single-selection
-		:print-function 'title-capitalize
-		:callback 'language-menu-callback)))
   (setf (widget-state (zoom etap)) keys)
   (setf (choice-selected-items (clues etap)) clues))
 
