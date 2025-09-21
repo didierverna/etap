@@ -18,23 +18,6 @@
 
 
 
-;; --------
-;; Calibers
-;; --------
-
-(defmacro define-gui-caliber (name min default max)
-  "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber gui ,name ,min ,default ,max))
-
-(define-gui-caliber zoom 10 100 500)
-
-
-(defmacro calibrate-gui (name)
-  "Calibrate NAMEd GUI variable."
-  `(calibrate gui ,name :earmuffs nil))
-
-
-
 ;; --------------------------------------
 ;; CLIM-less object under mouse detection
 ;; --------------------------------------
@@ -396,9 +379,27 @@ The calibrated value is displayed with 3 digits."
 ;; River Detection Interface
 ;; ==========================================================================
 
+;; --------
+;; Calibers
+;; --------
+
+(defmacro define-river-detection-caliber (name min default max)
+  "Define a NAMEd RIVER-DETECTION caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber river-detection ,name ,min ,default ,max))
+
+(defmacro calibrate-river-detection (name)
+  "Calibrate NAMEd RIVER-DETECTION variable."
+  `(calibrate river-detection ,name :earmuffs nil))
+
 ;; #### TODO: in cases like this one, it would make sense for caliber clamping
 ;; to take circularity into account (i.e. 360 = 0, etc.).
-(define-gui-caliber river-angle 0 0 45)
+(define-river-detection-caliber angle 0 0 45)
+
+
+
+;; ---------
+;; Callbacks
+;; ---------
 
 (defun river-detection-switch-callback
     (switch interface &aux (main-interface (main-interface interface)))
@@ -434,7 +435,7 @@ The calibrated value is displayed with 3 digits."
      :reader switch)
    (angle dg-cursor
      :property :angle
-     :caliber *gui-river-angle*
+     :caliber *river-detection-angle*
      :enabled nil
      :callback 'river-detection-angle-callback
      :reader angle))
