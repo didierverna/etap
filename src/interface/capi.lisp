@@ -1,5 +1,12 @@
 (in-package :etap)
 
+;; #### WARNING: moving sliders with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that we can safely ignore :MOVE gestures in callbacks, at least
+;; for now. I will need to check this again when I introduce focus and
+;; keyboard control though.
+
+
 (defparameter *clues*
   '(:characters :hyphenation-points
     :over/underfull-boxes :overshrunk/stretched-boxes
@@ -414,11 +421,6 @@ The calibrated value is displayed with 3 digits."
   (setf (simple-pane-enabled (angle interface)) (button-selected switch))
   (gp:invalidate-rectangle (view main-interface)))
 
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
 (defun river-detection-angle-callback
     (cursor value gesture
      &aux (main-interface (main-interface (top-level-interface cursor))))
@@ -471,11 +473,6 @@ The calibrated value is displayed with 3 digits."
 ;; and are accessible only from the GUI. Hence, the returned values need to be
 ;; calibrated (potentially to infinity) here.
 
-;; #### WARNING: moving a slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
 (defun penalty-adjustment-value-callback
     (slider value gesture
      &aux (interface (top-level-interface slider))
@@ -594,18 +591,116 @@ INTERFACE is the main ETAP window."
 
 
 ;; ==========================================================================
-;; Interface Actions
+;; Main Interface
 ;; ==========================================================================
 
-;; -------------------
-;; Algorithm Selection
-;; -------------------
+;; ---------
+;; Callbacks
+;; ---------
 
-(defun select-algorithm
+;; ETAP menu
+
+(defun etap-menu-callback (item interface)
+  "Function called when the ETAP menu is popped up."
+  (ecase item
+    (:reset-paragraph
+     (update interface))
+    (:river-detection
+     (display (river-detection interface) :owner interface))))
+
+
+
+;; Disposition
+
+(defun disposition-callback (interface)
+  "Function called when the disposition or a disposition option is changed.
+- Set INTERFACE's context to the current disposition.
+- Update INTERFACE."
+  (setf (disposition (context interface))
+	(cons (second (widget-state (disposition interface)))
+	      (cdr (widget-state (disposition-options-panel interface)))))
+  (update interface))
+
+
+
+;; Features
+
+(defun features-callback (interface)
+  "Function called when the features set changed.
+- Set INTERFACE's context to the current feature set.
+- Update INTERFACE."
+  (setf (features (context interface))
+	(cdr (widget-state (features interface))))
+  (update interface))
+
+
+
+;; Clues
+
+(defun clues-callback (interface)
+  "Function called when the clues are changed.
+- Invalidate INTERFACE's paragraph view."
+  (gp:invalidate-rectangle (view interface)))
+
+
+
+;; Paragraph width
+
+(defun paragraph-width-callback
+    (cursor value gesture &aux (interface (top-level-interface cursor)))
+  "Function called when paragraph width CURSOR is dragged.
+- Update CURSOR's title.
+- Re-break the current lineup."
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (setf (paragraph-width (context interface)) value)
+    (update-from-lineup interface)))
+
+
+
+(defun zoom-callback (cursor value gesture)
+  "Function called when zoom CURSOR is dragged.
+- Update CURSOR's title.
+- Invalidate the paragraph view."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
+
+
+
+
+;; Layouts
+
+;; #### TODO: we should probably disable the buttons when there's no (other)
+;; layout to select, rather than testing for zero (in fact should also be one)
+;; layouts below.
+(defun layout-callback
+    (+/-1 interface
+     &aux (layouts-# (layouts-# (breakup interface)))
+	  (layout (layout interface)))
+  "Function called when another layout is selected.
+- Select the next +/-1 layout.
+- Possibly remake rivers.
+- Update the paragraph view's title.
+- Invalidate the paragraph view."
+  (unless (zerop layouts-#)
+    (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
+    (setf (layout interface) layout)
+    (when (river-detection-p interface) (remake-rivers interface))
+    (setf (titled-object-title (view interface))
+	  (format nil "Layout ~D/~D" layout layouts-#))
+    (gp:invalidate-rectangle (view interface))))
+
+
+
+;; Algorithms
+
+(defun set-algorithm
     (interface
      &aux (item (choice-selected-item (algorithms-tab interface)))
 	  (algorithm (first item)))
-  "Select INTERFACE's algorithm."
+  "Set INTERFACE's context to the current algorithm."
   (setf (algorithm (context interface))
 	(cons algorithm
 	      (let ((options))
@@ -621,34 +716,31 @@ INTERFACE is the main ETAP window."
 		options))))
 
 (defun algorithm-callback (interface)
-  "Select INTERFACE's algorithm and update everything."
-  (select-algorithm interface)
+  "Function called when an algorithm option is clicked.
+- Update INTERFACE's context.
+- Recreate the breakup.
+- Update INTERFACE's state."
+  (set-algorithm interface)
   (update interface))
 
-;; #### WARNING: moving a slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
 (defun algorithm-cursor-callback (cursor value gesture)
-  "Update CURSOR's title, select INTERFACE's algorithm, and update everything."
+  "Function called when an algorithm cursor is dragged.
+- Update CURSOR's title.
+- Update INTERFACE's context.
+- Update INTERFACE."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (let ((interface (top-level-interface cursor)))
-      (select-algorithm interface)
+      (set-algorithm interface)
       (update interface))))
 
-
-;; ---------
-;; Callbacks
-;; ---------
-
 (defun algorithms-tab-callback (tab interface)
-  "If INTERFACE is enabled, set algorithm to the selected one in TAB.
+  "Function called when an algorithm tab is selected.
+If INTERFACE is enabled, set algorithm to the selected one in TAB.
 Otherwise, reselect the previously selected one."
   (cond ((enabled interface)
-	 (select-algorithm interface)
+	 (set-algorithm interface)
 	 (update interface))
 	(t
 	 (setf (choice-selected-item tab)
@@ -656,58 +748,56 @@ Otherwise, reselect the previously selected one."
 		   (collection-items tab)
 		 :key #'first)))))
 
-(defun set-disposition (value interface)
-  "Set the current disposition in INTERFACE's context."
-  (declare (ignore value))
-  (setf (disposition (context interface))
-	(cons (second (widget-state (disposition interface)))
-	      (cdr (widget-state (disposition-options-panel interface)))))
+
+
+;; Source text menu
+
+(defun text-menu-callback (interface &aux (context (context interface)))
+  "Function called when the source text menu is popped up.
+- The only button currently resets the text and updates the interface."
+  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
+  ;; #### FIXME: the language menu's selection is updated on pop-up, so a
+  ;; potential language change here doesn't need to be handled. Except that
+  ;; this is not the right way to do it.
+  (setf (editor-pane-text (text interface)) (text context))
   (update interface))
 
-(defun set-features (value interface)
-  "Set the current features in INTERFACE's context."
-  (declare (ignore value))
-  (setf (features (context interface))
-	(cdr (widget-state (features interface))))
+
+
+;; Language menu
+
+(defun language-menu-callback (language interface)
+  "Function called when a language is selected.
+- Change the current text's language.
+- Update interface."
+  (setf (language (nlstring (context interface))) language)
   (update interface))
 
-(defun set-text (pane point old-length new-length
-		 &aux (interface (top-level-interface pane)))
-  "Set editor PANE's current text in PANE's context."
+(defun language-menu-popup-callback (language-menu)
+  "Function called when LANGUAGE-MENU is popped up.
+- Update LANGUAGE-MENU to the current language."
+  (setf (choice-selection language-menu)
+	(position
+	 (language (context (element-interface-for-callback language-menu)))
+	 *languages*
+	 :key #'car)))
+
+
+
+;; Text editor
+
+(defun text-change-callback
+    (text-editor point old-length new-length
+     &aux (interface (top-level-interface text-editor)))
+  "Function called when the source text is changed.
+- Set TEXT-EDITOR's current text in the interface's context.
+- Update interface."
   (declare (ignore point old-length new-length))
-  (setf (text (nlstring (context interface))) (editor-pane-text pane))
+  (setf (text (nlstring (context interface))) (editor-pane-text text-editor))
   (update interface))
 
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun paragraph-width-callback
-    (cursor value gesture &aux (interface (top-level-interface cursor)))
-  "Update paragraph width CURSOR's title and re-break the current lineup."
-  (when (eq gesture :drag)
-    (update-cursor-title cursor)
-    (setf (paragraph-width (context interface)) value)
-    (update-from-lineup interface)))
 
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun zoom-callback (cursor value gesture)
-  "Update zoom CURSOR's title and invalidate the paragraph view."
-  (declare (ignore value))
-  (when (eq gesture :drag)
-    (update-cursor-title cursor)
-    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
-
-(defun clues-callback (interface)
-  "Invalidate INTERFACE's paragraph view."
-  (gp:invalidate-rectangle (view interface)))
-
-
+
 ;; -------------------
 ;; Paragraph Rendering
 ;; -------------------
@@ -874,24 +964,6 @@ through 0 (green), and finally to +∞ (red)."
 		   (rivers interface)))))))
 
 
-;; -------
-;; Layouts
-;; -------
-
-(defun next-layout
-    (op interface
-     &aux (layouts-# (layouts-# (breakup interface)))
-	  (layout (layout interface)))
-  "Select the next OP layout."
-  (unless (zerop layouts-#)
-    (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
-    (setf (layout interface) layout)
-    (when (river-detection-p interface) (remake-rivers interface))
-    (setf (titled-object-title (view interface))
-	  (format nil "Layout ~D/~D" layout layouts-#))
-    (gp:invalidate-rectangle (view interface))))
-
-
 ;; --------
 ;; Tooltips
 ;; --------
@@ -995,41 +1067,6 @@ through 0 (green), and finally to +∞ (red)."
 	(make-penalty-adjustment-dialog object interface)))))
 
 
-;; -----
-;; Menus
-;; -----
-
-(defun etap-menu-callback (data interface)
-  "ETAP menu callback."
-  (ecase data
-    (:reset-paragraph
-     (update interface))
-    (:river-detection
-     (display (river-detection interface) :owner interface))))
-
-(defun text-menu-callback
-    (data interface &aux (context (context interface)))
-  "Reset the source text." ;; Currently what the only button does.
-  (declare (ignore data))
-  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
-  ;; #### NOTE: the language menu's selection is updated on pop-up.
-  (setf (editor-pane-text (text interface)) (text context))
-  (update interface))
-
-(defun language-menu-callback (data interface)
-  "Change the current text's language."
-  (setf (language (nlstring (context interface))) data)
-  (update interface))
-
-(defun language-menu-popup-callback (component)
-  "Update the language popup to the current language."
-  (setf (choice-selection component)
-	(position
-	 (language (context (element-interface-for-callback component)))
-	 *languages*
-	 :key #'car)))
-
-
 
 
 ;; ==========================================================================
@@ -1058,11 +1095,62 @@ through 0 (green), and finally to +∞ (red)."
    (text-menu nil ;; Ignore popup menu's title
     (:reset)
     :print-function 'title-capitalize
+    :callback-type :interface
     :callback 'text-menu-callback)
    (language-menu nil ;; Ignore popup menu's title
      nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
   (:menu-bar etap-menu)
   (:panes
+   (disposition radio-box
+     :property :disposition
+     :items *dispositions*
+     :callback-type :interface
+     :selection-callback 'disposition-callback
+     :reader disposition)
+   (disposition-options check-box
+     :property :disposition-options
+     :items *disposition-options*
+     :help-keys *disposition-options-help-keys*
+     :callback-type :interface
+     :selection-callback 'disposition-callback
+     :retract-callback 'disposition-callback
+     :reader disposition-options-panel)
+   (features check-box
+     :property :features
+     :items *lineup-features*
+     :callback-type :interface
+     :selection-callback 'features-callback
+     :retract-callback 'features-callback
+     :reader features)
+   (clues check-box
+     :property :characters-&-clues
+     :items *clues*
+     :callback-type :interface
+     :selection-callback 'clues-callback
+     :retract-callback 'clues-callback
+     :reader clues)
+   (paragraph-width pt-cursor
+     :property :paragraph-width
+     :caliber *paragraph-width*
+     :callback 'paragraph-width-callback
+     :reader paragraph-width)
+   (zoom %-cursor
+     :property :zoom
+     :caliber *gui-zoom*
+     :callback 'zoom-callback
+     :reader zoom)
+   (layout--1 push-button
+     :text "<"
+     :data #'1-
+     :callback 'layout-callback
+     :help-key :layout--1
+     :reader layout--1)
+   (layout-+1 push-button
+     :text ">"
+     :data #'1+
+     :callback 'layout-callback
+     :help-key :layout-+1
+     :reader layout-+1)
    (algorithms-tab tab-layout
      :title "Algorithms"
      :visible-max-width nil
@@ -1251,63 +1339,15 @@ through 0 (green), and finally to +∞ (red)."
      :property :looseness
      :caliber *kpx-looseness*
      :callback 'algorithm-cursor-callback)
-   (disposition radio-box
-     :property :disposition
-     :items *dispositions*
-     :selection-callback 'set-disposition
-     :reader disposition)
-   (disposition-options check-box
-     :property :disposition-options
-     :items *disposition-options*
-     :help-keys *disposition-options-help-keys*
-     :selection-callback 'set-disposition
-     :retract-callback 'set-disposition
-     :reader disposition-options-panel)
-   (features check-box
-     :property :features
-     :items *lineup-features*
-     :selection-callback 'set-features
-     :retract-callback 'set-features
-     :reader features)
-   (paragraph-width pt-cursor
-     :property :paragraph-width
-     :caliber *paragraph-width*
-     :callback 'paragraph-width-callback
-     :reader paragraph-width)
-   (zoom %-cursor
-     :property :zoom
-     :caliber *gui-zoom*
-     :callback 'zoom-callback
-     :reader zoom)
-   (layout--1 push-button
-     :text "<"
-     :data #'1-
-     :callback 'next-layout
-     :help-key :layout--1
-     :reader layout--1)
-   (layout-+1 push-button
-     :text ">"
-     :data #'1+
-     :callback 'next-layout
-     :help-key :layout-+1
-     :reader layout-+1)
-   (clues check-box
-     :property :characters-&-clues
-     :items *clues*
-     :callback-type :interface
-     :selection-callback 'clues-callback
-     :retract-callback 'clues-callback
-     :reader clues)
    (text-button popup-menu-button
      :text "Source text" :menu text-menu :reader text-button)
    (language-button popup-menu-button
      :text "Language" :menu language-menu :reader language-button)
    (text editor-pane
      :visible-min-width '(character 80)
-     ;;:visible-max-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
-     :change-callback 'set-text
+     :change-callback 'text-change-callback
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
@@ -1372,7 +1412,7 @@ through 0 (green), and finally to +∞ (red)."
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
   (setf (slot-value (river-detection etap) 'main-interface) etap)
-  ;; #### NOTE: this menu's selection is updated on pop-up.
+  ;; #### FIXME: this menu's selection is updated on pop-up and this is wrong.
   (setf (menu-items (slot-value etap 'language-menu))
 	(list (make-instance 'menu-component
 		:items (mapcar #'car *languages*)
