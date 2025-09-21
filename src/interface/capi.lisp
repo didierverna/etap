@@ -1406,7 +1406,11 @@ through 0 (green), and finally to +∞ (red)."
      :columns 3))
   (:default-initargs
    :title "Experimental Typesetting Algorithms Platform"
-   :help-callback 'help-callback))
+   :help-callback 'help-callback
+   :destroy-callback
+   (lambda (etap)
+     (destroy (river-detection etap))
+     (mapc #'destroy (penalty-adjustment-dialogs etap)))))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
@@ -1498,8 +1502,4 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
   (display (make-instance 'etap
 	     :context context
 	     :zoom zoom
-	     :clues clues
-	     :destroy-callback
-	     (lambda (interface)
-	       (destroy (river-detection interface))
-	       (mapc #'destroy (penalty-adjustment-dialogs interface))))))
+	     :clues clues)))
