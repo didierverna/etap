@@ -457,7 +457,7 @@ The calibrated value is displayed with 3 digits."
 ;; ==========================================================================
 
 ;; #### WARNING: the global variables defining each algorithm's
-;; parametrization are calibrated by the algorithms entry points, because
+;; parameterization are calibrated by the algorithms entry points, because
 ;; those entry points can be called programmatically. On the other hand, the
 ;; penalty sliders and reset buttons below affect an already existing lineup
 ;; and are accessible only from the GUI. Hence, the returned values need to be
@@ -813,185 +813,23 @@ Otherwise, reselect the previously selected one."
 
 
 
-;; -------------------
-;; Paragraph Rendering
-;; -------------------
+;; --------------------------
+;; Paragraph View Interaction
+;; --------------------------
 
-;; #### FIXME: the bounds are hard-wired, but should really depend on the
-;; defined caliber.
-(defun penalty-hue (penalty)
-  "Return PENALTY's HUE in HSV model.
-Colors are interpolated for penalties ranging from  -∞ (blue),
-through 0 (green), and finally to +∞ (red)."
-  (cond ((eq penalty +∞) (setq penalty 10000))
-	((eq penalty -∞) (setq penalty -10000)))
-  (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
-
-(defun render-view
-    (pane x y width height
-     &aux (etap (top-level-interface pane))
-	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
-	  (layout-# (layout etap))
-	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
-	  (par-y (height layout))
-	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
-	  (clues (choice-selected-items (clues etap))))
-  "Render PANE's view."
-  (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters pane :max-range (+ (* par-width zoom) 40))
-  (set-vertical-scroll-parameters pane :max-range (+ (* par-h+d zoom) 40))
-  (gp:with-graphics-translation (pane 20 20)
-    (gp:with-graphics-scale (pane zoom zoom)
-      (when (member :paragraph-box clues)
-	(gp:draw-rectangle pane 0 0 par-width par-h+d
-	  :foreground :red
-	  :scale-thickness nil))
-      (when layout
-	(loop :for full-x := (+ (loop :for line :in (lines layout)
-				      :maximize (+ (x line) (width line)))
-				5)
-	      :for rest :on (lines layout)
-	      :for line := (car rest)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
-	      :when (member :line-boxes clues)
-		:do (gp:draw-rectangle pane
-			x
-			(- y (height line))
-			(width line)
-			(+ (height line) (depth line))
-		      :foreground :blue
-		      :scale-thickness nil)
-	      :when (member :over/underfull-boxes clues)
-		:if (> (width line) par-width)
-		  :do (gp:draw-rectangle pane
-			  full-x  (- y (height line))
-			  5  (+ (height line) (depth line))
-			:foreground :orange
-			:scale-thickness nil :filled t)
-		:else :if (and (cdr rest) ;; not the last one
-			       (eq (disposition-type (disposition breakup))
-				   :justified)
-			       (< (width line) par-width))
-		  :do (gp:draw-rectangle pane
-			  full-x (- y (height line))
-			  5 (+ (height line) (depth line))
-			:foreground :orange
-			:scale-thickness nil :filled nil)
-	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (esar line) (asar line))
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(- y (height line))
-				(+ par-width 11)
-				(- y (height line))
-				(+ par-width 8)
-				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled t :closed t)
-		:else :if ($< (asar line) -1)
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(- y (height line))
-				(+ par-width 11)
-				(- y (height line))
-				(+ par-width 8)
-				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled nil :closed t)
-		:else :if ($> (esar line) (asar line))
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(+ y (depth line))
-				(+ par-width 11)
-				(+ y (depth line))
-				(+ par-width 8)
-				(- y (height line)))
-			:foreground :blue
-			:scale-thickness nil :filled t :closed t)
-		:else :if ($> (asar line) 1)
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(+ y (depth line))
-				(+ par-width 11)
-				(+ y (depth line))
-				(+ par-width 8)
-				(- y (height line)))
-			:foreground :blue
-			:scale-thickness nil :filled nil :closed t)
-	      :when (member :baselines clues)
-		:do (gp:draw-line pane x y (+ x (width line)) y
-		      :foreground :purple
-		      :scale-thickness nil)
-	      :when (or (member :characters clues)
-			(member :character-boxes clues))
-		:do (mapc (lambda (item)
-			    (cond ((typep (object item)
-					  'tfm:character-metrics)
-				   (when (member :character-boxes clues)
-				     (gp:draw-rectangle pane
-					 (+ x (x item))
-					 (- y (height item))
-					 (width item)
-					 (+ (height item)
-					    (depth item))
-				       :scale-thickness nil))
-				   (when (member :characters clues)
-				     (gp:draw-character pane
-					 (aref *lm-ec*
-					       (tfm:code (object item)))
-					 (+ x (x item))
-					 y)))
-				  ((and (discretionary-clue-p (object item))
-					(hyphenation-point-p
-					 (discretionary (object item)))
-					(member :hyphenation-points clues))
-				   (gp:draw-polygon pane
-				     (list (+ x (x item)) y
-					   (+ x (x item) -3) (+ y 5)
-					   (+ x (x item) +3) (+ y 5)
-					   (+ x (x item)) y)
-				     :filled
-				     (not (explicitp
-					   (discretionary (object item))))
-				     :foreground
-				     (color:make-hsv
-				      (penalty-hue
-				       (penalty(discretionary (object item))))
-				      1s0 .7s0)))))
-		      (items line)))
-	(when (and (member :rivers clues) (rivers etap))
-	  (maphash (lambda (source arms)
-		     (mapc (lambda (arm &aux (mouth (mouth arm)))
-			     (gp:draw-line pane
-				 (+ (x (board source))
-				    (x source)
-				    (/ (width source) 2))
-				 (+ par-y (y (board source)) (y source))
-				 (+ (x (board mouth))
-				    (x mouth)
-				    (/ (width mouth) 2))
-				 (+ par-y (y (board mouth)) (y mouth))
-			       :foreground :red :scale-thickness nil))
-		       arms))
-		   (rivers etap)))))))
-
-
-;; ---------------
 ;; Motion Callback
-;; ---------------
 
 (defun motion-callback
-    (pane x y
-     &aux (etap (top-level-interface pane))
+    (view x y
+     &aux (etap (top-level-interface view))
 	  (zoom (/ (range-slug-start (zoom etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
-  "Display the properties of the paragraph, or the line clicked on."
+  "Function called when the mouse is moved in the paragraph VIEW.
+- Display the properties of the object under mouse (the paragraph itself, a
+  line, or a hyphenation point)."
   (when (member :properties-tooltips (choice-selected-items (clues etap)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
@@ -999,7 +837,7 @@ through 0 (green), and finally to +∞ (red)."
     (decf y (height layout))
     (if (or (and (<= x 0) (<= y (depth layout)))
 	    (and (<= y (- (height layout))) (<= x par-width)))
-      (display-tooltip pane :text (properties breakup :layout-# layout-#))
+      (display-tooltip view :text (properties breakup :layout-# layout-#))
       (when layout
 	(let (object)
 	  (if (setq object
@@ -1017,25 +855,27 @@ through 0 (green), and finally to +∞ (red)."
 			(and (>= x 0) (<= x par-width)
 			     (>= y (- (height layout))) (<= y (depth layout))
 			     (line-under y (lines layout)))))
-	    (display-tooltip pane :text (properties object))
-	    (display-tooltip pane)))))))
+	    (display-tooltip view :text (properties object))
+	    (display-tooltip view)))))))
 
 
-;; ------------------
+
+
 ;; Post Menu Callback
-;; ------------------
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
 ;; and we already wish we used CLIM...
 (defun post-menu-callback
-    (pane x y
-     &aux (etap (top-level-interface pane))
+    (view x y
+     &aux (etap (top-level-interface view))
 	  (zoom (/ (range-slug-start (zoom etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
+  "Function called when the user right clicks in the paragraph VIEW.
+- Currently display a penalty adjustment dialog when appropriate."
   (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
   ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
   ;; returning 0, but this is borderline.
@@ -1053,6 +893,173 @@ through 0 (green), and finally to +∞ (red)."
 		       (hyphenation-point-under x y (lines layout)))))
       (when object
 	(make-penalty-adjustment-dialog object etap)))))
+
+
+
+;; ------------------------
+;; Paragraph View Rendering
+;; ------------------------
+
+;; #### FIXME: the bounds are hard-wired, but should really depend on the
+;; defined caliber.
+(defun penalty-hue (penalty)
+  "Return PENALTY's HUE in HSV model.
+Colors are interpolated for penalties ranging from  -∞ (blue),
+through 0 (green), and finally to +∞ (red)."
+  (cond ((eq penalty +∞) (setq penalty 10000))
+	((eq penalty -∞) (setq penalty -10000)))
+  (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
+
+(defun render-view
+    (view x y width height
+     &aux (etap (top-level-interface view))
+	  (breakup (breakup etap))
+	  (par-width (paragraph-width breakup))
+	  (layout-# (layout etap))
+	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
+	  (par-y (height layout))
+	  (par-h+d (+ par-y (depth layout)))
+	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (clues (choice-selected-items (clues etap))))
+  "Render paragraph VIEW."
+  (declare (ignore x y width height))
+  (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
+  (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
+  (gp:with-graphics-translation (view 20 20)
+    (gp:with-graphics-scale (view zoom zoom)
+      (when (member :paragraph-box clues)
+	(gp:draw-rectangle view 0 0 par-width par-h+d
+	  :foreground :red
+	  :scale-thickness nil))
+      (when layout
+	(loop :for full-x := (+ (loop :for line :in (lines layout)
+				      :maximize (+ (x line) (width line)))
+				5)
+	      :for rest :on (lines layout)
+	      :for line := (car rest)
+	      :for x := (x line)
+	      :for y := (+ par-y (y line))
+	      :when (member :line-boxes clues)
+		:do (gp:draw-rectangle view
+			x
+			(- y (height line))
+			(width line)
+			(+ (height line) (depth line))
+		      :foreground :blue
+		      :scale-thickness nil)
+	      :when (member :over/underfull-boxes clues)
+		:if (> (width line) par-width)
+		  :do (gp:draw-rectangle view
+			  full-x  (- y (height line))
+			  5  (+ (height line) (depth line))
+			:foreground :orange
+			:scale-thickness nil :filled t)
+		:else :if (and (cdr rest) ;; not the last one
+			       (eq (disposition-type (disposition breakup))
+				   :justified)
+			       (< (width line) par-width))
+		  :do (gp:draw-rectangle view
+			  full-x (- y (height line))
+			  5 (+ (height line) (depth line))
+			:foreground :orange
+			:scale-thickness nil :filled nil)
+	      :when (member :overshrunk/stretched-boxes clues)
+		:if ($< (esar line) (asar line))
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(- y (height line))
+				(+ par-width 11)
+				(- y (height line))
+				(+ par-width 8)
+				(+ y (depth line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled t :closed t)
+		:else :if ($< (asar line) -1)
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(- y (height line))
+				(+ par-width 11)
+				(- y (height line))
+				(+ par-width 8)
+				(+ y (depth line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled nil :closed t)
+		:else :if ($> (esar line) (asar line))
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(+ y (depth line))
+				(+ par-width 11)
+				(+ y (depth line))
+				(+ par-width 8)
+				(- y (height line)))
+			:foreground :blue
+			:scale-thickness nil :filled t :closed t)
+		:else :if ($> (asar line) 1)
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(+ y (depth line))
+				(+ par-width 11)
+				(+ y (depth line))
+				(+ par-width 8)
+				(- y (height line)))
+			:foreground :blue
+			:scale-thickness nil :filled nil :closed t)
+	      :when (member :baselines clues)
+		:do (gp:draw-line view x y (+ x (width line)) y
+		      :foreground :purple
+		      :scale-thickness nil)
+	      :when (or (member :characters clues)
+			(member :character-boxes clues))
+		:do (mapc (lambda (item)
+			    (cond ((typep (object item)
+					  'tfm:character-metrics)
+				   (when (member :character-boxes clues)
+				     (gp:draw-rectangle view
+					 (+ x (x item))
+					 (- y (height item))
+					 (width item)
+					 (+ (height item)
+					    (depth item))
+				       :scale-thickness nil))
+				   (when (member :characters clues)
+				     (gp:draw-character view
+					 (aref *lm-ec*
+					       (tfm:code (object item)))
+					 (+ x (x item))
+					 y)))
+				  ((and (discretionary-clue-p (object item))
+					(hyphenation-point-p
+					 (discretionary (object item)))
+					(member :hyphenation-points clues))
+				   (gp:draw-polygon view
+				     (list (+ x (x item)) y
+					   (+ x (x item) -3) (+ y 5)
+					   (+ x (x item) +3) (+ y 5)
+					   (+ x (x item)) y)
+				     :filled
+				     (not (explicitp
+					   (discretionary (object item))))
+				     :foreground
+				     (color:make-hsv
+				      (penalty-hue
+				       (penalty(discretionary (object item))))
+				      1s0 .7s0)))))
+		      (items line)))
+	(when (and (member :rivers clues) (rivers etap))
+	  (maphash (lambda (source arms)
+		     (mapc (lambda (arm &aux (mouth (mouth arm)))
+			     (gp:draw-line view
+				 (+ (x (board source))
+				    (x source)
+				    (/ (width source) 2))
+				 (+ par-y (y (board source)) (y source))
+				 (+ (x (board mouth))
+				    (x mouth)
+				    (/ (width mouth) 2))
+				 (+ par-y (y (board mouth)) (y mouth))
+			       :foreground :red :scale-thickness nil))
+		       arms))
+		   (rivers etap)))))))
 
 
 
