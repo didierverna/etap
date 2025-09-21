@@ -18,61 +18,6 @@
 
 
 
-;; --------------------------------------
-;; CLIM-less object under mouse detection
-;; --------------------------------------
-
-(defun vector-product (p1 p2 p3)
-  "Return the vector product of P1P2 - P1P3.
-Each point is of the form (X . Y)."
-  (let ((x1 (car p1)) (y1 (cdr p1))
-	(x2 (car p2)) (y2 (cdr p2))
-	(x3 (car p3)) (y3 (cdr p3)))
-    (- (* (- x1 x3) (- y2 y3)) (* (- x2 x3) (- y1 y3)))))
-
-(defun triangle-under-p (p a b c)
-  "Return T if P is within the ABC triangle."
-  (let ((vp1 (vector-product p a b))
-	(vp2 (vector-product p b c))
-	(vp3 (vector-product p c a)))
-    (not (or (and (< vp1 0) (>= vp2 0) (>= vp3 0))
-	     (and (< vp2 0) (>= vp1 0) (>= vp3 0))
-	     (and (< vp3 0) (>= vp1 0) (>= vp2 0))
-	     (and (> vp1 0) (<= vp2 0) (<= vp3 0))
-	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
-	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
-
-(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
-  "Return the hyphenation point from LINES which is under (X, Y), or nil.
-Technically, (X, Y) is not over the hyphenation point, but over the
-corresponding hyphenation clue."
-  (let ((line (find-if (lambda (line)
-			 (and (>= y (y line)) (<= y (+ (y line) 5))))
-		       lines)))
-    (when line
-      (let* ((x (x line))
-	     (y (y line))
-	     (pinned (find-if (lambda (item)
-				(and (discretionary-clue-p (object item))
-				     (hyphenation-point-p
-				      (discretionary (object item)))
-				     (triangle-under-p
-				      p
-				      (cons (+ x (x item)) y)
-				      (cons (+ x (x item) -3) (+ y 5))
-				      (cons (+ x (x item) +3) (+ y 5)))))
-			      (items line))))
-	(when pinned (discretionary (object pinned)))))))
-
-(defun line-under (y lines)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line)
-	     (and (>= y (- (y line) (height line)))
-		  (<= y (+ (y line) (depth line)))))
-	   lines))
-
-
-
 ;; ------------------------
 ;; Panes hierarchy enabling
 ;; ------------------------
@@ -817,6 +762,59 @@ Otherwise, reselect the previously selected one."
 ;; Paragraph View Interaction
 ;; --------------------------
 
+;; CLIM-like object under mouse utilities
+
+(defun vector-product (p1 p2 p3)
+  "Return the vector product of P1P2 - P1P3.
+Each point is of the form (X . Y)."
+  (let ((x1 (car p1)) (y1 (cdr p1))
+	(x2 (car p2)) (y2 (cdr p2))
+	(x3 (car p3)) (y3 (cdr p3)))
+    (- (* (- x1 x3) (- y2 y3)) (* (- x2 x3) (- y1 y3)))))
+
+(defun triangle-under-p (p a b c)
+  "Return T if P is within the ABC triangle."
+  (let ((vp1 (vector-product p a b))
+	(vp2 (vector-product p b c))
+	(vp3 (vector-product p c a)))
+    (not (or (and (< vp1 0) (>= vp2 0) (>= vp3 0))
+	     (and (< vp2 0) (>= vp1 0) (>= vp3 0))
+	     (and (< vp3 0) (>= vp1 0) (>= vp2 0))
+	     (and (> vp1 0) (<= vp2 0) (<= vp3 0))
+	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
+	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
+
+(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
+  "Return the hyphenation point from LINES which is under (X, Y), or nil.
+Technically, (X, Y) is not over the hyphenation point, but over the
+corresponding hyphenation clue."
+  (let ((line (find-if (lambda (line)
+			 (and (>= y (y line)) (<= y (+ (y line) 5))))
+		       lines)))
+    (when line
+      (let* ((x (x line))
+	     (y (y line))
+	     (pinned (find-if (lambda (item)
+				(and (discretionary-clue-p (object item))
+				     (hyphenation-point-p
+				      (discretionary (object item)))
+				     (triangle-under-p
+				      p
+				      (cons (+ x (x item)) y)
+				      (cons (+ x (x item) -3) (+ y 5))
+				      (cons (+ x (x item) +3) (+ y 5)))))
+			      (items line))))
+	(when pinned (discretionary (object pinned)))))))
+
+(defun line-under (y lines)
+  "Return the line from LINES which is under Y coordinate, or NIL."
+  (find-if (lambda (line)
+	     (and (>= y (- (y line) (height line)))
+		  (<= y (+ (y line) (depth line)))))
+	   lines))
+
+
+
 ;; Motion Callback
 
 (defun motion-callback
@@ -857,7 +855,6 @@ Otherwise, reselect the previously selected one."
 			     (line-under y (lines layout)))))
 	    (display-tooltip view :text (properties object))
 	    (display-tooltip view)))))))
-
 
 
 
