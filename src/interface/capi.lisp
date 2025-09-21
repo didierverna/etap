@@ -896,15 +896,15 @@ corresponding hyphenation clue."
 ;; Paragraph View Rendering
 ;; ------------------------
 
-;; #### FIXME: the bounds are hard-wired, but should really depend on the
-;; defined caliber.
-(defun penalty-hue (penalty)
-  "Return PENALTY's HUE in HSV model.
-Colors are interpolated for penalties ranging from  -∞ (blue),
-through 0 (green), and finally to +∞ (red)."
-  (cond ((eq penalty +∞) (setq penalty 10000))
-	((eq penalty -∞) (setq penalty -10000)))
-  (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
+(defun penalty-hue
+    (break-point
+     &aux (caliber (caliber break-point))
+	  (penalty (decalibrated-value (penalty break-point) caliber)))
+  "Return BREAK-POINT's penalty HUE in HSV model.
+Colors are interpolated from  blue (min) through green (0), to red (max).
+Min and max values depend on BREAK-POINT's caliber."
+  (- 4s0 (* 4s0 (/ (- penalty (float (caliber-min caliber)))
+		   (- (caliber-max caliber) (caliber-min caliber))))))
 
 (defun display-callback
     (view x y width height
@@ -1038,7 +1038,7 @@ through 0 (green), and finally to +∞ (red)."
 				     :foreground
 				     (color:make-hsv
 				      (penalty-hue
-				       (penalty(discretionary (object item))))
+				       (discretionary (object item)))
 				      1s0 .7s0)))))
 		      (items line)))
 	(when (and (member :rivers clues) (rivers etap))
