@@ -114,7 +114,7 @@ corresponding hyphenation clue."
 	(when (and (river-detection-p interface) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup interface))
-	    (widget-state (angle (river-detection interface)))))))
+	    (widget-state (angle (river-detection-dialog interface)))))))
 
 (defun remake-breakup (interface &rest args)
   "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
@@ -623,7 +623,7 @@ INTERFACE is the main ETAP window."
     (:reset-paragraph
      (update interface))
     (:river-detection
-     (display (river-detection interface) :owner interface))))
+     (display (river-detection-dialog interface) :owner interface))))
 
 
 
@@ -1076,9 +1076,9 @@ through 0 (green), and finally to +∞ (red)."
    (penalty-adjustment-dialogs
     :initform nil
     :accessor penalty-adjustment-dialogs)
-   (river-detection
+   (river-detection-dialog
     :initform (make-instance 'river-detection)
-    :reader river-detection)
+    :reader river-detection-dialog)
    (tooltips
     :documentation "This interface's tooltips."
     :allocation :class
@@ -1412,14 +1412,14 @@ through 0 (green), and finally to +∞ (red)."
    :help-callback 'help-callback
    :destroy-callback
    (lambda (etap)
-     (destroy (river-detection etap))
+     (destroy (river-detection-dialog etap))
      (mapc #'destroy (penalty-adjustment-dialogs etap)))))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
-  (setf (slot-value (river-detection etap) 'main-interface) etap)
+  (setf (slot-value (river-detection-dialog etap) 'main-interface) etap)
   ;; #### FIXME: this menu's selection is updated on pop-up and this is wrong.
   (setf (menu-items (slot-value etap 'language-menu))
 	(list (make-instance 'menu-component
@@ -1444,7 +1444,7 @@ those which may affect the typesetting."
 
 (defmethod river-detection-p ((interface etap))
   "Return T if river detection is enabled in INTERFACE."
-  (river-detection-p (river-detection interface)))
+  (river-detection-p (river-detection-dialog interface)))
 
 
 ;; Interface display
