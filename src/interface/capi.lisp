@@ -374,9 +374,9 @@ The calibrated value is displayed with 3 digits."
   (:panes
    (switch check-button
      :text "Detect rivers"
+     :callback-type '(:element :interface)
      :selection-callback 'river-detection-switch-callback
      :retract-callback 'river-detection-switch-callback
-     :callback-type '(:element :interface)
      :reader switch)
    (angle dg-cursor
      :property :angle
@@ -400,6 +400,15 @@ The calibrated value is displayed with 3 digits."
 ;; ==========================================================================
 ;; Penalty Adjustment Dialogs
 ;; ==========================================================================
+
+(defun penalty-adjustment-destroy-callback (dialog)
+  "Function called when penalty adjustment DIALOG is destroyed.
+- Possibly re-enable the Etap interface if DIALOG was the last one."
+  (let ((etap (etap dialog)))
+    (setf (penalty-adjustment-dialogs etap)
+	  (remove dialog (penalty-adjustment-dialogs etap)))
+    (unless (penalty-adjustment-dialogs etap)
+      (enable-interface etap))))
 
 ;; #### WARNING: the global variables defining each algorithm's
 ;; parameterization are calibrated by the algorithms entry points, because
@@ -470,6 +479,7 @@ Perform as if the value slider had been dragged.
    (row row-layout '(value reset)))
   (:default-initargs
    :title "Penalty Adjustment"
+   :destroy-callback 'penalty-adjustment-destroy-callback
    :window-styles '(:toolbox t
 		    :never-iconic t :always-on-top t
 		    :can-full-screen nil)))
@@ -479,7 +489,7 @@ Perform as if the value slider had been dragged.
      &key &aux (slider (value dialog))
 	       (hyphenation-point (hyphenation-point dialog))
 	       (caliber (caliber hyphenation-point)))
-  "Finish initializing penalty adjustment dialog.
+  "Finish initializing penalty adjustment DIALOG.
 - Memoize the original penalty.
 - Set the slider's range start, end, and slug start based on the hyphenation
   point's caliber.
@@ -493,15 +503,6 @@ Perform as if the value slider had been dragged.
   (setf (title-pane-text (title dialog))
 	(princ-to-string (penalty hyphenation-point))))
 
-(defun penalty-adjustment-destroy-callback (dialog)
-  "Function called when penalty adjustment DIALOG is destroyed.
-- Possibly re-enable the Etap interface if DIALOG was the last one."
-  (let ((etap (etap dialog)))
-    (setf (penalty-adjustment-dialogs etap)
-	  (remove dialog (penalty-adjustment-dialogs etap)))
-    (unless (penalty-adjustment-dialogs etap)
-      (enable-interface etap))))
-
 (defun make-penalty-adjustment-dialog (hyphenation-point etap)
   "Make a penalty adjustment dialog from ETAP interface for HYPHENATION-POINT.
 If one already exists, activate it and give it the focus. Otherwise, create a
@@ -513,8 +514,7 @@ new dialog and display it."
       (multiple-value-bind (x y) (top-level-interface-geometry etap)
 	(setq dialog (make-instance 'penalty-adjustment
 		       :hyphenation-point hyphenation-point
-		       :etap etap
-		       :destroy-callback 'penalty-adjustment-destroy-callback))
+		       :etap etap))
 	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
 	(push dialog (penalty-adjustment-dialogs etap))
 	(display dialog :owner etap))))
@@ -558,9 +558,20 @@ new dialog and display it."
 
 
 
+;; Destroy
+
+(defun destroy-callback (etap)
+  "Function called when ETAP interface is destroyed.
+- Destroy the river detection dialog.
+- Destroy all remaining penalty adjustment dialogs."
+  (destroy (river-detection-dialog etap))
+  (mapc #'destroy (penalty-adjustment-dialogs etap)))
+
+
+
 ;; ETAP menu
 
-(defun etap-menu-callback (item etap)
+(defun menu-callback (item etap)
   "Function called when the ETAP menu is popped up."
   (ecase item
     (:reset-paragraph
@@ -716,9 +727,6 @@ Otherwise, reselect the previously selected one."
   "Function called when the source text menu is popped up.
 - The only button currently resets the text and updates the Etap interface."
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
-  ;; #### FIXME: the language menu's selection is updated on pop-up, so a
-  ;; potential language change here doesn't need to be handled. Except that
-  ;; this is not the right way to do it.
   (setf (editor-pane-text (text etap)) (text context))
   (update etap))
 
@@ -806,7 +814,7 @@ corresponding hyphenation clue."
 
 
 
-;; Motion Callback
+;; Motion
 
 (defun motion-callback
     (view x y
@@ -849,7 +857,7 @@ corresponding hyphenation clue."
 
 
 
-;; Post Menu Callback
+;; Post Menu
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
@@ -898,7 +906,7 @@ through 0 (green), and finally to +∞ (red)."
 	((eq penalty -∞) (setq penalty -10000)))
   (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
 
-(defun render-view
+(defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
 	  (breakup (breakup etap))
@@ -909,7 +917,7 @@ through 0 (green), and finally to +∞ (red)."
 	  (par-h+d (+ par-y (depth layout)))
 	  (zoom (/ (range-slug-start (zoom etap)) 100))
 	  (clues (choice-selected-items (clues etap))))
-  "Render paragraph VIEW."
+  "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
   (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
@@ -1343,7 +1351,7 @@ through 0 (green), and finally to +∞ (red)."
      :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
-     :display-callback 'render-view
+     :display-callback 'display-callback
      :reader view
      :input-model '((:motion motion-callback)
 		    (:post-menu post-menu-callback))))
@@ -1395,7 +1403,7 @@ through 0 (green), and finally to +∞ (red)."
   (:menus
    (etap-menu "ETAP" (:reset-paragraph :river-detection)
      :print-function 'title-capitalize
-     :callback 'etap-menu-callback)
+     :callback 'menu-callback)
    (text-menu nil #| no title |# (:reset)
     :print-function 'title-capitalize
     :callback-type :interface
@@ -1406,10 +1414,7 @@ through 0 (green), and finally to +∞ (red)."
   (:default-initargs
    :title "Experimental Typesetting Algorithms Platform"
    :help-callback 'help-callback
-   :destroy-callback
-   (lambda (etap)
-     (destroy (river-detection-dialog etap))
-     (mapc #'destroy (penalty-adjustment-dialogs etap)))))
+   :destroy-callback 'destroy-callback))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
