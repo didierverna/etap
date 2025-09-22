@@ -73,8 +73,8 @@ This class is a mixin class for ETAP widgets."))
 (defgeneric (setf widget-state) (plist widget)
   (:documentation "Set WIDGET's state based on PLIST."))
 
-(defun find-property-widget (property pane &aux widget)
-  "Look into PANE's descendants for a PROPERTY widget."
+(defun find-widget (property pane &aux widget)
+  "Find a widget for PROPERTY in PANE's descendants."
   (map-pane-descendant-children
    pane
    (lambda (child)
@@ -555,7 +555,7 @@ The calibrated value is displayed with 3 digits."
 - Set DIALOG's title pane."
   (setf (slot-value dialog 'global-value)
 	(range-slug-start
-	 (find-property-widget
+	 (find-widget
 	  (caliber-property caliber)
 	  (slot-value
 	   etap
