@@ -31,22 +31,24 @@
     :kpx-fitness-quadratic "Quadratic adjacent demerits."))
 
 
-(defmacro define-kpx-caliber (name min default max &rest keys &key infinity)
+(defmacro define-kpx-caliber
+    (name min default max &rest keys &key infinity bounded)
   "Define a NAMEd KPX caliber.
 See `define-caliber' for more information."
-  (declare (ignore infinity))
+  (declare (ignore infinity bounded))
   `(define-caliber kpx ,name ,min ,default ,max ,@keys))
 
-(define-kpx-caliber line-penalty 0 10 100)
+(define-kpx-caliber line-penalty -100 10 100)
 (define-kpx-caliber hyphen-penalty -10000 50 10000 :infinity t)
 (define-kpx-caliber explicit-hyphen-penalty -10000 50 10000 :infinity t)
-(define-kpx-caliber adjacent-demerits 0 10000 20000)
-(define-kpx-caliber double-hyphen-demerits 0 10000 20000)
-(define-kpx-caliber final-hyphen-demerits 0 5000 20000)
-(define-kpx-caliber similar-demerits 0 5000 20000)
-(define-kpx-caliber pre-tolerance -1 100 10000 :infinity :max)
-(define-kpx-caliber tolerance 0 200 10000 :infinity :max)
-(define-kpx-caliber emergency-stretch 0 0 20)
+(define-kpx-caliber adjacent-demerits 0 10000 20000 :bounded :min)
+(define-kpx-caliber double-hyphen-demerits 0 10000 20000 :bounded :min)
+(define-kpx-caliber final-hyphen-demerits 0 5000 20000 :bounded :min)
+(define-kpx-caliber similar-demerits 0 5000 20000 :bounded :min)
+(define-kpx-caliber pre-tolerance -1 100 10000 :infinity :max :bounded :min)
+;; #### FIXME: I've seen one case of \tolerance-1 in the TeX Book.
+(define-kpx-caliber tolerance 0 200 10000 :infinity :max :bounded :min)
+(define-kpx-caliber emergency-stretch 0 0 20 :bounded :min)
 (define-kpx-caliber looseness -10 0 10)
 
 

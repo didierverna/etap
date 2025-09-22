@@ -90,12 +90,14 @@ the underfull one."))
 (define-global-variables fallback width-offset avoid-hyphens prefer-overfulls)
 
 
-(defmacro define-fixed-caliber (name min default max)
+(defmacro define-fixed-caliber
+    (name min default max &rest keys &key infinity bounded)
   "Define a NAMEd Fixed caliber.
 See `define-caliber' for more information."
-  `(define-caliber fixed ,name ,min ,default ,max))
+  (declare (ignore infinity bounded))
+  `(define-caliber fixed ,name ,min ,default ,max ,@keys))
 
-(define-fixed-caliber width-offset -50 0 0)
+(define-fixed-caliber width-offset -50 0 0 :bounded :max)
 
 
 (defmacro default-fixed (name)

@@ -329,9 +329,11 @@ The calibrated value is displayed with 3 digits."
 ;; Calibers
 ;; --------
 
-(defmacro define-river-detection-caliber (name min default max)
+(defmacro define-river-detection-caliber
+    (name min default max &rest keys &key infinity bounded)
   "Define a NAMEd RIVER-DETECTION caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber river-detection ,name ,min ,default ,max))
+  (declare (ignore infinity bounded))
+  `(define-caliber river-detection ,name ,min ,default ,max ,@keys))
 
 (defmacro calibrate-river-detection (name)
   "Calibrate NAMEd RIVER-DETECTION variable."
@@ -339,7 +341,7 @@ The calibrated value is displayed with 3 digits."
 
 ;; #### TODO: in cases like this one, it would make sense for caliber clamping
 ;; to take circularity into account (i.e. 360 = 0, etc.).
-(define-river-detection-caliber angle 0 0 45)
+(define-river-detection-caliber angle 0 0 45 :bounded t)
 
 
 
@@ -536,7 +538,7 @@ new dialog and display it."
     :properties-tooltips)
   "The visual clues available for conditional display.")
 
-(defparameter *zoom* (make-caliber :zoom 10 100 500))
+(defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min))
 
 
 

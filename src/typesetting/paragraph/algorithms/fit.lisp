@@ -139,10 +139,11 @@ for equally good solutions."))
   prefer-shrink discriminating-function)
 
 
-(defmacro define-fit-caliber (name min default max &rest keys &key infinity)
+(defmacro define-fit-caliber
+    (name min default max &rest keys &key infinity bounded)
   "Define a NAMEd Fit caliber.
 See `define-caliber' for more information."
-  (declare (ignore infinity))
+  (declare (ignore infinity bounded))
   `(define-caliber fit ,name ,min ,default ,max ,@keys))
 
 ;; #### NOTE: the LINE-PENALTY parameter has no impact on the algorithm, since
@@ -150,12 +151,12 @@ See `define-caliber' for more information."
 ;; here so that we can compute the same local demerits as in the Knuth-Plass,
 ;; and hence compare the two. Hopefully, this mess will go away when we
 ;; parametrize the cost function.
-(define-fit-caliber line-penalty 0 10 100)
+(define-fit-caliber line-penalty -100 10 100)
 (define-fit-caliber hyphen-penalty -10000 50 10000 :infinity t)
 (define-fit-caliber explicit-hyphen-penalty -10000 50 10000 :infinity t)
 ;; #### NOTE: no final-hyphen-demerits because that would not be a *-fit
 ;; algorithm anymore (we would need to look one line ahead).
-(define-fit-caliber width-offset -50 0 0)
+(define-fit-caliber width-offset -50 0 0 :bounded :max)
 
 
 (defmacro default-fit (name)

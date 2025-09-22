@@ -120,23 +120,33 @@
 ;; Calibers
 ;; ==========================================================================
 
-(defstruct
-    (caliber
-     (:constructor make-caliber (property min default max &key infinity)))
+;; #### TODO: a lot of the complication below would go away with custom
+;; widgets looking like rotary knobs.
+
+(defstruct (caliber (:constructor make-caliber (property min default max
+						&key infinity bounded)))
   "The CALIBER structure.
-A caliber defines MIN, DEFAULT, and MAX values for PROPERTY.
-Additionally, extreme values will be converted to -∞ (resp. +∞) depending on
-INFINITY (:MIN, :MAX, or T meaning both)."
-  property min default max infinity)
+Calibers establish a correspondence between scalar values and their GUI
+representation through sliders.
+
+A caliber defines MIN, DEFAULT, and MAX values for PROPERTY, all numerical.
+By default, calibrated values will be clamped within these bounds. This
+behavior can be modified as follows.
+- Values below MIN or above MAX (inclusive) will be converted to -∞ (resp. +∞)
+  depending on INFINITY (:MIN, :MAX, or T meaning both)
+- Otherwise, the behavior is further controlled by BOUNDED (NIL, :MIN, MAX, or
+  T meaning both). When BOUNDED, the numerical bounds are a hard limit.
+  Otherwise, all values are acceptable. In such a case, the numerical bounds
+  are only used to limit the GUI views on values."
+  property min default max infinity bounded)
 
 (defmacro define-caliber
-    (prefix property min default max &rest keys &key infinity)
+    (prefix property min default max &rest keys &key infinity bounded)
   "Define a *PREFIX-PROPERTY* caliber with MIN, DEFAULT, and MAX values.
 The corresponding PROPERTY is automatically interned in the keyword package.
 If supplied, INFINITY may be :MIN, :MAX, or T meaning both.
-In such a case, a calibrated value equal to MIN (resp. MAX) will be converted
-to -∞ (resp. +∞)."
-  (declare (ignore infinity))
+See the `caliber' structure for information on INFINITY and BOUNDED."
+  (declare (ignore infinity bounded))
   `(defparameter ,(intern (format nil "*~A-~A*" prefix property))
      (make-caliber ,(intern (symbol-name property) :keyword)
 		   ,min ,default, max ,@keys)))
@@ -145,22 +155,25 @@ to -∞ (resp. +∞)."
   "Return CALIBERated VALUE."
   (cond ((null value)
 	 (caliber-default caliber))
-	((<= value (caliber-min caliber))
-	 (if (member (caliber-infinity caliber) '(t :min))
-	   -∞
-	   (caliber-min caliber)))
-	((>= value (caliber-max caliber))
-	 (if (member (caliber-infinity caliber) '(t :max))
-	   +∞
-	   (caliber-max caliber)))
+	(($<= value (caliber-min caliber))
+	 (cond ((member (caliber-infinity caliber) '(t :min))
+		-∞)
+	       ((member (caliber-bounded caliber) '(t :min))
+		(caliber-min caliber))
+	       (t value)))
+	(($>= value (caliber-max caliber))
+	 (cond ((member (caliber-infinity caliber) '(t :max))
+		+∞)
+	       ((member (caliber-bounded caliber) '(t :max))
+		(caliber-max caliber))
+	       (t value)))
 	(t value)))
 
 (defun decalibrated-value (value caliber)
-  "Return deCALIBERated VALUE (VALUE is supposed to be CALIBERated)."
-  ;; The checks are simpler here since we're supposed to be working on a
-  ;; previously calibrated value, so not NULL, and if not +/-∞, within the
-  ;; caliber's min and max bounds.
-  (cond ((eq value +∞) (caliber-max caliber))
+  "Return deCALIBERated VALUE."
+  (cond ((null value)
+	 (caliber-default caliber))
+	((eq value +∞) (caliber-max caliber))
 	((eq value -∞) (caliber-min caliber))
 	(t value)))
 
