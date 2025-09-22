@@ -1077,6 +1077,7 @@ Min and max values depend on BREAK-POINT's caliber."
 
 (define-interface etap ()
   ((context :initform *context* :initarg :context :reader context)
+   (font :initarg :font :reader font)
    (breakup :accessor breakup)
    (layout :initform 0 :accessor layout)
    (enabled :initform t :accessor enabled)
@@ -1508,5 +1509,6 @@ Optionally provide initial ZOOMing and CLUES (characters by default)."
   (unless (listp clues) (setq clues (list clues)))
   (display (make-instance 'etap
 	     :context context
+	     :font (font context)
 	     :zoom zoom
 	     :clues clues)))
