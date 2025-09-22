@@ -52,6 +52,10 @@
 ;; Updaters
 ;; ==========================================================================
 
+(defun redraw (etap)
+  "Redraw ETAP interface's paragraph view."
+  (gp:invalidate-rectangle (view etap)))
+
 ;; #### FIXME: see comment in rivers.lisp
 (defun remake-rivers (etap &aux (layout (layout etap)))
   "Remake rivers in ETAP interface."
@@ -73,12 +77,11 @@
 
 (defun update (etap &rest args)
   "Update ETAP interface.
-This remakes ETAP's breakup, everything that depends on it,
-and invalidates the view.
+This remakes ETAP's breakup, everything that depends on it, and redraws it.
 ARGS are passed along to MAKE-BREAKUP."
   (apply #'remake-breakup etap args)
   (remake-rivers etap)
-  (gp:invalidate-rectangle (view etap)))
+  (redraw etap))
 
 (defun update-from-lineup (etap)
   "Update ETAP interface sarting from the current lineup.
@@ -354,10 +357,10 @@ The calibrated value is displayed with 3 digits."
   "Function called when the river detection SWITCH is toggled.
 - Remake rivers.
 - Toggle the angle cursor's enabled status.
-- Invalidate the paragraph view."
+- Redraw the paragraph view."
   (remake-rivers etap)
   (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
-  (gp:invalidate-rectangle (view etap)))
+  (redraw etap))
 
 (defun river-detection-angle-callback
     (cursor value gesture
@@ -365,12 +368,12 @@ The calibrated value is displayed with 3 digits."
   "Function called when the river detection angle CURSOR is dragged.
 - Update CURSOR's title.
 - Remake rivers.
-- Invalidate the paragraph's view."
+- Redraw the paragraph view."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (remake-rivers etap)
-    (gp:invalidate-rectangle (view etap))))
+    (redraw etap)))
 
 (define-interface river-detection ()
   ((etap :reader etap))
@@ -612,8 +615,8 @@ new dialog and display it."
 
 (defun clues-callback (etap)
   "Function called when the clues are changed.
-- Invalidate ETAP interface's paragraph view."
-  (gp:invalidate-rectangle (view etap)))
+- Redraw ETAP's paragraph view."
+  (redraw etap))
 
 
 
@@ -636,11 +639,11 @@ new dialog and display it."
 (defun zoom-callback (cursor value gesture)
   "Function called when zoom CURSOR is dragged.
 - Update CURSOR's title.
-- Invalidate the paragraph view."
+- Redraw the paragraph view."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
+    (redraw (top-level-interface cursor))))
 
 
 
@@ -651,16 +654,15 @@ new dialog and display it."
      &aux (layouts-# (layouts-# (breakup etap)))
 	  (layout (layout etap)))
   "Function called when another layout is selected.
-- Select the next +/-1 layout.
+- Select the next +/-1 layout and advertise its number.
 - Possibly remake rivers.
-- Update the paragraph view's title.
-- Invalidate the paragraph view."
+- Redraw ETAP's paragraph view."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
   (setf (layout etap) layout)
-  (when (river-detection-p etap) (remake-rivers etap))
   (setf (titled-object-title (view etap))
 	(format nil "Layout ~D/~D" layout layouts-#))
-  (gp:invalidate-rectangle (view etap)))
+  (when (river-detection-p etap) (remake-rivers etap))
+  (redraw etap))
 
 
 
