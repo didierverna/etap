@@ -66,4 +66,5 @@
      (:module "interface"
       :components
       ((:file "capi" :if-feature :lispworks)))
-     (:file "post")))))
+     (:file "entry")
+     (:file "user")))))
