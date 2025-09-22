@@ -1,16 +1,12 @@
 (in-package :etap)
 
-(defparameter *clues*
-  '(:characters :hyphenation-points
-    :over/underfull-boxes :overshrunk/stretched-boxes
-    :rivers
-    :paragraph-box :line-boxes :character-boxes :baselines
-    :properties-tooltips)
-  "The visual clues available for conditional display.")
+;; #### WARNING: moving sliders with the mouse (dragging or clicking
+;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
+;; it seems that we can safely ignore :MOVE gestures in callbacks, at least
+;; for now. I will need to check this again when I introduce focus and
+;; keyboard control though.
 
 
-
-
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -22,84 +18,12 @@
 
 
 
-;; --------
-;; Calibers
-;; --------
-
-(defmacro define-gui-caliber (name min default max)
-  "Define a NAMEd GUI caliber with MIN, DEFAULT, and MAX values."
-  `(define-caliber gui ,name ,min ,default ,max))
-
-(define-gui-caliber zoom 10 100 500)
-
-
-(defmacro calibrate-gui (name)
-  "Calibrate NAMEd GUI variable."
-  `(calibrate gui ,name :earmuffs nil))
-
-
-
-;; --------------------------------------
-;; CLIM-less object under mouse detection
-;; --------------------------------------
-
-(defun vector-product (p1 p2 p3)
-  "Return the vector product of P1P2 - P1P3.
-Each point is of the form (X . Y)."
-  (let ((x1 (car p1)) (y1 (cdr p1))
-	(x2 (car p2)) (y2 (cdr p2))
-	(x3 (car p3)) (y3 (cdr p3)))
-    (- (* (- x1 x3) (- y2 y3)) (* (- x2 x3) (- y1 y3)))))
-
-(defun triangle-under-p (p a b c)
-  "Return T if P is within the ABC triangle."
-  (let ((vp1 (vector-product p a b))
-	(vp2 (vector-product p b c))
-	(vp3 (vector-product p c a)))
-    (not (or (and (< vp1 0) (>= vp2 0) (>= vp3 0))
-	     (and (< vp2 0) (>= vp1 0) (>= vp3 0))
-	     (and (< vp3 0) (>= vp1 0) (>= vp2 0))
-	     (and (> vp1 0) (<= vp2 0) (<= vp3 0))
-	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
-	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
-
-(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
-  "Return the hyphenation point from LINES which is under (X, Y), or nil.
-Technically, (X, Y) is not over the hyphenation point, but over the
-corresponding hyphenation clue."
-  (let ((line (find-if (lambda (line)
-			 (and (>= y (y line)) (<= y (+ (y line) 5))))
-		       lines)))
-    (when line
-      (let* ((x (x line))
-	     (y (y line))
-	     (pinned (find-if (lambda (item)
-				(and (discretionary-clue-p (object item))
-				     (hyphenation-point-p
-				      (discretionary (object item)))
-				     (triangle-under-p
-				      p
-				      (cons (+ x (x item)) y)
-				      (cons (+ x (x item) -3) (+ y 5))
-				      (cons (+ x (x item) +3) (+ y 5)))))
-			      (items line))))
-	(when pinned (discretionary (object pinned)))))))
-
-(defun line-under (y lines)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line)
-	     (and (>= y (- (y line) (height line)))
-		  (<= y (+ (y line) (depth line)))))
-	   lines))
-
-
-
 ;; ------------------------
 ;; Panes hierarchy enabling
 ;; ------------------------
 
-;; #### NOTE: there is no mechanism to globally enable or disable an
-;; interface or a layout's components, so we need to do it by hand.
+;; #### NOTE: there is no mechanism to globally enable or disable an interface
+;; or a sub-part of it, so we need to do it by hand.
 
 (defgeneric enable-interface (interface &optional enabled)
   (:documentation "Set INTERFACE's enabled status to ENABLED (T by default)."))
@@ -129,37 +53,37 @@ corresponding hyphenation clue."
 ;; ==========================================================================
 
 ;; #### FIXME: see comment in rivers.lisp
-(defun remake-rivers (interface &aux (layout (layout interface)))
-  "Remake INTERFACE's rivers."
-  (setf (rivers interface)
-	(when (and (river-detection-p interface) (not (zerop layout)))
+(defun remake-rivers (etap &aux (layout (layout etap)))
+  "Remake rivers in ETAP interface."
+  (setf (rivers etap)
+	(when (and (river-detection-p etap) (not (zerop layout)))
 	  (apply #'detect-rivers
-	    (get-layout (1- layout) (breakup interface))
-	    (widget-state
-	     (angle (river-detection-panel interface)))))))
+	    (get-layout (1- layout) (breakup etap))
+	    (widget-state (angle (river-detection-dialog etap)))))))
 
-(defun remake-breakup (interface &rest args)
-  "Remake INTERFACE's breakup. ARGS are passed along to MAKE-BREAKUP."
-  (let* ((breakup (apply #'make-breakup :context (context interface) args))
+(defun remake-breakup (etap &rest args)
+  "Remake ETAP interface's breakup. ARGS are passed along to MAKE-BREAKUP."
+  (let* ((breakup (apply #'make-breakup :context (context etap) args))
 	 (layouts-# (layouts-# breakup)))
-    (setf (breakup interface) breakup)
-    (setf (layout interface) (if (zerop layouts-#) 0 1))
-    (setf (titled-object-title (view interface))
-	  (format nil "Layout ~D/~D" (layout interface) layouts-#))))
+    (setf (breakup etap) breakup)
+    (setf (layout etap) (if (zerop layouts-#) 0 1))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+    (setf (titled-object-title (view etap))
+	  (format nil "Layout ~D/~D" (layout etap) layouts-#))))
 
-(defun update (interface &rest args)
-  "Update INTERFACE.
-This remakes INTERFACE's breakup, everything that depends on it,
+(defun update (etap &rest args)
+  "Update ETAP interface.
+This remakes ETAP's breakup, everything that depends on it,
 and invalidates the view.
 ARGS are passed along to MAKE-BREAKUP."
-  (apply #'remake-breakup interface args)
-  (remake-rivers interface)
-  (gp:invalidate-rectangle (view interface)))
+  (apply #'remake-breakup etap args)
+  (remake-rivers etap)
+  (gp:invalidate-rectangle (view etap)))
 
-(defun update-from-lineup (interface)
-  "Update INTERFACE sarting from the current lineup.
+(defun update-from-lineup (etap)
+  "Update ETAP interface sarting from the current lineup.
 See `update' for more information."
-  (update interface :lineup (lineup (breakup interface))))
+  (update etap :lineup (lineup (breakup etap))))
 
 
 
@@ -398,82 +322,358 @@ The calibrated value is displayed with 3 digits."
 
 
 ;; ==========================================================================
-;; River Detection Interface
+;; River Detection Dialog
 ;; ==========================================================================
+
+;; --------
+;; Calibers
+;; --------
+
+(defmacro define-river-detection-caliber (name min default max)
+  "Define a NAMEd RIVER-DETECTION caliber with MIN, DEFAULT, and MAX values."
+  `(define-caliber river-detection ,name ,min ,default ,max))
+
+(defmacro calibrate-river-detection (name)
+  "Calibrate NAMEd RIVER-DETECTION variable."
+  `(calibrate river-detection ,name :earmuffs nil))
 
 ;; #### TODO: in cases like this one, it would make sense for caliber clamping
 ;; to take circularity into account (i.e. 360 = 0, etc.).
-(define-gui-caliber river-angle 0 0 45)
+(define-river-detection-caliber angle 0 0 45)
 
-(defun river-detection-activation-switch-callback
-    (switch interface
-     &aux (main-interface (main-interface interface)))
-  "Function called when the river detection activation SWITCH is toggled."
-  (remake-rivers main-interface)
-  (setf (simple-pane-enabled (angle interface)) (button-selected switch))
-  (gp:invalidate-rectangle (view main-interface)))
 
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun river-detection-angle-cursor-callback
+
+;; ---------
+;; Callbacks
+;; ---------
+
+(defun river-detection-switch-callback
+    (switch dialog &aux (etap (etap dialog)))
+  "Function called when the river detection SWITCH is toggled.
+- Remake rivers.
+- Toggle the angle cursor's enabled status.
+- Invalidate the paragraph view."
+  (remake-rivers etap)
+  (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
+  (gp:invalidate-rectangle (view etap)))
+
+(defun river-detection-angle-callback
     (cursor value gesture
-     &aux (main-interface (main-interface (top-level-interface cursor))))
-  "Function called when the river detection angle cursor is moved."
+     &aux (etap (etap (top-level-interface cursor))))
+  "Function called when the river detection angle CURSOR is dragged.
+- Update CURSOR's title.
+- Remake rivers.
+- Invalidate the paragraph's view."
+  (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (remake-rivers main-interface)
-    (gp:invalidate-rectangle (view main-interface))))
+    (remake-rivers etap)
+    (gp:invalidate-rectangle (view etap))))
 
-(define-interface river-detection-panel ()
-  ((main-interface :reader main-interface))
+(define-interface river-detection ()
+  ((etap :reader etap))
   (:panes
-   (activation-switch check-button
+   (switch check-button
      :text "Detect rivers"
-     :selection-callback 'river-detection-activation-switch-callback
-     :retract-callback 'river-detection-activation-switch-callback
      :callback-type '(:element :interface)
-     :reader activation-switch)
+     :selection-callback 'river-detection-switch-callback
+     :retract-callback 'river-detection-switch-callback
+     :reader switch)
    (angle dg-cursor
      :property :angle
-     :caliber *gui-river-angle*
+     :caliber *river-detection-angle*
      :enabled nil
-     :callback 'river-detection-angle-cursor-callback
+     :callback 'river-detection-angle-callback
      :reader angle))
   (:layouts
-   (main column-layout
-     '(activation-switch angle)))
+   (main column-layout '(switch angle)))
   (:default-initargs
    :title "River Detection"
    :window-styles '(:always-on-top t :toolbox t)))
 
-(defmethod river-detection-p ((interface river-detection-panel))
-  "Return T if river detection is enabled in INTERFACE."
-  (button-selected (activation-switch interface)))
+(defmethod river-detection-p ((dialog river-detection))
+  "Return T if river detection is enabled in river detection DIALOG."
+  (button-selected (switch dialog)))
 
 
 
 
 ;; ==========================================================================
-;; Interface Actions
+;; Penalty Adjustment Dialogs
 ;; ==========================================================================
 
-;; -------------------
-;; Algorithm Selection
-;; -------------------
+(defun penalty-adjustment-destroy-callback (dialog)
+  "Function called when penalty adjustment DIALOG is destroyed.
+- Possibly re-enable the Etap interface if DIALOG was the last one."
+  (let ((etap (etap dialog)))
+    (setf (penalty-adjustment-dialogs etap)
+	  (remove dialog (penalty-adjustment-dialogs etap)))
+    (unless (penalty-adjustment-dialogs etap)
+      (enable-interface etap))))
 
-(defun select-algorithm
-    (interface
-     &aux (item (choice-selected-item (algorithms-tab interface)))
+;; #### WARNING: the global variables defining each algorithm's
+;; parameterization are calibrated by the algorithms entry points, because
+;; those entry points can be called programmatically. On the other hand, the
+;; penalty sliders and reset buttons below affect an already existing lineup
+;; and are accessible only from the GUI. Hence, the returned values need to be
+;; calibrated (potentially to infinity) here.
+
+(defun penalty-adjustment-value-callback
+    (slider value gesture
+     &aux (dialog (top-level-interface slider))
+	  (hyphenation-point (hyphenation-point dialog))
+	  (etap (etap dialog)))
+  "Function called when the penalty adjustment value SLIDER is dragged.
+- Calibrate VALUE.
+- Advertise VALUE in dialog's title pane.
+- Adjust the hyphenation point's penalty.
+- Re-break the lineup."
+  (when (eq gesture :drag)
+    (setq value (calibrated-value (range-slug-start slider)
+				  (caliber hyphenation-point)))
+    (setf (title-pane-text (title dialog)) (princ-to-string value))
+    (setf (penalty hyphenation-point) value)
+    (update-from-lineup etap)))
+
+(defun penalty-adjustment-reset-callback
+  (item dialog
+   &aux (slider (value dialog))
+	(hyphenation-point (hyphenation-point dialog))
+	(caliber (caliber hyphenation-point))
+	(value (ecase item
+		 (:reset-to-original
+		  (original-value dialog))
+		 (:reset-to-global
+		  (or (getf (algorithm-options
+			     (algorithm (context (etap dialog))))
+			    (caliber-property caliber))
+		      (caliber-default caliber)))
+		 (:reset-to-default
+		  (caliber-default caliber)))))
+  "Function called when a penalty adjustment reset button is clicked.
+Perform as if the value slider had been dragged.
+- Set the slider to the appropriate reset value.
+- Call the slider callback."
+  (setf (range-slug-start slider) value)
+  (penalty-adjustment-value-callback slider value :drag)) ;; whooo...
+
+(define-interface penalty-adjustment ()
+  ((original-value :reader original-value)
+   (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
+   (etap :initarg :etap :reader etap))
+  (:panes
+   (title title-pane
+     :reader title)
+   (value slider
+     :orientation :vertical
+     :visible-min-height 220
+     :tick-frequency 0
+     :callback 'penalty-adjustment-value-callback
+     :reader value)
+   (reset push-button-panel
+     :items '(:reset-to-original :reset-to-global :reset-to-default)
+     :print-function 'title-capitalize
+     :layout-class 'column-layout
+     :selection-callback 'penalty-adjustment-reset-callback))
+  (:layouts
+   (main column-layout '(title row))
+   (row row-layout '(value reset)))
+  (:default-initargs
+   :title "Penalty Adjustment"
+   :destroy-callback 'penalty-adjustment-destroy-callback
+   :window-styles '(:toolbox t
+		    :never-iconic t :always-on-top t
+		    :can-full-screen nil)))
+
+(defmethod initialize-instance :after
+    ((dialog penalty-adjustment)
+     &key &aux (slider (value dialog))
+	       (hyphenation-point (hyphenation-point dialog))
+	       (caliber (caliber hyphenation-point)))
+  "Finish initializing penalty adjustment DIALOG.
+- Memoize the original penalty.
+- Set the slider's range start, end, and slug start based on the hyphenation
+  point's caliber.
+- Set DIALOG's title pane."
+  (setf (slot-value dialog 'original-value)
+	(decalibrated-value (penalty hyphenation-point)
+			    (caliber hyphenation-point)))
+  (setf (range-start slider)      (caliber-min caliber)
+	(range-end slider)        (caliber-max caliber)
+	(range-slug-start slider) (original-value dialog))
+  (setf (title-pane-text (title dialog))
+	(princ-to-string (penalty hyphenation-point))))
+
+(defun make-penalty-adjustment-dialog (hyphenation-point etap)
+  "Make a penalty adjustment dialog from ETAP interface for HYPHENATION-POINT.
+If one already exists, activate it and give it the focus. Otherwise, create a
+new dialog and display it."
+  (let ((dialog (find hyphenation-point (penalty-adjustment-dialogs etap)
+		  :key #'hyphenation-point)))
+    (if dialog
+      (activate-pane dialog)
+      (multiple-value-bind (x y) (top-level-interface-geometry etap)
+	(setq dialog (make-instance 'penalty-adjustment
+		       :hyphenation-point hyphenation-point
+		       :etap etap))
+	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
+	(push dialog (penalty-adjustment-dialogs etap))
+	(display dialog :owner etap))))
+  (when (enabled etap) (enable-interface etap nil)))
+
+
+
+
+;; ==========================================================================
+;; Etap Interface
+;; ==========================================================================
+
+(defparameter *clues*
+  '(:characters :hyphenation-points
+    :over/underfull-boxes :overshrunk/stretched-boxes
+    :rivers
+    :paragraph-box :line-boxes :character-boxes :baselines
+    :properties-tooltips)
+  "The visual clues available for conditional display.")
+
+(defparameter *zoom* (make-caliber :zoom 10 100 500))
+
+
+
+;; ---------
+;; Callbacks
+;; ---------
+
+;; Help
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *etap-tooltips*
+    '(:layout--1 "Display previous layout."
+      :layout-+1 "Display next layout.")))
+
+(defun help-callback (interface pane type key)
+  "Function called when a user gesture requests help.
+- Currently handle tooltips."
+  (declare (ignore pane))
+  (case type (:tooltip (getf (tooltips interface) key))))
+
+
+
+;; Destroy
+
+(defun destroy-callback (etap)
+  "Function called when ETAP interface is destroyed.
+- Destroy the river detection dialog.
+- Destroy all remaining penalty adjustment dialogs."
+  (destroy (river-detection-dialog etap))
+  (mapc #'destroy (penalty-adjustment-dialogs etap)))
+
+
+
+;; ETAP menu
+
+(defun menu-callback (item etap)
+  "Function called when the ETAP menu is popped up."
+  (ecase item
+    (:reset-paragraph
+     (update etap))
+    (:river-detection
+     (display (river-detection-dialog etap) :owner etap))))
+
+
+
+;; Disposition
+
+(defun disposition-callback (etap)
+  "Function called when the disposition or a disposition option is changed.
+- Set ETAP interface's context to the current disposition.
+- Update ETAP interface."
+  (setf (disposition (context etap))
+	(cons (second (widget-state (disposition etap)))
+	      (cdr (widget-state (disposition-options-panel etap)))))
+  (update etap))
+
+
+
+;; Features
+
+(defun features-callback (etap)
+  "Function called when the features set changed.
+- Set ETAP interface's context to the current feature set.
+- Update ETAP interface."
+  (setf (features (context etap)) (cdr (widget-state (features etap))))
+  (update etap))
+
+
+
+;; Clues
+
+(defun clues-callback (etap)
+  "Function called when the clues are changed.
+- Invalidate ETAP interface's paragraph view."
+  (gp:invalidate-rectangle (view etap)))
+
+
+
+;; Paragraph width
+
+(defun paragraph-width-callback
+    (cursor value gesture &aux (etap (top-level-interface cursor)))
+  "Function called when paragraph width CURSOR is dragged.
+- Update CURSOR's title.
+- Re-break the current lineup."
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (setf (paragraph-width (context etap)) value)
+    (update-from-lineup etap)))
+
+
+
+;; Zoom
+
+(defun zoom-callback (cursor value gesture)
+  "Function called when zoom CURSOR is dragged.
+- Update CURSOR's title.
+- Invalidate the paragraph view."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
+
+
+
+;; Layouts
+
+(defun layout-callback
+    (+/-1 etap
+     &aux (layouts-# (layouts-# (breakup etap)))
+	  (layout (layout etap)))
+  "Function called when another layout is selected.
+- Select the next +/-1 layout.
+- Possibly remake rivers.
+- Update the paragraph view's title.
+- Invalidate the paragraph view."
+  (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
+  (setf (layout etap) layout)
+  (when (river-detection-p etap) (remake-rivers etap))
+  (setf (titled-object-title (view etap))
+	(format nil "Layout ~D/~D" layout layouts-#))
+  (gp:invalidate-rectangle (view etap)))
+
+
+
+;; Algorithms
+
+(defun set-algorithm
+    (etap
+     &aux (item (choice-selected-item (algorithms-tab etap)))
 	  (algorithm (first item)))
-  "Select INTERFACE's algorithm."
-  (setf (algorithm (context interface))
+  "Set ETAP interface's context to the current algorithm."
+  (setf (algorithm (context etap))
 	(cons algorithm
 	      (let ((options))
 		(map-pane-descendant-children
-		 (slot-value interface (second item))
+		 (slot-value etap (second item))
 		 (lambda (child)
 		   (typecase child
 		     (check-box
@@ -483,332 +683,161 @@ The calibrated value is displayed with 3 digits."
 		      (setq options (append options (widget-state child)))))))
 		options))))
 
-(defun algorithm-callback (interface)
-  "Select INTERFACE's algorithm and update everything."
-  (select-algorithm interface)
-  (update interface))
+(defun algorithm-callback (etap)
+  "Function called when an algorithm option is clicked.
+- Update ETAP interface's context.
+- Recreate the breakup.
+- Update ETAP interface's state."
+  (set-algorithm etap)
+  (update etap))
 
-;; #### WARNING: moving a slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
 (defun algorithm-cursor-callback (cursor value gesture)
-  "Update CURSOR's title, select INTERFACE's algorithm, and update everything."
+  "Function called when an algorithm cursor is dragged.
+- Update CURSOR's title.
+- Update Etap interface's context.
+- Update Etap interface."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (let ((interface (top-level-interface cursor)))
-      (select-algorithm interface)
-      (update interface))))
+    (let ((etap (top-level-interface cursor)))
+      (set-algorithm etap)
+      (update etap))))
 
-
-;; ---------
-;; Callbacks
-;; ---------
-
-(defun algorithms-tab-callback (tab interface)
-  "If INTERFACE is enabled, set algorithm to the selected one in TAB.
+(defun algorithms-tab-callback (tab etap)
+  "Function called when an algorithm tab is selected.
+If ETAP interface is enabled, set algorithm to the selected one in TAB.
 Otherwise, reselect the previously selected one."
-  (cond ((enabled interface)
-	 (select-algorithm interface)
-	 (update interface))
+  (cond ((enabled etap)
+	 (set-algorithm etap)
+	 (update etap))
 	(t
 	 (setf (choice-selected-item tab)
-	       (find (algorithm-type (algorithm (context interface)))
+	       (find (algorithm-type (algorithm (context etap)))
 		   (collection-items tab)
 		 :key #'first)))))
 
-(defun set-disposition (value interface)
-  "Set the current disposition in INTERFACE's context."
-  (declare (ignore value))
-  (setf (disposition (context interface))
-	(cons (second (widget-state (disposition interface)))
-	      (cdr (widget-state (disposition-options-panel interface)))))
-  (update interface))
 
-(defun set-features (value interface)
-  "Set the current features in INTERFACE's context."
-  (declare (ignore value))
-  (setf (features (context interface))
-	(cdr (widget-state (features interface))))
-  (update interface))
+
+;; Source text menu
 
-(defun set-text (pane point old-length new-length
-		 &aux (interface (top-level-interface pane)))
-  "Set editor PANE's current text in PANE's context."
+(defun text-menu-callback (etap &aux (context (context etap)))
+  "Function called when the source text menu is popped up.
+- The only button currently resets the text and updates the Etap interface."
+  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
+  (setf (editor-pane-text (text etap)) (text context))
+  (update etap))
+
+
+
+;; Language menu
+
+(defun language-menu-callback (language etap)
+  "Function called when a language is selected.
+- Change the current text's language.
+- Update ETAP interface."
+  (setf (language (nlstring (context etap))) language)
+  (update etap))
+
+
+
+;; Text editor
+
+(defun text-change-callback
+    (text-editor point old-length new-length
+     &aux (etap (top-level-interface text-editor)))
+  "Function called when the source text is changed.
+- Set TEXT-EDITOR's current text in the interface's context.
+- Update Etap interface."
   (declare (ignore point old-length new-length))
-  (setf (text (nlstring (context interface))) (editor-pane-text pane))
-  (update interface))
-
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun paragraph-width-callback
-    (cursor value gesture &aux (interface (top-level-interface cursor)))
-  "Update paragraph width CURSOR's title and re-break the current lineup."
-  (when (eq gesture :drag)
-    (update-cursor-title cursor)
-    (setf (paragraph-width (context interface)) value)
-    (update-from-lineup interface)))
-
-;; #### WARNING: moving the slider with the mouse (dragging or clicking
-;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So
-;; it seems that I can safely ignore :MOVE callbacks which means saving two
-;; calls out of 3! I will need to check this again when I introduce focus and
-;; keyboard control though.
-(defun zoom-callback (cursor value gesture)
-  "Update zoom CURSOR's title and invalidate the paragraph view."
-  (declare (ignore value))
-  (when (eq gesture :drag)
-    (update-cursor-title cursor)
-    (gp:invalidate-rectangle (view (top-level-interface cursor)))))
-
-(defun clues-callback (interface)
-  "Invalidate INTERFACE's paragraph view."
-  (gp:invalidate-rectangle (view interface)))
+  (setf (text (nlstring (context etap))) (editor-pane-text text-editor))
+  (update etap))
 
 
-;; -------------------
-;; Paragraph Rendering
-;; -------------------
+
+;; --------------------------
+;; Paragraph View Interaction
+;; --------------------------
 
-;; #### FIXME: the bounds are hard-wired, but should really depend on the
-;; defined caliber.
-(defun penalty-hue (penalty)
-  "Return PENALTY's HUE in HSV model.
-Colors are interpolated for penalties ranging from  -∞ (blue),
-through 0 (green), and finally to +∞ (red)."
-  (cond ((eq penalty +∞) (setq penalty 10000))
-	((eq penalty -∞) (setq penalty -10000)))
-  (- 4s0 (* 4s0 (/ (+ penalty 10000s0) 20000s0))))
+;; CLIM-like object under mouse utilities
 
-(defun render-view
-    (pane x y width height
-     &aux (interface (top-level-interface pane))
-	  (breakup (breakup interface))
-	  (par-width (paragraph-width breakup))
-	  (layout-# (layout interface))
-	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
-	  (par-y (height layout))
-	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom interface)) 100))
-	  (clues (choice-selected-items (clues interface))))
-  "Render PANE's view."
-  (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters pane :max-range (+ (* par-width zoom) 40))
-  (set-vertical-scroll-parameters pane :max-range (+ (* par-h+d zoom) 40))
-  (gp:with-graphics-translation (pane 20 20)
-    (gp:with-graphics-scale (pane zoom zoom)
-      (when (member :paragraph-box clues)
-	(gp:draw-rectangle pane 0 0 par-width par-h+d
-	  :foreground :red
-	  :scale-thickness nil))
-      (when layout
-	(loop :for full-x := (+ (loop :for line :in (lines layout)
-				      :maximize (+ (x line) (width line)))
-				5)
-	      :for rest :on (lines layout)
-	      :for line := (car rest)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
-	      :when (member :line-boxes clues)
-		:do (gp:draw-rectangle pane
-			x
-			(- y (height line))
-			(width line)
-			(+ (height line) (depth line))
-		      :foreground :blue
-		      :scale-thickness nil)
-	      :when (member :over/underfull-boxes clues)
-		:if (> (width line) par-width)
-		  :do (gp:draw-rectangle pane
-			  full-x  (- y (height line))
-			  5  (+ (height line) (depth line))
-			:foreground :orange
-			:scale-thickness nil :filled t)
-		:else :if (and (cdr rest) ;; not the last one
-			       (eq (disposition-type (disposition breakup))
-				   :justified)
-			       (< (width line) par-width))
-		  :do (gp:draw-rectangle pane
-			  full-x (- y (height line))
-			  5 (+ (height line) (depth line))
-			:foreground :orange
-			:scale-thickness nil :filled nil)
-	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (esar line) (asar line))
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(- y (height line))
-				(+ par-width 11)
-				(- y (height line))
-				(+ par-width 8)
-				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled t :closed t)
-		:else :if ($< (asar line) -1)
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(- y (height line))
-				(+ par-width 11)
-				(- y (height line))
-				(+ par-width 8)
-				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled nil :closed t)
-		:else :if ($> (esar line) (asar line))
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(+ y (depth line))
-				(+ par-width 11)
-				(+ y (depth line))
-				(+ par-width 8)
-				(- y (height line)))
-			:foreground :blue
-			:scale-thickness nil :filled t :closed t)
-		:else :if ($> (asar line) 1)
-		  :do (gp:draw-polygon pane
-			  (list (+ par-width 5)
-				(+ y (depth line))
-				(+ par-width 11)
-				(+ y (depth line))
-				(+ par-width 8)
-				(- y (height line)))
-			:foreground :blue
-			:scale-thickness nil :filled nil :closed t)
-	      :when (member :baselines clues)
-		:do (gp:draw-line pane x y (+ x (width line)) y
-		      :foreground :purple
-		      :scale-thickness nil)
-	      :when (or (member :characters clues)
-			(member :character-boxes clues))
-		:do (mapc (lambda (item)
-			    (cond ((typep (object item)
-					  'tfm:character-metrics)
-				   (when (member :character-boxes clues)
-				     (gp:draw-rectangle pane
-					 (+ x (x item))
-					 (- y (height item))
-					 (width item)
-					 (+ (height item)
-					    (depth item))
-				       :scale-thickness nil))
-				   (when (member :characters clues)
-				     (gp:draw-character pane
-					 (aref *lm-ec*
-					       (tfm:code (object item)))
-					 (+ x (x item))
-					 y)))
-				  ((and (discretionary-clue-p (object item))
-					(hyphenation-point-p
-					 (discretionary (object item)))
-					(member :hyphenation-points clues))
-				   (gp:draw-polygon pane
-				     (list (+ x (x item)) y
-					   (+ x (x item) -3) (+ y 5)
-					   (+ x (x item) +3) (+ y 5)
-					   (+ x (x item)) y)
-				     :filled
-				     (not (explicitp
-					   (discretionary (object item))))
-				     :foreground
-				     (color:make-hsv
-				      (penalty-hue
-				       (penalty(discretionary (object item))))
-				      1s0 .7s0)))))
-		      (items line)))
-	(when (and (member :rivers clues) (rivers interface))
-	  (maphash (lambda (source arms)
-		     (mapc (lambda (arm &aux (mouth (mouth arm)))
-			     (gp:draw-line pane
-				 (+ (x (board source))
-				    (x source)
-				    (/ (width source) 2))
-				 (+ par-y (y (board source)) (y source))
-				 (+ (x (board mouth))
-				    (x mouth)
-				    (/ (width mouth) 2))
-				 (+ par-y (y (board mouth)) (y mouth))
-			       :foreground :red :scale-thickness nil))
-		       arms))
-		   (rivers interface)))))))
+(defun vector-product (p1 p2 p3)
+  "Return the vector product of P1P2 - P1P3.
+Each point is of the form (X . Y)."
+  (let ((x1 (car p1)) (y1 (cdr p1))
+	(x2 (car p2)) (y2 (cdr p2))
+	(x3 (car p3)) (y3 (cdr p3)))
+    (- (* (- x1 x3) (- y2 y3)) (* (- x2 x3) (- y1 y3)))))
+
+(defun triangle-under-p (p a b c)
+  "Return T if P is within the ABC triangle."
+  (let ((vp1 (vector-product p a b))
+	(vp2 (vector-product p b c))
+	(vp3 (vector-product p c a)))
+    (not (or (and (< vp1 0) (>= vp2 0) (>= vp3 0))
+	     (and (< vp2 0) (>= vp1 0) (>= vp3 0))
+	     (and (< vp3 0) (>= vp1 0) (>= vp2 0))
+	     (and (> vp1 0) (<= vp2 0) (<= vp3 0))
+	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
+	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
+
+(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
+  "Return the hyphenation point from LINES which is under (X, Y), or nil.
+Technically, (X, Y) is not over the hyphenation point, but over the
+corresponding hyphenation clue."
+  (let ((line (find-if (lambda (line)
+			 (and (>= y (y line)) (<= y (+ (y line) 5))))
+		       lines)))
+    (when line
+      (let* ((x (x line))
+	     (y (y line))
+	     (pinned (find-if (lambda (item)
+				(and (discretionary-clue-p (object item))
+				     (hyphenation-point-p
+				      (discretionary (object item)))
+				     (triangle-under-p
+				      p
+				      (cons (+ x (x item)) y)
+				      (cons (+ x (x item) -3) (+ y 5))
+				      (cons (+ x (x item) +3) (+ y 5)))))
+			      (items line))))
+	(when pinned (discretionary (object pinned)))))))
+
+(defun line-under (y lines)
+  "Return the line from LINES which is under Y coordinate, or NIL."
+  (find-if (lambda (line)
+	     (and (>= y (- (y line) (height line)))
+		  (<= y (+ (y line) (depth line)))))
+	   lines))
 
 
-;; -------
-;; Layouts
-;; -------
-
-(defun next-layout
-    (op interface
-     &aux (layouts-# (layouts-# (breakup interface)))
-	  (layout (layout interface)))
-  "Select the next OP layout."
-  (unless (zerop layouts-#)
-    (setq layout (1+ (mod (1- (funcall op layout)) layouts-#)))
-    (setf (layout interface) layout)
-    (when (river-detection-p interface) (remake-rivers interface))
-    (setf (titled-object-title (view interface))
-	  (format nil "Layout ~D/~D" layout layouts-#))
-    (gp:invalidate-rectangle (view interface))))
-
-
-;; --------
-;; Tooltips
-;; --------
-
-(defparameter *interface-tooltips*
-  '(:layout--1 "Display previous layout."
-    :layout-+1 "Display next layout."))
-
-(defparameter *tooltips*
-  `(,@*interface-tooltips*
-    ,@*fixed-tooltips*
-    ,@*fit-tooltips*
-    ,@*duncan-tooltips*
-    ,@*kp-tooltips*
-    ,@*kpx-tooltips*
-    ,@*disposition-options-tooltips*)
-  "The GUI's tooltips.")
-
-(defun show-help (interface pane type key)
-  "The GUI's help callback."
-  (declare (ignore interface pane))
-  (case type
-    (:tooltip
-     (typecase key
-       (symbol (cadr (member key *tooltips*)))))))
-
-
-;; ---------------
-;; Motion Callback
-;; ---------------
+
+;; Motion
 
 (defun motion-callback
-    (pane x y
-     &aux (interface (top-level-interface pane))
-	  (zoom (/ (range-slug-start (zoom interface)) 100))
-	  (breakup (breakup interface))
+    (view x y
+     &aux (etap (top-level-interface view))
+	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
-	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
+	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
-  "Display the properties of the paragraph, or the line clicked on."
-  (when (member :properties-tooltips (choice-selected-items (clues interface)))
+  "Function called when the mouse is moved in the paragraph VIEW.
+- Display the properties of the object under mouse (the paragraph itself, a
+  line, or a hyphenation point)."
+  (when (member :properties-tooltips (choice-selected-items (clues etap)))
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
     (decf y (height layout))
     (if (or (and (<= x 0) (<= y (depth layout)))
 	    (and (<= y (- (height layout))) (<= x par-width)))
-      (display-tooltip pane :text (properties breakup :layout-# layout-#))
+      (display-tooltip view :text (properties breakup :layout-# layout-#))
       (when layout
 	(let (object)
 	  (if (setq object
 		    (or (and (member
 			      :hyphenation-points
-			      (choice-selected-items (clues interface)))
+			      (choice-selected-items (clues etap)))
 			     ;; #### NOTE: the +3 and (+ ... 5) are for
 			     ;; hyphenation clues occurring at the end of the
 			     ;; lines, or in the last line.
@@ -820,153 +849,33 @@ through 0 (green), and finally to +∞ (red)."
 			(and (>= x 0) (<= x par-width)
 			     (>= y (- (height layout))) (<= y (depth layout))
 			     (line-under y (lines layout)))))
-	    (display-tooltip pane :text (properties object))
-	    (display-tooltip pane)))))))
+	    (display-tooltip view :text (properties object))
+	    (display-tooltip view)))))))
 
 
-;; ------------------
-;; Penalty Adjustment
-;; ------------------
-
-;; #### WARNING: the global variables defining each algorithm's
-;; parametrization are calibrated by the algorithms entry points, because
-;; those entry points can be called programmatically. On the other hand, the
-;; penalty sliders and reset buttons below affect an already existing lineup
-;; and are accessible only from the GUI. Hence, the returned values need to be
-;; calibrated (potentially to infinity) here.
-
-(defun penalty-slider-callback
-    (pane value status
-     &aux (interface (top-level-interface pane))
-	  (main-interface (main-interface interface))
-	  (hyphenation-point (hyphenation-point interface)))
-  "Set PANE's corresponding break point penalty."
-  (declare (ignore status))
-  (setq value
-	(calibrated-value (range-slug-start pane) (caliber hyphenation-point)))
-  (setf (title-pane-text (title interface)) (princ-to-string value))
-  (setf (penalty hyphenation-point) value)
-  (update-from-lineup main-interface))
-
-(defun reset-buttons-callback
-  (data pane
-   &aux (interface (top-level-interface pane))
-	(penalty-slider (penalty-slider interface))
-	(hyphenation-point (hyphenation-point interface))
-	(caliber (caliber hyphenation-point))
-	(value (ecase data
-		 (:reset-to-original
-		  (original-value interface))
-		 (:reset-to-global
-		  (or
-		   (getf (cdr (algorithm (context (main-interface interface))))
-			 (caliber-property caliber))
-		   (caliber-default caliber)))
-		 (:reset-to-default
-		  (caliber-default caliber)))))
-  (setf (range-slug-start penalty-slider) value)
-  (penalty-slider-callback penalty-slider value nil))
-
-(define-interface penalty-adjustment ()
-  ((original-value :reader original-value)
-   (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
-   (main-interface :initarg :main-interface :reader main-interface))
-  (:panes
-   (title title-pane
-     :reader title)
-   (penalty-slider slider
-     :orientation :vertical
-     :visible-min-height 220
-     :tick-frequency 0
-     :callback 'penalty-slider-callback
-     :reader penalty-slider)
-   (reset-buttons push-button-panel
-     :items '(:reset-to-original :reset-to-global :reset-to-default)
-     :print-function 'title-capitalize
-     :layout-class 'column-layout
-     :selection-callback 'reset-buttons-callback))
-  (:layouts
-   (main column-layout '(title row))
-   (row row-layout '(penalty-slider reset-buttons)))
-  (:default-initargs :title "Penalty Adjustment"))
-
-(defmethod initialize-instance :after
-    ((interface penalty-adjustment)
-     &key
-     &aux (hyphenation-point (hyphenation-point interface)))
-  "Memorize the original penalty value."
-  (setf (slot-value interface 'original-value)
-	(decalibrated-value
-	 (penalty hyphenation-point) (caliber hyphenation-point))))
-
-(defmethod interface-display :before ((interface penalty-adjustment))
-  "Prepare the penalty adjustment INTERFACE for display."
-  (let* ((slider (penalty-slider interface))
-	 (hyphenation-point (hyphenation-point interface))
-	 (caliber (caliber hyphenation-point)))
-    (setf (range-start slider) (caliber-min caliber)
-	  (range-end slider)   (caliber-max caliber))
-    (setf (range-slug-start slider) (original-value interface))
-    (setf (title-pane-text (title interface))
-	  (princ-to-string (penalty hyphenation-point)))))
-
-(defun penalty-adjustment-dialog-destroy-callback (dialog)
-  "Possibly re-enable the main interface if DIALOG was the last one."
-  (let ((interface (main-interface dialog)))
-    (setf (penalty-adjustment-dialogs interface)
-	  (remove dialog (penalty-adjustment-dialogs interface)))
-    (unless (penalty-adjustment-dialogs interface)
-      (enable-interface interface))))
-
-(defun make-penalty-adjustment (hyphenation-point interface)
-  "Display a penalty adjustment dialog for HYPHENATION-POINT.
-If one already exists, activate it and give it the focus.
-Otherwise, create the dialog first.
-
-INTERFACE is the main ETAP window."
-  (let ((dialog (find hyphenation-point (penalty-adjustment-dialogs interface)
-		  :key #'hyphenation-point)))
-    (if dialog
-      (activate-pane dialog)
-      (multiple-value-bind (x y) (top-level-interface-geometry interface)
-	(setq dialog (make-instance 'penalty-adjustment
-		       :hyphenation-point hyphenation-point
-		       :main-interface interface
-		       :destroy-callback
-		       'penalty-adjustment-dialog-destroy-callback))
-	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
-	(push dialog (penalty-adjustment-dialogs interface))
-	(display dialog
-		 :owner interface
-		 :window-styles '(:toolbox t
-				  :never-iconic t
-				  :always-on-top t
-				  :can-full-screen nil)))))
-  (when (enabled interface) (enable-interface interface nil)))
-
-
-;; ------------------
-;; Post Menu Callback
-;; ------------------
+
+;; Post Menu
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
 ;; and we already wish we used CLIM...
 (defun post-menu-callback
-    (pane x y
-     &aux (interface (top-level-interface pane))
-	  (zoom (/ (range-slug-start (zoom interface)) 100))
-	  (breakup (breakup interface))
+    (view x y
+     &aux (etap (top-level-interface view))
+	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
-	  (layout-# (let ((i (1- (layout interface)))) (when (>= i 0) i)))
+	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
+  "Function called when the user right clicks in the paragraph VIEW.
+- Currently display a penalty adjustment dialog when appropriate."
   (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
   ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
   ;; returning 0, but this is borderline.
   (decf y (height layout))
   (when layout
     (let ((object (and (member :hyphenation-points
-			       (choice-selected-items (clues interface)))
+			       (choice-selected-items (clues etap)))
 		       ;; #### NOTE: the +3 and (+ ... 5) are for hyphenation
 		       ;; clues occurring at the end of the lines, or in the
 		       ;; last line.
@@ -976,48 +885,180 @@ INTERFACE is the main ETAP window."
 		       (<= y (+ (y (car (last (lines layout)))) 5))
 		       (hyphenation-point-under x y (lines layout)))))
       (when object
-	(make-penalty-adjustment object interface)))))
+	(make-penalty-adjustment-dialog object etap)))))
 
 
-;; -----
-;; Menus
-;; -----
+
+;; ------------------------
+;; Paragraph View Rendering
+;; ------------------------
 
-(defun etap-menu-callback (data interface)
-  "ETAP menu callback."
-  (ecase data
-    (:reset-paragraph
-     (update interface))
-    (:river-detection
-     (display (river-detection-panel interface) :owner interface))))
+(defun penalty-hue
+    (break-point
+     &aux (caliber (caliber break-point))
+	  (penalty (decalibrated-value (penalty break-point) caliber)))
+  "Return BREAK-POINT's penalty HUE in HSV model.
+Colors are interpolated from  blue (min) through green (0), to red (max).
+Min and max values depend on BREAK-POINT's caliber."
+  (- 4s0 (* 4s0 (/ (- penalty (float (caliber-min caliber)))
+		   (- (caliber-max caliber) (caliber-min caliber))))))
 
-(defun text-menu-callback
-    (data interface &aux (context (context interface)))
-  "Reset the source text." ;; Currently what the only button does.
-  (declare (ignore data))
-  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
-  ;; #### NOTE: the language menu's selection is updated on pop-up.
-  (setf (editor-pane-text (text interface)) (text context))
-  (update interface))
-
-(defun language-menu-callback (data interface)
-  "Change the current text's language."
-  (setf (language (nlstring (context interface))) data)
-  (update interface))
-
-(defun language-menu-popup-callback (component)
-  "Update the language popup to the current language."
-  (setf (choice-selection component)
-	(position
-	 (language (context (element-interface-for-callback component)))
-	 *languages*
-	 :key #'car)))
+(defun display-callback
+    (view x y width height
+     &aux (etap (top-level-interface view))
+	  (breakup (breakup etap))
+	  (par-width (paragraph-width breakup))
+	  (layout-# (layout etap))
+	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
+	  (par-y (height layout))
+	  (par-h+d (+ par-y (depth layout)))
+	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (clues (choice-selected-items (clues etap))))
+  "Function called when paragraph VIEW needs to be redrawn."
+  (declare (ignore x y width height))
+  (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
+  (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
+  (gp:with-graphics-translation (view 20 20)
+    (gp:with-graphics-scale (view zoom zoom)
+      (when (member :paragraph-box clues)
+	(gp:draw-rectangle view 0 0 par-width par-h+d
+	  :foreground :red
+	  :scale-thickness nil))
+      (when layout
+	(loop :for full-x := (+ (loop :for line :in (lines layout)
+				      :maximize (+ (x line) (width line)))
+				5)
+	      :for rest :on (lines layout)
+	      :for line := (car rest)
+	      :for x := (x line)
+	      :for y := (+ par-y (y line))
+	      :when (member :line-boxes clues)
+		:do (gp:draw-rectangle view
+			x
+			(- y (height line))
+			(width line)
+			(+ (height line) (depth line))
+		      :foreground :blue
+		      :scale-thickness nil)
+	      :when (member :over/underfull-boxes clues)
+		:if (> (width line) par-width)
+		  :do (gp:draw-rectangle view
+			  full-x  (- y (height line))
+			  5  (+ (height line) (depth line))
+			:foreground :orange
+			:scale-thickness nil :filled t)
+		:else :if (and (cdr rest) ;; not the last one
+			       (eq (disposition-type (disposition breakup))
+				   :justified)
+			       (< (width line) par-width))
+		  :do (gp:draw-rectangle view
+			  full-x (- y (height line))
+			  5 (+ (height line) (depth line))
+			:foreground :orange
+			:scale-thickness nil :filled nil)
+	      :when (member :overshrunk/stretched-boxes clues)
+		:if ($< (esar line) (asar line))
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(- y (height line))
+				(+ par-width 11)
+				(- y (height line))
+				(+ par-width 8)
+				(+ y (depth line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled t :closed t)
+		:else :if ($< (asar line) -1)
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(- y (height line))
+				(+ par-width 11)
+				(- y (height line))
+				(+ par-width 8)
+				(+ y (depth line)))
+			  :foreground :blue
+			  :scale-thickness nil :filled nil :closed t)
+		:else :if ($> (esar line) (asar line))
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(+ y (depth line))
+				(+ par-width 11)
+				(+ y (depth line))
+				(+ par-width 8)
+				(- y (height line)))
+			:foreground :blue
+			:scale-thickness nil :filled t :closed t)
+		:else :if ($> (asar line) 1)
+		  :do (gp:draw-polygon view
+			  (list (+ par-width 5)
+				(+ y (depth line))
+				(+ par-width 11)
+				(+ y (depth line))
+				(+ par-width 8)
+				(- y (height line)))
+			:foreground :blue
+			:scale-thickness nil :filled nil :closed t)
+	      :when (member :baselines clues)
+		:do (gp:draw-line view x y (+ x (width line)) y
+		      :foreground :purple
+		      :scale-thickness nil)
+	      :when (or (member :characters clues)
+			(member :character-boxes clues))
+		:do (mapc (lambda (item)
+			    (cond ((typep (object item)
+					  'tfm:character-metrics)
+				   (when (member :character-boxes clues)
+				     (gp:draw-rectangle view
+					 (+ x (x item))
+					 (- y (height item))
+					 (width item)
+					 (+ (height item)
+					    (depth item))
+				       :scale-thickness nil))
+				   (when (member :characters clues)
+				     (gp:draw-character view
+					 (aref *lm-ec*
+					       (tfm:code (object item)))
+					 (+ x (x item))
+					 y)))
+				  ((and (discretionary-clue-p (object item))
+					(hyphenation-point-p
+					 (discretionary (object item)))
+					(member :hyphenation-points clues))
+				   (gp:draw-polygon view
+				     (list (+ x (x item)) y
+					   (+ x (x item) -3) (+ y 5)
+					   (+ x (x item) +3) (+ y 5)
+					   (+ x (x item)) y)
+				     :filled
+				     (not (explicitp
+					   (discretionary (object item))))
+				     :foreground
+				     (color:make-hsv
+				      (penalty-hue
+				       (discretionary (object item)))
+				      1s0 .7s0)))))
+		      (items line)))
+	(when (and (member :rivers clues) (rivers etap))
+	  (maphash (lambda (source arms)
+		     (mapc (lambda (arm &aux (mouth (mouth arm)))
+			     (gp:draw-line view
+				 (+ (x (board source))
+				    (x source)
+				    (/ (width source) 2))
+				 (+ par-y (y (board source)) (y source))
+				 (+ (x (board mouth))
+				    (x mouth)
+				    (/ (width mouth) 2))
+				 (+ par-y (y (board mouth)) (y mouth))
+			       :foreground :red :scale-thickness nil))
+		       arms))
+		   (rivers etap)))))))
 
 
 
 
 ;; ==========================================================================
-;; Interface
+;; Etap Interface
 ;; ==========================================================================
 
 (define-interface etap ()
@@ -1025,28 +1066,81 @@ INTERFACE is the main ETAP window."
    (breakup :accessor breakup)
    (layout :initform 0 :accessor layout)
    (enabled :initform t :accessor enabled)
-   (penalty-adjustment-dialogs
-    :initform nil
-    :accessor penalty-adjustment-dialogs)
    (rivers
     :documentation "The paragraph's detected rivers."
     :initform nil
     :accessor rivers)
-   (river-detection-panel
-    :initform (make-instance 'river-detection-panel)
-    :reader river-detection-panel))
-  (:menus
-   (etap-menu "ETAP" (:reset-paragraph :river-detection)
-     :print-function 'title-capitalize
-     :callback 'etap-menu-callback)
-   (text-menu nil ;; Ignore popup menu's title
-    (:reset)
-    :print-function 'title-capitalize
-    :callback 'text-menu-callback)
-   (language-menu nil ;; Ignore popup menu's title
-     nil)) ;; The items will be created dynamically in INTERFACE-DISPLAY.
-  (:menu-bar etap-menu)
+   (penalty-adjustment-dialogs
+    :initform nil
+    :accessor penalty-adjustment-dialogs)
+   (river-detection-dialog
+    :initform (make-instance 'river-detection)
+    :reader river-detection-dialog)
+   (tooltips
+    :documentation "This interface's tooltips."
+    :allocation :class
+    :reader tooltips
+    :initform `(,@*etap-tooltips*
+		,@*disposition-options-tooltips*
+		,@*fixed-tooltips*
+		,@*fit-tooltips*
+		,@*duncan-tooltips*
+		,@*kp-tooltips*
+		,@*kpx-tooltips*)))
   (:panes
+   (language-menu-component menu-component
+     :items (mapcar #'car *languages*)
+     :interaction :single-selection
+     :print-function 'title-capitalize
+     :callback 'language-menu-callback)
+   (disposition radio-box
+     :property :disposition
+     :items *dispositions*
+     :callback-type :interface
+     :selection-callback 'disposition-callback
+     :reader disposition)
+   (disposition-options check-box
+     :property :disposition-options
+     :items *disposition-options*
+     :help-keys *disposition-options-help-keys*
+     :callback-type :interface
+     :selection-callback 'disposition-callback
+     :retract-callback 'disposition-callback
+     :reader disposition-options-panel)
+   (features check-box
+     :property :features
+     :items *lineup-features*
+     :callback-type :interface
+     :selection-callback 'features-callback
+     :retract-callback 'features-callback
+     :reader features)
+   (clues check-box
+     :property :characters-&-clues
+     :items *clues*
+     :callback-type :interface
+     :selection-callback 'clues-callback
+     :retract-callback 'clues-callback
+     :reader clues)
+   (paragraph-width pt-cursor
+     :property :paragraph-width
+     :caliber *paragraph-width*
+     :callback 'paragraph-width-callback
+     :reader paragraph-width)
+   (zoom %-cursor
+     :property :zoom
+     :caliber *zoom*
+     :callback 'zoom-callback
+     :reader zoom)
+   (layout--1 push-button
+     :text "<"
+     :data #'1-
+     :callback 'layout-callback
+     :help-key :layout--1)
+   (layout-+1 push-button
+     :text ">"
+     :data #'1+
+     :callback 'layout-callback
+     :help-key :layout-+1)
    (algorithms-tab tab-layout
      :title "Algorithms"
      :visible-max-width nil
@@ -1235,63 +1329,15 @@ INTERFACE is the main ETAP window."
      :property :looseness
      :caliber *kpx-looseness*
      :callback 'algorithm-cursor-callback)
-   (disposition radio-box
-     :property :disposition
-     :items *dispositions*
-     :selection-callback 'set-disposition
-     :reader disposition)
-   (disposition-options check-box
-     :property :disposition-options
-     :items *disposition-options*
-     :help-keys *disposition-options-help-keys*
-     :selection-callback 'set-disposition
-     :retract-callback 'set-disposition
-     :reader disposition-options-panel)
-   (features check-box
-     :property :features
-     :items *lineup-features*
-     :selection-callback 'set-features
-     :retract-callback 'set-features
-     :reader features)
-   (paragraph-width pt-cursor
-     :property :paragraph-width
-     :caliber *paragraph-width*
-     :callback 'paragraph-width-callback
-     :reader paragraph-width)
-   (zoom %-cursor
-     :property :zoom
-     :caliber *gui-zoom*
-     :callback 'zoom-callback
-     :reader zoom)
-   (layout--1 push-button
-     :text "<"
-     :data #'1-
-     :callback 'next-layout
-     :help-key :layout--1
-     :reader layout--1)
-   (layout-+1 push-button
-     :text ">"
-     :data #'1+
-     :callback 'next-layout
-     :help-key :layout-+1
-     :reader layout-+1)
-   (clues check-box
-     :property :characters-&-clues
-     :items *clues*
-     :callback-type :interface
-     :selection-callback 'clues-callback
-     :retract-callback 'clues-callback
-     :reader clues)
    (text-button popup-menu-button
-     :text "Source text" :menu text-menu :reader text-button)
+     :text "Source text" :menu text-menu)
    (language-button popup-menu-button
-     :text "Language" :menu language-menu :reader language-button)
+     :text "Language" :menu language-menu)
    (text editor-pane
      :visible-min-width '(character 80)
-     ;;:visible-max-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
-     :change-callback 'set-text
+     :change-callback 'text-change-callback
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
@@ -1300,7 +1346,7 @@ INTERFACE is the main ETAP window."
      :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
-     :display-callback 'render-view
+     :display-callback 'display-callback
      :reader view
      :input-model '((:motion motion-callback)
 		    (:post-menu post-menu-callback))))
@@ -1349,70 +1395,78 @@ INTERFACE is the main ETAP window."
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
-  (:default-initargs :title "Experimental Typesetting Algorithms Platform"))
+  (:menus
+   (etap-menu "ETAP" (:reset-paragraph :river-detection)
+     :print-function 'title-capitalize
+     :callback 'menu-callback)
+   (text-menu nil #| no title |# (:reset)
+    :print-function 'title-capitalize
+    :callback-type :interface
+    :callback 'text-menu-callback)
+   (language-menu nil #| no title |# (language-menu-component)
+     :reader language-menu))
+  (:menu-bar etap-menu)
+  (:default-initargs
+   :title "Experimental Typesetting Algorithms Platform"
+   :help-callback 'help-callback
+   :destroy-callback 'destroy-callback))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
   "Adjust some creation-time GUI options.
 This currently includes the initial ZOOMing factor and CLUES."
   (declare (ignore zoom))
-  (setf (slot-value (river-detection-panel etap) 'main-interface) etap)
-  ;; #### NOTE: this menu's selection is updated on pop-up.
-  (setf (menu-items (slot-value etap 'language-menu))
-	(list (make-instance 'menu-component
-		:items (mapcar #'car *languages*)
-		:interaction :single-selection
-		:print-function 'title-capitalize
-		:callback 'language-menu-callback
-		:popup-callback 'language-menu-popup-callback)))
+  (setf (slot-value (river-detection-dialog etap) 'etap) etap)
   (setf (widget-state (zoom etap)) keys)
   (setf (choice-selected-items (clues etap)) clues))
 
-(defmethod enable-interface ((interface etap) &optional (enabled t))
-  "Change ETAP INTERFACE's enabled status.
+(defmethod enable-interface ((etap etap) &optional (enabled t))
+  "Change ETAP interface's enabled status.
 The zooming and clues controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
 those which may affect the typesetting."
-  (setf (simple-pane-enabled (paragraph-width interface)) enabled)
-  (enable-pane (layouts-ctrl interface) enabled)
-  (enable-pane (options-1 interface) enabled)
-  (enable-pane (settings-2 interface) enabled)
-  (setf (enabled interface) enabled))
+  (setf (simple-pane-enabled (paragraph-width etap)) enabled)
+  (enable-pane (layouts-ctrl etap) enabled)
+  (enable-pane (options-1 etap) enabled)
+  (enable-pane (settings-2 etap) enabled)
+  (setf (enabled etap) enabled))
 
-(defmethod river-detection-p ((interface etap))
-  "Return T if river detection is enabled in INTERFACE."
-  (river-detection-p (river-detection-panel interface)))
+(defmethod river-detection-p ((etap etap))
+  "Return T if river detection is enabled in ETAP interface."
+  (river-detection-p (river-detection-dialog etap)))
 
 
 ;; Interface display
 
-(defun update-interface (interface &aux (context (context interface)))
-  "Update INTERFACE after a context change."
+(defun update-interface (etap &aux (context (context etap)))
+  "Update ETAP interface after a context change."
   (let* ((algorithm (algorithm-type (algorithm context)))
 	 (options (algorithm-options (algorithm context)))
-	 (tab (algorithms-tab interface))
+	 (tab (algorithms-tab etap))
 	 (item (find algorithm (collection-items tab) :key #'first)))
     (setf (choice-selected-item tab) item)
-    (map-pane-descendant-children (slot-value interface (second item))
+    (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
 	(when (typep child 'widget)
 	  (setf (widget-state child) options)))))
-  (setf (widget-state (disposition interface))
+  (setf (widget-state (disposition etap))
 	(disposition-type (disposition context)))
-  (setf (widget-state (disposition-options-panel interface))
+  (setf (widget-state (disposition-options-panel etap))
 	(disposition-options (disposition context)))
-  (setf (widget-state (features interface)) (features context))
+  (setf (widget-state (features etap)) (features context))
   ;; #### TODO: the fake plist below is necessary because we don't have a
   ;; paragraph-width property (we have a context slot). This will be fixed
   ;; when this function understands the same keys as the entry points.
-  (setf (widget-state (paragraph-width interface))
+  (setf (widget-state (paragraph-width etap))
 	(list :paragraph-width (paragraph-width context)))
-  (setf (editor-pane-text (text interface)) (text context))
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	(language (nlstring context)))
+  (setf (editor-pane-text (text etap)) (text context))
   (values))
 
 ;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
 ;; better done here than in an INITIALIZE-INSTANCE :after method.
 (defmethod interface-display :before ((etap etap))
-  "Finalize ETAP GUI's display settings.
+  "Finalize ETAP interface's display settings.
 This currently involves fixating the geometry of option panes so that resizing
 the interface is done sensibly."
   (let ((size (multiple-value-list
@@ -1436,14 +1490,9 @@ the interface is done sensibly."
 (defun run (&key (context *context*) zoom (clues :characters))
   "Run ETAP's GUI for CONTEXT (the global context by default).
 Optionally provide initial ZOOMing and CLUES (characters by default)."
-  (calibrate-gui zoom)
+  (setq zoom (calibrated-value zoom *zoom*))
   (unless (listp clues) (setq clues (list clues)))
   (display (make-instance 'etap
 	     :context context
 	     :zoom zoom
-	     :clues clues
-	     :help-callback 'show-help
-	     :destroy-callback
-	     (lambda (interface)
-	       (destroy (river-detection-panel interface))
-	       (mapc #'destroy (penalty-adjustment-dialogs interface))))))
+	     :clues clues)))
