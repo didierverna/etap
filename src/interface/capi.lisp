@@ -83,10 +83,20 @@ ARGS are passed along to MAKE-BREAKUP."
   (remake-rivers etap)
   (redraw etap))
 
-(defun update-from-lineup (etap)
-  "Update ETAP interface sarting from the current lineup.
-See `update' for more information."
-  (update etap :lineup (lineup (breakup etap))))
+(defun remake-from-lineup (etap)
+  "Remake ETAP interface's breakup from its current lineup.
+Update ETAP's paragraph view accordingly."
+  (let* ((breakup (%make-breakup
+		   (lineup (breakup etap))
+		   (second (widget-state (paragraph-width etap)))))
+	 (layouts-# (layouts-# breakup)))
+    (setf (breakup etap) breakup)
+    (setf (layout etap) (if (zerop layouts-#) 0 1))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+    (setf (titled-object-title (view etap))
+	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
+  (remake-rivers etap)
+  (redraw etap))
 
 
 
@@ -438,7 +448,7 @@ The calibrated value is displayed with 3 digits."
 				  (caliber hyphenation-point)))
     (setf (title-pane-text (title dialog)) (princ-to-string value))
     (setf (penalty hyphenation-point) value)
-    (update-from-lineup etap)))
+    (remake-from-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
   (item dialog
@@ -630,7 +640,7 @@ new dialog and display it."
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (setf (paragraph-width (context etap)) value)
-    (update-from-lineup etap)))
+    (remake-from-lineup etap)))
 
 
 
