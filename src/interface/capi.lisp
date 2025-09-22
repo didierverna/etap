@@ -139,6 +139,16 @@ This class is a mixin class for ETAP widgets."))
 (defgeneric (setf widget-state) (plist widget)
   (:documentation "Set WIDGET's state based on PLIST."))
 
+(defun find-property-widget (property pane &aux widget)
+  "Look into PANE's descendants for a PROPERTY widget."
+  (map-pane-descendant-children
+   pane
+   (lambda (child)
+     (when (and (typep child 'widget) (eq property (property child)))
+       (setq widget child)))
+   :test (lambda (child) (declare (ignore child)) (not widget)))
+  widget)
+
 
 
 ;; ------------
@@ -464,29 +474,24 @@ The calibrated value is displayed with 3 digits."
     (remake-from-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
-  (item dialog
-   &aux (slider (value dialog))
-	(hyphenation-point (hyphenation-point dialog))
-	(caliber (caliber hyphenation-point))
-	(value (ecase item
-		 (:reset-to-original
-		  (original-value dialog))
-		 (:reset-to-global
-		  (or (getf (algorithm-options
-			     (algorithm (context (etap dialog))))
-			    (caliber-property caliber))
-		      (caliber-default caliber)))
-		 (:reset-to-default
-		  (caliber-default caliber)))))
+    (item dialog
+     &aux (slider (value dialog))
+	  (hyphenation-point (hyphenation-point dialog))
+	  (caliber (caliber hyphenation-point))
+	  (value (ecase item
+		   (:reset-to-original (original-value dialog))
+		   (:reset-to-global   (global-value dialog))
+		   (:reset-to-default  (caliber-default caliber)))))
   "Function called when a penalty adjustment reset button is clicked.
-Perform as if the value slider had been dragged.
 - Set the slider to the appropriate reset value.
-- Call the slider callback."
+- Call the slider callback (that is, perform as if the value slider had been
+  dragged)."
   (setf (range-slug-start slider) value)
   (penalty-adjustment-value-callback slider value :drag)) ;; whooo...
 
 (define-interface penalty-adjustment ()
   ((original-value :reader original-value)
+   (global-value :reader global-value)
    (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
    (etap :initarg :etap :reader etap))
   (:panes
@@ -515,7 +520,8 @@ Perform as if the value slider had been dragged.
 
 (defmethod initialize-instance :after
     ((dialog penalty-adjustment)
-     &key &aux (slider (value dialog))
+     &key &aux (etap (etap dialog))
+	       (slider (value dialog))
 	       (hyphenation-point (hyphenation-point dialog))
 	       (caliber (caliber hyphenation-point)))
   "Finish initializing penalty adjustment DIALOG.
@@ -523,6 +529,13 @@ Perform as if the value slider had been dragged.
 - Set the slider's range start, end, and slug start based on the hyphenation
   point's caliber.
 - Set DIALOG's title pane."
+  (setf (slot-value dialog 'global-value)
+	(range-slug-start
+	 (find-property-widget
+	  (caliber-property caliber)
+	  (slot-value
+	   etap
+	   (second (choice-selected-item (algorithms-tab etap)))))))
   (setf (slot-value dialog 'original-value)
 	(decalibrated-value (penalty hyphenation-point)
 			    (caliber hyphenation-point)))
