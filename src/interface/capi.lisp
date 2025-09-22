@@ -65,29 +65,10 @@
 	    (get-layout (1- layout) (breakup etap))
 	    (widget-state (angle (river-detection-dialog etap)))))))
 
-(defun remake-breakup (etap &rest args)
-  "Remake ETAP interface's breakup. ARGS are passed along to MAKE-BREAKUP."
-  (let* ((breakup (apply #'make-breakup :context (context etap) args))
-	 (layouts-# (layouts-# breakup)))
-    (setf (breakup etap) breakup)
-    (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" (layout etap) layouts-#))))
-
-(defun update (etap &rest args)
-  "Update ETAP interface.
-This remakes ETAP's breakup, everything that depends on it, and redraws it.
-ARGS are passed along to MAKE-BREAKUP."
-  (apply #'remake-breakup etap args)
-  (remake-rivers etap)
-  (redraw etap))
-
-(defun remake-from-lineup (etap)
-  "Remake ETAP interface's breakup from its current lineup.
-Update ETAP's paragraph view accordingly."
+(defun %remake-from-lineup (etap lineup)
+  "Remake ETAP interface's breakup from LINEUP and redraw."
   (let* ((breakup (%make-breakup
-		   (lineup (breakup etap))
+		   lineup
 		   (second (widget-state (paragraph-width etap)))))
 	 (layouts-# (layouts-# breakup)))
     (setf (breakup etap) breakup)
@@ -98,9 +79,41 @@ Update ETAP's paragraph view accordingly."
   (remake-rivers etap)
   (redraw etap))
 
+(defun remake-from-lineup (etap)
+  "Remake ETAP interface's breakup from its current lineup and redraw."
+  (%remake-from-lineup etap (lineup (breakup etap))))
+
+(defun remake (etap)
+  "Remake ETAP interface's breakup and redraw."
+  (%remake-from-lineup
+   etap
+   (%make-lineup
+    (make-nlstring
+     :text (editor-pane-text (text etap))
+     :language (item-data
+		(choice-selected-item
+		 (first (menu-items (language-menu etap))))))
+    (font etap)
+    (cdr (widget-state (features etap)))
+    (cons (second (widget-state (disposition etap)))
+	  (cdr (widget-state (disposition-options-panel etap))))
+    (let* ((item (choice-selected-item (algorithms-tab etap)))
+	   (algorithm (first item)))
+      (cons algorithm
+	    (let ((options))
+	      (map-pane-descendant-children
+	       (slot-value etap (second item))
+	       (lambda (child)
+		 (typecase child
+		   (check-box
+		    (setq options (append options (cdr (widget-state child)))))
+		   (widget
+		    (setq options (append options (widget-state child)))))))
+	      options))))))
 
 
-
+
+  
 ;; ==========================================================================
 ;; Widgets
 ;; ==========================================================================
@@ -419,7 +432,7 @@ The calibrated value is displayed with 3 digits."
 
 (defun penalty-adjustment-destroy-callback (dialog)
   "Function called when penalty adjustment DIALOG is destroyed.
-- Possibly re-enable the Etap interface if DIALOG was the last one."
+- Possibly reenable the Etap interface if DIALOG was the last one."
   (let ((etap (etap dialog)))
     (setf (penalty-adjustment-dialogs etap)
 	  (remove dialog (penalty-adjustment-dialogs etap)))
@@ -442,7 +455,7 @@ The calibrated value is displayed with 3 digits."
 - Calibrate VALUE.
 - Advertise VALUE in dialog's title pane.
 - Adjust the hyphenation point's penalty.
-- Re-break the lineup."
+- Rebreak the lineup."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
 				  (caliber hyphenation-point)))
@@ -591,7 +604,7 @@ new dialog and display it."
   "Function called when the ETAP menu is popped up."
   (ecase item
     (:reset-paragraph
-     (update etap))
+     (remake etap))
     (:river-detection
      (display (river-detection-dialog etap) :owner etap))))
 
@@ -602,11 +615,11 @@ new dialog and display it."
 (defun disposition-callback (etap)
   "Function called when the disposition or a disposition option is changed.
 - Set ETAP interface's context to the current disposition.
-- Update ETAP interface."
+- Remake ETAP interface's breakup."
   (setf (disposition (context etap))
 	(cons (second (widget-state (disposition etap)))
 	      (cdr (widget-state (disposition-options-panel etap)))))
-  (update etap))
+  (remake etap))
 
 
 
@@ -615,9 +628,9 @@ new dialog and display it."
 (defun features-callback (etap)
   "Function called when the features set changed.
 - Set ETAP interface's context to the current feature set.
-- Update ETAP interface."
+- Remake ETAP interface's breakup."
   (setf (features (context etap)) (cdr (widget-state (features etap))))
-  (update etap))
+  (remake etap))
 
 
 
@@ -636,7 +649,7 @@ new dialog and display it."
     (cursor value gesture &aux (etap (top-level-interface cursor)))
   "Function called when paragraph width CURSOR is dragged.
 - Update CURSOR's title.
-- Re-break the current lineup."
+- Rebreak the current lineup."
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (setf (paragraph-width (context etap)) value)
@@ -700,22 +713,21 @@ new dialog and display it."
 (defun algorithm-callback (etap)
   "Function called when an algorithm option is clicked.
 - Update ETAP interface's context.
-- Recreate the breakup.
-- Update ETAP interface's state."
+- Remake ETAP interface's breakup."
   (set-algorithm etap)
-  (update etap))
+  (remake etap))
 
 (defun algorithm-cursor-callback (cursor value gesture)
   "Function called when an algorithm cursor is dragged.
 - Update CURSOR's title.
 - Update Etap interface's context.
-- Update Etap interface."
+- Remake Etap interface's breakup."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
     (let ((etap (top-level-interface cursor)))
       (set-algorithm etap)
-      (update etap))))
+      (remake etap))))
 
 (defun algorithms-tab-callback (tab etap)
   "Function called when an algorithm tab is selected.
@@ -723,7 +735,7 @@ If ETAP interface is enabled, set algorithm to the selected one in TAB.
 Otherwise, reselect the previously selected one."
   (cond ((enabled etap)
 	 (set-algorithm etap)
-	 (update etap))
+	 (remake etap))
 	(t
 	 (setf (choice-selected-item tab)
 	       (find (algorithm-type (algorithm (context etap)))
@@ -736,10 +748,11 @@ Otherwise, reselect the previously selected one."
 
 (defun text-menu-callback (etap &aux (context (context etap)))
   "Function called when the source text menu is popped up.
-- The only button currently resets the text and updates the Etap interface."
+- The only button currently resets the text and remakes the Etap interface's
+  breakup."
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
   (setf (editor-pane-text (text etap)) (text context))
-  (update etap))
+  (remake etap))
 
 
 
@@ -748,9 +761,9 @@ Otherwise, reselect the previously selected one."
 (defun language-menu-callback (language etap)
   "Function called when a language is selected.
 - Change the current text's language.
-- Update ETAP interface."
+- Remake ETAP interface's breakup."
   (setf (language (nlstring (context etap))) language)
-  (update etap))
+  (remake etap))
 
 
 
@@ -761,10 +774,10 @@ Otherwise, reselect the previously selected one."
      &aux (etap (top-level-interface text-editor)))
   "Function called when the source text is changed.
 - Set TEXT-EDITOR's current text in the interface's context.
-- Update Etap interface."
+- Remake Etap interface's breakup."
   (declare (ignore point old-length new-length))
   (setf (text (nlstring (context etap))) (editor-pane-text text-editor))
-  (update etap))
+  (remake etap))
 
 
 
