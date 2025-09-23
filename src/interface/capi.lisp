@@ -301,12 +301,19 @@ The calibrated value is displayed with 3 digits."
 
 ;; #### FIXME: see comment in rivers.lisp
 (defun remake-rivers (etap &aux (layout (layout etap)))
-  "Remake rivers in ETAP interface."
+  "Remake ETAP interface's rivers and redraw."
   (setf (rivers etap)
 	(when (and (river-detection-p etap) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup etap))
-	    (widget-state (angle (river-detection-dialog etap)))))))
+	    (widget-state (angle (river-detection-dialog etap))))))
+  (redraw etap))
+
+(defun remake-from-layout (etap)
+  "Remake ETAP's interface from current layout and redraw."
+  (setf (titled-object-title (view etap))
+	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
+  (remake-rivers etap))
 
 (defun %remake-from-lineup (etap lineup)
   "Remake ETAP interface's breakup from LINEUP and redraw."
@@ -316,18 +323,15 @@ The calibrated value is displayed with 3 digits."
 	 (layouts-# (layouts-# breakup)))
     (setf (breakup etap) breakup)
     (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
-  (remake-rivers etap)
-  (redraw etap))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1)))
+  (remake-from-layout etap))
 
 (defun remake-from-lineup (etap)
   "Remake ETAP interface's breakup from its current lineup and redraw."
   (%remake-from-lineup etap (lineup (breakup etap))))
 
 (defun remake (etap)
-  "Remake ETAP interface's breakup and redraw."
+  "Remake ETAP interface's breakup completely, and redraw."
   (%remake-from-lineup
    etap
    (%make-lineup
@@ -391,9 +395,8 @@ The calibrated value is displayed with 3 digits."
 - Remake rivers.
 - Toggle the angle cursor's enabled status.
 - Redraw the paragraph view."
-  (remake-rivers etap)
   (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
-  (redraw etap))
+  (remake-rivers etap))
 
 (defun river-detection-angle-callback
     (cursor value gesture
@@ -405,8 +408,7 @@ The calibrated value is displayed with 3 digits."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (remake-rivers etap)
-    (redraw etap)))
+    (remake-rivers etap)))
 
 (define-interface river-detection ()
   ((etap :reader etap))
@@ -695,10 +697,7 @@ new dialog and display it."
 - Redraw ETAP's paragraph view."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
   (setf (layout etap) layout)
-  (setf (titled-object-title (view etap))
-	(format nil "Layout ~D/~D" layout layouts-#))
-  (when (river-detection-p etap) (remake-rivers etap))
-  (redraw etap))
+  (remake-from-layout etap))
 
 
 
