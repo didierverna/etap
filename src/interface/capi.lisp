@@ -747,13 +747,13 @@ new dialog and display it."
 If ETAP interface is enabled, set algorithm to the selected one in TAB.
 Otherwise, reselect the previously selected one."
   (cond ((enabled etap)
+	 (setf (capi-object-property tab :current-item)
+	       (choice-selected-item tab))
 	 (set-algorithm etap)
 	 (remake etap))
 	(t
 	 (setf (choice-selected-item tab)
-	       (find (algorithm-type (algorithm (context etap)))
-		   (collection-items tab)
-		 :key #'first)))))
+	       (capi-object-property tab :current-item)))))
 
 
 
@@ -1490,6 +1490,7 @@ those which may affect the typesetting."
 	 (tab (algorithms-tab etap))
 	 (item (find algorithm (collection-items tab) :key #'first)))
     (setf (choice-selected-item tab) item)
+    (setf (capi-object-property tab :current-item) item)
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
 	(when (typep child 'widget)
