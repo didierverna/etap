@@ -759,14 +759,17 @@ Otherwise, reselect the previously selected one."
 
 ;; Source text menu
 
-(defun text-menu-callback (etap &aux (context (context etap)))
-  "Function called when the source text menu is popped up.
-- The only button currently resets the text and language, and remakes the Etap
-  interface's breakup."
-  (setf (nlstring context) (make-nlstring :text *text* :language *language*))
-  (setf (editor-pane-text (text etap)) (text context))
+(defun text-menu-callback (item etap &aux nlstring)
+  "Function called when the ITEM source text menu button is clicked in ETAP."
+  (setq nlstring (case item
+		   (:reset-to-original
+		    (capi-object-property etap :original-nlstring))
+		   (:reset-to-default
+		    (make-nlstring :text *text* :language *language*))))
+  (setf (nlstring (context etap)) nlstring)
+  (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	*language*)
+	(language nlstring))
   (remake etap))
 
 
@@ -1442,9 +1445,8 @@ Min and max values depend on BREAK-POINT's caliber."
    (etap-menu "ETAP" (:reset-paragraph :river-detection)
      :print-function 'title-capitalize
      :callback 'menu-callback)
-   (text-menu nil #| no title |# (:reset)
+   (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
     :print-function 'title-capitalize
-    :callback-type :interface
     :callback 'text-menu-callback)
    (language-menu nil #| no title |# (language-menu-component)
      :reader language-menu))
@@ -1482,6 +1484,7 @@ those which may affect the typesetting."
 
 (defun update-interface (etap &aux (context (context etap)))
   "Update ETAP interface after a context change."
+  (setf (capi-object-property etap :original-nlstring) (nlstring context))
   (let* ((algorithm (algorithm-type (algorithm context)))
 	 (options (algorithm-options (algorithm context)))
 	 (tab (algorithms-tab etap))
