@@ -49,72 +49,6 @@
 
 
 ;; ==========================================================================
-;; Updaters
-;; ==========================================================================
-
-(defun redraw (etap)
-  "Redraw ETAP interface's paragraph view."
-  (gp:invalidate-rectangle (view etap)))
-
-;; #### FIXME: see comment in rivers.lisp
-(defun remake-rivers (etap &aux (layout (layout etap)))
-  "Remake rivers in ETAP interface."
-  (setf (rivers etap)
-	(when (and (river-detection-p etap) (not (zerop layout)))
-	  (apply #'detect-rivers
-	    (get-layout (1- layout) (breakup etap))
-	    (widget-state (angle (river-detection-dialog etap)))))))
-
-(defun %remake-from-lineup (etap lineup)
-  "Remake ETAP interface's breakup from LINEUP and redraw."
-  (let* ((breakup (%make-breakup
-		   lineup
-		   (second (widget-state (paragraph-width etap)))))
-	 (layouts-# (layouts-# breakup)))
-    (setf (breakup etap) breakup)
-    (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
-  (remake-rivers etap)
-  (redraw etap))
-
-(defun remake-from-lineup (etap)
-  "Remake ETAP interface's breakup from its current lineup and redraw."
-  (%remake-from-lineup etap (lineup (breakup etap))))
-
-(defun remake (etap)
-  "Remake ETAP interface's breakup and redraw."
-  (%remake-from-lineup
-   etap
-   (%make-lineup
-    (make-nlstring
-     :text (editor-pane-text (text etap))
-     :language (item-data
-		(choice-selected-item
-		 (first (menu-items (language-menu etap))))))
-    (font etap)
-    (cdr (widget-state (features etap)))
-    (cons (second (widget-state (disposition etap)))
-	  (cdr (widget-state (disposition-options-panel etap))))
-    (let* ((item (choice-selected-item (algorithms-tab etap)))
-	   (algorithm (first item)))
-      (cons algorithm
-	    (let ((options))
-	      (map-pane-descendant-children
-	       (slot-value etap (second item))
-	       (lambda (child)
-		 (typecase child
-		   (check-box
-		    (setq options (append options (cdr (widget-state child)))))
-		   (widget
-		    (setq options (append options (widget-state child)))))))
-	      options))))))
-
-
-
-  
-;; ==========================================================================
 ;; Widgets
 ;; ==========================================================================
 
@@ -353,6 +287,72 @@ The calibrated value is displayed with 3 digits."
   (format nil "~A: ~3D°"
     (title-capitalize (property cursor))
     (calibrated-cursor-value cursor)))
+
+
+
+
+;; ==========================================================================
+;; Updaters
+;; ==========================================================================
+
+(defun redraw (etap)
+  "Redraw ETAP interface's paragraph view."
+  (gp:invalidate-rectangle (view etap)))
+
+;; #### FIXME: see comment in rivers.lisp
+(defun remake-rivers (etap &aux (layout (layout etap)))
+  "Remake rivers in ETAP interface."
+  (setf (rivers etap)
+	(when (and (river-detection-p etap) (not (zerop layout)))
+	  (apply #'detect-rivers
+	    (get-layout (1- layout) (breakup etap))
+	    (widget-state (angle (river-detection-dialog etap)))))))
+
+(defun %remake-from-lineup (etap lineup)
+  "Remake ETAP interface's breakup from LINEUP and redraw."
+  (let* ((breakup (%make-breakup
+		   lineup
+		   (second (widget-state (paragraph-width etap)))))
+	 (layouts-# (layouts-# breakup)))
+    (setf (breakup etap) breakup)
+    (setf (layout etap) (if (zerop layouts-#) 0 1))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+    (setf (titled-object-title (view etap))
+	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
+  (remake-rivers etap)
+  (redraw etap))
+
+(defun remake-from-lineup (etap)
+  "Remake ETAP interface's breakup from its current lineup and redraw."
+  (%remake-from-lineup etap (lineup (breakup etap))))
+
+(defun remake (etap)
+  "Remake ETAP interface's breakup and redraw."
+  (%remake-from-lineup
+   etap
+   (%make-lineup
+    (make-nlstring
+     :text (editor-pane-text (text etap))
+     :language (item-data
+		(choice-selected-item
+		 (first (menu-items (language-menu etap))))))
+    (font etap)
+    (cdr (widget-state (features etap)))
+    (cons (second (widget-state (disposition etap)))
+	  (cdr (widget-state (disposition-options-panel etap))))
+    (let* ((item (choice-selected-item (algorithms-tab etap)))
+	   (algorithm (first item)))
+      (cons algorithm
+	    (let ((options))
+	      (map-pane-descendant-children
+	       (slot-value etap (second item))
+	       (lambda (child)
+		 (typecase child
+		   (check-box
+		    (setq options (append options (cdr (widget-state child)))))
+		   (widget
+		    (setq options (append options (widget-state child)))))))
+	      options))))))
 
 
 
