@@ -416,9 +416,8 @@ The calibrated value is displayed with 3 digits."
 (defun river-detection-switch-callback
     (switch dialog &aux (etap (etap dialog)))
   "Function called when the river detection SWITCH is toggled.
-- Remake rivers.
 - Toggle the angle cursor's enabled status.
-- Redraw the paragraph view."
+- Remake rivers and redraw."
   (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
   (remake-rivers etap))
 
@@ -427,8 +426,7 @@ The calibrated value is displayed with 3 digits."
      &aux (etap (etap (top-level-interface cursor))))
   "Function called when the river detection angle CURSOR is dragged.
 - Update CURSOR's title.
-- Remake rivers.
-- Redraw the paragraph view."
+- Remake rivers and redraw."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
@@ -491,7 +489,7 @@ The calibrated value is displayed with 3 digits."
 - Calibrate VALUE.
 - Advertise VALUE in dialog's title pane.
 - Adjust the hyphenation point's penalty.
-- Rebreak the lineup."
+- Remake from the current lineup."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
 				  (caliber hyphenation-point)))
@@ -649,49 +647,16 @@ new dialog and display it."
 
 
 
-;; Disposition
-
-(defun disposition-callback (etap)
-  "Function called when the disposition or a disposition option is changed.
-- Set ETAP interface's context to the current disposition.
-- Remake ETAP interface's breakup."
-  (setf (disposition (context etap))
-	(cons (second (widget-state (disposition etap)))
-	      (cdr (widget-state (disposition-options-panel etap)))))
-  (remake etap))
-
-
-
-;; Features
-
-(defun features-callback (etap)
-  "Function called when the features set changed.
-- Set ETAP interface's context to the current feature set.
-- Remake ETAP interface's breakup."
-  (setf (features (context etap)) (cdr (widget-state (features etap))))
-  (remake etap))
-
-
-
-;; Clues
-
-(defun clues-callback (etap)
-  "Function called when the clues are changed.
-- Redraw ETAP's paragraph view."
-  (redraw etap))
-
-
-
 ;; Paragraph width
 
 (defun paragraph-width-callback
     (cursor value gesture &aux (etap (top-level-interface cursor)))
   "Function called when paragraph width CURSOR is dragged.
 - Update CURSOR's title.
-- Rebreak the current lineup."
+- Remake from the current lineup."
+  (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (setf (paragraph-width (context etap)) value)
     (remake-from-lineup etap)))
 
 
@@ -701,7 +666,7 @@ new dialog and display it."
 (defun zoom-callback (cursor value gesture)
   "Function called when zoom CURSOR is dragged.
 - Update CURSOR's title.
-- Redraw the paragraph view."
+- Redraw."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
@@ -717,8 +682,7 @@ new dialog and display it."
 	  (layout (layout etap)))
   "Function called when another layout is selected.
 - Select the next +/-1 layout and advertise its number.
-- Possibly remake rivers.
-- Redraw ETAP's paragraph view."
+- Remake rivers and redraw."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
   (setf (layout etap) layout)
   (remake-from-layout etap))
@@ -727,52 +691,22 @@ new dialog and display it."
 
 ;; Algorithms
 
-(defun set-algorithm
-    (etap
-     &aux (item (choice-selected-item (algorithms-tab etap)))
-	  (algorithm (first item)))
-  "Set ETAP interface's context to the current algorithm."
-  (setf (algorithm (context etap))
-	(cons algorithm
-	      (let ((options))
-		(map-pane-descendant-children
-		 (slot-value etap (second item))
-		 (lambda (child)
-		   (typecase child
-		     (check-box
-		      (setq options
-			    (append options (cdr (widget-state child)))))
-		     (widget
-		      (setq options (append options (widget-state child)))))))
-		options))))
-
-(defun algorithm-callback (etap)
-  "Function called when an algorithm option is clicked.
-- Update ETAP interface's context.
-- Remake ETAP interface's breakup."
-  (set-algorithm etap)
-  (remake etap))
-
 (defun algorithm-cursor-callback (cursor value gesture)
   "Function called when an algorithm cursor is dragged.
 - Update CURSOR's title.
-- Update Etap interface's context.
-- Remake Etap interface's breakup."
+- Remake everything."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (let ((etap (top-level-interface cursor)))
-      (set-algorithm etap)
-      (remake etap))))
+    (remake (top-level-interface cursor))))
 
 (defun algorithms-tab-callback (tab etap)
   "Function called when an algorithm tab is selected.
-If ETAP interface is enabled, set algorithm to the selected one in TAB.
+If ETAP interface is enabled, remember the selection and remake everything.
 Otherwise, reselect the previously selected one."
   (cond ((enabled etap)
 	 (setf (capi-object-property tab :current-item)
 	       (choice-selected-item tab))
-	 (set-algorithm etap)
 	 (remake etap))
 	(t
 	 (setf (choice-selected-item tab)
@@ -789,21 +723,9 @@ Otherwise, reselect the previously selected one."
 		    (capi-object-property etap :original-nlstring))
 		   (:reset-to-default
 		    (make-nlstring :text *text* :language *language*))))
-  (setf (nlstring (context etap)) nlstring)
   (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language nlstring))
-  (remake etap))
-
-
-
-;; Language menu
-
-(defun language-menu-callback (language etap)
-  "Function called when a language is selected.
-- Change the current text's language.
-- Remake ETAP interface's breakup."
-  (setf (language (nlstring (context etap))) language)
   (remake etap))
 
 
@@ -814,10 +736,8 @@ Otherwise, reselect the previously selected one."
     (text-editor point old-length new-length
      &aux (etap (top-level-interface text-editor)))
   "Function called when the source text is changed.
-- Set TEXT-EDITOR's current text in the interface's context.
-- Remake Etap interface's breakup."
+- Remake everything."
   (declare (ignore point old-length new-length))
-  (setf (text (nlstring (context etap))) (editor-pane-text text-editor))
   (remake etap))
 
 
@@ -1134,14 +1054,12 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; ==========================================================================
 
 (define-interface etap ()
-  ((context :initform *context* :initarg :context :reader context)
-   (font :initarg :font :reader font)
+  ((font :reader font)
    (breakup :accessor breakup)
-   (layout :initform 0 :accessor layout)
+   (layout :accessor layout)
    (enabled :initform t :accessor enabled)
    (rivers
     :documentation "The paragraph's detected rivers."
-    :initform nil
     :accessor rivers)
    (penalty-adjustment-dialogs
     :initform nil
@@ -1165,34 +1083,35 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :items (mapcar #'car *languages*)
      :interaction :single-selection
      :print-function 'title-capitalize
-     :callback 'language-menu-callback)
+     :callback-type :interface
+     :callback 'remake)
    (disposition radio-box
      :property :disposition
      :items *dispositions*
      :callback-type :interface
-     :selection-callback 'disposition-callback
+     :selection-callback 'remake
      :reader disposition)
    (disposition-options check-box
      :property :disposition-options
      :items *disposition-options*
      :help-keys *disposition-options-help-keys*
      :callback-type :interface
-     :selection-callback 'disposition-callback
-     :retract-callback 'disposition-callback
+     :selection-callback 'remake
+     :retract-callback 'remake
      :reader disposition-options-panel)
    (features check-box
      :property :features
      :items *lineup-features*
      :callback-type :interface
-     :selection-callback 'features-callback
-     :retract-callback 'features-callback
+     :selection-callback 'remake
+     :retract-callback 'remake
      :reader features)
    (clues check-box
      :property :characters-&-clues
      :items *clues*
      :callback-type :interface
-     :selection-callback 'clues-callback
-     :retract-callback 'clues-callback
+     :selection-callback 'redraw
+     :retract-callback 'redraw
      :reader clues)
    (paragraph-width pt-cursor
      :property :paragraph-width
@@ -1243,13 +1162,13 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :items *fixed-fallbacks*
      :help-keys *fixed-fallbacks-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback)
+     :selection-callback 'remake)
    (fixed-options check-box
      :property :options
      :items *fixed-options*
      :help-keys *fixed-options-help-keys*
      :callback-type :interface
-     :selection-callback 'algorithm-callback)
+     :selection-callback 'remake)
    (fixed-width-offset pt-cursor
      :property :width-offset
      :caliber *fixed-width-offset*
@@ -1258,25 +1177,25 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :property :variant
      :items *fit-variants*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *fit-variants-help-keys*)
    (fit-fallback radio-box
      :property :fallback
      :items *fit-fallbacks*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *fit-fallbacks-help-keys*)
    (fit-discriminating-function radio-box
      :property :discriminating-function
      :items *fit-discriminating-functions*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *fit-discriminating-functions-help-keys*)
    (fit-options check-box
      :property :options
      :items *fit-options*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *fit-options-help-keys*)
    (fit-line-penalty cursor
      :property :line-penalty
@@ -1298,13 +1217,13 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :property :discriminating-function
      :items *duncan-discriminating-functions*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *duncan-discriminating-functions-help-keys*)
    (kp-variant radio-box
      :property :variant
      :items *kp-variants*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *kp-variants-help-keys*)
    (kp-line-penalty cursor
      :property :line-penalty
@@ -1350,13 +1269,13 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :property :variant
      :items *kpx-variants*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *kpx-variants-help-keys*)
    (kpx-fitness radio-box
      :property :fitness
      :items *kpx-fitnesses*
      :callback-type :interface
-     :selection-callback 'algorithm-callback
+     :selection-callback 'remake
      :help-keys *kpx-fitnesses-help-keys*)
    (kpx-line-penalty cursor
      :property :line-penalty
@@ -1410,7 +1329,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
-     :change-callback 'text-change-callback
+     ;; :change-callback 'text-change-callback
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
@@ -1483,13 +1402,34 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    :help-callback 'help-callback
    :destroy-callback 'destroy-callback))
 
-(defmethod initialize-instance :after ((etap etap) &rest keys &key zoom clues)
-  "Adjust some creation-time GUI options.
-This currently includes the initial ZOOMing factor and CLUES."
-  (declare (ignore zoom))
-  (setf (slot-value (river-detection-dialog etap) 'etap) etap)
-  (setf (widget-state (zoom etap)) keys)
-  (setf (choice-selected-items (clues etap)) clues))
+(defmethod initialize-instance :after ((etap etap) &rest keys)
+  "Adjust some creation-time GUI options."
+  (setf (slot-value (river-detection-dialog etap) 'etap) etap))
+
+
+
+;; Interface display
+
+;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
+;; better done here than in an INITIALIZE-INSTANCE :after method.
+(defmethod interface-display :before ((etap etap))
+  "Finalize ETAP interface's display settings.
+This currently involves fixating the geometry of option panes so that resizing
+the interface is done sensibly."
+  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
+  (let ((size (multiple-value-list
+	       (simple-pane-visible-size (settings-1 etap)))))
+    (set-hint-table (settings-1 etap)
+      `(:visible-min-width ,(car size) :visible-max-width t
+	:visible-min-height ,(cadr size) :visible-max-height t)))
+  (let ((size (multiple-value-list
+	       (simple-pane-visible-size (settings-2 etap)))))
+    (set-hint-table (settings-2 etap)
+      `(:visible-min-height ,(cadr size) :visible-max-height t))))
+
+
+
+;; Utility protocols
 
 (defmethod enable-interface ((etap etap) &optional (enabled t))
   "Change ETAP interface's enabled status.
@@ -1504,54 +1444,6 @@ those which may affect the typesetting."
 (defmethod river-detection-p ((etap etap))
   "Return T if river detection is enabled in ETAP interface."
   (river-detection-p (river-detection-dialog etap)))
-
-
-;; Interface display
-
-(defun update-interface (etap &aux (context (context etap)))
-  "Update ETAP interface after a context change."
-  (setf (capi-object-property etap :original-nlstring) (nlstring context))
-  (let* ((algorithm (algorithm-type (algorithm context)))
-	 (options (algorithm-options (algorithm context)))
-	 (tab (algorithms-tab etap))
-	 (item (find algorithm (collection-items tab) :key #'first)))
-    (setf (choice-selected-item tab) item)
-    (setf (capi-object-property tab :current-item) item)
-    (map-pane-descendant-children (slot-value etap (second item))
-      (lambda (child)
-	(when (typep child 'widget)
-	  (setf (widget-state child) options)))))
-  (setf (widget-state (disposition etap))
-	(disposition-type (disposition context)))
-  (setf (widget-state (disposition-options-panel etap))
-	(disposition-options (disposition context)))
-  (setf (widget-state (features etap)) (features context))
-  ;; #### TODO: the fake plist below is necessary because we don't have a
-  ;; paragraph-width property (we have a context slot). This will be fixed
-  ;; when this function understands the same keys as the entry points.
-  (setf (widget-state (paragraph-width etap))
-	(list :paragraph-width (paragraph-width context)))
-  (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language (nlstring context)))
-  (setf (editor-pane-text (text etap)) (text context))
-  (values))
-
-;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
-;; better done here than in an INITIALIZE-INSTANCE :after method.
-(defmethod interface-display :before ((etap etap))
-  "Finalize ETAP interface's display settings.
-This currently involves fixating the geometry of option panes so that resizing
-the interface is done sensibly."
-  (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-1 etap)))))
-    (set-hint-table (settings-1 etap)
-      `(:visible-min-width ,(car size) :visible-max-width t
-	:visible-min-height ,(cadr size) :visible-max-height t)))
-  (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-2 etap)))))
-    (set-hint-table (settings-2 etap)
-      `(:visible-min-height ,(cadr size) :visible-max-height t)))
-  (update-interface etap))
 
 
 
@@ -1583,13 +1475,45 @@ the interface is done sensibly."
     :clues (cdr (widget-state (clues etap)))
     :zoom (second (widget-state (zoom etap))))))
 
-(defun run (&key (context *context*) zoom (clues :characters))
+(defun set-etap-state
+    (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
+  "Update ETAP interface after a context change."
+  (declare (ignore zoom))
+  (setf (slot-value etap 'font) (font context))
+  (setf (capi-object-property etap :original-nlstring) (nlstring context))
+  (setf (widget-state (disposition etap))
+	(disposition-type (disposition context)))
+  (setf (widget-state (disposition-options-panel etap))
+	(disposition-options (disposition context)))
+  (setf (widget-state (features etap)) (features context))
+  (setf (widget-state (clues etap)) clues)
+  (let* ((algorithm (algorithm-type (algorithm context)))
+	 (options (algorithm-options (algorithm context)))
+	 (tab (algorithms-tab etap))
+	 (item (find algorithm (collection-items tab) :key #'first)))
+    (setf (choice-selected-item tab) item)
+    (setf (capi-object-property tab :current-item) item)
+    (map-pane-descendant-children (slot-value etap (second item))
+      (lambda (child)
+	(when (typep child 'widget)
+	  (setf (widget-state child) options)))))
+  ;; #### TODO: the fake plist below is necessary because we don't have a
+  ;; paragraph-width property (we have a context slot). This will be fixed
+  ;; when this function understands the same keys as the entry points.
+  (setf (widget-state (paragraph-width etap))
+	(list :paragraph-width (paragraph-width context)))
+  (setf (widget-state (zoom etap)) keys)
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	(language context))
+  (setf (editor-pane-text (text etap))
+	(text context))
+  (remake etap))
+
+
+(defun run (&rest keys &key context zoom clues)
   "Run ETAP's GUI for CONTEXT (the global context by default).
 Optionally provide initial ZOOMing and CLUES (characters by default)."
-  (setq zoom (calibrated-value zoom *zoom*))
-  (unless (listp clues) (setq clues (list clues)))
-  (display (make-instance 'etap
-	     :context context
-	     :font (font context)
-	     :zoom zoom
-	     :clues clues)))
+  (declare (ignore context zoom clues))
+  (let ((etap (make-instance 'etap)))
+    (apply #'set-etap-state etap keys)
+    (display etap)))
