@@ -761,10 +761,12 @@ Otherwise, reselect the previously selected one."
 
 (defun text-menu-callback (etap &aux (context (context etap)))
   "Function called when the source text menu is popped up.
-- The only button currently resets the text and remakes the Etap interface's
-  breakup."
+- The only button currently resets the text and language, and remakes the Etap
+  interface's breakup."
   (setf (nlstring context) (make-nlstring :text *text* :language *language*))
   (setf (editor-pane-text (text etap)) (text context))
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	*language*)
   (remake etap))
 
 
