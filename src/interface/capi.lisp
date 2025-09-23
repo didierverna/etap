@@ -1474,7 +1474,6 @@ The zooming and clues controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
 those which may affect the typesetting."
   (setf (simple-pane-enabled (paragraph-width etap)) enabled)
-  (enable-pane (layouts-ctrl etap) enabled)
   (enable-pane (options-1 etap) enabled)
   (enable-pane (settings-2 etap) enabled)
   (setf (enabled etap) enabled))
