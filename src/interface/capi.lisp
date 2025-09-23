@@ -299,6 +299,10 @@ The calibrated value is displayed with 3 digits."
   "Redraw ETAP interface's paragraph view."
   (gp:invalidate-rectangle (view etap)))
 
+
+
+;; Rivers updater
+
 ;; #### FIXME: see comment in rivers.lisp
 (defun remake-rivers (etap &aux (layout (layout etap)))
   "Remake ETAP interface's rivers and redraw."
@@ -309,11 +313,19 @@ The calibrated value is displayed with 3 digits."
 	    (widget-state (angle (river-detection-dialog etap))))))
   (redraw etap))
 
+
+
+;; Layout updater
+
 (defun remake-from-layout (etap)
   "Remake ETAP's interface from current layout and redraw."
   (setf (titled-object-title (view etap))
 	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
   (remake-rivers etap))
+
+
+
+;; Breakup updater
 
 (defun %remake-from-lineup (etap lineup)
   "Remake ETAP interface's breakup from LINEUP and redraw."
@@ -330,6 +342,33 @@ The calibrated value is displayed with 3 digits."
   "Remake ETAP interface's breakup from its current lineup and redraw."
   (%remake-from-lineup etap (lineup (breakup etap))))
 
+
+
+;; Lineup updater
+
+(defun disposition-specification (etap)
+  "Return ETAP interface's current disposition specification."
+  (cons (second (widget-state (disposition etap)))
+	(cdr (widget-state (disposition-options-panel etap)))))
+
+(defun language-specification (etap)
+  "Return ETAP interface's current language specification."
+  (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
+
+(defun algorithm-specification
+    (etap &aux (item (choice-selected-item (algorithms-tab etap))))
+  "Return ETAP interface's current algorithm specification."
+  (cons (first item)
+	(let ((options))
+	  (map-pane-descendant-children
+	   (slot-value etap (second item))
+	   (lambda (child)
+	     (typecase child
+	       (check-box
+		(setq options (append options (cdr (widget-state child)))))
+	       (widget (setq options (append options (widget-state child)))))))
+	  options)))
+
 (defun remake (etap)
   "Remake ETAP interface's breakup completely, and redraw."
   (%remake-from-lineup
@@ -337,26 +376,11 @@ The calibrated value is displayed with 3 digits."
    (%make-lineup
     (make-nlstring
      :text (editor-pane-text (text etap))
-     :language (item-data
-		(choice-selected-item
-		 (first (menu-items (language-menu etap))))))
+     :language (language-specification etap))
     (font etap)
     (cdr (widget-state (features etap)))
-    (cons (second (widget-state (disposition etap)))
-	  (cdr (widget-state (disposition-options-panel etap))))
-    (let* ((item (choice-selected-item (algorithms-tab etap)))
-	   (algorithm (first item)))
-      (cons algorithm
-	    (let ((options))
-	      (map-pane-descendant-children
-	       (slot-value etap (second item))
-	       (lambda (child)
-		 (typecase child
-		   (check-box
-		    (setq options (append options (cdr (widget-state child)))))
-		   (widget
-		    (setq options (append options (widget-state child)))))))
-	      options))))))
+    (disposition-specification etap)
+    (algorithm-specification etap))))
 
 
 
@@ -1535,29 +1559,6 @@ the interface is done sensibly."
 ;; ==========================================================================
 ;; Entry Points
 ;; ==========================================================================
-
-(defun algorithm-specification
-    (etap &aux (item (choice-selected-item (algorithms-tab etap))))
-  "Return ETAP interface's current algorithm specification."
-  (cons (first item)
-	(let ((options))
-	  (map-pane-descendant-children
-	   (slot-value etap (second item))
-	   (lambda (child)
-	     (typecase child
-	       (check-box
-		(setq options (append options (cdr (widget-state child)))))
-	       (widget (setq options (append options (widget-state child)))))))
-	  options)))
-
-(defun disposition-specification (etap)
-  "Return ETAP interface's current disposition specification."
-  (cons (second (widget-state (disposition etap)))
-	(cdr (widget-state (disposition-options-panel etap)))))
-
-(defun language-specification (etap)
-  "Return ETAP interface's current language specification."
-  (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
 
 (defun etap-state (etap)
   "Return the current state of ETAP interface as two values.
