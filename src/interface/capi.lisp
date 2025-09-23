@@ -1535,8 +1535,54 @@ the interface is done sensibly."
 
 
 ;; ==========================================================================
-;; Entry Point
+;; Entry Points
 ;; ==========================================================================
+
+(defun algorithm-specification
+    (etap &aux (item (choice-selected-item (algorithms-tab etap))))
+  "Return ETAP interface's current algorithm specification."
+  (cons (first item)
+	(let ((options))
+	  (map-pane-descendant-children
+	   (slot-value etap (second item))
+	   (lambda (child)
+	     (typecase child
+	       (check-box
+		(setq options (append options (cdr (widget-state child)))))
+	       (widget (setq options (append options (widget-state child)))))))
+	  options)))
+
+(defun disposition-specification (etap)
+  "Return ETAP interface's current disposition specification."
+  (cons (second (widget-state (disposition etap)))
+	(cdr (widget-state (disposition-options-panel etap)))))
+
+(defun language-specification (etap)
+  "Return ETAP interface's current language specification."
+  (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
+
+(defun etap-state (etap)
+  "Return the current state of ETAP interface as two values.
+- The first value is a fully qualified context, which is useful for
+  experimenting from the command-line in the same conditions.
+- The second value is a property list describing the state of the interface
+  for parameters unrelated to typesetting (that is, GUI-specific). This
+  includes the enabled status, currently displayed layout number, clues, and
+  zoom factor."
+  (values
+   (make-context
+    :font (font etap)
+    :algorithm (algorithm-specification etap)
+    :disposition (disposition-specification etap)
+    :features (cdr (widget-state (features etap)))
+    :paragraph-width (second (widget-state (paragraph-width etap)))
+    :text (editor-pane-text (text etap))
+    :language (language-specification etap))
+   (list
+    :enabled (enabled etap)
+    :layout (layout etap)
+    :clues (cdr (widget-state (clues etap)))
+    :zoom (second (widget-state (zoom etap))))))
 
 (defun run (&key (context *context*) zoom (clues :characters))
   "Run ETAP's GUI for CONTEXT (the global context by default).
