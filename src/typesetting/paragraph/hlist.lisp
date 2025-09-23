@@ -129,6 +129,8 @@ Kerns represent inter-letter horizontal spacing."))
     "Return -∞."
     -∞))
 
+;; #### FIXME: not all algorithms define penalties and calibers. it's clumsy
+;; at best to have them here.
 (defabstract break-point ()
   ((idx
     :documentation "This break point's harray index."
@@ -138,7 +140,7 @@ Kerns represent inter-letter horizontal spacing."))
     :initform 0 :initarg :penalty :accessor penalty)
    (caliber
     :documentation "The penalty's caliber."
-    :reader caliber))
+    :initform nil :reader caliber))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 

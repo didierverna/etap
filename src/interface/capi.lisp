@@ -929,7 +929,9 @@ corresponding hyphenation clue."
 		       (>= y 0) ; no need to look above the 1st line
 		       (<= y (+ (y (car (last (lines layout)))) 5))
 		       (hyphenation-point-under x y (lines layout)))))
-      (when object
+      ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+      ;; complexity of handling null calibers below.
+      (when (and object (caliber object))
 	(make-penalty-adjustment-dialog object etap)))))
 
 
@@ -938,15 +940,17 @@ corresponding hyphenation clue."
 ;; Paragraph View Rendering
 ;; ------------------------
 
-(defun penalty-hue
-    (break-point
-     &aux (caliber (caliber break-point))
-	  (penalty (decalibrated-value (penalty break-point) caliber)))
+(defun penalty-hue (break-point &aux (caliber (caliber break-point)))
   "Return BREAK-POINT's penalty HUE in HSV model.
 Colors are interpolated from  blue (min) through green (0), to red (max).
-Min and max values depend on BREAK-POINT's caliber."
-  (- 4s0 (* 4s0 (/ (- penalty (float (caliber-min caliber)))
-		   (- (caliber-max caliber) (caliber-min caliber))))))
+Min and max values depend on BREAK-POINT's penalty and caliber."
+  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+  ;; complexity of handling null calibers below.
+  (if caliber
+    (- 4s0 (* 4s0 (/ (- (decalibrated-value (penalty break-point) caliber)
+			(float (caliber-min caliber)))
+		     (- (caliber-max caliber) (caliber-min caliber)))))
+    2s0))
 
 (defun display-callback
     (view x y width height
