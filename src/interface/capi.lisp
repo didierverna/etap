@@ -1551,7 +1551,7 @@ those which may affect the typesetting."
     :algorithm (algorithm-specification etap)
     :disposition (disposition-specification etap)
     :features (widget-value (features etap))
-    :paragraph-width (second (widget-state (paragraph-width etap)))
+    :paragraph-width (widget-value (paragraph-width etap))
     :text (editor-pane-text (text etap))
     :language (language-specification etap))
    (list
