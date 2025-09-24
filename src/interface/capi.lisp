@@ -67,6 +67,12 @@
   (:documentation "The Widget class.
 This class is a mixin class for ETAP widgets."))
 
+(defgeneric widget-value (widget)
+  (:documentation "Return WIDGET's value."))
+
+(defgeneric (setf widget-value) (value widget)
+  (:documentation "Set WIDGET's VALUE."))
+
 (defgeneric widget-state (widget)
   (:documentation "Return a property list representing WIDGET's state."))
 
@@ -111,6 +117,14 @@ This is the base class for radio and check boxes."))
   ()
   (:documentation "The Radio Box class."))
 
+(defmethod widget-value ((box radio-box))
+  "Return radio BOX's selected item."
+  (choice-selected-item box))
+
+(defmethod (setf widget-value) (item (box radio-box))
+  "Set radio BOX's selected ITEM (must be one of BOX's items)."
+  (setf (choice-selected-item box) item))
+
 (defmethod widget-state ((box radio-box))
   "Return a property list representing radio BOX's state.
 This is a list of the form (<property> <selected item>)."
@@ -143,6 +157,27 @@ first item in BOX is selected."
 (defclass check-box (button-box check-button-panel)
   ()
   (:documentation "The Check Box class."))
+
+(defmethod widget-value ((box check-box))
+  "Return check BOX's value.
+This is an exhaustive property list of BOX's items and their selected state."
+  (loop :with selection := (choice-selected-items box)
+	:for item :across (collection-items box) ; a vector
+	:collect item
+	:if (member item selection)
+	  :collect t
+	:else
+	  :collect nil))
+
+(defmethod (setf widget-value) (plist (box check-box))
+  "Set check BOX's selected items based on PLIST.
+More specifically, every BOX item found to be true in PLIST is selected. The
+rest is deselected (i.e., no items are left in their previous state). Unknown
+items are ignored."
+  (setf (choice-selected-items box)
+	(loop :for item :across (collection-items box) ; a vector
+	      :when (getf plist item)
+		:collect item)))
 
 (defmethod widget-state ((box check-box))
   "Return a property list representing check BOX's state.
@@ -217,6 +252,16 @@ This means setting its range start and end, default value, and title."
   "Return the calibrated current CURSOR value."
   (calibrated-value (range-slug-start cursor) (caliber cursor)))
 
+
+(defmethod widget-value ((cursor cursor))
+  "Return CURSOR's calibrated value."
+  (calibrated-cursor-value cursor))
+
+(defmethod (setf widget-value)
+    (value (cursor cursor) &aux (caliber (caliber cursor)))
+  "Set CURSOR's (decalibrated) VALUE."
+  (setf (range-slug-start cursor) (decalibrated-value value caliber))
+  (update-cursor-title cursor))
 
 (defmethod widget-state ((cursor cursor))
   "Return a property list representing CURSOR's state.
@@ -331,7 +376,7 @@ The calibrated value is displayed with 3 digits."
   "Remake ETAP interface's breakup from LINEUP and redraw."
   (let* ((breakup (%make-breakup
 		   lineup
-		   (second (widget-state (paragraph-width etap)))))
+		   (widget-value (paragraph-width etap))))
 	 (layouts-# (layouts-# breakup)))
     (setf (breakup etap) breakup)
     (setf (layout etap) (if (zerop layouts-#) 0 1))
@@ -348,8 +393,8 @@ The calibrated value is displayed with 3 digits."
 
 (defun disposition-specification (etap)
   "Return ETAP interface's current disposition specification."
-  (cons (second (widget-state (disposition etap)))
-	(cdr (widget-state (disposition-options-panel etap)))))
+  (cons (widget-value (disposition etap))
+	(widget-value (disposition-options-panel etap))))
 
 (defun language-specification (etap)
   "Return ETAP interface's current language specification."
@@ -365,7 +410,7 @@ The calibrated value is displayed with 3 digits."
 	   (lambda (child)
 	     (typecase child
 	       (check-box
-		(setq options (append options (cdr (widget-state child)))))
+		(setq options (append options (widget-value child))))
 	       (widget (setq options (append options (widget-state child)))))))
 	  options)))
 
@@ -378,7 +423,7 @@ The calibrated value is displayed with 3 digits."
      :text (editor-pane-text (text etap))
      :language (language-specification etap))
     (font etap)
-    (cdr (widget-state (features etap)))
+    (widget-value (features etap))
     (disposition-specification etap)
     (algorithm-specification etap))))
 
@@ -1449,16 +1494,15 @@ those which may affect the typesetting."
 ;; State
 
 (defun %set-state
-    (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
+    (etap &key (context *context*) zoom (clues '(:characters t)))
   "Update ETAP interface after a context change."
-  (declare (ignore zoom))
   (setf (slot-value etap 'font) (font context))
   (setf (capi-object-property etap :original-nlstring) (nlstring context))
-  (setf (widget-state (disposition etap))
+  (setf (widget-value (disposition etap))
 	(disposition-type (disposition context)))
-  (setf (widget-state (disposition-options-panel etap))
+  (setf (widget-value (disposition-options-panel etap))
 	(disposition-options (disposition context)))
-  (setf (widget-state (features etap)) (features context))
+  (setf (widget-value (features etap)) (features context))
   (setf (widget-state (clues etap)) clues)
   (let* ((algorithm (algorithm-type (algorithm context)))
 	 (options (algorithm-options (algorithm context)))
@@ -1470,12 +1514,8 @@ those which may affect the typesetting."
       (lambda (child)
 	(when (typep child 'widget)
 	  (setf (widget-state child) options)))))
-  ;; #### TODO: the fake plist below is necessary because we don't have a
-  ;; paragraph-width property (we have a context slot). This will be fixed
-  ;; when this function understands the same keys as the entry points.
-  (setf (widget-state (paragraph-width etap))
-	(list :paragraph-width (paragraph-width context)))
-  (setf (widget-state (zoom etap)) keys)
+  (setf (widget-value (paragraph-width etap)) (paragraph-width context))
+  (setf (widget-value (zoom etap)) zoom)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language context))
   ;; #### WARNING: this callback mess is needed because programmatically
@@ -1510,15 +1550,15 @@ those which may affect the typesetting."
     :font (font etap)
     :algorithm (algorithm-specification etap)
     :disposition (disposition-specification etap)
-    :features (cdr (widget-state (features etap)))
+    :features (widget-value (features etap))
     :paragraph-width (second (widget-state (paragraph-width etap)))
     :text (editor-pane-text (text etap))
     :language (language-specification etap))
    (list
     :enabled (enabled etap)
     :layout (layout etap)
-    :clues (cdr (widget-state (clues etap)))
-    :zoom (second (widget-state (zoom etap))))))
+    :clues (widget-value (clues etap))
+    :zoom (widget-value (zoom etap)))))
 
 (defun set-state
     (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
