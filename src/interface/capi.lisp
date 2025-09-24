@@ -1329,7 +1329,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
-     ;; :change-callback 'text-change-callback
+     :change-callback 'text-change-callback
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
@@ -1416,7 +1416,6 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
   "Finalize ETAP interface's display settings.
 This currently involves fixating the geometry of option panes so that resizing
 the interface is done sensibly."
-  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
   (let ((size (multiple-value-list
 	       (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)
@@ -1505,8 +1504,16 @@ those which may affect the typesetting."
   (setf (widget-state (zoom etap)) keys)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language context))
-  (setf (editor-pane-text (text etap))
-	(text context))
+  ;; #### WARNING: this callback mess is needed because programmatically
+  ;; changing the editor pane's text triggers its change callback. This
+  ;; entails two problems:
+  ;; 1. it doesn't work when the interface is initialized (the call to
+  ;;    top-level-interface returns nil),
+  ;; 2. when calling this function from outside the interface, the application
+  ;; logic (remake) would be executed twice.
+  (setf (editor-pane-change-callback (text etap)) nil)
+  (setf (editor-pane-text (text etap)) (text context))
+  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
   (remake etap))
 
 
