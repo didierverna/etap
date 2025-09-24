@@ -1395,9 +1395,9 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    (layouts-ctrl row-layout '(layout--1 layout-+1)
      :reader layouts-ctrl)
    (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(disposition disposition-options features)
-     :reader options-1)
-   (options-2 column-layout '(clues))
+   (options-1 column-layout '(clues))
+   (options-2 column-layout '(disposition disposition-options features)
+     :reader options-2)
    (settings-2 column-layout '(algorithms-tab text-options text)
      :reader settings-2)
    (text-options row-layout '(text-button language-button))
@@ -1481,7 +1481,7 @@ The zooming and clues controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
 those which may affect the typesetting."
   (setf (simple-pane-enabled (paragraph-width etap)) enabled)
-  (enable-pane (options-1 etap) enabled)
+  (enable-pane (options-2 etap) enabled)
   (enable-pane (settings-2 etap) enabled)
   (setf (enabled etap) enabled))
 
