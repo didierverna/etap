@@ -16,4 +16,4 @@
     :*language* :*text* :*paragraph-width*
     :*context* :make-context
     :make-lineup :make-breakup
-    #+lispworks :etap-state :update-interface #+lispworks :run))
+    #+lispworks :state #+lispworks :set-state #+lispworks :run))

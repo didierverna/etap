@@ -1445,36 +1445,10 @@ those which may affect the typesetting."
   (river-detection-p (river-detection-dialog etap)))
 
 
-
 
-;; ==========================================================================
-;; Entry Points
-;; ==========================================================================
+;; State
 
-(defun etap-state (etap)
-  "Return the current state of ETAP interface as two values.
-- The first value is a fully qualified context, which is useful for
-  experimenting from the command-line in the same conditions.
-- The second value is a property list describing the state of the interface
-  for parameters unrelated to typesetting (that is, GUI-specific). This
-  includes the enabled status, currently displayed layout number, clues, and
-  zoom factor."
-  (values
-   (make-context
-    :font (font etap)
-    :algorithm (algorithm-specification etap)
-    :disposition (disposition-specification etap)
-    :features (cdr (widget-state (features etap)))
-    :paragraph-width (second (widget-state (paragraph-width etap)))
-    :text (editor-pane-text (text etap))
-    :language (language-specification etap))
-   (list
-    :enabled (enabled etap)
-    :layout (layout etap)
-    :clues (cdr (widget-state (clues etap)))
-    :zoom (second (widget-state (zoom etap))))))
-
-(defun set-etap-state
+(defun %set-state
     (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
   "Update ETAP interface after a context change."
   (declare (ignore zoom))
@@ -1517,10 +1491,45 @@ those which may affect the typesetting."
   (remake etap))
 
 
+
+
+;; ==========================================================================
+;; Entry Points
+;; ==========================================================================
+
+(defun state (etap)
+  "Return the current state of ETAP interface as two values.
+- The first value is a fully qualified context, which is useful for
+  experimenting from the command-line in the same conditions.
+- The second value is a property list describing the state of the interface
+  for parameters unrelated to typesetting (that is, GUI-specific). This
+  includes the enabled status, currently displayed layout number, clues, and
+  zoom factor."
+  (values
+   (make-context
+    :font (font etap)
+    :algorithm (algorithm-specification etap)
+    :disposition (disposition-specification etap)
+    :features (cdr (widget-state (features etap)))
+    :paragraph-width (second (widget-state (paragraph-width etap)))
+    :text (editor-pane-text (text etap))
+    :language (language-specification etap))
+   (list
+    :enabled (enabled etap)
+    :layout (layout etap)
+    :clues (cdr (widget-state (clues etap)))
+    :zoom (second (widget-state (zoom etap))))))
+
+(defun set-state
+    (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
+  "Set ETAP interface state."
+  (declare (ignore context zoom clues))
+  (apply #'execute-with-interface-if-alive etap #'%set-state etap keys))
+
 (defun run (&rest keys &key context zoom clues)
   "Run ETAP's GUI for CONTEXT (the global context by default).
 Optionally provide initial ZOOMing and CLUES (characters by default)."
   (declare (ignore context zoom clues))
   (let ((etap (make-instance 'etap)))
-    (apply #'set-etap-state etap keys)
+    (apply #'%set-state etap keys)
     (display etap)))
