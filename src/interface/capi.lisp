@@ -1493,19 +1493,18 @@ those which may affect the typesetting."
 
 ;; State
 
-(defun %set-state
-    (etap &key (context *context*) zoom (clues '(:characters t)))
+(defun %set-state (etap
+		   nlstring font features disposition algorithm width
+		   zoom clues)
   "Update ETAP interface after a context change."
-  (setf (slot-value etap 'font) (font context))
-  (setf (capi-object-property etap :original-nlstring) (nlstring context))
-  (setf (widget-value (disposition etap))
-	(disposition-type (disposition context)))
+  (setf (capi-object-property etap :original-nlstring) nlstring)
+  (setf (slot-value etap 'font) font)
+  (setf (widget-value (features etap)) features)
+  (setf (widget-value (disposition etap)) (disposition-type disposition))
   (setf (widget-value (disposition-options-panel etap))
-	(disposition-options (disposition context)))
-  (setf (widget-value (features etap)) (features context))
-  (setf (widget-state (clues etap)) clues)
-  (let* ((algorithm (algorithm-type (algorithm context)))
-	 (options (algorithm-options (algorithm context)))
+	(disposition-options disposition))
+  (let* ((algorithm (algorithm-type algorithm))
+	 (options (algorithm-options algorithm))
 	 (tab (algorithms-tab etap))
 	 (item (find algorithm (collection-items tab) :key #'first)))
     (setf (choice-selected-item tab) item)
@@ -1514,10 +1513,11 @@ those which may affect the typesetting."
       (lambda (child)
 	(when (typep child 'widget)
 	  (setf (widget-state child) options)))))
-  (setf (widget-value (paragraph-width etap)) (paragraph-width context))
+  (setf (widget-value (paragraph-width etap)) width)
   (setf (widget-value (zoom etap)) zoom)
+  (setf (widget-value (clues etap)) clues)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language context))
+	(language nlstring))
   ;; #### WARNING: this callback mess is needed because programmatically
   ;; changing the editor pane's text triggers its change callback. This
   ;; entails two problems:
@@ -1526,9 +1526,8 @@ those which may affect the typesetting."
   ;; 2. when calling this function from outside the interface, the application
   ;; logic (remake) would be executed twice.
   (setf (editor-pane-change-callback (text etap)) nil)
-  (setf (editor-pane-text (text etap)) (text context))
-  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
-  (remake etap))
+  (setf (editor-pane-text (text etap)) (text nlstring))
+  (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
 
 
 
@@ -1560,16 +1559,81 @@ those which may affect the typesetting."
     :clues (widget-value (clues etap))
     :zoom (widget-value (zoom etap)))))
 
-(defun set-state
+#+()(defun set-state
     (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
   "Set ETAP interface state."
   (declare (ignore context zoom clues))
-  (apply #'execute-with-interface-if-alive etap #'%set-state etap keys))
+  (apply #'execute-with-interface-if-alive etap
+	 (lambda ()
+	   (apply #'%set-state etap keys)
+	   (remake etap))))
 
-(defun run (&rest keys &key context zoom clues)
-  "Run ETAP's GUI for CONTEXT (the global context by default).
-Optionally provide initial ZOOMing and CLUES (characters by default)."
-  (declare (ignore context zoom clues))
+(defun run
+    (&key (context *context*)
+	  (text
+	   (if (and context (nlstring context))
+	     (text (nlstring context))
+	     *text*)
+	   textp)
+	  (language
+	   (if (and context (nlstring context))
+	     (language (nlstring context))
+	     *language*)
+	   languagep)
+	  (font (if context (font context) *font*) fontp)
+	  (features (when context (features context)) featuresp)
+	  (kerning (getf features :kerning) kerningp)
+	  (ligatures (getf features :ligatures) ligaturesp)
+	  (hyphenation (getf features :hyphenation) hyphenationp)
+	  (disposition (if context (disposition context) :flush-left)
+		       dispositionp)
+	  (algorithm (if context (algorithm context) :fixed) algorithmp)
+	  lineup
+	  (width (if context (paragraph-width context)
+		     (caliber-default *paragraph-width*))
+		 widthp)
+	  breakup
+	  (layout 1)
+	  (zoom 100)
+	  (clues '(:characters t))
+     &aux (nlstring (if (or textp languagep (null context))
+		      (make-nlstring :text text :language language)
+		      (nlstring context))))
+  "Run a new Etap interface with the specified parameters.
+- LAYOUT is the breakup's layout number to display (1 by default).
+- ZOOM factor is expressed in percentage (must be at least 1).
+- CLUES is a property list of things to display (see `*clues*' for more
+  information). Only characters are displayed by default.
+
+The other options are related to typesetting. See `context' for more
+information..
+- CONTEXT defaults to *CONTEXT*.
+- Most other typesetting options are defaulted from the context, or to their
+corresponding global variable otherwise, but may be overridden on demand.
+- Explicit features take precedence over FEATURES.
+- Providing any typesetting option, except for :context, :width, and :lineup
+  will force recomputing the lineup and the breakup (see `make-lineup' and
+  `make-breakup').
+- Providing a lineup or the :width options will also force recomputing the
+  breakup."
+  (setq features (list :kerning kerning
+		       :ligatures ligatures
+		       :hyphenation hyphenation))
+  (when (or textp languagep
+	    fontp
+	    featuresp kerningp ligaturesp hyphenationp
+	    dispositionp
+	    algorithmp)
+    (setq lineup nil breakup nil))
+  (when (or lineup widthp)
+    (setq breakup nil))
   (let ((etap (make-instance 'etap)))
-    (apply #'%set-state etap keys)
+    (cond ((and (null lineup) (null breakup))
+	   (%set-state etap
+		       nlstring font features disposition algorithm width
+		       zoom clues)
+	   (remake etap))
+	  ;;(apply #'make-lineup (remove-keys keys :lineup :width))))
+	  ;;(%make-breakup lineup width))
+	  )
     (display etap)))

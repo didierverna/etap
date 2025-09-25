@@ -30,7 +30,6 @@
 - CONTEXT defaults to *CONTEXT*.
 - Most other options are defaulted from the context, or to their corresponding
   global variable otherwise, but may be overridden on demand.
-- Providing either :text or :language will force recomputing the nlstring.
 - Explicit features take precedence over FEATURES."
   (setq features (list :kerning kerning
 		       :ligatures ligatures
@@ -65,8 +64,9 @@
 - CONTEXT defaults to *CONTEXT*.
 - Most other options are defaulted from the context, or to their corresponding
   global variable otherwise, but may be overridden on demand.
+- Explicit features take precedence over FEATURES.
 - Providing any option except for :context, :width, and :lineup will force
-  recomputing the lineup (see `make-lineup' for more information."
+  recomputing the lineup (see `make-lineup')."
   (declare (ignore text language font kerning ligatures hyphenation
 		   disposition algorithm))
   (when (or (null lineup)
