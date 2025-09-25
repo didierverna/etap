@@ -25,10 +25,13 @@
     :disposition-type :disposition-options
     ;; From typesetting/paragraph/algorithms/common.lisp:
     :algorithm-type :algorithm-options
+    ;; From typesetting/paragraph/algorithms/breakup.lisp:
+    :lineup :paragraph-width
     ;; From context.lisp:
     :font :algorithm :disposition :features :paragraph-width :text :language
     :make-context :*context*
     ;; From interface/capi.lisp:
+    #+lispworks :breakup #+lispworks :layout
     #+lispworks :state #+lispworks :set-state #+lispworks :run
     ;; From entry.lisp:
     :make-lineup :make-breakup))

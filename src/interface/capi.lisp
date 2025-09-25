@@ -1536,8 +1536,10 @@ those which may affect the typesetting."
   experimenting from the command-line in the same conditions.
 - The second value is a property list describing the state of the interface
   for parameters unrelated to typesetting (that is, GUI-specific). This
-  includes the enabled status, currently displayed layout number, clues, and
-  zoom factor."
+  includes the currently displayed clues, and zoom factor.
+
+Note that inteface's breakup and current layout number (+1) have their own
+eponymous readers."
   (values
    (make-context
     :font (font etap)
@@ -1548,8 +1550,6 @@ those which may affect the typesetting."
     :text (editor-pane-text (text etap))
     :language (language-specification etap))
    (list
-    :enabled (enabled etap)
-    :layout (layout etap)
     :clues (widget-value (clues etap))
     :zoom (widget-value (zoom etap)))))
 
