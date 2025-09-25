@@ -360,16 +360,6 @@ The calibrated value is displayed with 3 digits."
 
 
 
-;; Layout updater
-
-(defun remake-from-layout (etap)
-  "Remake ETAP's interface from current layout and redraw."
-  (setf (titled-object-title (view etap))
-	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
-  (remake-rivers etap))
-
-
-
 ;; Breakup updater
 
 (defun %remake-from-lineup (etap lineup)
@@ -380,8 +370,10 @@ The calibrated value is displayed with 3 digits."
 	 (layouts-# (layouts-# breakup)))
     (setf (breakup etap) breakup)
     (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1)))
-  (remake-from-layout etap))
+    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+    (setf (titled-object-title (view etap))
+	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
+  (remake-rivers etap))
 
 (defun remake-from-lineup (etap)
   "Remake ETAP interface's breakup from its current lineup and redraw."
@@ -730,7 +722,9 @@ new dialog and display it."
 - Remake rivers and redraw."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
   (setf (layout etap) layout)
-  (remake-from-layout etap))
+  (setf (titled-object-title (view etap))
+      (format nil "Layout ~D/~D" (layout etap) layouts-#))
+  (remake-rivers etap))
 
 
 
@@ -1633,7 +1627,24 @@ corresponding global variable otherwise, but may be overridden on demand.
 		       nlstring font features disposition algorithm width
 		       zoom clues)
 	   (remake etap))
-	  ;;(apply #'make-lineup (remove-keys keys :lineup :width))))
-	  ;;(%make-breakup lineup width))
-	  )
+	  (lineup
+	   (%set-state etap
+		       (nlstring lineup) (font lineup)
+		       (features lineup) (disposition lineup)
+		       (algorithm lineup) width
+		       zoom clues)
+	   (%remake-from-lineup etap lineup))
+	  (breakup
+	   (setq lineup (lineup breakup))
+	   (%set-state etap
+		       (nlstring lineup) (font lineup)
+		       (features lineup) (disposition lineup)
+		       (algorithm lineup) width
+		       zoom clues)
+	   (setf (breakup etap) breakup)
+	   (setq layout (1+ (mod (1- layout) (layouts-# breakup))))
+	   (setf (layout etap) layout)
+	   (setf (titled-object-title (view etap))
+		 (format nil "Layout ~D/~D" (layout etap) (layouts-# breakup)))
+	   (remake-rivers etap)))
     (display etap)))
