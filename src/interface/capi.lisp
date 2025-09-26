@@ -1487,10 +1487,9 @@ those which may affect the typesetting."
 
 ;; State
 
-(defun %set-state (etap
-		   nlstring font features disposition algorithm width
-		   zoom clues)
-  "Update ETAP interface after a context change."
+(defun %set-state
+    (etap nlstring font features disposition algorithm width zoom clues)
+  "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
   (setf (slot-value etap 'font) font)
   (setf (widget-value (features etap)) features)
@@ -1523,6 +1522,13 @@ those which may affect the typesetting."
   (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
 
+(defun %set-state-from-lineup (etap lineup width zoom clues)
+  "Set ETAP interface's widgets state using LINEUP."
+  (%set-state etap
+    (nlstring lineup) (font lineup)
+    (features lineup) (disposition lineup)
+    (algorithm lineup) width
+    zoom clues))
 
 
 
@@ -1609,7 +1615,8 @@ corresponding global variable otherwise, but may be overridden on demand.
   will force recomputing the lineup and the breakup (see `make-lineup' and
   `make-breakup').
 - Providing a lineup or the :width options will also force recomputing the
-  breakup."
+  breakup.
+- The LAYOUT option is ignored unless a breakup is also provided."
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
@@ -1624,25 +1631,20 @@ corresponding global variable otherwise, but may be overridden on demand.
   (let ((etap (make-instance 'etap)))
     (cond ((and (null lineup) (null breakup))
 	   (%set-state etap
-		       nlstring font features disposition algorithm width
-		       zoom clues)
+	     nlstring font features disposition algorithm width
+	     zoom clues)
 	   (remake etap))
 	  (lineup
-	   (%set-state etap
-		       (nlstring lineup) (font lineup)
-		       (features lineup) (disposition lineup)
-		       (algorithm lineup) width
-		       zoom clues)
+	   (%set-state-from-lineup etap lineup width zoom clues)
 	   (%remake-from-lineup etap lineup))
 	  (breakup
-	   (setq lineup (lineup breakup))
-	   (%set-state etap
-		       (nlstring lineup) (font lineup)
-		       (features lineup) (disposition lineup)
-		       (algorithm lineup) width
-		       zoom clues)
+	   (%set-state-from-lineup etap
+	     (lineup breakup) (paragraph-width breakup) zoom clues)
 	   (setf (breakup etap) breakup)
-	   (setq layout (1+ (mod (1- layout) (layouts-# breakup))))
+	   (setq layout
+		 (if (zerop (layouts-# breakup))
+		   0
+		   (1+ (mod (1- layout) (layouts-# breakup)))))
 	   (setf (layout etap) layout)
 	   (setf (titled-object-title (view etap))
 		 (format nil "Layout ~D/~D" (layout etap) (layouts-# breakup)))
