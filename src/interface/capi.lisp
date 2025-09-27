@@ -946,7 +946,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	  (zoom (/ (range-slug-start (zoom etap)) 100))
 	  (clues (choice-selected-items (clues etap))))
   "Function called when paragraph VIEW needs to be redrawn."
-  (declare (ignore x y width height))
+  (declare (ignore x y width height)
+	   (special line-x-shift line-y-shift char-x-shift char-y-shift))
   (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
   (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
   (gp:with-graphics-translation (view 20 20)
@@ -961,8 +962,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 				5)
 	      :for rest :on (lines layout)
 	      :for line := (car rest)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
+	      :for x := (+ (x line) (funcall line-x-shift line))
+	      :for y := (+ par-y (y line) (funcall line-y-shift line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
 			x
@@ -1049,8 +1050,9 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 				     (gp:draw-character view
 					 (aref *lm-ec*
 					       (tfm:code (object item)))
-					 (+ x (x item))
-					 y)))
+					 (+ x (x item)
+					    (funcall char-x-shift item))
+					 (+ y (funcall char-y-shift item)))))
 				  ((and (discretionary-clue-p (object item))
 					(hyphenation-point-p
 					 (discretionary (object item)))
