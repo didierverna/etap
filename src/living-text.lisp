@@ -32,6 +32,9 @@
 (defun demo-1 (etap)
   (execute-with-interface-if-alive etap 'demo-1-initialize (view etap)))
 
+;; #### WARNING: STOP is executed asynchronously, so it's not a good idea to
+;; mess around with any property that the demos may use. Hence a specific STOP
+;; property below.
 (defun stop (etap)
   (execute-with-interface-if-alive etap
     (lambda (pane) (setf (capi-object-property pane :stop) t))
