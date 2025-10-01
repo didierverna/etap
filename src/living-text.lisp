@@ -17,9 +17,10 @@
 	       (mod (1+ (capi-object-property pane :shift)) 200))
 	 (redisplay-element pane))))
 
-(defun demo-1-initialize (pane)
+(defun demo-1-initialize (pane axis)
   (setf (capi-object-property pane :shift) 0)
-  (setf (capi-object-property pane :line-x-shift)
+  (setf (capi-object-property
+	 pane (case axis (:x :line-x-shift) (:y :line-y-shift)))
 	(lambda (line)
 	  (if line
 	    (+ 5 (* 5 (sin (+ (/ (* (capi-object-property pane :shift) pi)
@@ -29,8 +30,8 @@
    (mp:make-timer 'demo-1-step pane) 10 10))
 
 
-(defun demo-1 (etap)
-  (execute-with-interface-if-alive etap 'demo-1-initialize (view etap)))
+(defun demo-1 (etap &optional (axis :x))
+  (execute-with-interface-if-alive etap 'demo-1-initialize (view etap) axis))
 
 ;; #### WARNING: STOP is executed asynchronously, so it's not a good idea to
 ;; mess around with any property that the demos may use. Hence a specific STOP
