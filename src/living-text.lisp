@@ -8,25 +8,25 @@
 
 (defun demo-1-step (pane)
   (cond ((eq (capi-object-property pane :stop) t)
+	 (setf (capi-object-property pane :line-x-shift) nil)
+	 (redisplay-element pane)
 	 (setf (capi-object-property pane :stop) nil)
 	 :stop)
 	(t
 	 (setf (capi-object-property pane :shift)
 	       (mod (1+ (capi-object-property pane :shift)) 200))
-	 (setq line-x-shift
-	       (lambda (line)
-		 (if line
-		   (+ 5
-		      (* 5 (sin (+ (/ (* (capi-object-property pane :shift) pi)
-				      100)
-				   (y line))))))))
 	 (redisplay-element pane))))
 
 (defun demo-1-initialize (pane)
   (setf (capi-object-property pane :shift) 0)
+  (setf (capi-object-property pane :line-x-shift)
+	(lambda (line)
+	  (if line
+	    (+ 5 (* 5 (sin (+ (/ (* (capi-object-property pane :shift) pi)
+				 100)
+			      (y line))))))))
   (mp:schedule-timer-relative-milliseconds
-   (mp:make-timer 'demo-1-step pane)
-   10 10))
+   (mp:make-timer 'demo-1-step pane) 10 10))
 
 
 (defun demo-1 (etap)
