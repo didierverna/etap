@@ -28,17 +28,15 @@
   (when (demo-1-xinc demo-1)
     (setf (capi-object-property pane :line-x-shift)
 	(lambda (line)
-	  (if line
-	    (+ 5 (* 5 (sin (+ (/ (* (demo-1-xshift (capi-object-property pane :demo-1)) pi)
-				 100)
-			      (y line)))))))))
+	  (+ 5 (* 5 (sin (+ (/ (* (demo-1-xshift (capi-object-property pane :demo-1)) pi)
+			       100)
+			    (y line))))))))
   (when (demo-1-yinc demo-1)
     (setf (capi-object-property pane :line-y-shift)
 	(lambda (line)
-	  (if line
-	    (+ 5 (* 5 (sin (+ (/ (* (demo-1-yshift (capi-object-property pane :demo-1)) pi)
-				 100)
-			      (y line)))))))))
+	  (+ 5 (* 5 (sin (+ (/ (* (demo-1-yshift (capi-object-property pane :demo-1)) pi)
+			       100)
+			    (y line))))))))
   (mp:schedule-timer-relative-milliseconds
    (mp:make-timer 'demo-1-step pane) 10 10))
 
