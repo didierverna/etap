@@ -359,8 +359,7 @@ one-before-last."))
 	  (layout (make-instance 'kp-graph-layout
 		    :breakup breakup
 		    :demerits (demerits (first path))
-		    :bads (if (numberp (badness (first path))) 0  1)))
-	  line1)
+		    :bads (if (numberp (badness (first path))) 0  1))))
   "Create a KPX layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
   (unless (typep (first path) 'kpx-boundary)
@@ -371,50 +370,57 @@ one-before-last."))
 	   (fitness-class (first path)) 0)
 	  (kpx-fitness-demerits
 	   (extended-fitness-class (first path)) 0)))
-  (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
-  (when (cdr path)
-    (with-slots (demerits bads size) layout
-      (loop :for boundary1 := (first path) :then boundary2
-	    :for bol1 := (harray-bol-items harray *bop*) :then bol2
-	    :for bol2 := (harray-bol-items harray (break-point boundary1))
-	    :for eol1 := (harray-eol-items harray (break-point (first path)))
-	      :then eol2
-	    :for boundary2 :in (cdr path)
-	    :for eol2 := (harray-eol-items harray (break-point boundary2))
-	    :for finalp := (eopp boundary2)
-	    :unless (typep boundary2 'kpx-boundary)
-	      :do (change-class boundary2 'kpx-boundary)
-	    :do (incf size)
-	    :unless (numberp (badness boundary2)) :do (incf bads)
-	    :do (incf demerits (demerits boundary2))
-	    ;; See comment in dynamic version. Do not consider the very
-	    ;; rare case where the paragraph ends with an explicit hyphen.
-	    :when (and (not finalp)
-		       (hyphenated boundary1)
-		       (hyphenated boundary2))
-	      :do (incf demerits *double-hyphen-demerits*)
-	    :when (and finalp (hyphenated boundary1))
-	      :do (incf demerits *final-hyphen-demerits*)
-	    :do (incf demerits
-		      (if (eq *fitness* :knuth-plass)
-			(kp-fitness-demerits
-			 (fitness-class boundary1)
-			 (fitness-class boundary2))
-			(kpx-fitness-demerits
-			 (extended-fitness-class boundary1)
-			 (extended-fitness-class boundary2))))
-	     ;; #### NOTE: for now, I'm considering that hyphenated
-	     ;; similarities are even worse than regular ones, so we will
-	     ;; apply both similar and double-hyphen demerits.
-	     ;; #### FIXME: see with Thomas whether 2 is acceptable.
-	    :when (>= (compare bol1 bol2) 2)
-	      :do (incf demerits *similar-demerits*)
-	     :when (>= (compare eol1 eol2) 2)
-		   :do (incf demerits *similar-demerits*)
-	    :collect (funcall make-line
-		       harray (break-point boundary1) boundary2 demerits)
-	      :into lines
-	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
+  (setf (slot-value layout 'lines)
+	(cons (funcall make-line harray *bop* (first path) (demerits layout))
+	      (when (cdr path)
+		(with-slots (demerits bads size) layout
+		  (loop :for boundary1 := (first path) :then boundary2
+			:for bol1 := (harray-bol-items harray *bop*) :then bol2
+			:for bol2
+			  := (harray-bol-items harray (break-point boundary1))
+			:for eol1
+			  := (harray-eol-items harray (break-point (first path)))
+			  :then eol2
+			:for boundary2 :in (cdr path)
+			:for eol2
+			  := (harray-eol-items harray (break-point boundary2))
+			:for finalp := (eopp boundary2)
+			:unless (typep boundary2 'kpx-boundary)
+			  :do (change-class boundary2 'kpx-boundary)
+			:do (incf size)
+			:unless (numberp (badness boundary2)) :do (incf bads)
+			  :do (incf demerits (demerits boundary2))
+			      ;; See comment in dynamic version. Do not
+			      ;; consider the very rare case where the
+			      ;; paragraph ends with an explicit hyphen.
+			:when (and (not finalp)
+				   (hyphenated boundary1)
+				   (hyphenated boundary2))
+			  :do (incf demerits *double-hyphen-demerits*)
+			:when (and finalp (hyphenated boundary1))
+			  :do (incf demerits *final-hyphen-demerits*)
+			:do (incf demerits
+				  (if (eq *fitness* :knuth-plass)
+				    (kp-fitness-demerits
+				     (fitness-class boundary1)
+				     (fitness-class boundary2))
+				    (kpx-fitness-demerits
+				     (extended-fitness-class boundary1)
+				     (extended-fitness-class boundary2))))
+			    ;; #### NOTE: for now, I'm considering that
+			    ;; hyphenated similarities are even worse than
+			    ;; regular ones, so we will apply both similar and
+			    ;; double-hyphen demerits. #### FIXME: see with
+			    ;; Thomas whether 2 is acceptable.
+			:when (>= (compare bol1 bol2) 2)
+			  :do (incf demerits *similar-demerits*)
+			:when (>= (compare eol1 eol2) 2)
+			  :do (incf demerits *similar-demerits*)
+			:collect (funcall make-line
+				   harray
+				   (break-point boundary1) boundary2
+				   demerits)
+			  :into lines)))))
   layout)
 
 

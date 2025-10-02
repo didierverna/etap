@@ -397,36 +397,38 @@ This is the Knuth-Plass version for the graph variant.
 	  (layout (make-instance 'kp-graph-layout
 		    :breakup breakup
 		    :demerits (demerits (first path))
-		    :bads (if (numberp (badness (first path))) 0  1)))
-	  line1)
+		    :bads (if (numberp (badness (first path))) 0  1))))
   "Create a Knuth-Plass layout for BREAKUP from graph PATH."
   ;; See warning in KP-CREATE-NODES about that.
   (incf (slot-value layout 'demerits)
 	(kp-fitness-demerits (fitness-class (first path)) 0))
-  (setq line1 (funcall make-line harray *bop* (first path) (demerits layout)))
-  (when (cdr path)
-    (with-slots (demerits bads size) layout
-      (loop :for boundary1 := (first path) :then boundary2
-	    :for boundary2 :in (cdr path)
-	    :for finalp := (eopp boundary2)
-	    :do (incf size)
-	    :unless (numberp (badness boundary2)) :do (incf bads)
-	    :do (incf demerits (demerits boundary2))
-	    ;; See comment in dynamic version. Do not consider the very
-	    ;; rare case where the paragraph ends with an explicit hyphen.
-	    :when (and (not finalp)
-		       (hyphenated boundary1)
-		       (hyphenated boundary2))
-	      :do (incf demerits *double-hyphen-demerits*)
-	    :when (and finalp (hyphenated boundary1))
-	      :do (incf demerits *final-hyphen-demerits*)
-	    :do (incf demerits (kp-fitness-demerits
-				(fitness-class boundary1)
-				(fitness-class boundary2)))
-	    :collect (funcall make-line
-		       harray (break-point boundary1) boundary2 demerits)
-	      :into lines
-	    :finally (setf (slot-value layout 'lines) (cons line1 lines)))))
+  (setf (slot-value layout 'lines)
+	(cons (funcall make-line harray *bop* (first path) (demerits layout))
+	      (when (cdr path)
+		(with-slots (demerits bads size) layout
+		  (loop :for boundary1 := (first path) :then boundary2
+			:for boundary2 :in (cdr path)
+			:for finalp := (eopp boundary2)
+			:do (incf size)
+			:unless (numberp (badness boundary2)) :do (incf bads)
+			  :do (incf demerits (demerits boundary2))
+			      ;; See comment in dynamic version. Do not
+			      ;; consider the very rare case where the
+			      ;; paragraph ends with an explicit hyphen.
+			:when (and (not finalp)
+				   (hyphenated boundary1)
+				   (hyphenated boundary2))
+			  :do (incf demerits *double-hyphen-demerits*)
+			:when (and finalp (hyphenated boundary1))
+			  :do (incf demerits *final-hyphen-demerits*)
+			:do (incf demerits (kp-fitness-demerits
+					    (fitness-class boundary1)
+					    (fitness-class boundary2)))
+			:collect (funcall make-line
+				   harray
+				   (break-point boundary1) boundary2
+				   demerits)
+			  :into lines)))))
   layout)
 
 ;; #### WARNING: the final pass of the graph variant may construct a graph
