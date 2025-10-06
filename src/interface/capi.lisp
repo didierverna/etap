@@ -442,6 +442,7 @@ The calibrated value is displayed with 3 digits."
 
 (define-living-text-caliber amplitude 0 0 10 :bounded t)
 (define-living-text-caliber ondulation 0 0 400 :bounded t)
+(define-living-text-caliber propagation 0 0 100 :bounded t)
 
 
 
@@ -466,7 +467,7 @@ The calibrated value is displayed with 3 digits."
 		   (unless (or (zerop x-amplitude) (zerop x-ondulation))
 		     (lambda
 			 (line
-			  &aux (phase (or (capi-object-property view :phase)
+			  &aux (phase (or (capi-object-property view :x-phase)
 					  0)))
 		       (+ x-amplitude
 			  (* x-amplitude
@@ -480,7 +481,7 @@ The calibrated value is displayed with 3 digits."
 		   (unless (or (zerop y-amplitude) (zerop y-ondulation))
 		     (lambda
 			 (line
-			  &aux (phase (or (capi-object-property view :phase)
+			  &aux (phase (or (capi-object-property view :y-phase)
 					  0)))
 		       (+ y-amplitude
 			  (* y-amplitude
@@ -490,52 +491,82 @@ The calibrated value is displayed with 3 digits."
     (unless (capi-object-property view :living-text-slitatus)
       (redraw etap))))
 
-(defun living-text-switch-callback
-    (switch dialog &aux (view (view (etap dialog))))
-  (cond ((eq (capi-object-property view :living-text-status) :running)
-	 (setf (capi-object-property view :living-text-status) :stopping)
-	 (setf (item-data switch) :run-animation))
-	;; Just for clarity, explicitly do nothing if the status is :stopping
-	;; (let the timer finish).
-	((eq (capi-object-property view :living-text-status) :stopping))
+(defun living-text-step (etap &aux (view (view etap)))
+  (cond ((eq (capi-object-property view :living-text-status) :stopping)
+	 (setf (capi-object-property view :living-text-status) :stopped)
+	 (let ((switch (switch (living-text-dialog etap))))
+	   (setf (item-data switch) :run-animation)
+	   (setf (simple-pane-enabled switch) t))
+	 :stop)
 	(t
-	 (setf (item-data switch) :stop-animation))))
+	 (let ((dialog (living-text-dialog etap)))
+	   (setf (capi-object-property view :x-phase)
+		 (+ (capi-object-property view :x-phase)
+		    (/ (widget-value (xprop dialog)) 100)))
+	   (setf (capi-object-property view :y-phase)
+		 (+ (capi-object-property view :y-phase)
+		    (/ (widget-value (yprop dialog)) 100))))
+	 (redisplay-element view))))
+
+(defun living-text-switch-callback
+    (switch dialog &aux (etap (etap dialog)) (view (view etap)))
+  (cond ((eq (capi-object-property view :living-text-status) :running)
+	 (setf (simple-pane-enabled switch) nil)
+	 (setf (capi-object-property view :living-text-status) :stopping))
+	(t
+	 (setf (item-data switch) :stop-animation)
+	 (setf (capi-object-property view :x-phase) 0)
+	 (setf (capi-object-property view :y-phase) 0)
+	 (setf (capi-object-property view :living-text-status) :running)
+	 (mp:schedule-timer-relative-milliseconds
+	  (mp:make-timer 'living-text-step etap) 30 30))))
 
 
 (define-interface living-text ()
   ((etap :reader etap))
   (:panes
    (xamp pt-cursor
-     :property :x-amplitude
+     :property :amplitude
      :caliber *living-text-amplitude*
      :callback 'living-text-cursor-callback
      :reader xamp)
    (xfreq cursor
-     :property :x-ondulation
+     :property :ondulation
      :caliber *living-text-ondulation*
      :callback 'living-text-cursor-callback
      :reader xfreq)
+   (xprop cursor
+     :property :propagation
+     :caliber *living-text-propagation*
+     :callback 'living-text-cursor-callback
+     :reader xprop)
    (yamp pt-cursor
-     :property :y-amplitude
+     :property :amplitude
      :caliber *living-text-amplitude*
      :callback 'living-text-cursor-callback
      :reader yamp)
    (yfreq cursor
-     :property :y-ondulation
+     :property :ondulation
      :caliber *living-text-ondulation*
      :callback 'living-text-cursor-callback
      :reader yfreq)
-   (run push-button
+   (yprop cursor
+     :property :propagation
+     :caliber *living-text-propagation*
+     :callback 'living-text-cursor-callback
+     :reader yprop)
+   (switch push-button
      :data :run-animation
      :print-function 'title-capitalize
      :callback-type '(:element :interface)
-     :callback 'living-text-switch-callback))
+     :callback 'living-text-switch-callback
+     :reader switch))
   (:layouts
-   (main column-layout '(settings run) :adjust :center)
+   (main column-layout '(settings switch) :adjust :center)
    (settings row-layout '(horizontal vertical))
-   (horizontal column-layout '(xamp xfreq)
+   (horizontal column-layout '(xamp xfreq xprop)
      :title "Horizontal" :title-position :frame)
-   (vertical column-layout '(yamp yfreq)
+   (vertical column-layout '(yamp yfreq yprop)
      :title "Vertical" :title-position :frame))
   (:default-initargs
    :title "Living Texct"
