@@ -427,8 +427,7 @@ This is the Knuth-Plass version for the graph variant.
 			:collect (funcall make-line
 				   harray
 				   (break-point boundary1) boundary2
-				   demerits)
-			  :into lines)))))
+				   demerits))))))
   layout)
 
 ;; #### WARNING: the final pass of the graph variant may construct a graph
