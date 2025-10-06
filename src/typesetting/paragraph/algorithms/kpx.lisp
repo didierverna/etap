@@ -416,8 +416,7 @@ one-before-last."))
 			:collect (funcall make-line
 				   harray
 				   (break-point boundary1) boundary2
-				   demerits)
-			  :into lines)))))
+				   demerits))))))
   layout)
 
 
