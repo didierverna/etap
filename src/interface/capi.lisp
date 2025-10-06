@@ -426,23 +426,33 @@ The calibrated value is displayed with 3 digits."
 ;; Living Text Dialog
 ;; ==========================================================================
 
+(defstruct sine amp ond prop phase)
+
+(defun line-sine-shift (line sine)
+  (+ (sine-amp sine)
+     (* (sine-amp sine)
+	(sin (+ (sine-phase sine)
+		(/ (* 2 pi (sine-ond sine) (y line)) 20000))))))
+
+
+
 ;; --------
 ;; Calibers
 ;; --------
 
-(defmacro define-living-text-caliber
+(defmacro define-sine-caliber
     (name min default max &rest keys &key infinity bounded)
-  "Define a NAMEd LIVING-TEXT caliber with MIN, DEFAULT, and MAX values."
+  "Define a NAMEd SINE caliber with MIN, DEFAULT, and MAX values."
   (declare (ignore infinity bounded))
-  `(define-caliber living-text ,name ,min ,default ,max ,@keys))
+  `(define-caliber sine ,name ,min ,default ,max ,@keys))
 
-(defmacro calibrate-living-text (name)
-  "Calibrate NAMEd LIVING-TEXT variable."
-  `(calibrate living-text ,name :earmuffs nil))
+(defmacro calibrate-sine (name)
+  "Calibrate NAMEd sine variable."
+  `(calibrate sine ,name :earmuffs nil))
 
-(define-living-text-caliber amplitude 0 0 10 :bounded t)
-(define-living-text-caliber ondulation 0 0 400 :bounded t)
-(define-living-text-caliber propagation 0 0 100 :bounded t)
+(define-sine-caliber amplitude 0 0 10 :bounded t)
+(define-sine-caliber ondulation 0 0 400 :bounded t)
+(define-sine-caliber propagation 0 0 100 :bounded t)
 
 
 
@@ -450,7 +460,46 @@ The calibrated value is displayed with 3 digits."
 ;; Callbacks
 ;; ---------
 
-(defun living-text-cursor-callback
+(defun sine-switch-callback
+    (switch dialog
+     &aux (enable (button-selected switch))
+	  (etap (etap dialog))
+	  (view (view etap)))
+  "Function called when the sine living text SWITCH is toggled.
+- Toggle the rest of the living text interface's enabled status.
+- On deactivation, stop animation if running.
+- Install or uninstall the Sine functions and data structures.
+- Redraw."
+  (enable-pane (settings dialog) enable)
+  (cond (enable
+	 (unless (capi-object-property view :xsine)
+	   (setf (capi-object-property view :xsine)
+		 (make-sine
+		  :amp (widget-value (xamp dialog))
+		  :ond (widget-value (xond dialog))
+		  :prop (widget-value (xprop dialog))
+		  :phase 0)))
+	 (unless (capi-object-property view :ysine)
+	   (setf (capi-object-property view :ysine)
+		 (make-sine
+		  :amp (widget-value (yamp dialog))
+		  :ond (widget-value (yond dialog))
+		  :prop (widget-value (yprop dialog))
+		  :phase 0)))
+	 (setf (capi-object-property view :line-x-shift)
+	       (lambda (line)
+		 (line-sine-shift line (capi-object-property view :xsine))))
+	 (setf (capi-object-property view :line-y-shift)
+	       (lambda (line)
+		 (line-sine-shift line (capi-object-property view :ysine)))))
+	(t
+	 (setf (capi-object-property view :living-text-animation) nil)
+	 (setf (item-data (animate dialog)) :run-animation)
+	 (setf (capi-object-property view :line-x-shift) nil)
+	 (setf (capi-object-property view :line-y-shift) nil)))
+  (redraw etap))
+
+(defun sine-cursor-callback
     (cursor value gesture
      &aux (dialog (top-level-interface cursor))
 	  (etap (etap dialog))
@@ -460,116 +509,107 @@ The calibrated value is displayed with 3 digits."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (cond ((member (property cursor) '(:x-amplitude :x-ondulation))
-	   (let ((x-amplitude (widget-value (xamp dialog)))
-		 (x-ondulation (widget-value (xfreq dialog))))
-	     (setf (capi-object-property view :line-x-shift)
-		   (unless (or (zerop x-amplitude) (zerop x-ondulation))
-		     (lambda
-			 (line
-			  &aux (phase (or (capi-object-property view :x-phase)
-					  0)))
-		       (+ x-amplitude
-			  (* x-amplitude
-			     (sin (+ phase
-				     (/ (* 2 pi x-ondulation (y line))
-					20000))))))))))
-	  ((member (property cursor) '(:y-amplitude :y-ondulation))
-	   (let ((y-amplitude (widget-value (yamp dialog)))
-		 (y-ondulation (widget-value (yfreq dialog))))
-	     (setf (capi-object-property view :line-y-shift)
-		   (unless (or (zerop y-amplitude) (zerop y-ondulation))
-		     (lambda
-			 (line
-			  &aux (phase (or (capi-object-property view :y-phase)
-					  0)))
-		       (+ y-amplitude
-			  (* y-amplitude
-			     (sin (+ phase
-				     (/ (* 2 pi y-ondulation (y line))
-					20000)))))))))))
-    (unless (capi-object-property view :living-text-slitatus)
+    ;; #### FIXME: do this better (do cursors have :data ?)
+    (let ((sine (if (member cursor (list (xamp dialog)
+					 (xond dialog)
+					 (xprop dialog)))
+		  (capi-object-property view :xsine)
+		  (capi-object-property view :ysine))))
+      (case (property cursor)
+	(:amplitude (setf (sine-amp sine) (widget-value cursor)))
+	(:ondulation (setf (sine-ond sine) (widget-value cursor)))
+	(:propagation (setf (sine-prop sine) (widget-value cursor)))))
+    (unless (capi-object-property view :living-text-animation)
       (redraw etap))))
 
-(defun living-text-step (etap &aux (view (view etap)))
-  (cond ((eq (capi-object-property view :living-text-status) :stopping)
-	 (setf (capi-object-property view :living-text-status) :stopped)
-	 (let ((switch (switch (living-text-dialog etap))))
-	   (setf (item-data switch) :run-animation)
-	   (setf (simple-pane-enabled switch) t))
-	 :stop)
+(defun sine-run-step (etap &aux (view (view etap)))
+  (cond ((capi-object-property view :living-text-animation)
+	 (let ((xsine (capi-object-property view :xsine))
+	       (ysine (capi-object-property view :ysine)))
+	   (setf (sine-phase xsine)
+		 (+ (sine-phase xsine) (/ (sine-prop xsine) 100)))
+	   (setf (sine-phase ysine)
+		 (+ (sine-phase ysine) (/ (sine-prop ysine) 100))))
+	 (redisplay-element view))
 	(t
-	 (let ((dialog (living-text-dialog etap)))
-	   (setf (capi-object-property view :x-phase)
-		 (+ (capi-object-property view :x-phase)
-		    (/ (widget-value (xprop dialog)) 100)))
-	   (setf (capi-object-property view :y-phase)
-		 (+ (capi-object-property view :y-phase)
-		    (/ (widget-value (yprop dialog)) 100))))
-	 (redisplay-element view))))
+	 :stop)))
 
-(defun living-text-switch-callback
-    (switch dialog &aux (etap (etap dialog)) (view (view etap)))
-  (cond ((eq (capi-object-property view :living-text-status) :running)
-	 (setf (simple-pane-enabled switch) nil)
-	 (setf (capi-object-property view :living-text-status) :stopping))
+(defun sine-run-callback
+    (animate dialog &aux (etap (etap dialog)) (view (view etap)))
+  (cond ((capi-object-property view :living-text-animation)
+	 (setf (item-data animate) :run-animation)
+	 (setf (capi-object-property view :living-text-animation) nil))
 	(t
-	 (setf (item-data switch) :stop-animation)
-	 (setf (capi-object-property view :x-phase) 0)
-	 (setf (capi-object-property view :y-phase) 0)
-	 (setf (capi-object-property view :living-text-status) :running)
+	 (setf (capi-object-property view :living-text-animation) t)
+	 (setf (item-data animate) :stop-animation)
 	 (mp:schedule-timer-relative-milliseconds
-	  (mp:make-timer 'living-text-step etap) 30 30))))
+	  (mp:make-timer 'sine-run-step etap) 30 30))))
 
 
 (define-interface living-text ()
   ((etap :reader etap))
   (:panes
+   (switch check-button
+     :text "Make ondulating paragraph"
+     :callback-type '(:element :interface)
+     :selection-callback 'sine-switch-callback
+     :retract-callback 'sine-switch-callback
+     :reader switch)
    (xamp pt-cursor
      :property :amplitude
-     :caliber *living-text-amplitude*
-     :callback 'living-text-cursor-callback
+     :caliber *sine-amplitude*
+     :callback 'sine-cursor-callback
+     :enabled nil
      :reader xamp)
-   (xfreq cursor
+   (xond cursor
      :property :ondulation
-     :caliber *living-text-ondulation*
-     :callback 'living-text-cursor-callback
-     :reader xfreq)
+     :caliber *sine-ondulation*
+     :callback 'sine-cursor-callback
+     :enabled nil
+     :reader xond)
    (xprop cursor
      :property :propagation
-     :caliber *living-text-propagation*
-     :callback 'living-text-cursor-callback
+     :caliber *sine-propagation*
+     :callback 'sine-cursor-callback
+     :enabled nil
      :reader xprop)
    (yamp pt-cursor
      :property :amplitude
-     :caliber *living-text-amplitude*
-     :callback 'living-text-cursor-callback
+     :caliber *sine-amplitude*
+     :callback 'sine-cursor-callback
+     :enabled nil
      :reader yamp)
-   (yfreq cursor
+   (yond cursor
      :property :ondulation
-     :caliber *living-text-ondulation*
-     :callback 'living-text-cursor-callback
-     :reader yfreq)
+     :caliber *sine-ondulation*
+     :callback 'sine-cursor-callback
+     :enabled nil
+     :reader yond)
    (yprop cursor
      :property :propagation
-     :caliber *living-text-propagation*
-     :callback 'living-text-cursor-callback
+     :caliber *sine-propagation*
+     :callback 'sine-cursor-callback
+     :enabled nil
      :reader yprop)
-   (switch push-button
+   (animate push-button
      :data :run-animation
      :print-function 'title-capitalize
-     :callback-type '(:element :interface)
-     :callback 'living-text-switch-callback
-     :reader switch))
+     :callback-type '(:item :interface)
+     :callback 'sine-run-callback
+     :enabled nil
+     :reader animate))
   (:layouts
-   (main column-layout '(settings switch) :adjust :center)
-   (settings row-layout '(horizontal vertical))
-   (horizontal column-layout '(xamp xfreq xprop)
-     :title "Horizontal" :title-position :frame)
-   (vertical column-layout '(yamp yfreq yprop)
-     :title "Vertical" :title-position :frame))
+   (main column-layout '(switch settings))
+   (settings column-layout '(xy-settings animate)
+     :adjust :center
+     :reader settings)
+   (xy-settings row-layout '(horizontal vertical))
+   (horizontal column-layout '(xamp xond xprop)
+     :title "Horizontal" :title-position :frame )
+   (vertical column-layout '(yamp yond yprop)
+     :title "Vertical" :title-position :frame :adjust :center))
   (:default-initargs
-   :title "Living Texct"
+   :title "Living Text"
    :window-styles '(:always-on-top t :toolbox t)))
 
 
