@@ -38,7 +38,7 @@
 			       100)
 			    (y line))))))))
   (mp:schedule-timer-relative-milliseconds
-   (mp:make-timer 'demo-1-step pane) 10 10))
+   (mp:make-timer 'demo-1-step pane) 30 30))
 
 
 (defun demo-1 (etap &rest keys &key xinc yinc)
