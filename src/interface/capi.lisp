@@ -423,6 +423,128 @@ The calibrated value is displayed with 3 digits."
 
 
 ;; ==========================================================================
+;; Living Text Dialog
+;; ==========================================================================
+
+;; --------
+;; Calibers
+;; --------
+
+(defmacro define-living-text-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd LIVING-TEXT caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber living-text ,name ,min ,default ,max ,@keys))
+
+(defmacro calibrate-living-text (name)
+  "Calibrate NAMEd LIVING-TEXT variable."
+  `(calibrate living-text ,name :earmuffs nil))
+
+(define-living-text-caliber amplitude 0 0 10 :bounded t)
+(define-living-text-caliber ondulation 0 0 400 :bounded t)
+
+
+
+;; ---------
+;; Callbacks
+;; ---------
+
+(defun living-text-cursor-callback
+    (cursor value gesture
+     &aux (dialog (top-level-interface cursor))
+	  (etap (etap dialog))
+	  (view (view etap)))
+  "Function called when the lliving text amplitude CURSOR is dragged.
+- Update CURSOR's title."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (cond ((member (property cursor) '(:x-amplitude :x-ondulation))
+	   (let ((x-amplitude (widget-value (xamp dialog)))
+		 (x-ondulation (widget-value (xfreq dialog))))
+	     (setf (capi-object-property view :line-x-shift)
+		   (unless (or (zerop x-amplitude) (zerop x-ondulation))
+		     (lambda
+			 (line
+			  &aux (phase (or (capi-object-property view :phase)
+					  0)))
+		       (+ x-amplitude
+			  (* x-amplitude
+			     (sin (+ phase
+				     (/ (* 2 pi x-ondulation (y line))
+					20000))))))))))
+	  ((member (property cursor) '(:y-amplitude :y-ondulation))
+	   (let ((y-amplitude (widget-value (yamp dialog)))
+		 (y-ondulation (widget-value (yfreq dialog))))
+	     (setf (capi-object-property view :line-y-shift)
+		   (unless (or (zerop y-amplitude) (zerop y-ondulation))
+		     (lambda
+			 (line
+			  &aux (phase (or (capi-object-property view :phase)
+					  0)))
+		       (+ y-amplitude
+			  (* y-amplitude
+			     (sin (+ phase
+				     (/ (* 2 pi y-ondulation (y line))
+					20000)))))))))))
+    (unless (capi-object-property view :living-text-slitatus)
+      (redraw etap))))
+
+(defun living-text-switch-callback
+    (switch dialog &aux (view (view (etap dialog))))
+  (cond ((eq (capi-object-property view :living-text-status) :running)
+	 (setf (capi-object-property view :living-text-status) :stopping)
+	 (setf (item-data switch) :run-animation))
+	;; Just for clarity, explicitly do nothing if the status is :stopping
+	;; (let the timer finish).
+	((eq (capi-object-property view :living-text-status) :stopping))
+	(t
+	 (setf (item-data switch) :stop-animation))))
+
+
+(define-interface living-text ()
+  ((etap :reader etap))
+  (:panes
+   (xamp pt-cursor
+     :property :x-amplitude
+     :caliber *living-text-amplitude*
+     :callback 'living-text-cursor-callback
+     :reader xamp)
+   (xfreq cursor
+     :property :x-ondulation
+     :caliber *living-text-ondulation*
+     :callback 'living-text-cursor-callback
+     :reader xfreq)
+   (yamp pt-cursor
+     :property :y-amplitude
+     :caliber *living-text-amplitude*
+     :callback 'living-text-cursor-callback
+     :reader yamp)
+   (yfreq cursor
+     :property :y-ondulation
+     :caliber *living-text-ondulation*
+     :callback 'living-text-cursor-callback
+     :reader yfreq)
+   (run push-button
+     :data :run-animation
+     :print-function 'title-capitalize
+     :callback-type '(:element :interface)
+     :callback 'living-text-switch-callback))
+  (:layouts
+   (main column-layout '(settings run) :adjust :center)
+   (settings row-layout '(horizontal vertical))
+   (horizontal column-layout '(xamp xfreq)
+     :title "Horizontal" :title-position :frame)
+   (vertical column-layout '(yamp yfreq)
+     :title "Vertical" :title-position :frame))
+  (:default-initargs
+   :title "Living Texct"
+   :window-styles '(:always-on-top t :toolbox t)))
+
+
+
+
+;; ==========================================================================
 ;; River Detection Dialog
 ;; ==========================================================================
 
@@ -666,8 +788,10 @@ new dialog and display it."
 (defun destroy-callback (etap)
   "Function called when ETAP interface is destroyed.
 - Destroy the river detection dialog.
+- Destroy the living text dialog.
 - Destroy all remaining penalty adjustment dialogs."
   (destroy (river-detection-dialog etap))
+  (destroy (living-text-dialog etap))
   (mapc #'destroy (penalty-adjustment-dialogs etap)))
 
 
@@ -680,7 +804,9 @@ new dialog and display it."
     (:reset-paragraph
      (remake etap))
     (:river-detection
-     (display (river-detection-dialog etap) :owner etap))))
+     (display (river-detection-dialog etap) :owner etap))
+    (:living-text
+     (display (living-text-dialog etap) :owner etap))))
 
 
 
@@ -1115,6 +1241,9 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    (river-detection-dialog
     :initform (make-instance 'river-detection)
     :reader river-detection-dialog)
+   (living-text-dialog
+    :initform (make-instance 'living-text)
+    :reader living-text-dialog)
    (tooltips
     :documentation "This interface's tooltips."
     :allocation :class
@@ -1436,7 +1565,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
   (:menus
-   (etap-menu "ETAP" (:reset-paragraph :river-detection)
+   (etap-menu "ETAP" (:reset-paragraph :river-detection :living-text)
      :print-function 'title-capitalize
      :callback 'menu-callback)
    (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
@@ -1452,7 +1581,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 
 (defmethod initialize-instance :after ((etap etap) &rest keys)
   "Adjust some creation-time GUI options."
-  (setf (slot-value (river-detection-dialog etap) 'etap) etap))
+  (setf (slot-value (river-detection-dialog etap) 'etap) etap)
+  (setf (slot-value (living-text-dialog etap) 'etap) etap))
 
 
 
