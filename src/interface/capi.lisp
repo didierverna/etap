@@ -522,6 +522,14 @@ The calibrated value is displayed with 3 digits."
     (unless (capi-object-property view :living-text-animation)
       (redraw etap))))
 
+(defun sine-phase-reset-callback
+    (data dialog &aux (etap (etap dialog)) (view (view etap)))
+  (ecase data
+    (:x (setf (sine-phase (capi-object-property view :xsine)) 0))
+    (:y (setf (sine-phase (capi-object-property view :ysine)) 0)))
+  (unless (capi-object-property view :living-text-animation)
+    (redraw etap)))
+
 (defun sine-run-step (etap &aux (view (view etap)))
   (cond ((capi-object-property view :living-text-animation)
 	 (let ((xsine (capi-object-property view :xsine))
@@ -573,6 +581,11 @@ The calibrated value is displayed with 3 digits."
      :callback 'sine-cursor-callback
      :enabled nil
      :reader xprop)
+   (xphase push-button
+     :text "Reset Phase"
+     :data :x
+     :callback 'sine-phase-reset-callback
+     :enabled nil)
    (yamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
@@ -591,6 +604,11 @@ The calibrated value is displayed with 3 digits."
      :callback 'sine-cursor-callback
      :enabled nil
      :reader yprop)
+   (yphase push-button
+     :text "Reset Phase"
+     :data :y
+     :callback 'sine-phase-reset-callback
+     :enabled nil)
    (animate push-button
      :data :run-animation
      :print-function 'title-capitalize
@@ -604,9 +622,9 @@ The calibrated value is displayed with 3 digits."
      :adjust :center
      :reader settings)
    (xy-settings row-layout '(horizontal vertical))
-   (horizontal column-layout '(xamp xond xprop)
-     :title "Horizontal" :title-position :frame )
-   (vertical column-layout '(yamp yond yprop)
+   (horizontal column-layout '(xamp xond xprop xphase)
+     :title "Horizontal" :title-position :frame :adjust :center)
+   (vertical column-layout '(yamp yond yprop yphase)
      :title "Vertical" :title-position :frame :adjust :center))
   (:default-initargs
    :title "Living Text"
