@@ -360,28 +360,47 @@ The calibrated value is displayed with 3 digits."
 
 
 
-;; Breakup updater
+;; Layout-based updater
 
-(defun %remake-from-lineup (etap lineup)
-  "Remake ETAP interface's breakup from LINEUP and redraw."
-  (let* ((breakup (%make-breakup
-		   lineup
-		   (widget-value (paragraph-width etap))))
-	 (layouts-# (layouts-# breakup)))
-    (setf (breakup etap) breakup)
-    (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
+(defun remake-with-layout (etap layout)
+  "Remake ETAP interface with LAYOUT number, and redraw."
+  (setf (layout etap) layout)
+  (setf (titled-object-title (view etap))
+	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
   (remake-rivers etap))
-
-(defun remake-from-lineup (etap)
-  "Remake ETAP interface's breakup from its current lineup and redraw."
-  (%remake-from-lineup etap (lineup (breakup etap))))
 
 
 
-;; Lineup updater
+;; Breakup-based updater
+
+(defun remake-with-breakup
+    (etap breakup &optional layout &aux (layouts-# (layouts-# breakup)))
+  "Remake ETAP interface with BREAKUP, and redraw.
+Display LAYOUT number (1 by default)."
+  (setf (breakup etap) breakup)
+  (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+  (unless layout (setq layout (if (zerop layouts-#) 0 1)))
+  (remake-with-layout etap layout))
+
+
+
+;; Lineup-based updater
+
+(defun remake-with-lineup (etap lineup)
+  "Remake ETAP interface's breakup with LINEUP, and redraw."
+  (remake-with-breakup
+   etap
+   (%make-breakup
+    lineup
+    (widget-value (paragraph-width etap)))))
+
+(defun remake-with-current-lineup (etap)
+  "Remake ETAP interface's breakup from its current lineup and redraw."
+  (remake-with-lineup etap (lineup (breakup etap))))
+
+
+
+;; Global updater
 
 (defun disposition-specification (etap)
   "Return ETAP interface's current disposition specification."
@@ -407,8 +426,8 @@ The calibrated value is displayed with 3 digits."
 	  options)))
 
 (defun remake (etap)
-  "Remake ETAP interface's breakup completely, and redraw."
-  (%remake-from-lineup
+  "Remake ETAP interface's breakup, and redraw."
+  (remake-with-lineup
    etap
    (%make-lineup
     (make-nlstring
@@ -532,7 +551,7 @@ The calibrated value is displayed with 3 digits."
 				  (caliber hyphenation-point)))
     (setf (title-pane-text (title dialog)) (princ-to-string value))
     (setf (penalty hyphenation-point) value)
-    (remake-from-lineup etap)))
+    (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
     (item dialog
@@ -694,7 +713,7 @@ new dialog and display it."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (remake-from-lineup etap)))
+    (remake-with-current-lineup etap)))
 
 
 
@@ -721,10 +740,7 @@ new dialog and display it."
 - Select the next +/-1 layout and advertise its number.
 - Remake rivers and redraw."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
-  (setf (layout etap) layout)
-  (setf (titled-object-title (view etap))
-      (format nil "Layout ~D/~D" (layout etap) layouts-#))
-  (remake-rivers etap))
+  (remake-with-layout etap layout))
 
 
 
@@ -771,6 +787,7 @@ Otherwise, reselect the previously selected one."
 
 ;; Text editor
 
+;; See "callback mess" comment in %SET-STATE.
 (defun text-change-callback
     (text-editor point old-length new-length
      &aux (etap (top-level-interface text-editor)))
@@ -1368,6 +1385,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
+     ;; See "callback mess" comment in %SET-STATE.
      :change-callback 'text-change-callback
      :reader text)
    (view output-pane
@@ -1530,6 +1548,13 @@ those which may affect the typesetting."
     (algorithm lineup) width
     zoom clues))
 
+(defun %set-state-from-breakup (etap breakup zoom clues)
+  "Set ETAP interface's widgets state using BREAKUP."
+  (%set-state-from-lineup etap
+    (lineup breakup) (paragraph-width breakup)
+    zoom clues))
+
+
 
 
 ;; ==========================================================================
@@ -1544,7 +1569,7 @@ those which may affect the typesetting."
   for parameters unrelated to typesetting (that is, GUI-specific). This
   includes the currently displayed clues, and zoom factor.
 
-Note that inteface's breakup and current layout number (+1) have their own
+Note that ETAP's breakup and current layout number (+1) have their own
 eponymous readers."
   (values
    (make-context
@@ -1593,30 +1618,30 @@ eponymous readers."
 		     (caliber-default *paragraph-width*))
 		 widthp)
 	  breakup
-	  (layout 1)
+	  layout
 	  (zoom 100)
 	  (clues '(:characters t))
      &aux (nlstring (if (or textp languagep (null context))
 		      (make-nlstring :text text :language language)
 		      (nlstring context))))
   "Run a new Etap interface with the specified parameters.
-- LAYOUT is the breakup's layout number to display (1 by default).
-- ZOOM factor is expressed in percentage (must be at least 1).
-- CLUES is a property list of things to display (see `*clues*' for more
-  information). Only characters are displayed by default.
+LAYOUT, ZOOM, and CLUES, are visualization options. The rest are typesetting
+options.
 
-The other options are related to typesetting. See `context' for more
-information..
-- CONTEXT defaults to *CONTEXT*.
+- CONTEXT defaults to *CONTEXT*. See `context' for more information.
 - Most other typesetting options are defaulted from the context, or to their
 corresponding global variable otherwise, but may be overridden on demand.
 - Explicit features take precedence over FEATURES.
-- Providing any typesetting option, except for :context, :width, and :lineup
+- Providing any typesetting option, except for CONTEXT, WIDTH, and LINEUP,
   will force recomputing the lineup and the breakup (see `make-lineup' and
   `make-breakup').
-- Providing a lineup or the :width options will also force recomputing the
-  breakup.
-- The LAYOUT option is ignored unless a breakup is also provided."
+- Providing LINEUP or WIDTH will also force recomputing the breakup.
+
+- LAYOUT is the breakup's layout number to display. This option is ignored if
+  a new breakup is (re)computed (in which case the first layout is displayed).
+- ZOOM factor is expressed in percentage (must be at least 1).
+- CLUES is a property list of things to display (see `*clues*' for more
+  information). Only characters are displayed by default."
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
@@ -1636,17 +1661,8 @@ corresponding global variable otherwise, but may be overridden on demand.
 	   (remake etap))
 	  (lineup
 	   (%set-state-from-lineup etap lineup width zoom clues)
-	   (%remake-from-lineup etap lineup))
+	   (remake-with-lineup etap lineup))
 	  (breakup
-	   (%set-state-from-lineup etap
-	     (lineup breakup) (paragraph-width breakup) zoom clues)
-	   (setf (breakup etap) breakup)
-	   (setq layout
-		 (if (zerop (layouts-# breakup))
-		   0
-		   (1+ (mod (1- layout) (layouts-# breakup)))))
-	   (setf (layout etap) layout)
-	   (setf (titled-object-title (view etap))
-		 (format nil "Layout ~D/~D" (layout etap) (layouts-# breakup)))
-	   (remake-rivers etap)))
+	   (%set-state-from-breakup etap breakup zoom clues)
+	   (remake-with-breakup etap breakup layout)))
     (display etap)))
