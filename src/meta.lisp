@@ -32,7 +32,8 @@
     :make-context :*context*
     ;; From interface/capi.lisp:
     #+lispworks :*interface*
-    #+lispworks :breakup #+lispworks :layout
-    #+lispworks :state #+lispworks :visualize
+    #+lispworks :interface-breakup
+    #+lispworks :interface-state
+    #+lispworks :visualize
     ;; From entry.lisp:
     :make-lineup :make-breakup))

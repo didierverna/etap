@@ -1588,28 +1588,35 @@ those which may affect the lineup."
 ;; Entry Points
 ;; ==========================================================================
 
-(defun state (etap)
-  "Return the current state of ETAP interface as two values.
-- The first value is a fully qualified context, which is useful for
-  experimenting from the command-line in the same conditions.
-- The second value is a property list describing the state of the interface
-  for parameters unrelated to typesetting (that is, GUI-specific). This
-  includes the currently displayed clues, and zoom factor.
+(defun interface-state (interface)
+  "Return the current state of INTERFACE as two values.
+- The first value is a fully qualified context representing INTERFACE's
+  current typesetting options (see `context').
+- The second value is a fully qualified property list representing INTERFACE's
+  current visualization options. This includes the visual clues and zoom
+  factor.
 
-Note that ETAP's breakup and current layout number (+1) have their own
-eponymous readers."
+See also `interface-breakup'."
   (values
    (make-context
-    :font (font etap)
-    :algorithm (algorithm-specification etap)
-    :disposition (disposition-specification etap)
-    :features (widget-value (features etap))
-    :paragraph-width (widget-value (paragraph-width etap))
-    :text (editor-pane-text (text etap))
-    :language (language-specification etap))
+    :font (font interface)
+    :algorithm (algorithm-specification interface)
+    :disposition (disposition-specification interface)
+    :features (widget-value (features interface))
+    :paragraph-width (widget-value (paragraph-width interface))
+    :text (editor-pane-text (text interface))
+    :language (language-specification interface))
    (list
-    :clues (widget-value (clues etap))
-    :zoom (widget-value (zoom etap)))))
+    :clues (widget-value (clues interface))
+    :zoom (widget-value (zoom interface)))))
+
+(defun interface-breakup (interface)
+  "Return INTERFACE's breakup and displayed layout number as two values.
+The layout number starts at 1 (technically, layout index + 1). 0 indicates
+that the breakup does not contain any layout.
+
+See also `interface-state'."
+  (values (breakup interface) (layout interface)))
 
 (defun visualize
     (&key (interface *interface*)
