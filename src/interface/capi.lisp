@@ -1487,12 +1487,18 @@ the interface is done sensibly."
 
 ;; Utility protocols
 
+;; #### WARNING: currently, this protocol is only used by penalty adjustment
+;; dialogs, in order to avoid recomputing a new lineup while some of the
+;; current break points are manipulated. Meanwhile, the paragraph width can
+;; still be safely modified since it doesn't affect the lineup. This protocol
+;; will need to be generalized for more complicated applications.
+
 (defmethod enable-interface ((etap etap) &optional (enabled t))
   "Change ETAP interface's enabled status.
-The zooming and clues controls are always enabled.
+The zooming, clues, and paragraph width controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
-those which may affect the typesetting."
-  (setf (simple-pane-enabled (paragraph-width etap)) enabled)
+those which may affect the lineup."
+  ;; (setf (simple-pane-enabled (paragraph-width etap)) enabled)
   (enable-pane (options-2 etap) enabled)
   (enable-pane (settings-2 etap) enabled)
   (setf (enabled etap) enabled))
