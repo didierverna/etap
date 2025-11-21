@@ -696,8 +696,6 @@ new dialog and display it."
 (defun menu-callback (item etap)
   "Function called when the ETAP menu is popped up."
   (ecase item
-    (:reset-paragraph
-     (remake etap))
     (:river-detection
      (display (river-detection-dialog etap) :owner etap))))
 
@@ -1445,7 +1443,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
   (:menus
-   (etap-menu "ETAP" (:reset-paragraph :river-detection)
+   (etap-menu "ETAP" (:river-detection)
      :print-function 'title-capitalize
      :callback 'menu-callback)
    (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
