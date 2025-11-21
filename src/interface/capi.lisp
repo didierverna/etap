@@ -520,6 +520,11 @@ Display LAYOUT number (1 by default)."
 ;; Penalty Adjustment Dialogs
 ;; ==========================================================================
 
+;; #### NOTE: the logic used with penalty adjustment dialogs is meant to
+;; simplify dependency management between the UI and the lineup. Every UI
+;; component that entails computing a new lineup is deactivated for as long as
+;; there's a live penalty adjustment dialog.
+
 (defun penalty-adjustment-destroy-callback (dialog)
   "Function called when penalty adjustment DIALOG is destroyed.
 - Possibly reenable the Etap interface if DIALOG was the last one."
