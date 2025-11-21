@@ -6,7 +6,10 @@
 ;; for now. I will need to check this again when I introduce focus and
 ;; keyboard control though.
 
+(defvar *interface* nil "The default GUI.")
 
+
+
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -1514,7 +1517,7 @@ those which may affect the lineup."
 
 ;; State
 
-(defun %set-state
+(defun set-state
     (etap nlstring font features disposition algorithm width zoom clues)
   "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
@@ -1549,7 +1552,7 @@ those which may affect the lineup."
   (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
 
-(defun %set-state-from-lineup (etap lineup width zoom clues)
+(defun set-state-from-lineup (etap lineup width zoom clues)
   "Set ETAP interface's widgets state using LINEUP."
   (%set-state etap
     (nlstring lineup) (font lineup)
@@ -1557,12 +1560,27 @@ those which may affect the lineup."
     (algorithm lineup) width
     zoom clues))
 
-(defun %set-state-from-breakup (etap breakup zoom clues)
+(defun set-state-from-breakup (etap breakup zoom clues)
   "Set ETAP interface's widgets state using BREAKUP."
-  (%set-state-from-lineup etap
+  (set-state-from-lineup etap
     (lineup breakup) (paragraph-width breakup)
     zoom clues))
 
+(defun set-state-and-remake
+    (etap
+     breakup lineup nlstring font features disposition algorithm width
+     zoom clues layout)
+  "Set ETAP interface's widgets state and remake as needed."
+  (cond ((and (null lineup) (null breakup))
+	 (set-state etap
+	   nlstring font features disposition algorithm width zoom clues)
+	 (remake etap))
+	(lineup
+	 (set-state-from-lineup etap lineup width zoom clues)
+	 (remake-with-lineup etap lineup))
+	(breakup
+	 (set-state-from-breakup etap breakup zoom clues)
+	 (remake-with-breakup etap breakup layout))))
 
 
 
@@ -1593,17 +1611,9 @@ eponymous readers."
     :clues (widget-value (clues etap))
     :zoom (widget-value (zoom etap)))))
 
-#+()(defun set-state
-    (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
-  "Set ETAP interface state."
-  (declare (ignore context zoom clues))
-  (apply #'execute-with-interface-if-alive etap
-	 (lambda ()
-	   (apply #'%set-state etap keys)
-	   (remake etap))))
-
-(defun run
-    (&key (context *context*)
+(defun visualize
+    (&key (interface *interface*)
+	  (context *context*)
 	  (text
 	   (if (and context (nlstring context))
 	     (text (nlstring context))
@@ -1632,8 +1642,13 @@ eponymous readers."
 	  (clues '(:characters t))
      &aux (nlstring (if (or textp languagep (null context))
 		      (make-nlstring :text text :language language)
-		      (nlstring context))))
-  "Run a new Etap interface with the specified parameters.
+		      (nlstring context)))
+	  reuse)
+  "Run a typesetting visualization with the specified parameters.
+INTERFACE defaults to *INTERFACE*, which is initially null.
+If INTERFACE is null, create a new interface. Otherwise, reuse the provided
+one. In all cases, the interface is returned.
+
 LAYOUT, ZOOM, and CLUES, are visualization options. The rest are typesetting
 options.
 
@@ -1651,6 +1666,15 @@ corresponding global variable otherwise, but may be overridden on demand.
 - ZOOM factor is expressed in percentage (must be at least 1).
 - CLUES is a property list of things to display (see `*clues*' for more
   information). Only characters are displayed by default."
+  (cond (interface
+	 #+()(unless (capi::interface-alive-p interface)
+	   (error "Interface ~S does not exist (any more?)." interface))
+	 (execute-with-interface-if-alive interface
+	   (lambda (dialogs) (mapc #'destroy dialogs))
+	   (penalty-adjustment-dialogs interface))
+	 (setq reuse t))
+	(t
+	 (setq interface (make-instance 'etap))))
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
@@ -1662,16 +1686,18 @@ corresponding global variable otherwise, but may be overridden on demand.
     (setq lineup nil breakup nil))
   (when (or lineup widthp)
     (setq breakup nil))
-  (let ((etap (make-instance 'etap)))
-    (cond ((and (null lineup) (null breakup))
-	   (%set-state etap
-	     nlstring font features disposition algorithm width
-	     zoom clues)
-	   (remake etap))
-	  (lineup
-	   (%set-state-from-lineup etap lineup width zoom clues)
-	   (remake-with-lineup etap lineup))
-	  (breakup
-	   (%set-state-from-breakup etap breakup zoom clues)
-	   (remake-with-breakup etap breakup layout)))
-    (display etap)))
+  (cond (reuse
+	 (execute-with-interface-if-alive interface
+	   #'set-state-and-remake
+	   interface
+	   breakup lineup
+	   nlstring font features disposition algorithm width
+	   zoom clues layout))
+	(t
+	 (set-state-and-remake
+	  interface
+	  breakup lineup
+	  nlstring font features disposition algorithm width
+	  zoom clues layout)
+	 (display interface)))
+  interface)

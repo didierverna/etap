@@ -31,7 +31,8 @@
     :font :algorithm :disposition :features :paragraph-width :text :language
     :make-context :*context*
     ;; From interface/capi.lisp:
+    #+lispworks :*interface*
     #+lispworks :breakup #+lispworks :layout
-    #+lispworks :state #+lispworks :set-state #+lispworks :run
+    #+lispworks :state #+lispworks :visualize
     ;; From entry.lisp:
     :make-lineup :make-breakup))
