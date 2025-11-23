@@ -384,7 +384,7 @@ Display LAYOUT number (1 by default)."
     (make-nlstring
      :text (editor-pane-text (text etap))
      :language (language-specification etap))
-    (font etap)
+    (capi-object-property etap :font)
     (widget-value (features etap))
     (disposition-specification etap)
     (algorithm-specification etap))))
@@ -1064,8 +1064,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; ==========================================================================
 
 (define-interface etap ()
-  ((font :reader font)
-   (breakup :accessor breakup)
+  ((breakup :accessor breakup)
    (layout :accessor layout)
    (enabled :initform t :accessor enabled)
    (rivers
@@ -1473,7 +1472,7 @@ those which may affect the lineup."
     (etap nlstring font features disposition algorithm width zoom clues)
   "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
-  (setf (slot-value etap 'font) font)
+  (setf (capi-object-property etap :font) font)
   (setf (widget-value (features etap)) features)
   (setf (widget-value (disposition etap)) (disposition-type disposition))
   (setf (widget-value (disposition-options-panel etap))
@@ -1568,7 +1567,7 @@ those which may affect the lineup."
 See also `interface-breakup'."
   (values
    (make-context
-    :font (font interface)
+    :font (capi-object-property interface :font)
     :algorithm (algorithm-specification interface)
     :disposition (disposition-specification interface)
     :features (widget-value (features interface))
