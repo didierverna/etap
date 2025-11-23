@@ -80,9 +80,6 @@ This class is a mixin class for ETAP widgets."))
   "Return the list (<widget property> <widget value>)."
   (list (property widget) (widget-value widget)))
 
-(defgeneric (setf widget-state) (plist widget)
-  (:documentation "Set WIDGET's state based on PLIST."))
-
 (defun find-widget (property pane &aux widget)
   "Find a widget for PROPERTY in PANE's descendants."
   (map-pane-descendant-children
@@ -126,28 +123,10 @@ This is the base class for radio and check boxes."))
   (choice-selected-item box))
 
 (defmethod (setf widget-value) (item (box radio-box))
-  "Set radio BOX's selected ITEM (must be one of BOX's items)."
-  (setf (choice-selected-item box) item))
-
-;; #### NOTE: the reason we have two methods below is because we have two ways
-;; of using radio boxes.
-;; 1. The value can be in the middle of a plist, for example, in an algorithm
-;;    specification: (... :fallback :anyfull ...). There, the method on lists
-;;    applies.
-;; 2. The value can also be specific, for example in the case of a
-;;    disposition which is extracted by calling DISPOSITION-TYPE.
-
-(defmethod (setf widget-state) ((plist list) (box radio-box))
-  "Set radio BOX's state based on PLIST.
-More specifically, BOX's selection is set to the value of BOX's property
-in PLIST if found (the value must be one of BOX's items). Otherwise, the
-first item in BOX is selected."
-  (setf (choice-selected-item box)
-	(or (getf plist (property box)) (svref (collection-items box) 0))))
-
-(defmethod (setf widget-state) ((item symbol) (box radio-box))
-  "Set radio BOX's selected item to ITEM (must be one of BOX's items)."
-  (setf (choice-selected-item box) item))
+  "Set radio BOX's selection to ITEM.
+ITEM must be one of BOX's items, or NIL, in which case the first item will be
+selected."
+  (setf (choice-selected-item box) (or item (svref (collection-items box) 0))))
 
 
 
@@ -168,20 +147,13 @@ This is an exhaustive property list of BOX's items and their selected state."
 	:else
 	  :collect nil))
 
+;; #### NOTE: see comment in SET-STATE about the apparent laxism of this
+;; method (unknown options are ignored instead of signalling an error).
 (defmethod (setf widget-value) (plist (box check-box))
   "Set check BOX's selected items based on PLIST.
 More specifically, every BOX item found to be true in PLIST is selected. The
 rest is deselected (i.e., no items are left in their previous state). Unknown
 items are ignored."
-  (setf (choice-selected-items box)
-	(loop :for item :across (collection-items box) ; a vector
-	      :when (getf plist item)
-		:collect item)))
-
-(defmethod (setf widget-state) (plist (box check-box))
-  "Set check BOX's state based on PLIST.
-More specifically, every BOX item found to be true in PLIST is selected. The
-rest is deselected (i.e., no items are left in their previous state)."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
 	      :when (getf plist item)
@@ -246,20 +218,10 @@ This means setting its range start and end, default value, and title."
 
 (defmethod (setf widget-value)
     (value (cursor cursor) &aux (caliber (caliber cursor)))
-  "Set CURSOR's (decalibrated) VALUE."
-  (setf (range-slug-start cursor) (decalibrated-value value caliber))
-  (update-cursor-title cursor))
-
-(defmethod (setf widget-state)
-    (plist (cursor cursor) &aux (caliber (caliber cursor)))
-  "Set CURSOR's state based on PLIST.
-More specifically, CURSOR's value is set to the decalibrated value of CURSOR's
-property in PLIST if found. Otherwise, the default value of CURSOR's caliber
-is used. CURSOR's title is updated accordingly."
+  "Set CURSOR's (decalibrated) VALUE.
+If VALUE is NIL, use the default value of CURSOR's caliber instead."
   (setf (range-slug-start cursor)
-	(decalibrated-value (or (getf plist (property cursor))
-				(caliber-default caliber))
-			    caliber))
+	(decalibrated-value (or value (caliber-default caliber)) caliber))
   (update-cursor-title cursor))
 
 
@@ -403,7 +365,7 @@ Display LAYOUT number (1 by default)."
 	   (lambda (child)
 	     (typecase child
 	       (check-box
-		;; #### NOTE: this special case is because check boxes in
+		;; #### WARNING: this special case is because check boxes in
 		;; algorithms currently only represent additional options for
 		;; which the widget's property is meaningless (typically
 		;; :options). We do not have anything working like the clues
@@ -779,7 +741,7 @@ Otherwise, reselect the previously selected one."
 
 ;; Text editor
 
-;; See "callback mess" comment in %SET-STATE.
+;; See "callback mess" comment in SET-STATE.
 (defun text-change-callback
     (text-editor point old-length new-length
      &aux (etap (top-level-interface text-editor)))
@@ -1377,7 +1339,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
-     ;; See "callback mess" comment in %SET-STATE.
+     ;; See "callback mess" comment in SET-STATE.
      :change-callback 'text-change-callback
      :reader text)
    (view output-pane
@@ -1512,16 +1474,33 @@ those which may affect the lineup."
   (setf (widget-value (disposition etap)) (disposition-type disposition))
   (setf (widget-value (disposition-options-panel etap))
 	(disposition-options disposition))
-  (let* ((algorithm (algorithm-type algorithm))
-	 (options (algorithm-options algorithm))
+  (let* ((algorithm-type (algorithm-type algorithm))
+	 (algorithm-options (algorithm-options algorithm))
 	 (tab (algorithms-tab etap))
-	 (item (find algorithm (collection-items tab) :key #'first)))
+	 (item (find algorithm-type (collection-items tab) :key #'first)))
     (setf (choice-selected-item tab) item)
     (setf (capi-object-property tab :current-item) item)
+    ;; #### WARNING: we're doing something a bit shaky here. In the algorithms
+    ;; tabs, we currently have radio boxes corresponding to specific
+    ;; properties, individual cursors lurking around, and finally "other
+    ;; options" check boxes which regroup remaining boolean options. The
+    ;; problem is that those check boxes are represented as widgets, although
+    ;; their attached property is in fact meaningless. If someday we introduce
+    ;; actual options with check-box behavior (as e.g. the visual clues),
+    ;; we're gonna have a problem here. One solution would be to avoid using
+    ;; check boxes as a mean to group options, and have check buttons lurking
+    ;; around as cursors. In the meantime, we need to special-case check boxes
+    ;; below and pass them the whole algorithm options list instead of trying
+    ;; to getf their (inexistant) property. That also explains why the (SETF
+    ;; WIDGET-VALUE) protocol on check boxes ignores unknown items.
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
-	(when (typep child 'widget)
-	  (setf (widget-state child) options)))))
+	(typecase child
+	  (check-box
+	   (setf (widget-value child) algorithm-options))
+	  (widget
+	   (setf (widget-value child)
+		 (getf algorithm-options (property child))))))))
   (setf (widget-value (paragraph-width etap)) width)
   (setf (widget-value (zoom etap)) zoom)
   (setf (widget-value (clues etap)) clues)
@@ -1540,7 +1519,7 @@ those which may affect the lineup."
 
 (defun set-state-from-lineup (etap lineup width zoom clues)
   "Set ETAP interface's widgets state using LINEUP."
-  (%set-state etap
+  (set-state etap
     (nlstring lineup) (font lineup)
     (features lineup) (disposition lineup)
     (algorithm lineup) width
