@@ -76,8 +76,9 @@ This class is a mixin class for ETAP widgets."))
 (defgeneric (setf widget-value) (value widget)
   (:documentation "Set WIDGET's VALUE."))
 
-(defgeneric widget-state (widget)
-  (:documentation "Return a property list representing WIDGET's state."))
+(defun widget-specification (widget)
+  "Return the list (<widget property> <widget value>)."
+  (list (property widget) (widget-value widget)))
 
 (defgeneric (setf widget-state) (plist widget)
   (:documentation "Set WIDGET's state based on PLIST."))
@@ -128,11 +129,6 @@ This is the base class for radio and check boxes."))
   "Set radio BOX's selected ITEM (must be one of BOX's items)."
   (setf (choice-selected-item box) item))
 
-(defmethod widget-state ((box radio-box))
-  "Return a property list representing radio BOX's state.
-This is a list of the form (<property> <selected item>)."
-  (list (property box) (choice-selected-item box)))
-
 ;; #### NOTE: the reason we have two methods below is because we have two ways
 ;; of using radio boxes.
 ;; 1. The value can be in the middle of a plist, for example, in an algorithm
@@ -181,20 +177,6 @@ items are ignored."
 	(loop :for item :across (collection-items box) ; a vector
 	      :when (getf plist item)
 		:collect item)))
-
-(defmethod widget-state ((box check-box))
-  "Return a property list representing check BOX's state.
-This is a list of the form (<property> <item> <state> ...).
-Note that the list is exhaustive: all BOX items are present, with their state
-being T or NIL."
-  (cons (property box)
-	(loop :with selection := (choice-selected-items box)
-	      :for item :across (collection-items box) ; a vector
-	      :collect item
-	      :if (member item selection)
-		:collect t
-	      :else
-		:collect nil)))
 
 (defmethod (setf widget-state) (plist (box check-box))
   "Set check BOX's state based on PLIST.
@@ -265,11 +247,6 @@ This means setting its range start and end, default value, and title."
   "Set CURSOR's (decalibrated) VALUE."
   (setf (range-slug-start cursor) (decalibrated-value value caliber))
   (update-cursor-title cursor))
-
-(defmethod widget-state ((cursor cursor))
-  "Return a property list representing CURSOR's state.
-This is a list of the form (<property> <calibrated value>)."
-  (list (property cursor) (calibrated-cursor-value cursor)))
 
 (defmethod (setf widget-state)
     (plist (cursor cursor) &aux (caliber (caliber cursor)))
@@ -358,7 +335,7 @@ The calibrated value is displayed with 3 digits."
 	(when (and (river-detection-p etap) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup etap))
-	    (widget-state (angle (river-detection-dialog etap))))))
+	    (widget-specification (angle (river-detection-dialog etap))))))
   (redraw etap))
 
 
@@ -424,8 +401,15 @@ Display LAYOUT number (1 by default)."
 	   (lambda (child)
 	     (typecase child
 	       (check-box
+		;; #### NOTE: this special case is because check boxes in
+		;; algorithms currently only represent additional options for
+		;; which the widget's property is meaningless (typically
+		;; :options). We do not have anything working like the clues
+		;; check box in algorithms right now, but if that changes, we
+		;; will have a problem here.
 		(setq options (append options (widget-value child))))
-	       (widget (setq options (append options (widget-state child)))))))
+	       (widget
+		(setq options (append options (widget-specification child)))))))
 	  options)))
 
 (defun remake (etap)
