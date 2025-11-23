@@ -208,6 +208,10 @@ rest is deselected (i.e., no items are left in their previous state)."
   (:documentation "The Cursor class."))
 
 
+(defun calibrated-cursor-value (cursor)
+  "Return the calibrated current CURSOR value."
+  (calibrated-value (range-slug-start cursor) (caliber cursor)))
+
 (defgeneric cursor-title (cursor)
   (:documentation "Compute CURSOR's title based on its current value.")
   (:method ((cursor cursor))
@@ -221,6 +225,7 @@ This is the default method."
   "Update CURSOR's title with its current value."
   (setf (titled-object-title cursor) (cursor-title cursor)))
 
+
 ;; #### NOTE: it's important to initialize the value and title because
 ;; otherwise, only the initial algorithm's widgets would have those settings
 ;; properly set.
@@ -230,12 +235,9 @@ This is the default method."
 This means setting its range start and end, default value, and title."
   (setf (range-start cursor) (caliber-min caliber)
 	(range-end cursor)   (caliber-max caliber))
-  (setf (widget-state cursor) nil))
-
-
-(defun calibrated-cursor-value (cursor)
-  "Return the calibrated current CURSOR value."
-  (calibrated-value (range-slug-start cursor) (caliber cursor)))
+  (setf (range-slug-start cursor)
+	(decalibrated-value (caliber-default caliber) caliber))
+  (update-cursor-title cursor))
 
 
 (defmethod widget-value ((cursor cursor))
