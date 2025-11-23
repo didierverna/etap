@@ -1422,11 +1422,15 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; Interface display
 
 ;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
-;; better done here than in an INITIALIZE-INSTANCE :after method.
+;; better done here than in an INITIALIZE-INSTANCE :after method. Also, our
+;; initialization function uses MAP-PANE-DESCENDANT-CHILDREN which only works
+;; on displayed items, so we cannot set the state of the interface earlier
+;; than this.
 (defmethod interface-display :before ((etap etap))
   "Finalize ETAP interface's display settings.
-This currently involves fixating the geometry of option panes so that resizing
-the interface is done sensibly."
+This currently involves setting ETAP to the required state and fixating the
+geometry of option panes so that resizing the interface is done sensibly."
+  (funcall (capi-object-property etap :initialization-function))
   (let ((size (multiple-value-list
 	       (simple-pane-visible-size (settings-1 etap)))))
     (set-hint-table (settings-1 etap)
@@ -1666,10 +1670,14 @@ corresponding global variable otherwise, but may be overridden on demand.
 	   nlstring font features disposition algorithm width
 	   zoom clues layout))
 	(t
-	 (set-state-and-remake
-	  interface
-	  breakup lineup
-	  nlstring font features disposition algorithm width
-	  zoom clues layout)
+	 ;; See comment atop INTERFACE-DISPLAY about deferring the widgets
+	 ;; initialization there.
+	 (setf (capi-object-property interface :initialization-function)
+	       (lambda ()
+		 (set-state-and-remake
+		  interface
+		  breakup lineup
+		  nlstring font features disposition algorithm width
+		  zoom clues layout)))
 	 (display interface)))
   interface)
