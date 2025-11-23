@@ -356,7 +356,7 @@ Display LAYOUT number (1 by default)."
   (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
 
 (defun algorithm-specification
-    (etap &aux (item (choice-selected-item (algorithms-tab etap))))
+    (etap &aux (item (choice-selected-item (algorithm-tabs etap))))
   "Return ETAP interface's current algorithm specification."
   (cons (first item)
 	(let ((options))
@@ -571,7 +571,7 @@ Display LAYOUT number (1 by default)."
 	  (caliber-property caliber)
 	  (slot-value
 	   etap
-	   (second (choice-selected-item (algorithms-tab etap)))))))
+	   (second (choice-selected-item (algorithm-tabs etap)))))))
   (setf (slot-value dialog 'original-value)
 	(decalibrated-value (penalty hyphenation-point)
 			    (caliber hyphenation-point)))
@@ -709,7 +709,7 @@ new dialog and display it."
     (update-cursor-title cursor)
     (remake (top-level-interface cursor))))
 
-(defun algorithms-tab-callback (tab etap)
+(defun algorithm-tabs-callback (tab etap)
   "Function called when an algorithm tab is selected.
 If ETAP interface is enabled, remember the selection and remake everything.
 Otherwise, reselect the previously selected one."
@@ -1143,7 +1143,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :data #'1+
      :callback 'layout-callback
      :help-key :layout-+1)
-   (algorithms-tab tab-layout
+   (algorithm-tabs tab-layout
      :title "Algorithms"
      :visible-max-width nil
      :combine-child-constraints t
@@ -1155,7 +1155,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	      (:kpx kpx-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:element :interface)
-     :selection-callback 'algorithms-tab-callback
+     :selection-callback 'algorithm-tabs-callback
      ;; #### WARNING: with my emulation of an enabled/disabled status for the
      ;; main interface, the algorithms tab's selection callback may override
      ;; the selection that triggered its call. However, even though the
@@ -1165,8 +1165,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      ;; directly with the tab's selection.
      :visible-child-function (lambda (item)
 			       (declare (ignore item))
-			       (second (choice-selected-item algorithms-tab)))
-     :reader algorithms-tab)
+			       (second (choice-selected-item algorithm-tabs)))
+     :reader algorithm-tabs)
    (fixed-fallback radio-box
      :property :fallback
      :items *fixed-fallbacks*
@@ -1364,7 +1364,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    (options-1 column-layout '(clues))
    (options-2 column-layout '(disposition disposition-options features)
      :reader options-2)
-   (settings-2 column-layout '(algorithms-tab text-options text)
+   (settings-2 column-layout '(algorithm-tabs text-options text)
      :reader settings-2)
    (text-options row-layout '(text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
@@ -1476,10 +1476,10 @@ those which may affect the lineup."
 	(disposition-options disposition))
   (let* ((algorithm-type (algorithm-type algorithm))
 	 (algorithm-options (algorithm-options algorithm))
-	 (tab (algorithms-tab etap))
-	 (item (find algorithm-type (collection-items tab) :key #'first)))
-    (setf (choice-selected-item tab) item)
-    (setf (capi-object-property tab :current-item) item)
+	 (tabs (algorithm-tabs etap))
+	 (item (find algorithm-type (collection-items tabs) :key #'first)))
+    (setf (choice-selected-item tabs) item)
+    (setf (capi-object-property tabs :current-item) item)
     ;; #### WARNING: we're doing something a bit shaky here. In the algorithms
     ;; tabs, we currently have radio boxes corresponding to specific
     ;; properties, individual cursors lurking around, and finally "other
@@ -1495,7 +1495,7 @@ those which may affect the lineup."
     ;; WIDGET-VALUE) protocol on check boxes ignores unknown items.
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
-	(typecase child
+	(typecase (print child)
 	  (check-box
 	   (setf (widget-value child) algorithm-options))
 	  (widget
