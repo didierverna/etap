@@ -1643,8 +1643,6 @@ corresponding global variable otherwise, but may be overridden on demand.
 - CLUES is a property list of things to display (see `*clues*' for more
   information). Only characters are displayed by default."
   (cond (interface
-	 #+()(unless (capi::interface-alive-p interface)
-	   (error "Interface ~S does not exist (any more?)." interface))
 	 (execute-with-interface-if-alive interface
 	   (lambda (dialogs) (mapc #'destroy dialogs))
 	   (penalty-adjustment-dialogs interface))
@@ -1670,8 +1668,7 @@ corresponding global variable otherwise, but may be overridden on demand.
 	   nlstring font features disposition algorithm width
 	   zoom clues layout))
 	(t
-	 ;; See comment atop INTERFACE-DISPLAY about deferring the widgets
-	 ;; initialization there.
+	 ;; See comment atop INTERFACE-DISPLAY about this.
 	 (setf (capi-object-property interface :initialization-function)
 	       (lambda ()
 		 (set-state-and-remake
