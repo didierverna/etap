@@ -1629,7 +1629,7 @@ options.
 
 - CONTEXT defaults to *CONTEXT*. See `context' for more information.
 - Most other typesetting options are defaulted from the context, or to their
-corresponding global variable otherwise, but may be overridden on demand.
+  corresponding global variable otherwise, but may be overridden on demand.
 - Explicit features take precedence over FEATURES.
 - Providing any typesetting option, except for CONTEXT, WIDTH, and LINEUP,
   will force recomputing the lineup and the breakup (see `make-lineup' and
@@ -1640,7 +1640,9 @@ corresponding global variable otherwise, but may be overridden on demand.
   a new breakup is (re)computed (in which case the first layout is displayed).
 - ZOOM factor is expressed in percentage (must be at least 1).
 - CLUES is a property list of things to display (see `*clues*' for more
-  information). Only characters are displayed by default."
+  information). Only characters are displayed by default.
+
+See also `interface-state' and `interface-breakup'."
   (cond (interface
 	 (execute-with-interface-if-alive interface
 	   (lambda (dialogs) (mapc #'destroy dialogs))
