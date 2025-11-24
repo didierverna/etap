@@ -1065,16 +1065,26 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; ==========================================================================
 
 (define-interface etap ()
-  ((breakup :accessor breakup)
-   (layout :accessor layout)
-   (enabled :initform t :accessor enabled)
+  ((breakup
+    :documentation "This interface's current breakup."
+    :accessor breakup)
+   (layout
+    :documentation "This interface's currently displayed layout number.
+The layout number starts at 1 (technically, layout index + 1). 0 indicates
+that the breakup does not contain any layout."
+    :accessor layout)
+   (enabled
+    :documentation "Whether this interface is currently enabled."
+    :initform t :accessor enabled)
    (rivers
     :documentation "The paragraph's detected rivers."
     :accessor rivers)
    (penalty-adjustment-dialogs
+    :documentation "This interface's live penalty adjustment dialogs."
     :initform nil
     :accessor penalty-adjustment-dialogs)
    (river-detection-dialog
+    :documentation "This interface's river detection dialog."
     :initform (make-instance 'river-detection)
     :reader river-detection-dialog)
    (tooltips
