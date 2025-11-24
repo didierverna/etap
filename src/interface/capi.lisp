@@ -299,7 +299,8 @@ The calibrated value is displayed with 3 digits."
 	(when (and (river-detection-p etap) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup etap))
-	    (widget-specification (angle (river-detection-dialog etap))))))
+	    (widget-specification
+	     (angle-cursor (river-detection-dialog etap))))))
   (redraw etap))
 
 
@@ -425,7 +426,7 @@ Display LAYOUT number (1 by default)."
   "Function called when the river detection SWITCH is toggled.
 - Toggle the angle cursor's enabled status.
 - Remake rivers and redraw."
-  (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
+  (setf (simple-pane-enabled (angle-cursor dialog)) (button-selected switch))
   (remake-rivers etap))
 
 (defun river-detection-angle-callback
@@ -453,7 +454,7 @@ Display LAYOUT number (1 by default)."
      :caliber *river-detection-angle*
      :enabled nil
      :callback 'river-detection-angle-callback
-     :reader angle))
+     :reader angle-cursor))
   (:layouts
    (main column-layout '(switch angle)))
   (:default-initargs
