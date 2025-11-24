@@ -506,13 +506,13 @@ Display LAYOUT number (1 by default)."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
 				  (caliber hyphenation-point)))
-    (setf (title-pane-text (title dialog)) (princ-to-string value))
+    (setf (title-pane-text (title-area dialog)) (princ-to-string value))
     (setf (penalty hyphenation-point) value)
     (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
     (item dialog
-     &aux (slider (value dialog))
+     &aux (slider (value-slider dialog))
 	  (hyphenation-point (hyphenation-point dialog))
 	  (caliber (caliber hyphenation-point))
 	  (value (ecase item
@@ -533,13 +533,13 @@ Display LAYOUT number (1 by default)."
    (etap :initarg :etap :reader etap))
   (:panes
    (title title-pane
-     :reader title)
+     :reader title-area #| Can't use TITLE-PANE here (CAPI symbol). |#)
    (value slider
      :orientation :vertical
      :visible-min-height 220
      :tick-frequency 0
      :callback 'penalty-adjustment-value-callback
-     :reader value)
+     :reader value-slider)
    (reset push-button-panel
      :items '(:reset-to-original :reset-to-global :reset-to-default)
      :print-function 'title-capitalize
@@ -558,7 +558,7 @@ Display LAYOUT number (1 by default)."
 (defmethod initialize-instance :after
     ((dialog penalty-adjustment)
      &key &aux (etap (etap dialog))
-	       (slider (value dialog))
+	       (slider (value-slider dialog))
 	       (hyphenation-point (hyphenation-point dialog))
 	       (caliber (caliber hyphenation-point)))
   "Finish initializing penalty adjustment DIALOG.
@@ -579,7 +579,7 @@ Display LAYOUT number (1 by default)."
   (setf (range-start slider)      (caliber-min caliber)
 	(range-end slider)        (caliber-max caliber)
 	(range-slug-start slider) (original-value dialog))
-  (setf (title-pane-text (title dialog))
+  (setf (title-pane-text (title-area dialog))
 	(princ-to-string (penalty hyphenation-point))))
 
 (defun make-penalty-adjustment-dialog (hyphenation-point etap)
