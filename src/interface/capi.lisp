@@ -286,7 +286,7 @@ The calibrated value is displayed with 3 digits."
 
 (defun redraw (etap)
   "Redraw ETAP interface's paragraph view."
-  (gp:invalidate-rectangle (view etap)))
+  (gp:invalidate-rectangle (view-area etap)))
 
 
 
@@ -310,7 +310,7 @@ The calibrated value is displayed with 3 digits."
 (defun remake-with-layout (etap layout)
   "Remake ETAP interface with LAYOUT number, and redraw."
   (setf (layout etap) layout)
-  (setf (titled-object-title (view etap))
+  (setf (titled-object-title (view-area etap))
 	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
   (remake-rivers etap))
 
@@ -323,7 +323,7 @@ The calibrated value is displayed with 3 digits."
   "Remake ETAP interface with BREAKUP, and redraw.
 Display LAYOUT number (1 by default)."
   (setf (breakup etap) breakup)
-  (enable-pane (layouts-ctrl etap) (> layouts-# 1))
+  (enable-pane (layouts-ctrl-layout etap) (> layouts-# 1))
   (unless layout (setq layout (if (zerop layouts-#) 0 1)))
   (remake-with-layout etap layout))
 
@@ -337,7 +337,7 @@ Display LAYOUT number (1 by default)."
    etap
    (%make-breakup
     lineup
-    (widget-value (paragraph-width etap)))))
+    (widget-value (paragraph-width-cursor etap)))))
 
 (defun remake-with-current-lineup (etap)
   "Remake ETAP interface's breakup from its current lineup and redraw."
@@ -349,8 +349,8 @@ Display LAYOUT number (1 by default)."
 
 (defun disposition-specification (etap)
   "Return ETAP interface's current disposition specification."
-  (cons (widget-value (disposition etap))
-	(widget-value (disposition-options-panel etap))))
+  (cons (widget-value (disposition-type-box etap))
+	(widget-value (disposition-options-box etap))))
 
 (defun language-specification (etap)
   "Return ETAP interface's current language specification."
@@ -386,7 +386,7 @@ Display LAYOUT number (1 by default)."
      :text (editor-pane-text (text etap))
      :language (language-specification etap))
     (capi-object-property etap :font)
-    (widget-value (features etap))
+    (widget-value (features-box etap))
     (disposition-specification etap)
     (algorithm-specification etap))))
 
@@ -815,7 +815,8 @@ corresponding hyphenation clue."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (clues (choice-selected-items (clues-box etap)))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -823,7 +824,7 @@ corresponding hyphenation clue."
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the properties of the object under mouse (the paragraph itself, a
   line, or a hyphenation point)."
-  (when (member :properties-tooltips (choice-selected-items (clues etap)))
+  (when (member :properties-tooltips clues)
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
@@ -834,9 +835,7 @@ corresponding hyphenation clue."
       (when layout
 	(let (object)
 	  (if (setq object
-		    (or (and (member
-			      :hyphenation-points
-			      (choice-selected-items (clues etap)))
+		    (or (and (member :hyphenation-points clues)
 			     ;; #### NOTE: the +3 and (+ ... 5) are for
 			     ;; hyphenation clues occurring at the end of the
 			     ;; lines, or in the last line.
@@ -861,7 +860,7 @@ corresponding hyphenation clue."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -874,7 +873,7 @@ corresponding hyphenation clue."
   (decf y (height layout))
   (when layout
     (let ((object (and (member :hyphenation-points
-			       (choice-selected-items (clues etap)))
+			       (choice-selected-items (clues-box etap)))
 		       ;; #### NOTE: the +3 and (+ ... 5) are for hyphenation
 		       ;; clues occurring at the end of the lines, or in the
 		       ;; last line.
@@ -915,8 +914,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
-	  (clues (choice-selected-items (clues etap))))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
+	  (clues (choice-selected-items (clues-box etap))))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
@@ -1110,7 +1109,7 @@ that the breakup does not contain any layout."
      :items *dispositions*
      :callback-type :interface
      :selection-callback 'remake
-     :reader disposition)
+     :reader disposition-type-box)
    (disposition-options check-box
      :property :disposition-options
      :items *disposition-options*
@@ -1118,31 +1117,31 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
-     :reader disposition-options-panel)
+     :reader disposition-options-box)
    (features check-box
      :property :features
      :items *lineup-features*
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
-     :reader features)
+     :reader features-box)
    (clues check-box
      :property :characters-&-clues
      :items *clues*
      :callback-type :interface
      :selection-callback 'redraw
      :retract-callback 'redraw
-     :reader clues)
+     :reader clues-box)
    (paragraph-width pt-cursor
      :property :paragraph-width
      :caliber *paragraph-width*
      :callback 'paragraph-width-callback
-     :reader paragraph-width)
+     :reader paragraph-width-cursor)
    (zoom %-cursor
      :property :zoom
      :caliber *zoom*
      :callback 'zoom-callback
-     :reader zoom)
+     :reader zoom-cursor)
    (layout--1 push-button
      :text "<"
      :data #'1-
@@ -1360,22 +1359,22 @@ that the breakup does not contain any layout."
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'display-callback
-     :reader view
+     :reader view-area
      :input-model '((:motion motion-callback)
 		    (:post-menu post-menu-callback))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
    (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
-     :reader settings-1)
+     :reader settings-1-layout)
    (layouts-ctrl row-layout '(layout--1 layout-+1)
-     :reader layouts-ctrl)
+     :reader layouts-ctrl-layout)
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(clues))
    (options-2 column-layout '(disposition disposition-options features)
-     :reader options-2)
+     :reader options-2-layout)
    (settings-2 column-layout '(algorithm-tabs text-options text)
-     :reader settings-2)
+     :reader settings-2-layout)
    (text-options row-layout '(text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
@@ -1442,13 +1441,13 @@ This currently involves setting ETAP to the required state and fixating the
 geometry of option panes so that resizing the interface is done sensibly."
   (funcall (capi-object-property etap :initialization-function))
   (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-1 etap)))))
-    (set-hint-table (settings-1 etap)
+	       (simple-pane-visible-size (settings-1-layout etap)))))
+    (set-hint-table (settings-1-layout etap)
       `(:visible-min-width ,(car size) :visible-max-width t
 	:visible-min-height ,(cadr size) :visible-max-height t)))
   (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-2 etap)))))
-    (set-hint-table (settings-2 etap)
+	       (simple-pane-visible-size (settings-2-layout etap)))))
+    (set-hint-table (settings-2-layout etap)
       `(:visible-min-height ,(cadr size) :visible-max-height t))))
 
 
@@ -1466,9 +1465,9 @@ geometry of option panes so that resizing the interface is done sensibly."
 The zooming, clues, and paragraph width controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
 those which may affect the lineup."
-  ;; (setf (simple-pane-enabled (paragraph-width etap)) enabled)
-  (enable-pane (options-2 etap) enabled)
-  (enable-pane (settings-2 etap) enabled)
+  ;; (setf (simple-pane-enabled (paragraph-width-cursor etap)) enabled)
+  (enable-pane (options-2-layout etap) enabled)
+  (enable-pane (settings-2-layout etap) enabled)
   (setf (enabled etap) enabled))
 
 (defmethod river-detection-p ((etap etap))
@@ -1484,9 +1483,10 @@ those which may affect the lineup."
   "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
   (setf (capi-object-property etap :font) font)
-  (setf (widget-value (features etap)) features)
-  (setf (widget-value (disposition etap)) (disposition-type disposition))
-  (setf (widget-value (disposition-options-panel etap))
+  (setf (widget-value (features-box etap)) features)
+  (setf (widget-value (disposition-type-box etap))
+	(disposition-type disposition))
+  (setf (widget-value (disposition-options-box etap))
 	(disposition-options disposition))
   (let* ((algorithm-type (algorithm-type algorithm))
 	 (algorithm-options (algorithm-options algorithm))
@@ -1515,9 +1515,9 @@ those which may affect the lineup."
 	  (widget
 	   (setf (widget-value child)
 		 (getf algorithm-options (property child))))))))
-  (setf (widget-value (paragraph-width etap)) width)
-  (setf (widget-value (zoom etap)) zoom)
-  (setf (widget-value (clues etap)) clues)
+  (setf (widget-value (paragraph-width-cursor etap)) width)
+  (setf (widget-value (zoom-cursor etap)) zoom)
+  (setf (widget-value (clues-box etap)) clues)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language nlstring))
   ;; #### WARNING: this callback mess is needed because programmatically
@@ -1581,13 +1581,13 @@ See also `interface-breakup'."
     :font (capi-object-property interface :font)
     :algorithm (algorithm-specification interface)
     :disposition (disposition-specification interface)
-    :features (widget-value (features interface))
-    :paragraph-width (widget-value (paragraph-width interface))
+    :features (widget-value (features-box interface))
+    :paragraph-width (widget-value (paragraph-width-cursor interface))
     :text (editor-pane-text (text interface))
     :language (language-specification interface))
    (list
-    :clues (widget-value (clues interface))
-    :zoom (widget-value (zoom interface)))))
+    :clues (widget-value (clues-box interface))
+    :zoom (widget-value (zoom-cursor interface)))))
 
 (defun interface-breakup (interface)
   "Return INTERFACE's breakup and displayed layout number as two values.
