@@ -1264,18 +1264,33 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 				       (discretionary (object item)))
 				      1s0 .7s0)))))
 		      (items line)))
+	;; #### NOTE: Rivers are currently *not* recomputed in living text.
+	;; They just follow the text movement. In theory, rivers could be
+	;; different at each step of the ondulation though.
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
 			     (gp:draw-line view
 				 (+ (x (board source))
+				    (funcall line-x-shift (board source))
 				    (x source)
+				    (funcall char-x-shift source)
 				    (/ (width source) 2))
-				 (+ par-y (y (board source)) (y source))
+				 (+ par-y
+				    (y (board source))
+				    (funcall line-y-shift (board source))
+				    (y source)
+				    (funcall char-y-shift source))
 				 (+ (x (board mouth))
+				    (funcall line-x-shift (board mouth))
 				    (x mouth)
+				    (funcall char-x-shift mouth)
 				    (/ (width mouth) 2))
-				 (+ par-y (y (board mouth)) (y mouth))
+				 (+ par-y
+				    (y (board mouth))
+				    (funcall line-y-shift (board mouth))
+				    (y mouth)
+				    (funcall char-y-shift mouth))
 			       :foreground :red :scale-thickness nil))
 		       arms))
 		   (rivers etap)))))))
