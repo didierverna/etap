@@ -6,7 +6,10 @@
 ;; for now. I will need to check this again when I introduce focus and
 ;; keyboard control though.
 
+(defvar *interface* nil "The default GUI.")
 
+
+
 ;; ==========================================================================
 ;; Utilities
 ;; ==========================================================================
@@ -73,11 +76,9 @@ This class is a mixin class for ETAP widgets."))
 (defgeneric (setf widget-value) (value widget)
   (:documentation "Set WIDGET's VALUE."))
 
-(defgeneric widget-state (widget)
-  (:documentation "Return a property list representing WIDGET's state."))
-
-(defgeneric (setf widget-state) (plist widget)
-  (:documentation "Set WIDGET's state based on PLIST."))
+(defun widget-specification (widget)
+  "Return the list (<widget property> <widget value>)."
+  (list (property widget) (widget-value widget)))
 
 (defun find-widget (property pane &aux widget)
   "Find a widget for PROPERTY in PANE's descendants."
@@ -122,33 +123,10 @@ This is the base class for radio and check boxes."))
   (choice-selected-item box))
 
 (defmethod (setf widget-value) (item (box radio-box))
-  "Set radio BOX's selected ITEM (must be one of BOX's items)."
-  (setf (choice-selected-item box) item))
-
-(defmethod widget-state ((box radio-box))
-  "Return a property list representing radio BOX's state.
-This is a list of the form (<property> <selected item>)."
-  (list (property box) (choice-selected-item box)))
-
-;; #### NOTE: the reason we have two methods below is because we have two ways
-;; of using radio boxes.
-;; 1. The value can be in the middle of a plist, for example, in an algorithm
-;;    specification: (... :fallback :anyfull ...). There, the method on lists
-;;    applies.
-;; 2. The value can also be specific, for example in the case of a
-;;    disposition which is extracted by calling DISPOSITION-TYPE.
-
-(defmethod (setf widget-state) ((plist list) (box radio-box))
-  "Set radio BOX's state based on PLIST.
-More specifically, BOX's selection is set to the value of BOX's property
-in PLIST if found (the value must be one of BOX's items). Otherwise, the
-first item in BOX is selected."
-  (setf (choice-selected-item box)
-	(or (getf plist (property box)) (svref (collection-items box) 0))))
-
-(defmethod (setf widget-state) ((item symbol) (box radio-box))
-  "Set radio BOX's selected item to ITEM (must be one of BOX's items)."
-  (setf (choice-selected-item box) item))
+  "Set radio BOX's selection to ITEM.
+ITEM must be one of BOX's items, or NIL, in which case the first item will be
+selected."
+  (setf (choice-selected-item box) (or item (svref (collection-items box) 0))))
 
 
 
@@ -169,34 +147,13 @@ This is an exhaustive property list of BOX's items and their selected state."
 	:else
 	  :collect nil))
 
+;; #### NOTE: see comment in SET-STATE about the apparent laxism of this
+;; method (unknown options are ignored instead of signalling an error).
 (defmethod (setf widget-value) (plist (box check-box))
   "Set check BOX's selected items based on PLIST.
 More specifically, every BOX item found to be true in PLIST is selected. The
 rest is deselected (i.e., no items are left in their previous state). Unknown
 items are ignored."
-  (setf (choice-selected-items box)
-	(loop :for item :across (collection-items box) ; a vector
-	      :when (getf plist item)
-		:collect item)))
-
-(defmethod widget-state ((box check-box))
-  "Return a property list representing check BOX's state.
-This is a list of the form (<property> <item> <state> ...).
-Note that the list is exhaustive: all BOX items are present, with their state
-being T or NIL."
-  (cons (property box)
-	(loop :with selection := (choice-selected-items box)
-	      :for item :across (collection-items box) ; a vector
-	      :collect item
-	      :if (member item selection)
-		:collect t
-	      :else
-		:collect nil)))
-
-(defmethod (setf widget-state) (plist (box check-box))
-  "Set check BOX's state based on PLIST.
-More specifically, every BOX item found to be true in PLIST is selected. The
-rest is deselected (i.e., no items are left in their previous state)."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
 	      :when (getf plist item)
@@ -223,6 +180,10 @@ rest is deselected (i.e., no items are left in their previous state)."
   (:documentation "The Cursor class."))
 
 
+(defun calibrated-cursor-value (cursor)
+  "Return the calibrated current CURSOR value."
+  (calibrated-value (range-slug-start cursor) (caliber cursor)))
+
 (defgeneric cursor-title (cursor)
   (:documentation "Compute CURSOR's title based on its current value.")
   (:method ((cursor cursor))
@@ -236,6 +197,7 @@ This is the default method."
   "Update CURSOR's title with its current value."
   (setf (titled-object-title cursor) (cursor-title cursor)))
 
+
 ;; #### NOTE: it's important to initialize the value and title because
 ;; otherwise, only the initial algorithm's widgets would have those settings
 ;; properly set.
@@ -245,12 +207,9 @@ This is the default method."
 This means setting its range start and end, default value, and title."
   (setf (range-start cursor) (caliber-min caliber)
 	(range-end cursor)   (caliber-max caliber))
-  (setf (widget-state cursor) nil))
-
-
-(defun calibrated-cursor-value (cursor)
-  "Return the calibrated current CURSOR value."
-  (calibrated-value (range-slug-start cursor) (caliber cursor)))
+  (setf (range-slug-start cursor)
+	(decalibrated-value (caliber-default caliber) caliber))
+  (update-cursor-title cursor))
 
 
 (defmethod widget-value ((cursor cursor))
@@ -259,25 +218,10 @@ This means setting its range start and end, default value, and title."
 
 (defmethod (setf widget-value)
     (value (cursor cursor) &aux (caliber (caliber cursor)))
-  "Set CURSOR's (decalibrated) VALUE."
-  (setf (range-slug-start cursor) (decalibrated-value value caliber))
-  (update-cursor-title cursor))
-
-(defmethod widget-state ((cursor cursor))
-  "Return a property list representing CURSOR's state.
-This is a list of the form (<property> <calibrated value>)."
-  (list (property cursor) (calibrated-cursor-value cursor)))
-
-(defmethod (setf widget-state)
-    (plist (cursor cursor) &aux (caliber (caliber cursor)))
-  "Set CURSOR's state based on PLIST.
-More specifically, CURSOR's value is set to the decalibrated value of CURSOR's
-property in PLIST if found. Otherwise, the default value of CURSOR's caliber
-is used. CURSOR's title is updated accordingly."
+  "Set CURSOR's (decalibrated) VALUE.
+If VALUE is NIL, use the default value of CURSOR's caliber instead."
   (setf (range-slug-start cursor)
-	(decalibrated-value (or (getf plist (property cursor))
-				(caliber-default caliber))
-			    caliber))
+	(decalibrated-value (or value (caliber-default caliber)) caliber))
   (update-cursor-title cursor))
 
 
@@ -342,7 +286,7 @@ The calibrated value is displayed with 3 digits."
 
 (defun redraw (etap)
   "Redraw ETAP interface's paragraph view."
-  (gp:invalidate-rectangle (view etap)))
+  (gp:invalidate-rectangle (view-area etap)))
 
 
 
@@ -355,45 +299,65 @@ The calibrated value is displayed with 3 digits."
 	(when (and (river-detection-p etap) (not (zerop layout)))
 	  (apply #'detect-rivers
 	    (get-layout (1- layout) (breakup etap))
-	    (widget-state (angle (river-detection-dialog etap))))))
+	    (widget-specification
+	     (angle-cursor (river-detection-dialog etap))))))
   (redraw etap))
 
 
 
-;; Breakup updater
+;; Layout-based updater
 
-(defun %remake-from-lineup (etap lineup)
-  "Remake ETAP interface's breakup from LINEUP and redraw."
-  (let* ((breakup (%make-breakup
-		   lineup
-		   (widget-value (paragraph-width etap))))
-	 (layouts-# (layouts-# breakup)))
-    (setf (breakup etap) breakup)
-    (setf (layout etap) (if (zerop layouts-#) 0 1))
-    (enable-pane (layouts-ctrl etap) (> layouts-# 1))
-    (setf (titled-object-title (view etap))
-	  (format nil "Layout ~D/~D" (layout etap) layouts-#)))
+(defun remake-with-layout (etap layout)
+  "Remake ETAP interface with LAYOUT number, and redraw."
+  (setf (layout etap) layout)
+  (setf (titled-object-title (view-area etap))
+	(format nil "Layout ~D/~D" (layout etap) (layouts-# (breakup etap))))
   (remake-rivers etap))
-
-(defun remake-from-lineup (etap)
-  "Remake ETAP interface's breakup from its current lineup and redraw."
-  (%remake-from-lineup etap (lineup (breakup etap))))
 
 
 
-;; Lineup updater
+;; Breakup-based updater
+
+(defun remake-with-breakup
+    (etap breakup &optional layout &aux (layouts-# (layouts-# breakup)))
+  "Remake ETAP interface with BREAKUP, and redraw.
+Display LAYOUT number (1 by default)."
+  (setf (breakup etap) breakup)
+  (enable-pane (layouts-ctrl-layout etap) (> layouts-# 1))
+  (unless layout (setq layout (if (zerop layouts-#) 0 1)))
+  (remake-with-layout etap layout))
+
+
+
+;; Lineup-based updater
+
+(defun remake-with-lineup (etap lineup)
+  "Remake ETAP interface's breakup with LINEUP, and redraw."
+  (remake-with-breakup
+   etap
+   (%make-breakup
+    lineup
+    (widget-value (paragraph-width-cursor etap)))))
+
+(defun remake-with-current-lineup (etap)
+  "Remake ETAP interface's breakup from its current lineup and redraw."
+  (remake-with-lineup etap (lineup (breakup etap))))
+
+
+
+;; Global updater
 
 (defun disposition-specification (etap)
   "Return ETAP interface's current disposition specification."
-  (cons (widget-value (disposition etap))
-	(widget-value (disposition-options-panel etap))))
+  (cons (widget-value (disposition-type-box etap))
+	(widget-value (disposition-options-box etap))))
 
 (defun language-specification (etap)
   "Return ETAP interface's current language specification."
   (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
 
 (defun algorithm-specification
-    (etap &aux (item (choice-selected-item (algorithms-tab etap))))
+    (etap &aux (item (choice-selected-item (algorithm-tabs etap))))
   "Return ETAP interface's current algorithm specification."
   (cons (first item)
 	(let ((options))
@@ -402,20 +366,27 @@ The calibrated value is displayed with 3 digits."
 	   (lambda (child)
 	     (typecase child
 	       (check-box
+		;; #### WARNING: this special case is because check boxes in
+		;; algorithms currently only represent additional options for
+		;; which the widget's property is meaningless (typically
+		;; :options). We do not have anything working like the clues
+		;; check box in algorithms right now, but if that changes, we
+		;; will have a problem here.
 		(setq options (append options (widget-value child))))
-	       (widget (setq options (append options (widget-state child)))))))
+	       (widget
+		(setq options (append options (widget-specification child)))))))
 	  options)))
 
 (defun remake (etap)
-  "Remake ETAP interface's breakup completely, and redraw."
-  (%remake-from-lineup
+  "Remake ETAP interface's breakup, and redraw."
+  (remake-with-lineup
    etap
    (%make-lineup
     (make-nlstring
      :text (editor-pane-text (text etap))
      :language (language-specification etap))
-    (font etap)
-    (widget-value (features etap))
+    (capi-object-property etap :font)
+    (widget-value (features-box etap))
     (disposition-specification etap)
     (algorithm-specification etap))))
 
@@ -666,7 +637,7 @@ The calibrated value is displayed with 3 digits."
   "Function called when the river detection SWITCH is toggled.
 - Toggle the angle cursor's enabled status.
 - Remake rivers and redraw."
-  (setf (simple-pane-enabled (angle dialog)) (button-selected switch))
+  (setf (simple-pane-enabled (angle-cursor dialog)) (button-selected switch))
   (remake-rivers etap))
 
 (defun river-detection-angle-callback
@@ -694,7 +665,7 @@ The calibrated value is displayed with 3 digits."
      :caliber *river-detection-angle*
      :enabled nil
      :callback 'river-detection-angle-callback
-     :reader angle))
+     :reader angle-cursor))
   (:layouts
    (main column-layout '(switch angle)))
   (:default-initargs
@@ -711,6 +682,11 @@ The calibrated value is displayed with 3 digits."
 ;; ==========================================================================
 ;; Penalty Adjustment Dialogs
 ;; ==========================================================================
+
+;; #### NOTE: the logic used with penalty adjustment dialogs is meant to
+;; simplify dependency management between the UI and the lineup. Every UI
+;; component that entails computing a new lineup is deactivated for as long as
+;; there's a live penalty adjustment dialog.
 
 (defun penalty-adjustment-destroy-callback (dialog)
   "Function called when penalty adjustment DIALOG is destroyed.
@@ -741,13 +717,13 @@ The calibrated value is displayed with 3 digits."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
 				  (caliber hyphenation-point)))
-    (setf (title-pane-text (title dialog)) (princ-to-string value))
+    (setf (title-pane-text (title-area dialog)) (princ-to-string value))
     (setf (penalty hyphenation-point) value)
-    (remake-from-lineup etap)))
+    (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
     (item dialog
-     &aux (slider (value dialog))
+     &aux (slider (value-slider dialog))
 	  (hyphenation-point (hyphenation-point dialog))
 	  (caliber (caliber hyphenation-point))
 	  (value (ecase item
@@ -768,13 +744,13 @@ The calibrated value is displayed with 3 digits."
    (etap :initarg :etap :reader etap))
   (:panes
    (title title-pane
-     :reader title)
+     :reader title-area #| Can't use TITLE-PANE here (CAPI symbol). |#)
    (value slider
      :orientation :vertical
      :visible-min-height 220
      :tick-frequency 0
      :callback 'penalty-adjustment-value-callback
-     :reader value)
+     :reader value-slider)
    (reset push-button-panel
      :items '(:reset-to-original :reset-to-global :reset-to-default)
      :print-function 'title-capitalize
@@ -793,7 +769,7 @@ The calibrated value is displayed with 3 digits."
 (defmethod initialize-instance :after
     ((dialog penalty-adjustment)
      &key &aux (etap (etap dialog))
-	       (slider (value dialog))
+	       (slider (value-slider dialog))
 	       (hyphenation-point (hyphenation-point dialog))
 	       (caliber (caliber hyphenation-point)))
   "Finish initializing penalty adjustment DIALOG.
@@ -807,14 +783,14 @@ The calibrated value is displayed with 3 digits."
 	  (caliber-property caliber)
 	  (slot-value
 	   etap
-	   (second (choice-selected-item (algorithms-tab etap)))))))
+	   (second (choice-selected-item (algorithm-tabs etap)))))))
   (setf (slot-value dialog 'original-value)
 	(decalibrated-value (penalty hyphenation-point)
 			    (caliber hyphenation-point)))
   (setf (range-start slider)      (caliber-min caliber)
 	(range-end slider)        (caliber-max caliber)
 	(range-slug-start slider) (original-value dialog))
-  (setf (title-pane-text (title dialog))
+  (setf (title-pane-text (title-area dialog))
 	(princ-to-string (penalty hyphenation-point))))
 
 (defun make-penalty-adjustment-dialog (hyphenation-point etap)
@@ -890,8 +866,6 @@ new dialog and display it."
 (defun menu-callback (item etap)
   "Function called when the ETAP menu is popped up."
   (ecase item
-    (:reset-paragraph
-     (remake etap))
     (:river-detection
      (display (river-detection-dialog etap) :owner etap))
     (:living-text
@@ -909,7 +883,7 @@ new dialog and display it."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (remake-from-lineup etap)))
+    (remake-with-current-lineup etap)))
 
 
 
@@ -936,10 +910,7 @@ new dialog and display it."
 - Select the next +/-1 layout and advertise its number.
 - Remake rivers and redraw."
   (setq layout (1+ (mod (1- (funcall +/-1 layout)) layouts-#)))
-  (setf (layout etap) layout)
-  (setf (titled-object-title (view etap))
-      (format nil "Layout ~D/~D" (layout etap) layouts-#))
-  (remake-rivers etap))
+  (remake-with-layout etap layout))
 
 
 
@@ -954,7 +925,7 @@ new dialog and display it."
     (update-cursor-title cursor)
     (remake (top-level-interface cursor))))
 
-(defun algorithms-tab-callback (tab etap)
+(defun algorithm-tabs-callback (tab etap)
   "Function called when an algorithm tab is selected.
 If ETAP interface is enabled, remember the selection and remake everything.
 Otherwise, reselect the previously selected one."
@@ -986,6 +957,7 @@ Otherwise, reselect the previously selected one."
 
 ;; Text editor
 
+;; See "callback mess" comment in SET-STATE.
 (defun text-change-callback
     (text-editor point old-length new-length
      &aux (etap (top-level-interface text-editor)))
@@ -1058,7 +1030,8 @@ corresponding hyphenation clue."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (clues (choice-selected-items (clues-box etap)))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -1066,7 +1039,7 @@ corresponding hyphenation clue."
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the properties of the object under mouse (the paragraph itself, a
   line, or a hyphenation point)."
-  (when (member :properties-tooltips (choice-selected-items (clues etap)))
+  (when (member :properties-tooltips clues)
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
@@ -1077,9 +1050,7 @@ corresponding hyphenation clue."
       (when layout
 	(let (object)
 	  (if (setq object
-		    (or (and (member
-			      :hyphenation-points
-			      (choice-selected-items (clues etap)))
+		    (or (and (member :hyphenation-points clues)
 			     ;; #### NOTE: the +3 and (+ ... 5) are for
 			     ;; hyphenation clues occurring at the end of the
 			     ;; lines, or in the last line.
@@ -1104,7 +1075,7 @@ corresponding hyphenation clue."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -1117,7 +1088,7 @@ corresponding hyphenation clue."
   (decf y (height layout))
   (when layout
     (let ((object (and (member :hyphenation-points
-			       (choice-selected-items (clues etap)))
+			       (choice-selected-items (clues-box etap)))
 		       ;; #### NOTE: the +3 and (+ ... 5) are for hyphenation
 		       ;; clues occurring at the end of the lines, or in the
 		       ;; last line.
@@ -1158,8 +1129,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom etap)) 100))
-	  (clues (choice-selected-items (clues etap)))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
+	  (clues (choice-selected-items (clues-box etap)))
 	  (line-x-shift (or (capi-object-property view :line-x-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
 	  (line-y-shift (or (capi-object-property view :line-y-shift)
@@ -1317,17 +1288,26 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; ==========================================================================
 
 (define-interface etap ()
-  ((font :reader font)
-   (breakup :accessor breakup)
-   (layout :accessor layout)
-   (enabled :initform t :accessor enabled)
+  ((breakup
+    :documentation "This interface's current breakup."
+    :accessor breakup)
+   (layout
+    :documentation "This interface's currently displayed layout number.
+The layout number starts at 1 (technically, layout index + 1). 0 indicates
+that the breakup does not contain any layout."
+    :accessor layout)
+   (enabled
+    :documentation "Whether this interface is currently enabled."
+    :initform t :accessor enabled)
    (rivers
     :documentation "The paragraph's detected rivers."
     :accessor rivers)
    (penalty-adjustment-dialogs
+    :documentation "This interface's live penalty adjustment dialogs."
     :initform nil
     :accessor penalty-adjustment-dialogs)
    (river-detection-dialog
+    :documentation "This interface's river detection dialog."
     :initform (make-instance 'river-detection)
     :reader river-detection-dialog)
    (living-text-dialog
@@ -1356,7 +1336,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :items *dispositions*
      :callback-type :interface
      :selection-callback 'remake
-     :reader disposition)
+     :reader disposition-type-box)
    (disposition-options check-box
      :property :disposition-options
      :items *disposition-options*
@@ -1364,31 +1344,31 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
-     :reader disposition-options-panel)
+     :reader disposition-options-box)
    (features check-box
      :property :features
      :items *lineup-features*
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
-     :reader features)
+     :reader features-box)
    (clues check-box
      :property :characters-&-clues
      :items *clues*
      :callback-type :interface
      :selection-callback 'redraw
      :retract-callback 'redraw
-     :reader clues)
+     :reader clues-box)
    (paragraph-width pt-cursor
      :property :paragraph-width
      :caliber *paragraph-width*
      :callback 'paragraph-width-callback
-     :reader paragraph-width)
+     :reader paragraph-width-cursor)
    (zoom %-cursor
      :property :zoom
      :caliber *zoom*
      :callback 'zoom-callback
-     :reader zoom)
+     :reader zoom-cursor)
    (layout--1 push-button
      :text "<"
      :data #'1-
@@ -1399,7 +1379,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :data #'1+
      :callback 'layout-callback
      :help-key :layout-+1)
-   (algorithms-tab tab-layout
+   (algorithm-tabs tab-layout
      :title "Algorithms"
      :visible-max-width nil
      :combine-child-constraints t
@@ -1411,7 +1391,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	      (:kpx kpx-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:element :interface)
-     :selection-callback 'algorithms-tab-callback
+     :selection-callback 'algorithm-tabs-callback
      ;; #### WARNING: with my emulation of an enabled/disabled status for the
      ;; main interface, the algorithms tab's selection callback may override
      ;; the selection that triggered its call. However, even though the
@@ -1421,8 +1401,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      ;; directly with the tab's selection.
      :visible-child-function (lambda (item)
 			       (declare (ignore item))
-			       (second (choice-selected-item algorithms-tab)))
-     :reader algorithms-tab)
+			       (second (choice-selected-item algorithm-tabs)))
+     :reader algorithm-tabs)
    (fixed-fallback radio-box
      :property :fallback
      :items *fixed-fallbacks*
@@ -1595,6 +1575,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :visible-min-width '(character 80)
      :visible-min-height '(character 10)
      :visible-max-height '(character 30)
+     ;; See "callback mess" comment in SET-STATE.
      :change-callback 'text-change-callback
      :reader text)
    (view output-pane
@@ -1605,22 +1586,22 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
      :horizontal-scroll t
      :vertical-scroll t
      :display-callback 'display-callback
-     :reader view
+     :reader view-area
      :input-model '((:motion motion-callback)
 		    (:post-menu post-menu-callback))))
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
    (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
-     :reader settings-1)
+     :reader settings-1-layout)
    (layouts-ctrl row-layout '(layout--1 layout-+1)
-     :reader layouts-ctrl)
+     :reader layouts-ctrl-layout)
    (options row-layout '(options-1 options-2))
    (options-1 column-layout '(clues))
    (options-2 column-layout '(disposition disposition-options features)
-     :reader options-2)
-   (settings-2 column-layout '(algorithms-tab text-options text)
-     :reader settings-2)
+     :reader options-2-layout)
+   (settings-2 column-layout '(algorithm-tabs text-options text)
+     :reader settings-2-layout)
    (text-options row-layout '(text-button language-button))
    (fixed-settings row-layout '(fixed-fallback fixed-options fixed-parameters))
    (fixed-parameters column-layout
@@ -1654,7 +1635,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
   (:menus
-   (etap-menu "ETAP" (:reset-paragraph :river-detection :living-text)
+   (etap-menu "ETAP" (:river-detection :living-text)
      :print-function 'title-capitalize
      :callback 'menu-callback)
    (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
@@ -1678,33 +1659,43 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 ;; Interface display
 
 ;; #### NOTE: I'm not sure, but I suppose that twiddling with the geometry is
-;; better done here than in an INITIALIZE-INSTANCE :after method.
+;; better done here than in an INITIALIZE-INSTANCE :after method. Also, our
+;; initialization function uses MAP-PANE-DESCENDANT-CHILDREN which only works
+;; on displayed items, so we cannot set the state of the interface earlier
+;; than this.
 (defmethod interface-display :before ((etap etap))
   "Finalize ETAP interface's display settings.
-This currently involves fixating the geometry of option panes so that resizing
-the interface is done sensibly."
+This currently involves setting ETAP to the required state and fixating the
+geometry of option panes so that resizing the interface is done sensibly."
+  (funcall (capi-object-property etap :initialization-function))
   (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-1 etap)))))
-    (set-hint-table (settings-1 etap)
+	       (simple-pane-visible-size (settings-1-layout etap)))))
+    (set-hint-table (settings-1-layout etap)
       `(:visible-min-width ,(car size) :visible-max-width t
 	:visible-min-height ,(cadr size) :visible-max-height t)))
   (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-2 etap)))))
-    (set-hint-table (settings-2 etap)
+	       (simple-pane-visible-size (settings-2-layout etap)))))
+    (set-hint-table (settings-2-layout etap)
       `(:visible-min-height ,(cadr size) :visible-max-height t))))
 
 
 
 ;; Utility protocols
 
+;; #### WARNING: currently, this protocol is only used by penalty adjustment
+;; dialogs, in order to avoid recomputing a new lineup while some of the
+;; current break points are manipulated. Meanwhile, the paragraph width can
+;; still be safely modified since it doesn't affect the lineup. This protocol
+;; will need to be generalized for more complicated applications.
+
 (defmethod enable-interface ((etap etap) &optional (enabled t))
   "Change ETAP interface's enabled status.
-The zooming and clues controls are always enabled.
+The zooming, clues, and paragraph width controls are always enabled.
 The only interface controls which are subject to enabling / disabling are
-those which may affect the typesetting."
-  (setf (simple-pane-enabled (paragraph-width etap)) enabled)
-  (enable-pane (options-2 etap) enabled)
-  (enable-pane (settings-2 etap) enabled)
+those which may affect the lineup."
+  ;; (setf (simple-pane-enabled (paragraph-width-cursor etap)) enabled)
+  (enable-pane (options-2-layout etap) enabled)
+  (enable-pane (settings-2-layout etap) enabled)
   (setf (enabled etap) enabled))
 
 (defmethod river-detection-p ((etap etap))
@@ -1715,28 +1706,46 @@ those which may affect the typesetting."
 
 ;; State
 
-(defun %set-state
+(defun set-state
     (etap nlstring font features disposition algorithm width zoom clues)
   "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
-  (setf (slot-value etap 'font) font)
-  (setf (widget-value (features etap)) features)
-  (setf (widget-value (disposition etap)) (disposition-type disposition))
-  (setf (widget-value (disposition-options-panel etap))
+  (setf (capi-object-property etap :font) font)
+  (setf (widget-value (features-box etap)) features)
+  (setf (widget-value (disposition-type-box etap))
+	(disposition-type disposition))
+  (setf (widget-value (disposition-options-box etap))
 	(disposition-options disposition))
-  (let* ((algorithm (algorithm-type algorithm))
-	 (options (algorithm-options algorithm))
-	 (tab (algorithms-tab etap))
-	 (item (find algorithm (collection-items tab) :key #'first)))
-    (setf (choice-selected-item tab) item)
-    (setf (capi-object-property tab :current-item) item)
+  (let* ((algorithm-type (algorithm-type algorithm))
+	 (algorithm-options (algorithm-options algorithm))
+	 (tabs (algorithm-tabs etap))
+	 (item (find algorithm-type (collection-items tabs) :key #'first)))
+    (setf (choice-selected-item tabs) item)
+    (setf (capi-object-property tabs :current-item) item)
+    ;; #### WARNING: we're doing something a bit shaky here. In the algorithms
+    ;; tabs, we currently have radio boxes corresponding to specific
+    ;; properties, individual cursors lurking around, and finally "other
+    ;; options" check boxes which regroup remaining boolean options. The
+    ;; problem is that those check boxes are represented as widgets, although
+    ;; their attached property is in fact meaningless. If someday we introduce
+    ;; actual options with check-box behavior (as e.g. the visual clues),
+    ;; we're gonna have a problem here. One solution would be to avoid using
+    ;; check boxes as a mean to group options, and have check buttons lurking
+    ;; around as cursors. In the meantime, we need to special-case check boxes
+    ;; below and pass them the whole algorithm options list instead of trying
+    ;; to getf their (inexistant) property. That also explains why the (SETF
+    ;; WIDGET-VALUE) protocol on check boxes ignores unknown items.
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
-	(when (typep child 'widget)
-	  (setf (widget-state child) options)))))
-  (setf (widget-value (paragraph-width etap)) width)
-  (setf (widget-value (zoom etap)) zoom)
-  (setf (widget-value (clues etap)) clues)
+	(typecase (print child)
+	  (check-box
+	   (setf (widget-value child) algorithm-options))
+	  (widget
+	   (setf (widget-value child)
+		 (getf algorithm-options (property child))))))))
+  (setf (widget-value (paragraph-width-cursor etap)) width)
+  (setf (widget-value (zoom-cursor etap)) zoom)
+  (setf (widget-value (clues-box etap)) clues)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language nlstring))
   ;; #### WARNING: this callback mess is needed because programmatically
@@ -1750,13 +1759,35 @@ those which may affect the typesetting."
   (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
 
-(defun %set-state-from-lineup (etap lineup width zoom clues)
+(defun set-state-from-lineup (etap lineup width zoom clues)
   "Set ETAP interface's widgets state using LINEUP."
-  (%set-state etap
+  (set-state etap
     (nlstring lineup) (font lineup)
     (features lineup) (disposition lineup)
     (algorithm lineup) width
     zoom clues))
+
+(defun set-state-from-breakup (etap breakup zoom clues)
+  "Set ETAP interface's widgets state using BREAKUP."
+  (set-state-from-lineup etap
+    (lineup breakup) (paragraph-width breakup)
+    zoom clues))
+
+(defun set-state-and-remake
+    (etap
+     breakup lineup nlstring font features disposition algorithm width
+     zoom clues layout)
+  "Set ETAP interface's widgets state and remake as needed."
+  (cond ((and (null lineup) (null breakup))
+	 (set-state etap
+	   nlstring font features disposition algorithm width zoom clues)
+	 (remake etap))
+	(lineup
+	 (set-state-from-lineup etap lineup width zoom clues)
+	 (remake-with-lineup etap lineup))
+	(breakup
+	 (set-state-from-breakup etap breakup zoom clues)
+	 (remake-with-breakup etap breakup layout))))
 
 
 
@@ -1764,40 +1795,39 @@ those which may affect the typesetting."
 ;; Entry Points
 ;; ==========================================================================
 
-(defun state (etap)
-  "Return the current state of ETAP interface as two values.
-- The first value is a fully qualified context, which is useful for
-  experimenting from the command-line in the same conditions.
-- The second value is a property list describing the state of the interface
-  for parameters unrelated to typesetting (that is, GUI-specific). This
-  includes the currently displayed clues, and zoom factor.
+(defun interface-state (interface)
+  "Return the current state of INTERFACE as two values.
+- The first value is a fully qualified context representing INTERFACE's
+  current typesetting options (see `context').
+- The second value is a fully qualified property list representing INTERFACE's
+  current visualization options. This includes the visual clues and zoom
+  factor.
 
-Note that inteface's breakup and current layout number (+1) have their own
-eponymous readers."
+See also `interface-breakup'."
   (values
    (make-context
-    :font (font etap)
-    :algorithm (algorithm-specification etap)
-    :disposition (disposition-specification etap)
-    :features (widget-value (features etap))
-    :paragraph-width (widget-value (paragraph-width etap))
-    :text (editor-pane-text (text etap))
-    :language (language-specification etap))
+    :font (capi-object-property interface :font)
+    :algorithm (algorithm-specification interface)
+    :disposition (disposition-specification interface)
+    :features (widget-value (features-box interface))
+    :paragraph-width (widget-value (paragraph-width-cursor interface))
+    :text (editor-pane-text (text interface))
+    :language (language-specification interface))
    (list
-    :clues (widget-value (clues etap))
-    :zoom (widget-value (zoom etap)))))
+    :clues (widget-value (clues-box interface))
+    :zoom (widget-value (zoom-cursor interface)))))
 
-#+()(defun set-state
-    (etap &rest keys &key (context *context*) zoom (clues '(:characters t)))
-  "Set ETAP interface state."
-  (declare (ignore context zoom clues))
-  (apply #'execute-with-interface-if-alive etap
-	 (lambda ()
-	   (apply #'%set-state etap keys)
-	   (remake etap))))
+(defun interface-breakup (interface)
+  "Return INTERFACE's breakup and displayed layout number as two values.
+The layout number starts at 1 (technically, layout index + 1). 0 indicates
+that the breakup does not contain any layout.
 
-(defun run
-    (&key (context *context*)
+See also `interface-state'."
+  (values (breakup interface) (layout interface)))
+
+(defun visualize
+    (&key (interface *interface*)
+	  (context *context*)
 	  (text
 	   (if (and context (nlstring context))
 	     (text (nlstring context))
@@ -1821,30 +1851,44 @@ eponymous readers."
 		     (caliber-default *paragraph-width*))
 		 widthp)
 	  breakup
-	  (layout 1)
+	  layout
 	  (zoom 100)
 	  (clues '(:characters t))
      &aux (nlstring (if (or textp languagep (null context))
 		      (make-nlstring :text text :language language)
-		      (nlstring context))))
-  "Run a new Etap interface with the specified parameters.
-- LAYOUT is the breakup's layout number to display (1 by default).
+		      (nlstring context)))
+	  reuse)
+  "Run a typesetting visualization with the specified parameters.
+INTERFACE defaults to *INTERFACE*, which is initially null.
+If INTERFACE is null, create a new interface. Otherwise, reuse the provided
+one. In all cases, the interface is returned.
+
+LAYOUT, ZOOM, and CLUES, are visualization options. The rest are typesetting
+options.
+
+- CONTEXT defaults to *CONTEXT*. See `context' for more information.
+- Most other typesetting options are defaulted from the context, or to their
+  corresponding global variable otherwise, but may be overridden on demand.
+- Explicit features take precedence over FEATURES.
+- Providing any typesetting option, except for CONTEXT, WIDTH, and LINEUP,
+  will force recomputing the lineup and the breakup (see `make-lineup' and
+  `make-breakup').
+- Providing LINEUP or WIDTH will also force recomputing the breakup.
+
+- LAYOUT is the breakup's layout number to display. This option is ignored if
+  a new breakup is (re)computed (in which case the first layout is displayed).
 - ZOOM factor is expressed in percentage (must be at least 1).
 - CLUES is a property list of things to display (see `*clues*' for more
   information). Only characters are displayed by default.
 
-The other options are related to typesetting. See `context' for more
-information..
-- CONTEXT defaults to *CONTEXT*.
-- Most other typesetting options are defaulted from the context, or to their
-corresponding global variable otherwise, but may be overridden on demand.
-- Explicit features take precedence over FEATURES.
-- Providing any typesetting option, except for :context, :width, and :lineup
-  will force recomputing the lineup and the breakup (see `make-lineup' and
-  `make-breakup').
-- Providing a lineup or the :width options will also force recomputing the
-  breakup.
-- The LAYOUT option is ignored unless a breakup is also provided."
+See also `interface-state' and `interface-breakup'."
+  (cond (interface
+	 (execute-with-interface-if-alive interface
+	   (lambda (dialogs) (mapc #'destroy dialogs))
+	   (penalty-adjustment-dialogs interface))
+	 (setq reuse t))
+	(t
+	 (setq interface (make-instance 'etap))))
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
@@ -1856,25 +1900,21 @@ corresponding global variable otherwise, but may be overridden on demand.
     (setq lineup nil breakup nil))
   (when (or lineup widthp)
     (setq breakup nil))
-  (let ((etap (make-instance 'etap)))
-    (cond ((and (null lineup) (null breakup))
-	   (%set-state etap
-	     nlstring font features disposition algorithm width
-	     zoom clues)
-	   (remake etap))
-	  (lineup
-	   (%set-state-from-lineup etap lineup width zoom clues)
-	   (%remake-from-lineup etap lineup))
-	  (breakup
-	   (%set-state-from-lineup etap
-	     (lineup breakup) (paragraph-width breakup) zoom clues)
-	   (setf (breakup etap) breakup)
-	   (setq layout
-		 (if (zerop (layouts-# breakup))
-		   0
-		   (1+ (mod (1- layout) (layouts-# breakup)))))
-	   (setf (layout etap) layout)
-	   (setf (titled-object-title (view etap))
-		 (format nil "Layout ~D/~D" (layout etap) (layouts-# breakup)))
-	   (remake-rivers etap)))
-    (display etap)))
+  (cond (reuse
+	 (execute-with-interface-if-alive interface
+	   #'set-state-and-remake
+	   interface
+	   breakup lineup
+	   nlstring font features disposition algorithm width
+	   zoom clues layout))
+	(t
+	 ;; See comment atop INTERFACE-DISPLAY about this.
+	 (setf (capi-object-property interface :initialization-function)
+	       (lambda ()
+		 (set-state-and-remake
+		  interface
+		  breakup lineup
+		  nlstring font features disposition algorithm width
+		  zoom clues layout)))
+	 (display interface)))
+  interface)

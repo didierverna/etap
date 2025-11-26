@@ -1,9 +1,10 @@
-ETAP is a platofrm designed to ease experimentation with and demonstration of
-typesetting algorithms. It currently focuses on paragraph formatting. ETAP is
-written in Common Lisp. Before trying it out, please make sure that you have
-the [Latin Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern)
-(10pt) font installed on you machine. The OTF version will do just fine, and
-can be downloaded from
+ETAP is a platofrm designed to ease experimentation with, and demonstration
+of, typesetting algorithms. It currently focuses on paragraph formatting. ETAP
+is written in Common Lisp. Before trying it out, please make sure that you
+have the [Latin
+Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern) (10pt) font
+installed on you machine. The OTF version will do just fine, and can be
+downloaded from
 [here](https://www.gust.org.pl/projects/e-foundry/latin-modern/download).
 
 ![ETAP](share/screenshots/etap.png "The ETAP Interface")
@@ -18,7 +19,7 @@ gladly accept new GUIs, such as */McClim, ECL/EQL, /etc./
 ## Quickstart
 ```lisp
 (asdf:load-system :etap)
-(etap:run)
+(etap:visualize)
 ```
 
 # Instructions for non-Lispers
@@ -55,5 +56,5 @@ to play with ETAP, open LispWorks and type this:
 ```lisp
 (load "~/quicklisp/setup.lisp")
 (ql:quickload :etap)
-(etap:run)
+(etap:visualize)
 ```
