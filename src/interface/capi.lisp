@@ -435,7 +435,7 @@ Display LAYOUT number (1 by default)."
     (switch dialog
      &aux (enable (button-selected switch))
 	  (etap (etap dialog))
-	  (view (view etap)))
+	  (view (view-area etap)))
   "Function called when the sine living text SWITCH is toggled.
 - Toggle the rest of the living text interface's enabled status.
 - On deactivation, stop animation if running.
@@ -474,7 +474,7 @@ Display LAYOUT number (1 by default)."
     (cursor value gesture
      &aux (dialog (top-level-interface cursor))
 	  (etap (etap dialog))
-	  (view (view etap)))
+	  (view (view-area etap)))
   "Function called when the lliving text amplitude CURSOR is dragged.
 - Update CURSOR's title."
   (declare (ignore value))
@@ -494,14 +494,14 @@ Display LAYOUT number (1 by default)."
       (redraw etap))))
 
 (defun sine-phase-reset-callback
-    (data dialog &aux (etap (etap dialog)) (view (view etap)))
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   (ecase data
     (:x (setf (sine-phase (capi-object-property view :xsine)) 0))
     (:y (setf (sine-phase (capi-object-property view :ysine)) 0)))
   (unless (capi-object-property view :living-text-animation)
     (redraw etap)))
 
-(defun sine-run-step (etap &aux (view (view etap)))
+(defun sine-run-step (etap &aux (view (view-area etap)))
   (cond ((capi-object-property view :living-text-animation)
 	 (let ((xsine (capi-object-property view :xsine))
 	       (ysine (capi-object-property view :ysine)))
@@ -514,7 +514,7 @@ Display LAYOUT number (1 by default)."
 	 :stop)))
 
 (defun sine-run-callback
-    (animate dialog &aux (etap (etap dialog)) (view (view etap)))
+    (animate dialog &aux (etap (etap dialog)) (view (view-area etap)))
   (cond ((capi-object-property view :living-text-animation)
 	 (setf (item-data animate) :run-animation)
 	 (setf (capi-object-property view :living-text-animation) nil))

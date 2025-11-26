@@ -44,7 +44,7 @@
 (defun demo-1 (etap &rest keys &key xinc yinc)
   (declare (ignore xinc yinc))
   (execute-with-interface-if-alive etap 'demo-1-initialize
-    (view etap) (apply #'make-demo-1 :xshift 0 :yshift 0 keys)))
+    (view-area etap) (apply #'make-demo-1 :xshift 0 :yshift 0 keys)))
 
 ;; #### WARNING: STOP is executed asynchronously, so it's not a good idea to
 ;; mess around with any property that the demos may use. Hence a specific STOP
@@ -52,4 +52,4 @@
 (defun stop (etap)
   (execute-with-interface-if-alive etap
     (lambda (pane) (setf (capi-object-property pane :stop) t))
-    (view etap)))
+    (view-area etap)))
