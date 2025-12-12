@@ -294,9 +294,13 @@ for that)."))
 (defclass whitespace (pinned)
   ((width
     :documentation "The whitespace's width."
-    :initarg :width :reader width))
+    :initarg :width :reader width)
+   (height
+    :documentation "The whitespace's height."
+    :initarg :height :reader height))
   (:documentation "The WHITESPACE class.
-This class represents pinned glues and stores their width after scaling."))
+This class represents pinned glues and stores their width after scaling.
+A whitespace's height is set to the ex of the preceding character."))
 
 (defmethod properties strnlcat ((whitespace whitespace) &key)
   "Advertise WHITESPACE's actual width."
@@ -306,9 +310,10 @@ This class represents pinned glues and stores their width after scaling."))
   "Return T if ITEM is a whitespace."
   (typep item 'whitespace))
 
-(defun pin-glue (glue width board x)
-  "Pin GLUE of scaled WIDTH on BOARD at (X, 0)."
-  (make-instance 'whitespace :width width :object glue :board board :x x))
+(defun pin-glue (glue width height board x)
+  "Pin GLUE of scaled WIDTH and HEIGHT on BOARD at (X, 0)."
+  (make-instance 'whitespace
+    :width width :height height :object glue :board board :x x))
 
 
 ;; -----
@@ -428,6 +433,9 @@ Optionally preset ASAR and ESAR."
   (setf (slot-value line 'items)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
+	      ;; #### FIXME: this will break the day a line begins with a
+	      ;; whitespace!
+	      :with h
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
 	      :if (discretionary-clue-p object)
@@ -435,6 +443,7 @@ Optionally preset ASAR and ESAR."
 	      :else :if (typep object 'tfm:character-metrics)
 		:collect (pin-object object line x)
 		:and :do (incf x (width object))
+		:and :do (setq h (tfm:ex (tfm:font object)))
 	      :else :if (kernp object)
 		:do (incf x (width object))
 	      :else :if (gluep object)
@@ -444,7 +453,7 @@ Optionally preset ASAR and ESAR."
 				  (* esar (stretch object))
 				  (* esar (shrink object))))
 		  :end
-		:and :collect (pin-glue object w line x)
+		:and :collect (pin-glue object w h line x)
 		:and :do (incf x w)))
   line)
 

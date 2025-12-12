@@ -818,7 +818,7 @@ corresponding hyphenation clue."
 		    (<= (+ (x line) (x item))
 			x
 			(+ (x line) (x item) (width item)))
-		    (<= y (y line))))
+		    (<= (- (y line) (height item)) y (y line))))
 	     (items line))))
 
 (defun object-under (x y lines)
