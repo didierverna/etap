@@ -759,6 +759,12 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
+(defun line-under (y lines)
+  "Return the line from LINES which is under Y coordinate, or NIL."
+  (find-if (lambda (line)
+	     (<= (- (y line) (height line)) y (+ (y line) (depth line))))
+	   lines))
+
 (defun vector-product (p1 p2 p3)
   "Return the vector product of P1P2 - P1P3.
 Each point is of the form (X . Y)."
@@ -779,6 +785,9 @@ Each point is of the form (X . Y)."
 	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
 	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
 
+;; #### FIXME: the hyphenation clues geometry (the small triangles under the
+;; lines in between characters) is hard coded at different places, which is
+;; not very cool.
 (defun hyphenation-point-under (x y lines &aux (p (cons x y)))
   "Return the hyphenation point from LINES which is under (X, Y), or nil.
 Technically, (X, Y) is not over the hyphenation point, but over the
@@ -800,13 +809,6 @@ corresponding hyphenation clue."
 				      (cons (+ x (x item) +3) (+ y 5)))))
 			      (items line))))
 	(when pinned (discretionary (object pinned)))))))
-
-(defun line-under (y lines)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line)
-	     (and (>= y (- (y line) (height line)))
-		  (<= y (+ (y line) (depth line)))))
-	   lines))
 
 
 
