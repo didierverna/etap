@@ -810,6 +810,24 @@ corresponding hyphenation clue."
 			      (items line))))
 	(when pinned (discretionary (object pinned)))))))
 
+(defun whitespace-under (x y lines &aux (line (line-under y lines)))
+  "Return the whitespace from LINES which is under (X, Y), or nil."
+  (when line
+    (find-if (lambda (item)
+	       (and (whitespacep item)
+		    (<= (+ (x line) (x item))
+			x
+			(+ (x line) (x item) (width item)))))
+	     (items line))))
+
+(defun object-under (x y lines)
+  "Return the object from LINES which is under (X, Y), or nil.
+This currently includes whitespaces and hyphenation points.
+For hyphenation points, (X, Y) is not technically over it, but over the
+corresponding hyphenation clue."
+  (or (hyphenation-point-under x y lines)
+      (whitespace-under x y lines)))
+
 
 
 ;; Motion
@@ -845,8 +863,7 @@ corresponding hyphenation clue."
 	  ;; the end of the lines, or in the last line.
 	  ((and (<= 0 x (+ par-width 3))
 		(<= (- (height layout)) y (+ (depth layout) 5)))
-	   (let ((object
-		   (when layout (hyphenation-point-under x y (lines layout)))))
+	   (let ((object (when layout (object-under x y (lines layout)))))
 	     (if object
 	       (display-tooltip view :text (properties object))
 	       (display-tooltip view))))

@@ -298,6 +298,10 @@ for that)."))
   (:documentation "The WHITESPACE class.
 This class represents pinned glues and stores their width after scaling."))
 
+(defmethod properties strnlcat ((whitespace whitespace) &key)
+  "Advertise WHITESPACE's actual width."
+  (format nil "Width: ~Apt." (float (width whitespace))))
+
 (defun whitespacep (item)
   "Return T if ITEM is a whitespace."
   (typep item 'whitespace))
