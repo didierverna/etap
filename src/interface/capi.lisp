@@ -824,33 +824,40 @@ corresponding hyphenation clue."
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the mouse is moved in the paragraph VIEW.
-- Display the properties of the object under mouse (the paragraph itself, a
-  line, or a hyphenation point)."
+- Display the paragraph properties when the mouse is above the first line.
+- Display the line properties when the mouse is in the left margin of a line.
+- Otherwise, display the properties of the object under mouse (currently, a
+  hyphenation point)."
   (when (member :properties-tooltips clues)
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
     (decf y (height layout))
-    (if (or (and (<= x 0) (<= y (depth layout)))
-	    (and (<= y (- (height layout))) (<= x par-width)))
-      (display-tooltip view :text (properties breakup :layout-# layout-#))
-      (when layout
-	(let (object)
-	  (if (setq object
-		    (or (and (member :hyphenation-points clues)
-			     ;; #### NOTE: the +3 and (+ ... 5) are for
-			     ;; hyphenation clues occurring at the end of the
-			     ;; lines, or in the last line.
-			     (>= x 0)
-			     (<= x (+ par-width 3))
-			     (>= y 0) ; no need to look above the 1st line
-			     (<= y (+ (y (car (last (lines layout)))) 5))
-			     (hyphenation-point-under x y (lines layout)))
-			(and (>= x 0) (<= x par-width)
-			     (>= y (- (height layout))) (<= y (depth layout))
-			     (line-under y (lines layout)))))
-	    (display-tooltip view :text (properties object))
-	    (display-tooltip view)))))))
+    (cond ((and (< y (- (height layout))) (<= x par-width))
+	   (display-tooltip view
+	     :text (properties breakup :layout-# layout-#)))
+	  ((and (< x 0) (<= y (depth layout)))
+	   (let ((line (when layout (line-under y (lines layout )))))
+	     (if line
+	       (display-tooltip view :text (properties line))
+	       (display-tooltip view))))
+	  ((and (<= 0 x par-width) (<= (- (height layout)) y (depth layout)))
+	   (let ((object
+		   (when layout
+		     (and (member :hyphenation-points clues)
+			  ;; #### NOTE: the +3 and (+ ... 5) are for
+			  ;; hyphenation clues occurring at the end of the
+			  ;; lines, or in the last line.
+			  (>= x 0)
+			  (<= x (+ par-width 3))
+			  (>= y 0) ; no need to look above the 1st line
+			  (<= y (+ (y (car (last (lines layout)))) 5))
+			  (hyphenation-point-under x y (lines layout))))))
+	     (if object
+	       (display-tooltip view :text (properties object))
+	       (display-tooltip view))))
+	  (t
+	   (display-tooltip view)))))
 
 
 
