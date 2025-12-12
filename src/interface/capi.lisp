@@ -846,13 +846,7 @@ corresponding hyphenation clue."
 	  ((and (<= 0 x (+ par-width 3))
 		(<= (- (height layout)) y (+ (depth layout) 5)))
 	   (let ((object
-		   (when layout
-		     (and (member :hyphenation-points clues)
-			  (>= x 0)
-			  (<= x (+ par-width 3))
-			  (>= y 0) ; no need to look above the 1st line
-			  (<= y (+ (y (car (last (lines layout)))) 5))
-			  (hyphenation-point-under x y (lines layout))))))
+		   (when layout (hyphenation-point-under x y (lines layout)))))
 	     (if object
 	       (display-tooltip view :text (properties object))
 	       (display-tooltip view))))
