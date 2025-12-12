@@ -841,13 +841,13 @@ corresponding hyphenation clue."
 	     (if line
 	       (display-tooltip view :text (properties line))
 	       (display-tooltip view))))
-	  ((and (<= 0 x par-width) (<= (- (height layout)) y (depth layout)))
+	  ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
+	  ;; the end of the lines, or in the last line.
+	  ((and (<= 0 x (+ par-width 3))
+		(<= (- (height layout)) y (+ (depth layout) 5)))
 	   (let ((object
 		   (when layout
 		     (and (member :hyphenation-points clues)
-			  ;; #### NOTE: the +3 and (+ ... 5) are for
-			  ;; hyphenation clues occurring at the end of the
-			  ;; lines, or in the last line.
 			  (>= x 0)
 			  (<= x (+ par-width 3))
 			  (>= y 0) ; no need to look above the 1st line
