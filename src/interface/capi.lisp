@@ -1386,8 +1386,7 @@ that the breakup does not contain any layout."
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
-     :reader settings-1-layout)
+   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl))
    (layouts-ctrl row-layout '(layout--1 layout-+1)
      :reader layouts-ctrl-layout)
    (options row-layout '(options-1 options-2))
@@ -1461,9 +1460,9 @@ that the breakup does not contain any layout."
 This currently involves setting ETAP to the required state and fixating the
 geometry of option panes so that resizing the interface is done sensibly."
   (funcall (capi-object-property etap :initialization-function))
-  (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-1-layout etap)))))
-    (set-hint-table (settings-1-layout etap)
+  (let* ((layout (slot-value etap 'settings-1))
+	 (size (multiple-value-list (simple-pane-visible-size layout))))
+    (set-hint-table layout
       `(:visible-min-width ,(car size) :visible-max-width t
 	:visible-min-height ,(cadr size) :visible-max-height t)))
   (let ((size (multiple-value-list
