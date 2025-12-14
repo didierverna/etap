@@ -966,6 +966,12 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
+(defun draw-hyphenation-clue (view x y &rest args)
+  "Draw an hyphenation clue in VIEW at (X,Y).
+ARGS are passed to GP:DRAW-POLYGON."
+  (apply #'gp:draw-polygon
+    view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y) args))
+
 (defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
@@ -1087,11 +1093,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 					(hyphenation-point-p
 					 (discretionary (object item)))
 					(member :hyphenation-points clues))
-				   (gp:draw-polygon view
-				     (list (+ x (x item)) y
-					   (+ x (x item) -3) (+ y 5)
-					   (+ x (x item) +3) (+ y 5)
-					   (+ x (x item)) y)
+				   (draw-hyphenation-clue view
+				     (+ x (x item)) y
 				     :filled
 				     (not (explicitp
 					   (discretionary (object item))))
