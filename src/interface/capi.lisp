@@ -1529,7 +1529,7 @@ those which may affect the lineup."
     ;; WIDGET-VALUE) protocol on check boxes ignores unknown items.
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
-	(typecase (print child)
+	(typecase child
 	  (check-box
 	   (setf (widget-value child) algorithm-options))
 	  (widget
