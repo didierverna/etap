@@ -133,6 +133,10 @@ traits such as adjacency problems or hyphenation ladders."
 Discretionary clues are 0-width objects used to remember the original
 discretionary in a flattened harray slice."))
 
+(defmethod properties strnlcat ((clue discretionary-clue) &key)
+  "Advertise CLUE's discretionary properties."
+  (properties (discretionary clue)))
+
 (defun make-discretionary-clue (discretionary)
   "Make a new discretionary clue."
   (make-instance 'discretionary-clue :discretionary discretionary))

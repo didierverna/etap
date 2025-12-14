@@ -821,27 +821,29 @@ Each point is of the form (X . Y)."
 ;; #### FIXME: the hyphenation clues geometry (the small triangles under the
 ;; lines in between characters) is hard coded at different places, which is
 ;; not very cool.
-(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
-  "Return the hyphenation point from LINES which is under (X, Y), or nil.
-Technically, (X, Y) is not over the hyphenation point, but over the
-corresponding hyphenation clue."
+(defun hyphenation-under (x y lines &aux (p (cons x y)))
+  "Return the discretionary clue from LINES which is under (X, Y), or nil.
+The discretionary clue is returned only if it corresponds to an hyphenation
+point (as opposed to a general discretionary), and the object returned is in
+fact the pin containing the hyphenation clue.
+Technically, (X, Y) is not over the hyphenation clue (which has a width of 0),
+but over its visual representation (the small triangle beneath it)."
   (let ((line (find-if (lambda (line)
 			 (and (>= y (y line)) (<= y (+ (y line) 5))))
 		       lines)))
     (when line
       (let* ((x (x line))
-	     (y (y line))
-	     (pinned (find-if (lambda (item)
-				(and (discretionary-clue-p (object item))
-				     (hyphenation-point-p
-				      (discretionary (object item)))
-				     (triangle-under-p
-				      p
-				      (cons (+ x (x item)) y)
-				      (cons (+ x (x item) -3) (+ y 5))
-				      (cons (+ x (x item) +3) (+ y 5)))))
-			      (items line))))
-	(when pinned (discretionary (object pinned)))))))
+	     (y (y line)))
+	(find-if (lambda (item)
+		   (and (discretionary-clue-p (object item))
+			(hyphenation-point-p
+			 (discretionary (object item)))
+			(triangle-under-p
+			 p
+			 (cons (+ x (x item)) y)
+			 (cons (+ x (x item) -3) (+ y 5))
+			 (cons (+ x (x item) +3) (+ y 5)))))
+		 (items line))))))
 
 (defun whitespace-under (x y lines &aux (line (line-under y lines)))
   "Return the whitespace from LINES which is under (X, Y), or nil."
@@ -859,7 +861,7 @@ corresponding hyphenation clue."
 This currently includes whitespaces and hyphenation points.
 For hyphenation points, (X, Y) is not technically over it, but over the
 corresponding hyphenation clue."
-  (or (hyphenation-point-under x y lines)
+  (or (hyphenation-under x y lines)
       (whitespace-under x y lines)))
 
 
@@ -905,8 +907,18 @@ corresponding hyphenation clue."
 	    ((and (<= 0 x (+ par-width 3))
 		  (<= (- (height layout)) y (+ (depth layout) 5)))
 	     (let ((object (when layout (object-under x y (lines layout)))))
+	       ;; #### FIXME: this is really shaky. We know that currently
+	       ;; OBJECT-UNDER will only return a whitespace or a pinned
+	       ;; hyphenation clue. Simplifying the code below would require
+	       ;; defining a PROPERTIES method on the PINNED class
+	       ;; (advertising the properties of the pinned object), but we
+	       ;; don't want to define such a method for every kind of pinable
+	       ;; object (at least not right now).
 	       (if object
-		 (display-tooltip view :text (properties object))
+		 (display-tooltip view
+		   :text (if (whitespacep object)
+			   (properties object)
+			   (properties (object object))))
 		 (display-tooltip view))))
 	    (t
 	     (display-tooltip view))))))
@@ -942,7 +954,8 @@ displays a penalty adjustment dialog when appropriate."
 			 (<= x (+ par-width 3))
 			 (>= y 0) ; no need to look above the 1st line
 			 (<= y (+ (y (car (last (lines layout)))) 5))
-			 (hyphenation-point-under x y (lines layout)))))
+			 (hyphenation-under x y (lines layout)))))
+	(setq object (discretionary (object object)))
 	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
 	;; complexity of handling null calibers below.
 	(when (and object (caliber object))
