@@ -119,14 +119,19 @@ This is the base class for radio and check boxes."))
   (:documentation "The Radio Box class."))
 
 (defmethod widget-value ((box radio-box))
-  "Return radio BOX's selected item."
-  (choice-selected-item box))
+  "Return radio BOX's selected item data."
+  (let ((item (choice-selected-item box)))
+    (if (typep item 'capi:item) (item-data item) item)))
 
-(defmethod (setf widget-value) (item (box radio-box))
-  "Set radio BOX's selection to ITEM.
-ITEM must be one of BOX's items, or NIL, in which case the first item will be
-selected."
-  (setf (choice-selected-item box) (or item (svref (collection-items box) 0))))
+(defmethod (setf widget-value) (data (box radio-box))
+  "Set radio BOX's selection to item DATA.
+DATA must be one of BOX's items data, or NIL, in which case the first item
+data will be selected."
+  (setf (choice-selected-item box)
+	(or (find data (collection-items box)
+	      :key (lambda (item)
+		     (if (typep item 'capi:item) (item-data item) item)))
+	    (svref (collection-items box) 0))))
 
 
 
@@ -138,10 +143,11 @@ selected."
 
 (defmethod widget-value ((box check-box))
   "Return check BOX's value.
-This is an exhaustive property list of BOX's items and their selected state."
+This is an exhaustive property list of BOX's items data and their selected
+state."
   (loop :with selection := (choice-selected-items box)
 	:for item :across (collection-items box) ; a vector
-	:collect item
+	:collect (if (typep item 'capi:item) (item-data item) item)
 	:if (member item selection)
 	  :collect t
 	:else
@@ -156,7 +162,8 @@ rest is deselected (i.e., no items are left in their previous state). Unknown
 items are ignored."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
-	      :when (getf plist item)
+	      :when (getf plist
+			  (if (typep item 'capi:item) (item-data item) item))
 		:collect item)))
 
 
