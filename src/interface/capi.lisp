@@ -827,42 +827,49 @@ The discretionary clue is returned only if it corresponds to an hyphenation
 point (as opposed to a general discretionary), and the object returned is in
 fact the pin containing the hyphenation clue.
 Technically, (X, Y) is not over the hyphenation clue (which has a width of 0),
-but over its visual representation (the small triangle beneath it)."
+but over its visual representation (the small triangle beneath it).
+This function returns the corresponding line as a second value."
   (let ((line (find-if (lambda (line)
 			 (and (>= y (y line)) (<= y (+ (y line) 5))))
 		       lines)))
     (when line
       (let* ((x (x line))
 	     (y (y line)))
-	(find-if (lambda (item)
-		   (and (discretionary-clue-p (object item))
-			(hyphenation-point-p
-			 (discretionary (object item)))
-			(triangle-under-p
-			 p
-			 (cons (+ x (x item)) y)
-			 (cons (+ x (x item) -3) (+ y 5))
-			 (cons (+ x (x item) +3) (+ y 5)))))
-		 (items line))))))
+	(values (find-if (lambda (item)
+			   (and (discretionary-clue-p (object item))
+				(hyphenation-point-p
+				 (discretionary (object item)))
+				(triangle-under-p
+				 p
+				 (cons (+ x (x item)) y)
+				 (cons (+ x (x item) -3) (+ y 5))
+				 (cons (+ x (x item) +3) (+ y 5)))))
+			 (items line))
+		line)))))
 
 (defun whitespace-under (x y lines &aux (line (line-under y lines)))
-  "Return the whitespace from LINES which is under (X, Y), or nil."
+  "Return the whitespace from LINES which is under (X, Y), or nil.
+This function returns the corresponding line as a second value."
   (when line
-    (find-if (lambda (item)
-	       (and (whitespacep item)
-		    (<= (+ (x line) (x item))
-			x
-			(+ (x line) (x item) (width item)))
-		    (<= (- (y line) (height item)) y (y line))))
-	     (items line))))
+    (values (find-if (lambda (item)
+		       (and (whitespacep item)
+			    (<= (+ (x line) (x item))
+				x
+				(+ (x line) (x item) (width item)))
+			    (<= (- (y line) (height item)) y (y line))))
+		     (items line))
+	    line)))
 
 (defun object-under (x y lines)
   "Return the object from LINES which is under (X, Y), or nil.
 This currently includes whitespaces and hyphenation points.
 For hyphenation points, (X, Y) is not technically over it, but over the
-corresponding hyphenation clue."
-  (or (hyphenation-under x y lines)
-      (whitespace-under x y lines)))
+corresponding hyphenation clue.
+This function returns the corresponding line as a second value."
+  (multiple-value-bind (object line) (hyphenation-under x y lines)
+    (if object ;; OR doesn't propagate secondary values on its first args!
+      (values object line)
+      (whitespace-under x y lines))))
 
 
 
@@ -994,8 +1001,10 @@ ARGS are passed to GP:DRAW-POLYGON."
 	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
-	  (clues (choice-selected-items (clues-box etap))))
+	  (clues (choice-selected-items (clues-box etap)))
+	  (inspect (mapcar #'item-data
+		     (choice-selected-items (inspector-box etap))))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100)))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
@@ -1117,7 +1126,26 @@ ARGS are passed to GP:DRAW-POLYGON."
 				       (discretionary (object item)))
 				      1s0 .7s0)))))
 		      (items line)))
-;	(
+	(when (member :activate inspect)
+	  (let* ((pointer (capi-object-property view :pointer))
+		 (x (/ (- (car pointer) 20) zoom))
+		 (y (/ (- (cdr pointer) 20) zoom)))
+	    (decf y (height layout))
+	    (multiple-value-bind (object line)
+		(object-under x y (lines layout))
+	      (cond ((whitespacep object)
+		     (gp:draw-rectangle view
+			 (+ (x line) (x object))
+			 (- (+ par-y (y line)) (height object))
+			 (width object)
+			 (+ (height object) (depth object))
+		       :scale-thickness nil))
+		    (object
+		     (unless (member :hyphenation-points clues)
+		       (draw-hyphenation-clue view
+			   (+ (x line) (x object))
+			   (+ par-y (y line))
+			 :scale-thickness nil)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
