@@ -995,11 +995,13 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
-(defun draw-hyphenation-clue (view x y &rest args)
-  "Draw an hyphenation clue in VIEW at (X,Y).
-ARGS are passed to GP:DRAW-POLYGON."
-  (apply #'gp:draw-polygon
-    view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y) args))
+(defun draw-hyphenation-clue (view x y discretionary)
+  "Draw an hyphenation clue in VIEW at (X,Y) for DISCRETIONARY."
+  (gp:draw-polygon
+   view
+   (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+   :filled (not (explicitp discretionary))
+   :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
 
 (defun display-callback
     (view x y width height
@@ -1124,16 +1126,9 @@ ARGS are passed to GP:DRAW-POLYGON."
 					(hyphenation-point-p
 					 (discretionary (object item)))
 					(member :hyphenation-points clues))
-				   (draw-hyphenation-clue view
-				     (+ x (x item)) y
-				     :filled
-				     (not (explicitp
-					   (discretionary (object item))))
-				     :foreground
-				     (color:make-hsv
-				      (penalty-hue
-				       (discretionary (object item)))
-				      1s0 .7s0)))))
+				   (draw-hyphenation-clue
+				    view (+ x (x item)) y
+				    (discretionary (object item))))))
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
@@ -1151,10 +1146,9 @@ ARGS are passed to GP:DRAW-POLYGON."
 		       :scale-thickness nil))
 		    (object
 		     (unless (member :hyphenation-points clues)
-		       (draw-hyphenation-clue view
-			   (+ (x line) (x object))
-			   (+ par-y (y line))
-			 :scale-thickness nil)))))))
+		       (draw-hyphenation-clue
+			view (+ (x line) (x object)) (+ par-y (y line))
+			(discretionary (object object)))))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
