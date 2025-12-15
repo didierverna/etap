@@ -595,12 +595,15 @@ Display LAYOUT number (1 by default)."
   (setf (title-pane-text (title-area dialog))
 	(princ-to-string (penalty break-point))))
 
+(defun find-penalty-adjustment-dialog (break-point etap)
+  "Find a penalty adjustment dialog for BREAK-POINT in ETAP."
+  (find break-point (penalty-adjustment-dialogs etap) :key #'break-point))
+
 (defun make-penalty-adjustment-dialog (break-point etap)
   "Make a penalty adjustment dialog from ETAP interface for BREAK-POINT.
 If one already exists, activate it and give it the focus. Otherwise, create a
 new dialog and display it."
-  (let ((dialog (find break-point (penalty-adjustment-dialogs etap)
-		  :key #'break-point)))
+  (let ((dialog (find-penalty-adjustment-dialog break-point etap)))
     (if dialog
       (activate-pane dialog)
       (multiple-value-bind (x y) (top-level-interface-geometry etap)
