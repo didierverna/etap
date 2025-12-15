@@ -699,7 +699,11 @@ button (itself not subject to enabling / disabling)"
     (:activate
      (enable-inspector inspector)
      (unless (getf (widget-value inspector) :activate)
-       (mapc #'destroy (penalty-adjustment-dialogs etap))))))
+       (display-tooltip (view-area etap))
+       (mapc #'destroy (penalty-adjustment-dialogs etap))))
+    (:tooltips
+     (unless (getf (widget-value inspector) :tooltips)
+       (display-tooltip (view-area etap))))))
 
 
 
