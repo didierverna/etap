@@ -103,7 +103,7 @@ Return HLIST."
 	    (glue
 	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
     hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
+  (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*) hlist)
   hlist)
 
 

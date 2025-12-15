@@ -140,7 +140,7 @@ Kerns represent inter-letter horizontal spacing."))
     :initform 0 :initarg :penalty :accessor penalty)
    (caliber
     :documentation "The penalty's caliber."
-    :initform nil :reader caliber))
+    :initform nil :initarg :caliber :reader caliber))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 
@@ -270,7 +270,7 @@ Glues represent breakable, elastic space."))
   "Return T if OBJECT is a glue."
   (typep object 'glue))
 
-(defun make-glue (&rest keys &key width shrink stretch penalty)
+(defun make-glue (&rest keys &key width shrink stretch penalty caliber)
   "Make a new glue out of WIDTH, SHRINK, STRETCH, and PENALTY."
   (declare (ignore width shrink stretch penalty))
   (apply #'make-instance 'glue keys))
