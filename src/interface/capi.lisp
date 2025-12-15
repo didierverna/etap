@@ -1130,6 +1130,7 @@ that the breakup does not contain any layout."
      :items *dispositions*
      :callback-type :interface
      :selection-callback 'remake
+     :visible-max-width nil
      :reader disposition-type-box)
    (disposition-options check-box
      :property :disposition-options
@@ -1138,6 +1139,7 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
+     :visible-max-width nil
      :reader disposition-options-box)
    (features check-box
      :property :features
@@ -1145,6 +1147,7 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
+     :visible-max-width nil
      :reader features-box)
    (clues check-box
      :property :characters-&-clues
