@@ -1544,6 +1544,8 @@ that the breakup does not contain any layout."
 
 (defmethod initialize-instance :after ((etap etap) &rest keys)
   "Adjust creation-time GUI options and dynamically constructed elements."
+  ;; Make sure that we have at least numbers here.
+  (setf (capi-object-property (view-area etap) :pointer) (cons -1 -1))
   (setf (slot-value (river-detection-dialog etap) 'etap) etap)
   (let ((inspector (inspector-box etap)))
     (setf (collection-items inspector)
