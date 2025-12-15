@@ -626,7 +626,7 @@ new dialog and display it."
 ;; ==========================================================================
 
 (defparameter *clues*
-  '(:characters :hyphenation-points :whitespaces
+  '(:characters :hyphenation-points :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
     :paragraph-box :line-boxes :character-boxes :baselines)
@@ -833,13 +833,14 @@ Each point is of the form (X . Y)."
 ;; #### FIXME: the hyphenation clues geometry (the small triangles under the
 ;; lines in between characters) is hard coded at different places, which is
 ;; not very cool.
-(defun hyphenation-under (x y lines &aux (p (cons x y)))
-  "Return the discretionary clue from LINES which is under (X, Y), or nil.
-The discretionary clue is returned only if it corresponds to an hyphenation
-point (as opposed to a general discretionary), and the object returned is in
-fact the pin containing the hyphenation clue.
-Technically, (X, Y) is not over the hyphenation clue (which has a width of 0),
-but over its visual representation (the small triangle beneath it).
+(defun clue-under (x y lines &aux (p (cons x y)))
+  "Return the clue from LINES which is under (X, Y), or nil.
+The clue is either a discretionary or and EOL one. In the case of a
+discretionary clue, it is returned only if it corresponds to an hyphenation
+point (as opposed to a general discretionary). The object returned is in fact
+the pin containing the clue.
+Technically, (X, Y) is not over the clue (which has a width of 0), but over
+its visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
   (let ((line (find-if (lambda (line)
 			 (and (>= y (y line)) (<= y (+ (y line) 5))))
@@ -848,9 +849,10 @@ This function returns the corresponding line as a second value."
       (let* ((x (x line))
 	     (y (y line)))
 	(values (find-if (lambda (item)
-			   (and (discretionary-clue-p (object item))
-				(hyphenation-point-p
-				 (discretionary (object item)))
+			   (and (or (and (discretionary-clue-p (object item))
+					 (hyphenation-point-p
+					  (discretionary (object item))))
+				    (eol-clue-p (object item)))
 				(triangle-under-p
 				 p
 				 (cons (+ x (x item)) y)
@@ -878,7 +880,7 @@ This currently includes whitespaces and hyphenation points.
 For hyphenation points, (X, Y) is not technically over it, but over the
 corresponding hyphenation clue.
 This function returns the corresponding line as a second value."
-  (multiple-value-bind (object line) (hyphenation-under x y lines)
+  (multiple-value-bind (object line) (clue-under x y lines)
     (if object ;; OR doesn't propagate secondary values on its first args!
       (values object line)
       (whitespace-under x y lines))))
@@ -977,6 +979,7 @@ displays a penalty adjustment dialog when appropriate."
 	  (setq object
 		(etypecase (object object)
 		  (discretionary-clue (discretionary (object object)))
+		  (eol-clue (glue (object object)))
 		  (glue (object object))))
 	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
 	  ;; complexity of handling null calibers below.
@@ -1008,6 +1011,18 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
    :filled (not (explicitp discretionary))
    :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
+
+(defun draw-eol-clue (view x y glue &optional force)
+  "Draw an EOL clue in VIEW at (X,Y) for GLUE.
+Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
+not 0."
+  (when (or force
+	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
+    (gp:draw-polygon
+     view
+     (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+     :filled t
+     :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
@@ -1157,11 +1172,23 @@ not 0."
 				  ((and (whitespacep item)
 					(or (member :whitespaces clues)
 					    (find-penalty-adjustment-dialog
-					     (object item) etap)))
+					     (object item)
+					     etap)))
 				   (draw-whitespace-clue
 				    view (x line) (+ par-y (y line)) item
 				    (find-penalty-adjustment-dialog
-				     (object item) etap)))))
+				     (object item) etap)))
+				  ((and (eol-clue-p (object item))
+					(or (member :ends-of-line clues)
+					    (find-penalty-adjustment-dialog
+					     (glue (object item))
+					     etap)))
+				   (draw-eol-clue
+				    view (+ x (x item)) y
+				    (glue (object item))
+				    (find-penalty-adjustment-dialog
+				     (glue (object item))
+				     etap)))))
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
@@ -1172,13 +1199,18 @@ not 0."
 		(object-under x y (lines layout))
 	      ;; #### WARNING: we may end up drawing a clue for the second
 	      ;; time here, but this is probably not such a big deal.
-	      (cond ((whitespacep object)
-		     (draw-whitespace-clue
-		      view (x line) (+ par-y (y line)) object 'force))
-		    (object
-		     (draw-hyphenation-clue
-		      view (+ (x line) (x object)) (+ par-y (y line))
-		      (discretionary (object object))))))))
+	      (when object
+		(cond ((whitespacep object)
+		       (draw-whitespace-clue
+			view (x line) (+ par-y (y line)) object 'force))
+		      ((discretionary-clue-p (object object))
+		       (draw-hyphenation-clue
+			view (+ (x line) (x object)) (+ par-y (y line))
+			(discretionary (object object))))
+		      ((eol-clue-p (object object))
+		       (draw-eol-clue
+			view (+ (x line) (x object)) (+ par-y (y line))
+			(glue (object object)) 'force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))

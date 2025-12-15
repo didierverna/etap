@@ -123,6 +123,10 @@ traits such as adjacency problems or hyphenation ladders."
 ;; typesetting algorithm in use. Most algorithms post-process the hlist (for
 ;; example by adjusting penalties or adding glues).
 
+;; -------------------
+;; Discretionary clues
+;; -------------------
+
 (defclass discretionary-clue ()
   ((width
     :documentation "This discretionary clue's width (always 0)."
@@ -148,29 +152,63 @@ discretionary in a flattened harray slice."))
 
 
 
+;; -----------------
+;; End of line clues
+;; -----------------
+
+(defclass eol-clue ()
+  ((width
+    :documentation "This EOL clue's width (always 0)."
+    :allocation :class :initform 0 :reader width)
+   (glue
+    :documentation "The corresponding glue."
+    :initarg :glue :reader glue))
+  (:documentation "The End-of-Line Clue class.
+EOL clues are 0-width objects used to remember the original glue ending a
+flattened harray slice."))
+
+(defmethod properties strnlcat ((clue eol-clue) &key)
+  "Advertise CLUE's glue penalty."
+  (format nil "Penalty: ~A." (penalty (glue clue))))
+
+(defun make-eol-clue (glue)
+  "Make a new EOL clue."
+  (make-instance 'eol-clue :glue glue))
+
+(defun eol-clue-p (object)
+  "Return T if OBJECT is an EOL clue."
+  (typep object 'eol-clue))
+
+
+
 ;; ------
 ;; Access
 ;; ------
 
 (defun haref (harray i start stop &aux (element (aref harray i)))
   "Return HARRAY element at position I, between START and STOP boundaries.
-If element is a discretionary, return the appropriate pre/no/post break part."
-  (if (discretionaryp element)
-    ;; #### WARNING: after all the pre-processing done on the hlist, including
-    ;; ligatures / kerning management in the presence of hyphenation points,
-    ;; we may end up with harrays beginning or ending with discretionaries (or
-    ;; even consecutive discretionaries for that matter). When discretionaries
-    ;; begin or end the harray, we must not consider them as post- or
-    ;; pre-breaks though.
-    (cond ((and (= i start) (not (zerop start)))
-	   (post-break element))
-	  ((and (= i (1- stop)) (not (= stop (length harray))))
-	   (append (pre-break element)
-		   (list (make-discretionary-clue element))))
-	  (t
-	   (cons (make-discretionary-clue element)
-		 (no-break element))))
-    element))
+If element is a discretionary, return the appropriate pre/no/post break part.
+This function also handles discretionary and eol clues."
+  (cond ((discretionaryp element)
+	 ;; #### WARNING: after all the pre-processing done on the hlist,
+	 ;; including ligatures / kerning management in the presence of
+	 ;; hyphenation points, we may end up with harrays beginning or ending
+	 ;; with discretionaries (or even consecutive discretionaries for that
+	 ;; matter). When discretionaries begin or end the harray, we must not
+	 ;; consider them as post- or pre-breaks though.
+	 (cond ((and (= i start) (not (zerop start)))
+		(post-break element))
+	       ((and (= i (1- stop)) (not (= stop (length harray))))
+		(append (pre-break element)
+			(list (make-discretionary-clue element))))
+	       (t
+		(cons (make-discretionary-clue element)
+		      (no-break element)))))
+	((and (= i (1- stop)) (not (= stop (length harray))))
+	 (assert (gluep (aref harray stop)))
+	 (list element (make-eol-clue (aref harray stop))))
+	(t
+	 element)))
 
 (defun flatten-harray (harray start stop)
   "Return a flattened list of HARRAY elements between START and STOP."
@@ -356,7 +394,7 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
-Currently, those are characters, whitespaces, and discretionary clues.
+Currently, those are characters, whitespaces, and discretionary and eol clues.
 These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin."
     :reader items))
@@ -447,7 +485,7 @@ Optionally preset ASAR and ESAR."
 	      :with h
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
-	      :if (discretionary-clue-p object)
+	      :if (or (discretionary-clue-p object) (eol-clue-p object))
 		:collect (pin-object object line x)
 	      :else :if (typep object 'tfm:character-metrics)
 		:collect (pin-object object line x)
