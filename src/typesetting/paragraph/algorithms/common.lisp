@@ -40,6 +40,7 @@ This function returns two values.
     (values asar esar)))
 
 
+
 ;; --------------------
 ;; Quality measurements
 ;; --------------------
@@ -146,6 +147,7 @@ discretionary in a flattened harray slice."))
   (typep object 'discretionary-clue))
 
 
+
 ;; ------
 ;; Access
 ;; ------
@@ -194,6 +196,7 @@ If BREAK-POINT is an EOP one, return NIL."
 	(make-instance 'eop :idx (length harray)))))
 
 
+
 ;; --------
 ;; Geometry
 ;; --------
@@ -320,6 +323,7 @@ A whitespace's height is set to the ex of the preceding character."))
     :width width :height height :object glue :board board :x x))
 
 
+
 ;; -----
 ;; Lines
 ;; -----
@@ -423,6 +427,7 @@ Optionally preset ASAR and ESAR."
      (float (width line)))))
 
 
+
 ;; ---------
 ;; Rendering
 ;; ---------
@@ -484,6 +489,7 @@ paragraph. Algorithms may provide their own layout subclass in order to store
 specific global properties."))
 
 
+
 ;; ---------
 ;; Rendering
 ;; ---------
