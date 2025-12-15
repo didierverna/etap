@@ -620,7 +620,7 @@ new dialog and display it."
 ;; ==========================================================================
 
 (defparameter *clues*
-  '(:characters :hyphenation-points
+  '(:characters :hyphenation-points :whitespaces
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
     :paragraph-box :line-boxes :character-boxes :baselines)
@@ -1003,6 +1003,17 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
    :filled (not (explicitp discretionary))
    :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
 
+(defun draw-whitespace-clue (view x y whitespace)
+  "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
+(X,Y) is the point which WHITESPACE is positioned relatively to."
+  (gp:draw-rectangle view
+      (+ x (x whitespace))
+      (- y (height whitespace))
+      (width whitespace)
+      (+ (height whitespace) (depth whitespace))
+    :filled t ;; (not (explicitp discretionary))
+    :foreground (color:make-hsv (penalty-hue (object whitespace)) 1s0 .7s0)))
+
 (defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
@@ -1128,7 +1139,11 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 					(member :hyphenation-points clues))
 				   (draw-hyphenation-clue
 				    view (+ x (x item)) y
-				    (discretionary (object item))))))
+				    (discretionary (object item))))
+				  ((and (whitespacep item)
+					(member :whitespaces clues))
+				   (draw-whitespace-clue
+				    view (x line) (+ par-y (y line)) item))))
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
@@ -1138,12 +1153,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	    (multiple-value-bind (object line)
 		(object-under x y (lines layout))
 	      (cond ((whitespacep object)
-		     (gp:draw-rectangle view
-			 (+ (x line) (x object))
-			 (- (+ par-y (y line)) (height object))
-			 (width object)
-			 (+ (height object) (depth object))
-		       :scale-thickness nil))
+		     (draw-whitespace-clue
+		      view (x line) (+ par-y (y line)) object))
 		    (object
 		     (unless (member :hyphenation-points clues)
 		       (draw-hyphenation-clue
