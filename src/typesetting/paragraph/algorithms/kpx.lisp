@@ -90,15 +90,18 @@ Return HLIST."
   (calibrate-kpx hyphen-penalty)
   (calibrate-kpx explicit-hyphen-penalty)
   (mapc (lambda (item)
-	  (when (discretionaryp item)
-	    (cond ((pre-break item)
-		   (setf (penalty item) *hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *kpx-hyphen-penalty*))
-		  (t
-		   (setf (penalty item) *explicit-hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *kpx-explicit-hyphen-penalty*)))))
+	  (typecase item
+	    (discretionary
+	     (cond ((pre-break item)
+		    (setf (penalty item) *hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *kpx-hyphen-penalty*))
+		   (t
+		    (setf (penalty item) *explicit-hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *kpx-explicit-hyphen-penalty*))))
+	    (glue
+	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
     hlist)
   (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
   hlist)
