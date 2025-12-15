@@ -1240,6 +1240,7 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'redraw
      :retract-callback 'redraw
+     :visible-max-width nil
      :reader clues-box)
    ;; The inspector items are created dynamically in the INITIALIZE-INSTANCE
    ;; after method.
@@ -1247,6 +1248,7 @@ that the breakup does not contain any layout."
      :property :inspector
      :selection-callback 'inspector-callback
      :retract-callback 'inspector-callback
+     :visible-max-width nil
      :reader inspector-box)
    (paragraph-width pt-cursor
      :property :paragraph-width
