@@ -490,6 +490,9 @@ Display LAYOUT number (1 by default)."
   (let ((etap (etap dialog)))
     (setf (penalty-adjustment-dialogs etap)
 	  (remove dialog (penalty-adjustment-dialogs etap)))
+    ;; We need to redraw the view because this dialog's corresponding clue has
+    ;; to go away.
+    (redraw etap)
     (unless (penalty-adjustment-dialogs etap)
       (enable-interface etap))))
 
@@ -1144,14 +1147,21 @@ not 0."
 				  ((and (discretionary-clue-p (object item))
 					(hyphenation-point-p
 					 (discretionary (object item)))
-					(member :hyphenation-points clues))
+					(or (member :hyphenation-points clues)
+					    (find-penalty-adjustment-dialog
+					     (discretionary (object item))
+					     etap)))
 				   (draw-hyphenation-clue
 				    view (+ x (x item)) y
 				    (discretionary (object item))))
 				  ((and (whitespacep item)
-					(member :whitespaces clues))
+					(or (member :whitespaces clues)
+					    (find-penalty-adjustment-dialog
+					     (object item) etap)))
 				   (draw-whitespace-clue
-				    view (x line) (+ par-y (y line)) item))))
+				    view (x line) (+ par-y (y line)) item
+				    (find-penalty-adjustment-dialog
+				     (object item) etap)))))
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
@@ -1160,14 +1170,15 @@ not 0."
 	    (decf y (height layout))
 	    (multiple-value-bind (object line)
 		(object-under x y (lines layout))
+	      ;; #### WARNING: we may end up drawing a clue for the second
+	      ;; time here, but this is probably not such a big deal.
 	      (cond ((whitespacep object)
 		     (draw-whitespace-clue
 		      view (x line) (+ par-y (y line)) object 'force))
 		    (object
-		     (unless (member :hyphenation-points clues)
-		       (draw-hyphenation-clue
-			view (+ (x line) (x object)) (+ par-y (y line))
-			(discretionary (object object)))))))))
+		     (draw-hyphenation-clue
+		      view (+ (x line) (x object)) (+ par-y (y line))
+		      (discretionary (object object))))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
