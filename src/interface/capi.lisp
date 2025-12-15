@@ -503,25 +503,25 @@ Display LAYOUT number (1 by default)."
 (defun penalty-adjustment-value-callback
     (slider value gesture
      &aux (dialog (top-level-interface slider))
-	  (hyphenation-point (hyphenation-point dialog))
+	  (break-point (break-point dialog))
 	  (etap (etap dialog)))
   "Function called when the penalty adjustment value SLIDER is dragged.
 - Calibrate VALUE.
 - Advertise VALUE in dialog's title pane.
-- Adjust the hyphenation point's penalty.
+- Adjust the break point's penalty.
 - Remake from the current lineup."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
-				  (caliber hyphenation-point)))
+				  (caliber break-point)))
     (setf (title-pane-text (title-area dialog)) (princ-to-string value))
-    (setf (penalty hyphenation-point) value)
+    (setf (penalty break-point) value)
     (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
     (item dialog
      &aux (slider (value-slider dialog))
-	  (hyphenation-point (hyphenation-point dialog))
-	  (caliber (caliber hyphenation-point))
+	  (break-point (break-point dialog))
+	  (caliber (caliber break-point))
 	  (value (ecase item
 		   (:reset-to-original (original-value dialog))
 		   (:reset-to-global   (global-value dialog))
@@ -536,7 +536,7 @@ Display LAYOUT number (1 by default)."
 (define-interface penalty-adjustment ()
   ((original-value :reader original-value)
    (global-value :reader global-value)
-   (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
+   (break-point :initarg :break-point :reader break-point)
    (etap :initarg :etap :reader etap))
   (:panes
    (title title-pane
@@ -566,40 +566,46 @@ Display LAYOUT number (1 by default)."
     ((dialog penalty-adjustment)
      &key &aux (etap (etap dialog))
 	       (slider (value-slider dialog))
-	       (hyphenation-point (hyphenation-point dialog))
-	       (caliber (caliber hyphenation-point)))
+	       (break-point (break-point dialog))
+	       (caliber (caliber break-point)))
   "Finish initializing penalty adjustment DIALOG.
 - Memoize the original penalty.
-- Set the slider's range start, end, and slug start based on the hyphenation
-  point's caliber.
+- Set the slider's range start, end, and slug start based on the break point's
+  caliber.
 - Set DIALOG's title pane."
+  ;; #### FIXME: when the caliber is not associated with a customizable
+  ;; variable (e.g. glue penalties), it is redundant to have both a "reset to
+  ;; global" and a "reset to default" button.
   (setf (slot-value dialog 'global-value)
-	(range-slug-start
-	 (find-widget
-	  (caliber-property caliber)
-	  (slot-value
-	   etap
-	   (second (choice-selected-item (algorithm-tabs etap)))))))
+	(let ((widget
+		(find-widget
+		 (caliber-property caliber)
+		 (slot-value
+		  etap
+		  (second (choice-selected-item (algorithm-tabs etap)))))))
+	  (if widget
+	    (range-slug-start widget)
+	    (caliber-default caliber))))
   (setf (slot-value dialog 'original-value)
-	(decalibrated-value (penalty hyphenation-point)
-			    (caliber hyphenation-point)))
+	(decalibrated-value (penalty break-point)
+			    (caliber break-point)))
   (setf (range-start slider)      (caliber-min caliber)
 	(range-end slider)        (caliber-max caliber)
 	(range-slug-start slider) (original-value dialog))
   (setf (title-pane-text (title-area dialog))
-	(princ-to-string (penalty hyphenation-point))))
+	(princ-to-string (penalty break-point))))
 
-(defun make-penalty-adjustment-dialog (hyphenation-point etap)
-  "Make a penalty adjustment dialog from ETAP interface for HYPHENATION-POINT.
+(defun make-penalty-adjustment-dialog (break-point etap)
+  "Make a penalty adjustment dialog from ETAP interface for BREAK-POINT.
 If one already exists, activate it and give it the focus. Otherwise, create a
 new dialog and display it."
-  (let ((dialog (find hyphenation-point (penalty-adjustment-dialogs etap)
-		  :key #'hyphenation-point)))
+  (let ((dialog (find break-point (penalty-adjustment-dialogs etap)
+		  :key #'break-point)))
     (if dialog
       (activate-pane dialog)
       (multiple-value-bind (x y) (top-level-interface-geometry etap)
 	(setq dialog (make-instance 'penalty-adjustment
-		       :hyphenation-point hyphenation-point
+		       :break-point break-point
 		       :etap etap))
 	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
 	(push dialog (penalty-adjustment-dialogs etap))
@@ -961,12 +967,16 @@ displays a penalty adjustment dialog when appropriate."
 			 (<= x (+ par-width 3))
 			 (>= y 0) ; no need to look above the 1st line
 			 (<= y (+ (y (car (last (lines layout)))) 5))
-			 (hyphenation-under x y (lines layout)))))
-	(setq object (discretionary (object object)))
-	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	;; complexity of handling null calibers below.
-	(when (and object (caliber object))
-	  (make-penalty-adjustment-dialog object etap))))))
+			 (object-under x y (lines layout)))))
+	(when object
+	  (setq object
+		(etypecase (object object)
+		  (discretionary-clue (discretionary (object object)))
+		  (glue (object object))))
+	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+	  ;; complexity of handling null calibers below.
+	  (when (caliber object)
+	    (make-penalty-adjustment-dialog object etap)))))))
 
 
 

@@ -43,6 +43,8 @@ See `define-caliber' for more information."
   (declare (ignore infinity bounded))
   `(define-caliber kp ,name ,min ,default ,max ,@keys))
 
+(define-kp-caliber glue-penalty -10000 0 10000 :infinity t)
+
 (define-kp-caliber line-penalty -100 10 100)
 (define-kp-caliber hyphen-penalty -10000 50 10000 :infinity t)
 (define-kp-caliber explicit-hyphen-penalty -10000 50 10000 :infinity t)
@@ -93,15 +95,18 @@ Return HLIST."
   (calibrate-kp hyphen-penalty)
   (calibrate-kp explicit-hyphen-penalty)
   (mapc (lambda (item)
-	  (when (discretionaryp item)
-	    (cond ((pre-break item)
-		   (setf (penalty item) *hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *kp-hyphen-penalty*))
-		  (t
-		   (setf (penalty item) *explicit-hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *kp-explicit-hyphen-penalty*)))))
+	  (typecase item
+	    (discretionary
+	     (cond ((pre-break item)
+		    (setf (penalty item) *hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *kp-hyphen-penalty*))
+		   (t
+		    (setf (penalty item) *explicit-hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *kp-explicit-hyphen-penalty*))))
+	    (glue
+	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
     hlist)
   (endpush (make-glue :stretch +∞ :penalty +∞) hlist)
   hlist)
