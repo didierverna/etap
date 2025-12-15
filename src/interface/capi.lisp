@@ -974,6 +974,12 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
+(defun line-under (y lines)
+  "Return the line from LINES which is under Y coordinate, or NIL."
+  (find-if (lambda (line)
+	     (<= (- (y line) (height line)) y (+ (y line) (depth line))))
+	   lines))
+
 (defun vector-product (p1 p2 p3)
   "Return the vector product of P1P2 - P1P3.
 Each point is of the form (X . Y)."
@@ -994,6 +1000,9 @@ Each point is of the form (X . Y)."
 	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
 	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
 
+;; #### FIXME: the hyphenation clues geometry (the small triangles under the
+;; lines in between characters) is hard coded at different places, which is
+;; not very cool.
 (defun hyphenation-point-under (x y lines &aux (p (cons x y)))
   "Return the hyphenation point from LINES which is under (X, Y), or nil.
 Technically, (X, Y) is not over the hyphenation point, but over the
@@ -1016,12 +1025,24 @@ corresponding hyphenation clue."
 			      (items line))))
 	(when pinned (discretionary (object pinned)))))))
 
-(defun line-under (y lines)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line)
-	     (and (>= y (- (y line) (height line)))
-		  (<= y (+ (y line) (depth line)))))
-	   lines))
+(defun whitespace-under (x y lines &aux (line (line-under y lines)))
+  "Return the whitespace from LINES which is under (X, Y), or nil."
+  (when line
+    (find-if (lambda (item)
+	       (and (whitespacep item)
+		    (<= (+ (x line) (x item))
+			x
+			(+ (x line) (x item) (width item)))
+		    (<= (- (y line) (height item)) y (y line))))
+	     (items line))))
+
+(defun object-under (x y lines)
+  "Return the object from LINES which is under (X, Y), or nil.
+This currently includes whitespaces and hyphenation points.
+For hyphenation points, (X, Y) is not technically over it, but over the
+corresponding hyphenation clue."
+  (or (hyphenation-point-under x y lines)
+      (whitespace-under x y lines)))
 
 
 
@@ -1037,33 +1058,33 @@ corresponding hyphenation clue."
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the mouse is moved in the paragraph VIEW.
-- Display the properties of the object under mouse (the paragraph itself, a
-  line, or a hyphenation point)."
+- Display the paragraph properties when the mouse is above the first line.
+- Display the line properties when the mouse is in the left margin of a line.
+- Otherwise, display the properties of the object under mouse (currently, a
+  hyphenation point)."
   (when (member :properties-tooltips clues)
     (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
     (decf y (height layout))
-    (if (or (and (<= x 0) (<= y (depth layout)))
-	    (and (<= y (- (height layout))) (<= x par-width)))
-      (display-tooltip view :text (properties breakup :layout-# layout-#))
-      (when layout
-	(let (object)
-	  (if (setq object
-		    (or (and (member :hyphenation-points clues)
-			     ;; #### NOTE: the +3 and (+ ... 5) are for
-			     ;; hyphenation clues occurring at the end of the
-			     ;; lines, or in the last line.
-			     (>= x 0)
-			     (<= x (+ par-width 3))
-			     (>= y 0) ; no need to look above the 1st line
-			     (<= y (+ (y (car (last (lines layout)))) 5))
-			     (hyphenation-point-under x y (lines layout)))
-			(and (>= x 0) (<= x par-width)
-			     (>= y (- (height layout))) (<= y (depth layout))
-			     (line-under y (lines layout)))))
-	    (display-tooltip view :text (properties object))
-	    (display-tooltip view)))))))
+    (cond ((and (< y (- (height layout))) (<= x par-width))
+	   (display-tooltip view
+	     :text (properties breakup :layout-# layout-#)))
+	  ((and (< x 0) (<= y (depth layout)))
+	   (let ((line (when layout (line-under y (lines layout )))))
+	     (if line
+	       (display-tooltip view :text (properties line))
+	       (display-tooltip view))))
+	  ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
+	  ;; the end of the lines, or in the last line.
+	  ((and (<= 0 x (+ par-width 3))
+		(<= (- (height layout)) y (+ (depth layout) 5)))
+	   (let ((object (when layout (object-under x y (lines layout)))))
+	     (if object
+	       (display-tooltip view :text (properties object))
+	       (display-tooltip view))))
+	  (t
+	   (display-tooltip view)))))
 
 
 
@@ -1351,6 +1372,7 @@ that the breakup does not contain any layout."
      :items *dispositions*
      :callback-type :interface
      :selection-callback 'remake
+     :visible-max-width nil
      :reader disposition-type-box)
    (disposition-options check-box
      :property :disposition-options
@@ -1359,6 +1381,7 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
+     :visible-max-width nil
      :reader disposition-options-box)
    (features check-box
      :property :features
@@ -1366,6 +1389,7 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'remake
      :retract-callback 'remake
+     :visible-max-width nil
      :reader features-box)
    (clues check-box
      :property :characters-&-clues
@@ -1607,8 +1631,7 @@ that the breakup does not contain any layout."
   (:layouts
    (main column-layout '(settings view))
    (settings row-layout '(settings-1 settings-2))
-   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl)
-     :reader settings-1-layout)
+   (settings-1 column-layout '(options paragraph-width zoom layouts-ctrl))
    (layouts-ctrl row-layout '(layout--1 layout-+1)
      :reader layouts-ctrl-layout)
    (options row-layout '(options-1 options-2))
@@ -1683,9 +1706,9 @@ that the breakup does not contain any layout."
 This currently involves setting ETAP to the required state and fixating the
 geometry of option panes so that resizing the interface is done sensibly."
   (funcall (capi-object-property etap :initialization-function))
-  (let ((size (multiple-value-list
-	       (simple-pane-visible-size (settings-1-layout etap)))))
-    (set-hint-table (settings-1-layout etap)
+  (let* ((layout (slot-value etap 'settings-1))
+	 (size (multiple-value-list (simple-pane-visible-size layout))))
+    (set-hint-table layout
       `(:visible-min-width ,(car size) :visible-max-width t
 	:visible-min-height ,(cadr size) :visible-max-height t)))
   (let ((size (multiple-value-list
@@ -1752,7 +1775,7 @@ those which may affect the lineup."
     ;; WIDGET-VALUE) protocol on check boxes ignores unknown items.
     (map-pane-descendant-children (slot-value etap (second item))
       (lambda (child)
-	(typecase (print child)
+	(typecase child
 	  (check-box
 	   (setf (widget-value child) algorithm-options))
 	  (widget
