@@ -272,7 +272,7 @@ Glues represent breakable, elastic space."))
 
 (defun make-glue (&rest keys &key width shrink stretch penalty caliber)
   "Make a new glue out of WIDTH, SHRINK, STRETCH, and PENALTY."
-  (declare (ignore width shrink stretch penalty))
+  (declare (ignore width shrink stretch penalty caliber))
   (apply #'make-instance 'glue keys))
 
 (defun make-interword-glue (blank &aux (font (tfm:font blank)))
