@@ -965,7 +965,6 @@ displays a penalty adjustment dialog when appropriate."
 			 ;; lines, or in the last line.
 			 (>= x 0)
 			 (<= x (+ par-width 3))
-			 (>= y 0) ; no need to look above the 1st line
 			 (<= y (+ (y (car (last (lines layout)))) 5))
 			 (object-under x y (lines layout)))))
 	(when object
