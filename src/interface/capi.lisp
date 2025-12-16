@@ -484,17 +484,15 @@ Display LAYOUT number (1 by default)."
 ;; component that entails computing a new lineup is deactivated for as long as
 ;; there's a live penalty adjustment dialog.
 
-(defun penalty-adjustment-destroy-callback (dialog)
+(defun penalty-adjustment-destroy-callback (dialog &aux (etap (etap dialog)))
   "Function called when penalty adjustment DIALOG is destroyed.
 - Possibly reenable the Etap interface if DIALOG was the last one."
-  (let ((etap (etap dialog)))
-    (setf (penalty-adjustment-dialogs etap)
-	  (remove dialog (penalty-adjustment-dialogs etap)))
-    ;; We need to redraw the view because this dialog's corresponding clue has
-    ;; to go away.
-    (redraw etap)
-    (unless (penalty-adjustment-dialogs etap)
-      (enable-interface etap))))
+  (setf (penalty-adjustment-dialogs etap)
+	(delete dialog (penalty-adjustment-dialogs etap)))
+  ;; We need to redraw the view because depending on other options, this
+  ;; dialog's corresponding clue may have to go away.
+  (redraw etap)
+  (unless (penalty-adjustment-dialogs etap) (enable-interface etap)))
 
 ;; #### WARNING: the global variables defining each algorithm's
 ;; parameterization are calibrated by the algorithms entry points, because
@@ -510,8 +508,8 @@ Display LAYOUT number (1 by default)."
 	  (etap (etap dialog)))
   "Function called when the penalty adjustment value SLIDER is dragged.
 - Calibrate VALUE.
-- Advertise VALUE in dialog's title pane.
-- Adjust the break point's penalty.
+- Advertise it in dialog's title pane.
+- Set the break point's penalty to it.
 - Remake from the current lineup."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
@@ -521,25 +519,16 @@ Display LAYOUT number (1 by default)."
     (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
-    (item dialog
-     &aux (slider (value-slider dialog))
-	  (break-point (break-point dialog))
-	  (caliber (caliber break-point))
-	  (value (ecase item
-		   (:reset-to-original (original-value dialog))
-		   (:reset-to-global   (global-value dialog))
-		   (:reset-to-default  (caliber-default caliber)))))
+    (value dialog &aux (slider (value-slider dialog)))
   "Function called when a penalty adjustment reset button is clicked.
-- Set the slider to the appropriate reset value.
-- Call the slider callback (that is, perform as if the value slider had been
+- Set the slider to the reset VALUE.
+- Call the slider's callback (that is, perform as if the value slider had been
   dragged)."
   (setf (range-slug-start slider) value)
   (penalty-adjustment-value-callback slider value :drag)) ;; whooo...
 
 (define-interface penalty-adjustment ()
-  ((original-value :reader original-value)
-   (global-value :reader global-value)
-   (break-point :initarg :break-point :reader break-point)
+  ((break-point :initarg :break-point :reader break-point)
    (etap :initarg :etap :reader etap))
   (:panes
    (title title-pane
@@ -551,8 +540,9 @@ Display LAYOUT number (1 by default)."
      :callback 'penalty-adjustment-value-callback
      :reader value-slider)
    (reset push-button-panel
-     :items '(:reset-to-original :reset-to-global :reset-to-default)
-     :print-function 'title-capitalize
+     ;; The reset buttons are created dynamically in the INITIALIZE-INSTANCE
+     ;; after method (which see) because their number varies depending on the
+     ;; kind of penalty we're adjusting.
      :layout-class 'column-layout
      :selection-callback 'penalty-adjustment-reset-callback))
   (:layouts
@@ -570,31 +560,41 @@ Display LAYOUT number (1 by default)."
      &key &aux (etap (etap dialog))
 	       (slider (value-slider dialog))
 	       (break-point (break-point dialog))
-	       (caliber (caliber break-point)))
+	       (caliber (caliber break-point))
+	       (original-value
+		(decalibrated-value (penalty break-point) caliber))
+	       reset-buttons)
   "Finish initializing penalty adjustment DIALOG.
-- Memoize the original penalty.
+- Create the reset buttons (two or three, depending on whether the default
+  value is customizable).
 - Set the slider's range start, end, and slug start based on the break point's
   caliber.
 - Set DIALOG's title pane."
-  ;; #### FIXME: when the caliber is not associated with a customizable
-  ;; variable (e.g. glue penalties), it is redundant to have both a "reset to
-  ;; global" and a "reset to default" button.
-  (setf (slot-value dialog 'global-value)
-	(let ((widget
-		(find-widget
+  (push (make-instance 'push-button
+	  :text "Reset to Default"
+	  :data (caliber-default caliber)
+	  :visible-max-width nil)
+	reset-buttons)
+  (let ((widget (find-widget
 		 (caliber-property caliber)
 		 (slot-value
 		  etap
 		  (second (choice-selected-item (algorithm-tabs etap)))))))
-	  (if widget
-	    (range-slug-start widget)
-	    (caliber-default caliber))))
-  (setf (slot-value dialog 'original-value)
-	(decalibrated-value (penalty break-point)
-			    (caliber break-point)))
+    (when widget
+      (push (make-instance 'push-button
+	      :text "Reset to Global"
+	      :data (range-slug-start widget)
+	      :visible-max-width nil)
+	    reset-buttons)))
+  (push (make-instance 'push-button
+	  :text "Reset to Original"
+	  :data original-value
+	  :visible-max-width nil)
+	reset-buttons)
+  (setf (collection-items (slot-value dialog 'reset)) reset-buttons)
   (setf (range-start slider)      (caliber-min caliber)
 	(range-end slider)        (caliber-max caliber)
-	(range-slug-start slider) (original-value dialog))
+	(range-slug-start slider) original-value)
   (setf (title-pane-text (title-area dialog))
 	(princ-to-string (penalty break-point))))
 
