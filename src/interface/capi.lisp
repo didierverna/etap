@@ -986,9 +986,10 @@ displays a penalty adjustment dialog when appropriate."
     ;; returning 0, but this is borderline.
     (decf y (height layout))
     (when layout
-      (let ((object (and (>= x 0)
-			 (<= x (+ par-width *border-width*))
-			 (<= y (+ (y (car (last (lines layout)))) *border-width*))
+      (let ((object (and (<= 0 x (+ par-width *border-width*))
+			 (<= (- (height layout))
+			     y
+			     (+ (depth layout) *border-width*))
 			 (object-under x y (lines layout)))))
 	(when object
 	  (setq object
