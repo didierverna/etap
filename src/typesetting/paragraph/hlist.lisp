@@ -292,7 +292,7 @@ Glues represent breakable, elastic space."))
   "Return NIL."
   nil)
 
-(defvar *bop* (make-instance 'bop))
+(defparameter *bop* (make-instance 'bop))
 
 
 ;; #### NOTE: contrary to BOP, there can't be a single EOP instance because
