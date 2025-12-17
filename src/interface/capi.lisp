@@ -1052,7 +1052,7 @@ Each point is of the form (X . Y)."
 ;; #### FIXME: the hyphenation clues geometry (the small triangles under the
 ;; lines in between characters) is hard coded at different places, which is
 ;; not very cool.
-(defun clue-under (x y lines &aux (p (cons x y)))
+(defun clue-under (x y lines line-x-shift line-y-shift &aux (p (cons x y)))
   "Return the clue from LINES which is under (X, Y), or nil.
 The clue is either a discretionary or and EOL one. In the case of a
 discretionary clue, it is returned only if it corresponds to an hyphenation
@@ -1062,11 +1062,13 @@ Technically, (X, Y) is not over the clue (which has a width of 0), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
   (let ((line (find-if (lambda (line)
-			 (and (>= y (y line)) (<= y (+ (y line) 5))))
+			 (<= (+ (y line) (funcall line-y-shift line))
+			     y
+			     (+ (y line) (funcall line-y-shift line) 5)))
 		       lines)))
     (when line
-      (let* ((x (x line))
-	     (y (y line)))
+      (let* ((x (+ (x line) (funcall line-x-shift line)))
+	     (y (+ (y line) (funcall line-y-shift line))))
 	(values (find-if (lambda (item)
 			   (and (or (and (discretionary-clue-p (object item))
 					 (hyphenation-point-p
@@ -1080,29 +1082,39 @@ This function returns the corresponding line as a second value."
 			 (items line))
 		line)))))
 
-(defun whitespace-under (x y lines &aux (line (line-under y lines)))
+(defun whitespace-under
+    (x y lines line-x-shift line-y-shift &aux (line (line-under y lines)))
   "Return the whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
   (when line
     (values (find-if (lambda (item)
 		       (and (whitespacep item)
-			    (<= (+ (x line) (x item))
+			    (<= (+ (x line)
+				   (funcall line-x-shift line)
+				   (x item))
 				x
-				(+ (x line) (x item) (width item)))
-			    (<= (- (y line) (height item)) y (y line))))
+				(+ (x line)
+				   (funcall line-x-shift line)
+				   (x item)
+				   (width item)))
+			    (<= (- (+ (y line) (funcall line-y-shift line))
+				   (height item))
+				y
+				(y line))))
 		     (items line))
 	    line)))
 
-(defun object-under (x y lines)
+(defun object-under (x y lines line-x-shift line-y-shift)
   "Return the object from LINES which is under (X, Y), or nil.
 This currently includes whitespaces and hyphenation points.
 For hyphenation points, (X, Y) is not technically over it, but over the
 corresponding hyphenation clue.
 This function returns the corresponding line as a second value."
-  (multiple-value-bind (object line) (clue-under x y lines)
+  (multiple-value-bind (object line)
+      (clue-under x y lines line-x-shift line-y-shift)
     (if object ;; OR doesn't propagate secondary values on its first args!
       (values object line)
-      (whitespace-under x y lines))))
+      (whitespace-under x y lines line-x-shift line-y-shift))))
 
 
 
@@ -1427,21 +1439,30 @@ not 0."
 		 (y (/ (- (cdr pointer) 20) zoom)))
 	    (decf y (height layout))
 	    (multiple-value-bind (object line)
-		(object-under x y (lines layout))
+		(object-under x y (lines layout) line-x-shift line-y-shift)
 	      ;; #### WARNING: we may end up drawing a clue for the second
 	      ;; time here, but this is probably not such a big deal.
 	      (when object
 		(cond ((whitespacep object)
 		       (draw-whitespace-clue
-			view (x line) (+ par-y (y line)) object 'force))
+			view
+			(+ (x line) (funcall line-x-shift line))
+			(+ par-y (y line) (funcall line-y-shift line))
+			object
+			'force))
 		      ((discretionary-clue-p (object object))
 		       (draw-hyphenation-clue
-			view (+ (x line) (x object)) (+ par-y (y line))
+			view
+			(+ (x line) (funcall line-x-shift line) (x object))
+			(+ par-y (y line) (funcall line-y-shift line))
 			(discretionary (object object))))
 		      ((eol-clue-p (object object))
 		       (draw-eol-clue
-			view (+ (x line) (x object)) (+ par-y (y line))
-			(glue (object object)) 'force)))))))
+			view
+			(+ (x line) (funcall line-x-shift line) (x object))
+			(+ par-y (y line) (funcall line-y-shift line))
+			(glue (object object))
+			'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
