@@ -1023,10 +1023,12 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-(defun line-under (y lines)
+(defun line-under (y lines line-y-shift)
   "Return the line from LINES which is under Y coordinate, or NIL."
   (find-if (lambda (line)
-	     (<= (- (y line) (height line)) y (+ (y line) (depth line))))
+	     (<= (- (+ (y line) (funcall line-y-shift line)) (height line))
+		 y
+		 (+ (y line) (funcall line-y-shift line) (depth line))))
 	   lines))
 
 (defun vector-product (p1 p2 p3)
@@ -1083,7 +1085,8 @@ This function returns the corresponding line as a second value."
 		line)))))
 
 (defun whitespace-under
-    (x y lines line-x-shift line-y-shift &aux (line (line-under y lines)))
+    (x y lines line-x-shift line-y-shift
+     &aux (line (line-under y lines line-y-shift)))
   "Return the whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
   (when line
@@ -1146,34 +1149,41 @@ This function returns the corresponding line as a second value."
       ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and
       ;; DEPTH returning 0, but this is borderline.
       (decf y (height layout))
-      (cond ((and (< y (- (height layout))) (<= x par-width))
-	     (display-tooltip view
-	       :text (properties breakup :layout-# layout-#)))
-	    ((and (< x 0) (<= y (depth layout)))
-	     (let ((line (when layout (line-under y (lines layout )))))
-	       (if line
-		 (display-tooltip view :text (properties line))
-		 (display-tooltip view))))
-	    ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
-	    ;; the end of the lines, or in the last line.
-	    ((and (<= 0 x (+ par-width 3))
-		  (<= (- (height layout)) y (+ (depth layout) 5)))
-	     (let ((object (when layout (object-under x y (lines layout)))))
-	       ;; #### FIXME: this is really shaky. We know that currently
-	       ;; OBJECT-UNDER will only return a whitespace or a pinned
-	       ;; hyphenation clue. Simplifying the code below would require
-	       ;; defining a PROPERTIES method on the PINNED class
-	       ;; (advertising the properties of the pinned object), but we
-	       ;; don't want to define such a method for every kind of pinable
-	       ;; object (at least not right now).
-	       (if object
-		 (display-tooltip view
-		   :text (if (whitespacep object)
-			   (properties object)
-			   (properties (object object))))
-		 (display-tooltip view))))
-	    (t
-	     (display-tooltip view))))))
+      (let ((line-x-shift (or (capi-object-property view :line-x-shift)
+			      (lambda (line) (declare (ignore line)) 0)))
+	    (line-y-shift (or (capi-object-property view :line-y-shift)
+			      (lambda (line) (declare (ignore line)) 0))))
+	(cond ((and (< y (- (height layout))) (<= x par-width))
+	       (display-tooltip view
+		 :text (properties breakup :layout-# layout-#)))
+	      ((and (< x 0) (<= y (depth layout)))
+	       (let ((line (when layout
+			     (line-under y (lines layout) line-y-shift))))
+		 (if line
+		   (display-tooltip view :text (properties line))
+		   (display-tooltip view))))
+	      ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring
+	      ;; at the end of the lines, or in the last line.
+	      ((and (<= 0 x (+ par-width 3))
+		    (<= (- (height layout)) y (+ (depth layout) 5)))
+	       (let ((object (when layout
+			       (object-under x y (lines layout)
+					     line-x-shift line-y-shift))))
+		 ;; #### FIXME: this is really shaky. We know that currently
+		 ;; OBJECT-UNDER will only return a whitespace or a pinned
+		 ;; hyphenation clue. Simplifying the code below would require
+		 ;; defining a PROPERTIES method on the PINNED class
+		 ;; (advertising the properties of the pinned object), but we
+		 ;; don't want to define such a method for every kind of
+		 ;; pinable object (at least not right now).
+		 (if object
+		   (display-tooltip view
+				    :text (if (whitespacep object)
+					    (properties object)
+					    (properties (object object))))
+		   (display-tooltip view))))
+	      (t
+	       (display-tooltip view)))))))
 
 
 
