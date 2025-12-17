@@ -838,9 +838,9 @@ Each point is of the form (X . Y)."
 	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
 	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
 
-;; #### FIXME: the hyphenation clues geometry (the small triangles under the
-;; lines in between characters) is hard coded at different places, which is
-;; not very cool.
+;; #### TODO: triangular clues are not completely factored out. The triangle
+;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
+;; in DRAW-TRIANGLE.
 (defun clue-under (x y lines &aux (p (cons x y)))
   "Return the clue from LINES which is under (X, Y), or nil.
 The clue is either a discretionary or and EOL one. In the case of a
@@ -1012,6 +1012,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
+;; #### TODO: see comment atop CLUE-UNDER.
 (defun draw-triangle (view x y &rest args)
   "Draw a triangular clue in VIEW at (X,Y).
 ARGS are subsequently passed to the drawing function."
