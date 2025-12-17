@@ -119,14 +119,19 @@ This is the base class for radio and check boxes."))
   (:documentation "The Radio Box class."))
 
 (defmethod widget-value ((box radio-box))
-  "Return radio BOX's selected item."
-  (choice-selected-item box))
+  "Return radio BOX's selected item data."
+  (let ((item (choice-selected-item box)))
+    (if (typep item 'capi:item) (item-data item) item)))
 
-(defmethod (setf widget-value) (item (box radio-box))
-  "Set radio BOX's selection to ITEM.
-ITEM must be one of BOX's items, or NIL, in which case the first item will be
-selected."
-  (setf (choice-selected-item box) (or item (svref (collection-items box) 0))))
+(defmethod (setf widget-value) (data (box radio-box))
+  "Set radio BOX's selection to item DATA.
+DATA must be one of BOX's items data, or NIL, in which case the first item
+data will be selected."
+  (setf (choice-selected-item box)
+	(or (find data (collection-items box)
+	      :key (lambda (item)
+		     (if (typep item 'capi:item) (item-data item) item)))
+	    (svref (collection-items box) 0))))
 
 
 
@@ -138,10 +143,11 @@ selected."
 
 (defmethod widget-value ((box check-box))
   "Return check BOX's value.
-This is an exhaustive property list of BOX's items and their selected state."
+This is an exhaustive property list of BOX's items data and their selected
+state."
   (loop :with selection := (choice-selected-items box)
 	:for item :across (collection-items box) ; a vector
-	:collect item
+	:collect (if (typep item 'capi:item) (item-data item) item)
 	:if (member item selection)
 	  :collect t
 	:else
@@ -156,7 +162,8 @@ rest is deselected (i.e., no items are left in their previous state). Unknown
 items are ignored."
   (setf (choice-selected-items box)
 	(loop :for item :across (collection-items box) ; a vector
-	      :when (getf plist item)
+	      :when (getf plist
+			  (if (typep item 'capi:item) (item-data item) item))
 		:collect item)))
 
 
@@ -688,14 +695,15 @@ Display LAYOUT number (1 by default)."
 ;; component that entails computing a new lineup is deactivated for as long as
 ;; there's a live penalty adjustment dialog.
 
-(defun penalty-adjustment-destroy-callback (dialog)
+(defun penalty-adjustment-destroy-callback (dialog &aux (etap (etap dialog)))
   "Function called when penalty adjustment DIALOG is destroyed.
 - Possibly reenable the Etap interface if DIALOG was the last one."
-  (let ((etap (etap dialog)))
-    (setf (penalty-adjustment-dialogs etap)
-	  (remove dialog (penalty-adjustment-dialogs etap)))
-    (unless (penalty-adjustment-dialogs etap)
-      (enable-interface etap))))
+  (setf (penalty-adjustment-dialogs etap)
+	(delete dialog (penalty-adjustment-dialogs etap)))
+  ;; We need to redraw the view because depending on other options, this
+  ;; dialog's corresponding clue may have to go away.
+  (redraw etap)
+  (unless (penalty-adjustment-dialogs etap) (enable-interface etap)))
 
 ;; #### WARNING: the global variables defining each algorithm's
 ;; parameterization are calibrated by the algorithms entry points, because
@@ -707,40 +715,31 @@ Display LAYOUT number (1 by default)."
 (defun penalty-adjustment-value-callback
     (slider value gesture
      &aux (dialog (top-level-interface slider))
-	  (hyphenation-point (hyphenation-point dialog))
+	  (break-point (break-point dialog))
 	  (etap (etap dialog)))
   "Function called when the penalty adjustment value SLIDER is dragged.
 - Calibrate VALUE.
-- Advertise VALUE in dialog's title pane.
-- Adjust the hyphenation point's penalty.
+- Advertise it in dialog's title pane.
+- Set the break point's penalty to it.
 - Remake from the current lineup."
   (when (eq gesture :drag)
     (setq value (calibrated-value (range-slug-start slider)
-				  (caliber hyphenation-point)))
+				  (caliber break-point)))
     (setf (title-pane-text (title-area dialog)) (princ-to-string value))
-    (setf (penalty hyphenation-point) value)
+    (setf (penalty break-point) value)
     (remake-with-current-lineup etap)))
 
 (defun penalty-adjustment-reset-callback
-    (item dialog
-     &aux (slider (value-slider dialog))
-	  (hyphenation-point (hyphenation-point dialog))
-	  (caliber (caliber hyphenation-point))
-	  (value (ecase item
-		   (:reset-to-original (original-value dialog))
-		   (:reset-to-global   (global-value dialog))
-		   (:reset-to-default  (caliber-default caliber)))))
+    (value dialog &aux (slider (value-slider dialog)))
   "Function called when a penalty adjustment reset button is clicked.
-- Set the slider to the appropriate reset value.
-- Call the slider callback (that is, perform as if the value slider had been
+- Set the slider to the reset VALUE.
+- Call the slider's callback (that is, perform as if the value slider had been
   dragged)."
   (setf (range-slug-start slider) value)
   (penalty-adjustment-value-callback slider value :drag)) ;; whooo...
 
 (define-interface penalty-adjustment ()
-  ((original-value :reader original-value)
-   (global-value :reader global-value)
-   (hyphenation-point :initarg :hyphenation-point :reader hyphenation-point)
+  ((break-point :initarg :break-point :reader break-point)
    (etap :initarg :etap :reader etap))
   (:panes
    (title title-pane
@@ -752,8 +751,9 @@ Display LAYOUT number (1 by default)."
      :callback 'penalty-adjustment-value-callback
      :reader value-slider)
    (reset push-button-panel
-     :items '(:reset-to-original :reset-to-global :reset-to-default)
-     :print-function 'title-capitalize
+     ;; The reset buttons are created dynamically in the INITIALIZE-INSTANCE
+     ;; after method (which see) because their number varies depending on the
+     ;; kind of penalty we're adjusting.
      :layout-class 'column-layout
      :selection-callback 'penalty-adjustment-reset-callback))
   (:layouts
@@ -770,40 +770,59 @@ Display LAYOUT number (1 by default)."
     ((dialog penalty-adjustment)
      &key &aux (etap (etap dialog))
 	       (slider (value-slider dialog))
-	       (hyphenation-point (hyphenation-point dialog))
-	       (caliber (caliber hyphenation-point)))
+	       (break-point (break-point dialog))
+	       (caliber (caliber break-point))
+	       (original-value
+		(decalibrated-value (penalty break-point) caliber))
+	       reset-buttons)
   "Finish initializing penalty adjustment DIALOG.
-- Memoize the original penalty.
-- Set the slider's range start, end, and slug start based on the hyphenation
-  point's caliber.
+- Create the reset buttons (two or three, depending on whether the default
+  value is customizable).
+- Set the slider's range start, end, and slug start based on the break point's
+  caliber.
 - Set DIALOG's title pane."
-  (setf (slot-value dialog 'global-value)
-	(range-slug-start
-	 (find-widget
-	  (caliber-property caliber)
-	  (slot-value
-	   etap
-	   (second (choice-selected-item (algorithm-tabs etap)))))))
-  (setf (slot-value dialog 'original-value)
-	(decalibrated-value (penalty hyphenation-point)
-			    (caliber hyphenation-point)))
+  (push (make-instance 'push-button
+	  :text "Reset to Default"
+	  :data (caliber-default caliber)
+	  :visible-max-width nil)
+	reset-buttons)
+  (let ((widget (find-widget
+		 (caliber-property caliber)
+		 (slot-value
+		  etap
+		  (second (choice-selected-item (algorithm-tabs etap)))))))
+    (when widget
+      (push (make-instance 'push-button
+	      :text "Reset to Global"
+	      :data (range-slug-start widget)
+	      :visible-max-width nil)
+	    reset-buttons)))
+  (push (make-instance 'push-button
+	  :text "Reset to Original"
+	  :data original-value
+	  :visible-max-width nil)
+	reset-buttons)
+  (setf (collection-items (slot-value dialog 'reset)) reset-buttons)
   (setf (range-start slider)      (caliber-min caliber)
 	(range-end slider)        (caliber-max caliber)
-	(range-slug-start slider) (original-value dialog))
+	(range-slug-start slider) original-value)
   (setf (title-pane-text (title-area dialog))
-	(princ-to-string (penalty hyphenation-point))))
+	(princ-to-string (penalty break-point))))
 
-(defun make-penalty-adjustment-dialog (hyphenation-point etap)
-  "Make a penalty adjustment dialog from ETAP interface for HYPHENATION-POINT.
+(defun find-penalty-adjustment-dialog (break-point etap)
+  "Find a penalty adjustment dialog for BREAK-POINT in ETAP."
+  (find break-point (penalty-adjustment-dialogs etap) :key #'break-point))
+
+(defun make-penalty-adjustment-dialog (break-point etap)
+  "Make a penalty adjustment dialog from ETAP interface for BREAK-POINT.
 If one already exists, activate it and give it the focus. Otherwise, create a
 new dialog and display it."
-  (let ((dialog (find hyphenation-point (penalty-adjustment-dialogs etap)
-		  :key #'hyphenation-point)))
+  (let ((dialog (find-penalty-adjustment-dialog break-point etap)))
     (if dialog
       (activate-pane dialog)
       (multiple-value-bind (x y) (top-level-interface-geometry etap)
 	(setq dialog (make-instance 'penalty-adjustment
-		       :hyphenation-point hyphenation-point
+		       :break-point break-point
 		       :etap etap))
 	(set-top-level-interface-geometry dialog :x (+ x 200) :y (+ y 200))
 	(push dialog (penalty-adjustment-dialogs etap))
@@ -818,12 +837,15 @@ new dialog and display it."
 ;; ==========================================================================
 
 (defparameter *clues*
-  '(:characters :hyphenation-points
+  '(:characters :hyphenation-points :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
-    :paragraph-box :line-boxes :character-boxes :baselines
-    :properties-tooltips)
+    :paragraph-box :line-boxes :character-boxes :baselines)
   "The visual clues available for conditional display.")
+
+(defparameter *inspector-options*
+  '(:activate :tooltips)
+  "The inspector options.")
 
 (defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min))
 
@@ -870,6 +892,33 @@ new dialog and display it."
      (display (river-detection-dialog etap) :owner etap))
     (:living-text
      (display (living-text-dialog etap) :owner etap))))
+
+
+
+;; Inspector
+
+(defun enable-inspector
+    (inspector
+     &aux (activep (getf (widget-value inspector) :activate)))
+  "Enable or disable the INSPECTOR box's buttons.
+Enabling or disabling is done based on the current status of the activation
+button (itself not subject to enabling / disabling)"
+  (map nil (lambda (item)
+	     (unless (eq (item-data item) :activate)
+	       (setf (simple-pane-enabled item) activep)))
+       (collection-items inspector)))
+
+(defun inspector-callback (data etap &aux (inspector (inspector-box etap)))
+  "Function called when an inspector button is clicked."
+  (case data
+    (:activate
+     (enable-inspector inspector)
+     (unless (getf (widget-value inspector) :activate)
+       (display-tooltip (view-area etap))
+       (mapc #'destroy (penalty-adjustment-dialogs etap))))
+    (:tooltips
+     (unless (getf (widget-value inspector) :tooltips)
+       (display-tooltip (view-area etap))))))
 
 
 
@@ -1003,46 +1052,57 @@ Each point is of the form (X . Y)."
 ;; #### FIXME: the hyphenation clues geometry (the small triangles under the
 ;; lines in between characters) is hard coded at different places, which is
 ;; not very cool.
-(defun hyphenation-point-under (x y lines &aux (p (cons x y)))
-  "Return the hyphenation point from LINES which is under (X, Y), or nil.
-Technically, (X, Y) is not over the hyphenation point, but over the
-corresponding hyphenation clue."
+(defun clue-under (x y lines &aux (p (cons x y)))
+  "Return the clue from LINES which is under (X, Y), or nil.
+The clue is either a discretionary or and EOL one. In the case of a
+discretionary clue, it is returned only if it corresponds to an hyphenation
+point (as opposed to a general discretionary). The object returned is in fact
+the pin containing the clue.
+Technically, (X, Y) is not over the clue (which has a width of 0), but over
+its visual representation (the small triangle beneath it).
+This function returns the corresponding line as a second value."
   (let ((line (find-if (lambda (line)
 			 (and (>= y (y line)) (<= y (+ (y line) 5))))
 		       lines)))
     (when line
       (let* ((x (x line))
-	     (y (y line))
-	     (pinned (find-if (lambda (item)
-				(and (discretionary-clue-p (object item))
-				     (hyphenation-point-p
-				      (discretionary (object item)))
-				     (triangle-under-p
-				      p
-				      (cons (+ x (x item)) y)
-				      (cons (+ x (x item) -3) (+ y 5))
-				      (cons (+ x (x item) +3) (+ y 5)))))
-			      (items line))))
-	(when pinned (discretionary (object pinned)))))))
+	     (y (y line)))
+	(values (find-if (lambda (item)
+			   (and (or (and (discretionary-clue-p (object item))
+					 (hyphenation-point-p
+					  (discretionary (object item))))
+				    (eol-clue-p (object item)))
+				(triangle-under-p
+				 p
+				 (cons (+ x (x item)) y)
+				 (cons (+ x (x item) -3) (+ y 5))
+				 (cons (+ x (x item) +3) (+ y 5)))))
+			 (items line))
+		line)))))
 
 (defun whitespace-under (x y lines &aux (line (line-under y lines)))
-  "Return the whitespace from LINES which is under (X, Y), or nil."
+  "Return the whitespace from LINES which is under (X, Y), or nil.
+This function returns the corresponding line as a second value."
   (when line
-    (find-if (lambda (item)
-	       (and (whitespacep item)
-		    (<= (+ (x line) (x item))
-			x
-			(+ (x line) (x item) (width item)))
-		    (<= (- (y line) (height item)) y (y line))))
-	     (items line))))
+    (values (find-if (lambda (item)
+		       (and (whitespacep item)
+			    (<= (+ (x line) (x item))
+				x
+				(+ (x line) (x item) (width item)))
+			    (<= (- (y line) (height item)) y (y line))))
+		     (items line))
+	    line)))
 
 (defun object-under (x y lines)
   "Return the object from LINES which is under (X, Y), or nil.
 This currently includes whitespaces and hyphenation points.
 For hyphenation points, (X, Y) is not technically over it, but over the
-corresponding hyphenation clue."
-  (or (hyphenation-point-under x y lines)
-      (whitespace-under x y lines)))
+corresponding hyphenation clue.
+This function returns the corresponding line as a second value."
+  (multiple-value-bind (object line) (clue-under x y lines)
+    (if object ;; OR doesn't propagate secondary values on its first args!
+      (values object line)
+      (whitespace-under x y lines))))
 
 
 
@@ -1051,7 +1111,7 @@ corresponding hyphenation clue."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (clues (choice-selected-items (clues-box etap)))
+	  (inspect (widget-value (inspector-box etap)))
 	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
@@ -1062,29 +1122,46 @@ corresponding hyphenation clue."
 - Display the line properties when the mouse is in the left margin of a line.
 - Otherwise, display the properties of the object under mouse (currently, a
   hyphenation point)."
-  (when (member :properties-tooltips clues)
-    (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
-    ;; returning 0, but this is borderline.
-    (decf y (height layout))
-    (cond ((and (< y (- (height layout))) (<= x par-width))
-	   (display-tooltip view
-	     :text (properties breakup :layout-# layout-#)))
-	  ((and (< x 0) (<= y (depth layout)))
-	   (let ((line (when layout (line-under y (lines layout )))))
-	     (if line
-	       (display-tooltip view :text (properties line))
-	       (display-tooltip view))))
-	  ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
-	  ;; the end of the lines, or in the last line.
-	  ((and (<= 0 x (+ par-width 3))
-		(<= (- (height layout)) y (+ (depth layout) 5)))
-	   (let ((object (when layout (object-under x y (lines layout)))))
-	     (if object
-	       (display-tooltip view :text (properties object))
-	       (display-tooltip view))))
-	  (t
-	   (display-tooltip view)))))
+  (setf (capi-object-property view :pointer) (cons x y))
+  (when (getf inspect :activate)
+    ;; We have the view directly here, so no need to go through REDRAW.
+    ;; #### TODO: this could be optimized in order to avoid redrawing at every
+    ;; single move. We could remember the previous move state and see if
+    ;; something has changed.
+    (gp:invalidate-rectangle view)
+    (when (getf inspect :tooltips)
+      (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+      ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and
+      ;; DEPTH returning 0, but this is borderline.
+      (decf y (height layout))
+      (cond ((and (< y (- (height layout))) (<= x par-width))
+	     (display-tooltip view
+	       :text (properties breakup :layout-# layout-#)))
+	    ((and (< x 0) (<= y (depth layout)))
+	     (let ((line (when layout (line-under y (lines layout )))))
+	       (if line
+		 (display-tooltip view :text (properties line))
+		 (display-tooltip view))))
+	    ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
+	    ;; the end of the lines, or in the last line.
+	    ((and (<= 0 x (+ par-width 3))
+		  (<= (- (height layout)) y (+ (depth layout) 5)))
+	     (let ((object (when layout (object-under x y (lines layout)))))
+	       ;; #### FIXME: this is really shaky. We know that currently
+	       ;; OBJECT-UNDER will only return a whitespace or a pinned
+	       ;; hyphenation clue. Simplifying the code below would require
+	       ;; defining a PROPERTIES method on the PINNED class
+	       ;; (advertising the properties of the pinned object), but we
+	       ;; don't want to define such a method for every kind of pinable
+	       ;; object (at least not right now).
+	       (if object
+		 (display-tooltip view
+		   :text (if (whitespacep object)
+			   (properties object)
+			   (properties (object object))))
+		 (display-tooltip view))))
+	    (t
+	     (display-tooltip view))))))
 
 
 
@@ -1102,26 +1179,31 @@ corresponding hyphenation clue."
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the user right clicks in the paragraph VIEW.
-- Currently display a penalty adjustment dialog when appropriate."
-  (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-  ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
-  ;; returning 0, but this is borderline.
-  (decf y (height layout))
-  (when layout
-    (let ((object (and (member :hyphenation-points
-			       (choice-selected-items (clues-box etap)))
-		       ;; #### NOTE: the +3 and (+ ... 5) are for hyphenation
-		       ;; clues occurring at the end of the lines, or in the
-		       ;; last line.
-		       (>= x 0)
-		       (<= x (+ par-width 3))
-		       (>= y 0) ; no need to look above the 1st line
-		       (<= y (+ (y (car (last (lines layout)))) 5))
-		       (hyphenation-point-under x y (lines layout)))))
-      ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-      ;; complexity of handling null calibers below.
-      (when (and object (caliber object))
-	(make-penalty-adjustment-dialog object etap)))))
+This does nothing if the inspector is not active. Otherwise, it currently
+displays a penalty adjustment dialog when appropriate."
+  (when (getf (widget-value (inspector-box etap)) :activate)
+    (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+    ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
+    ;; returning 0, but this is borderline.
+    (decf y (height layout))
+    (when layout
+      (let ((object (and ;; #### NOTE: the +3 and (+ ... 5) are for
+			 ;; hyphenation clues occurring at the end of the
+			 ;; lines, or in the last line.
+			 (>= x 0)
+			 (<= x (+ par-width 3))
+			 (<= y (+ (y (car (last (lines layout)))) 5))
+			 (object-under x y (lines layout)))))
+	(when object
+	  (setq object
+		(etypecase (object object)
+		  (discretionary-clue (discretionary (object object)))
+		  (eol-clue (glue (object object)))
+		  (glue (object object))))
+	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+	  ;; complexity of handling null calibers below.
+	  (when (caliber object)
+	    (make-penalty-adjustment-dialog object etap)))))))
 
 
 
@@ -1141,6 +1223,42 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
+(defun draw-hyphenation-clue (view x y discretionary)
+  "Draw an hyphenation clue in VIEW at (X,Y) for DISCRETIONARY."
+  (gp:draw-polygon
+   view
+   (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+   :filled (not (explicitp discretionary))
+   :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
+
+(defun draw-eol-clue (view x y glue &optional force)
+  "Draw an EOL clue in VIEW at (X,Y) for GLUE.
+Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
+not 0."
+  (when (or force
+	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
+    (gp:draw-polygon
+     view
+     (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+     :filled t
+     :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+
+(defun draw-whitespace-clue
+    (view x y whitespace &optional force &aux (glue (object whitespace)))
+  "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
+(X,Y) is the point which WHITESPACE is positioned relatively to.
+Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
+not 0."
+  (when (or force
+	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
+    (gp:draw-rectangle view
+	(+ x (x whitespace))
+	(- y (height whitespace))
+	(width whitespace)
+	(+ (height whitespace) (depth whitespace))
+      :filled t ;; (not (explicitp discretionary))
+      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+
 (defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
@@ -1150,8 +1268,10 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	  (layout (unless (zerop layout-#) (get-layout (1- layout-#) breakup)))
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
-	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (clues (choice-selected-items (clues-box etap)))
+	  (inspect (mapcar #'item-data
+		     (choice-selected-items (inspector-box etap))))
+	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
 	  (line-x-shift (or (capi-object-property view :line-x-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
 	  (line-y-shift (or (capi-object-property view :line-y-shift)
@@ -1171,9 +1291,9 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	(loop :for full-x := (+ (loop :for line :in (lines layout)
-				      :maximize (+ (x line) (width line)))
-				5)
+	(loop :with full-x := (+ (loop :for line :in (lines layout)
+				       :maximize (+ (x line) (width line)))
+				 5)
 	      :for rest :on (lines layout)
 	      :for line := (car rest)
 	      :for x := (+ (x line) (funcall line-x-shift line))
@@ -1270,21 +1390,55 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 				  ((and (discretionary-clue-p (object item))
 					(hyphenation-point-p
 					 (discretionary (object item)))
-					(member :hyphenation-points clues))
-				   (gp:draw-polygon view
-				     (list (+ x (x item)) y
-					   (+ x (x item) -3) (+ y 5)
-					   (+ x (x item) +3) (+ y 5)
-					   (+ x (x item)) y)
-				     :filled
-				     (not (explicitp
-					   (discretionary (object item))))
-				     :foreground
-				     (color:make-hsv
-				      (penalty-hue
-				       (discretionary (object item)))
-				      1s0 .7s0)))))
+					(or (member :hyphenation-points clues)
+					    (find-penalty-adjustment-dialog
+					     (discretionary (object item))
+					     etap)))
+				   (draw-hyphenation-clue
+				    view (+ x (x item)) y
+				    (discretionary (object item))))
+				  ((and (whitespacep item)
+					(or (member :whitespaces clues)
+					    (find-penalty-adjustment-dialog
+					     (object item)
+					     etap)))
+				   (draw-whitespace-clue
+				    view (x line) (+ par-y (y line)) item
+				    (find-penalty-adjustment-dialog
+				     (object item) etap)))
+				  ((and (eol-clue-p (object item))
+					(or (member :ends-of-line clues)
+					    (find-penalty-adjustment-dialog
+					     (glue (object item))
+					     etap)))
+				   (draw-eol-clue
+				    view (+ x (x item)) y
+				    (glue (object item))
+				    (find-penalty-adjustment-dialog
+				     (glue (object item))
+				     etap)))))
 		      (items line)))
+	(when (member :activate inspect)
+	  (let* ((pointer (capi-object-property view :pointer))
+		 (x (/ (- (car pointer) 20) zoom))
+		 (y (/ (- (cdr pointer) 20) zoom)))
+	    (decf y (height layout))
+	    (multiple-value-bind (object line)
+		(object-under x y (lines layout))
+	      ;; #### WARNING: we may end up drawing a clue for the second
+	      ;; time here, but this is probably not such a big deal.
+	      (when object
+		(cond ((whitespacep object)
+		       (draw-whitespace-clue
+			view (x line) (+ par-y (y line)) object 'force))
+		      ((discretionary-clue-p (object object))
+		       (draw-hyphenation-clue
+			view (+ (x line) (x object)) (+ par-y (y line))
+			(discretionary (object object))))
+		      ((eol-clue-p (object object))
+		       (draw-eol-clue
+			view (+ (x line) (x object)) (+ par-y (y line))
+			(glue (object object)) 'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
@@ -1397,7 +1551,16 @@ that the breakup does not contain any layout."
      :callback-type :interface
      :selection-callback 'redraw
      :retract-callback 'redraw
+     :visible-max-width nil
      :reader clues-box)
+   ;; The inspector items are created dynamically in the INITIALIZE-INSTANCE
+   ;; after method.
+   (inspector check-box
+     :property :inspector
+     :selection-callback 'inspector-callback
+     :retract-callback 'inspector-callback
+     :visible-max-width nil
+     :reader inspector-box)
    (paragraph-width pt-cursor
      :property :paragraph-width
      :caliber *paragraph-width*
@@ -1635,7 +1798,7 @@ that the breakup does not contain any layout."
    (layouts-ctrl row-layout '(layout--1 layout-+1)
      :reader layouts-ctrl-layout)
    (options row-layout '(options-1 options-2))
-   (options-1 column-layout '(clues))
+   (options-1 column-layout '(clues inspector))
    (options-2 column-layout '(disposition disposition-options features)
      :reader options-2-layout)
    (settings-2 column-layout '(algorithm-tabs text-options text)
@@ -1688,9 +1851,19 @@ that the breakup does not contain any layout."
    :destroy-callback 'destroy-callback))
 
 (defmethod initialize-instance :after ((etap etap) &rest keys)
-  "Adjust some creation-time GUI options."
+  "Adjust creation-time GUI options and dynamically constructed elements."
+  ;; Make sure that we have at least numbers here.
+  (setf (capi-object-property (view-area etap) :pointer) (cons -1 -1))
   (setf (slot-value (river-detection-dialog etap) 'etap) etap)
-  (setf (slot-value (living-text-dialog etap) 'etap) etap))
+  (setf (slot-value (living-text-dialog etap) 'etap) etap)
+  (let ((inspector (inspector-box etap)))
+    (setf (collection-items inspector)
+	  (mapcar (lambda (property)
+		    (make-instance 'check-button
+		      :data property
+		      :print-function #'title-capitalize
+		      :collection inspector))
+	    *inspector-options*))))
 
 
 
@@ -1745,7 +1918,8 @@ those which may affect the lineup."
 ;; State
 
 (defun set-state
-    (etap nlstring font features disposition algorithm width zoom clues)
+    (etap nlstring font features disposition algorithm width
+     clues inspector zoom)
   "Set ETAP interface's widgets state."
   (setf (capi-object-property etap :original-nlstring) nlstring)
   (setf (capi-object-property etap :font) font)
@@ -1782,8 +1956,10 @@ those which may affect the lineup."
 	   (setf (widget-value child)
 		 (getf algorithm-options (property child))))))))
   (setf (widget-value (paragraph-width-cursor etap)) width)
-  (setf (widget-value (zoom-cursor etap)) zoom)
   (setf (widget-value (clues-box etap)) clues)
+  (setf (widget-value (inspector-box etap)) inspector)
+  (enable-inspector (inspector-box etap))
+  (setf (widget-value (zoom-cursor etap)) zoom)
   (setf (choice-selected-item (first (menu-items (language-menu etap))))
 	(language nlstring))
   ;; #### WARNING: this callback mess is needed because programmatically
@@ -1797,34 +1973,35 @@ those which may affect the lineup."
   (setf (editor-pane-text (text etap)) (text nlstring))
   (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
 
-(defun set-state-from-lineup (etap lineup width zoom clues)
+(defun set-state-from-lineup (etap lineup width clues inspector zoom)
   "Set ETAP interface's widgets state using LINEUP."
   (set-state etap
     (nlstring lineup) (font lineup)
     (features lineup) (disposition lineup)
     (algorithm lineup) width
-    zoom clues))
+    clues inspector zoom))
 
-(defun set-state-from-breakup (etap breakup zoom clues)
+(defun set-state-from-breakup (etap breakup clues inspector zoom)
   "Set ETAP interface's widgets state using BREAKUP."
   (set-state-from-lineup etap
     (lineup breakup) (paragraph-width breakup)
-    zoom clues))
+    clues inspector zoom))
 
 (defun set-state-and-remake
     (etap
      breakup lineup nlstring font features disposition algorithm width
-     zoom clues layout)
+     layout clues inspector zoom)
   "Set ETAP interface's widgets state and remake as needed."
   (cond ((and (null lineup) (null breakup))
 	 (set-state etap
-	   nlstring font features disposition algorithm width zoom clues)
+	   nlstring font features disposition algorithm width
+	   clues inspector zoom)
 	 (remake etap))
 	(lineup
-	 (set-state-from-lineup etap lineup width zoom clues)
+	 (set-state-from-lineup etap lineup width clues inspector zoom)
 	 (remake-with-lineup etap lineup))
 	(breakup
-	 (set-state-from-breakup etap breakup zoom clues)
+	 (set-state-from-breakup etap breakup clues inspector zoom)
 	 (remake-with-breakup etap breakup layout))))
 
 
@@ -1838,8 +2015,8 @@ those which may affect the lineup."
 - The first value is a fully qualified context representing INTERFACE's
   current typesetting options (see `context').
 - The second value is a fully qualified property list representing INTERFACE's
-  current visualization options. This includes the visual clues and zoom
-  factor.
+  current visualization options. This includes the visual clues, inspector
+  options, and zoom factor.
 
 See also `interface-breakup'."
   (values
@@ -1853,6 +2030,7 @@ See also `interface-breakup'."
     :language (language-specification interface))
    (list
     :clues (widget-value (clues-box interface))
+    :inspector (widget-value (inspector-box interface))
     :zoom (widget-value (zoom-cursor interface)))))
 
 (defun interface-breakup (interface)
@@ -1890,8 +2068,9 @@ See also `interface-state'."
 		 widthp)
 	  breakup
 	  layout
-	  (zoom 100)
 	  (clues '(:characters t))
+	  inspector
+	  (zoom 100)
      &aux (nlstring (if (or textp languagep (null context))
 		      (make-nlstring :text text :language language)
 		      (nlstring context)))
@@ -1915,9 +2094,11 @@ options.
 
 - LAYOUT is the breakup's layout number to display. This option is ignored if
   a new breakup is (re)computed (in which case the first layout is displayed).
-- ZOOM factor is expressed in percentage (must be at least 1).
 - CLUES is a property list of things to display (see `*clues*' for more
   information). Only characters are displayed by default.
+- INSPECTOR is a property list of inspector options (see `*inspector*' for
+  more information).
+- ZOOM factor is expressed in percentage (must be at least 1).
 
 See also `interface-state' and `interface-breakup'."
   (cond (interface
@@ -1944,7 +2125,7 @@ See also `interface-state' and `interface-breakup'."
 	   interface
 	   breakup lineup
 	   nlstring font features disposition algorithm width
-	   zoom clues layout))
+	   layout clues inspector zoom))
 	(t
 	 ;; See comment atop INTERFACE-DISPLAY about this.
 	 (setf (capi-object-property interface :initialization-function)
@@ -1953,6 +2134,6 @@ See also `interface-state' and `interface-breakup'."
 		  interface
 		  breakup lineup
 		  nlstring font features disposition algorithm width
-		  zoom clues layout)))
+		  layout clues inspector zoom)))
 	 (display interface)))
   interface)

@@ -146,6 +146,8 @@ See `define-caliber' for more information."
   (declare (ignore infinity bounded))
   `(define-caliber fit ,name ,min ,default ,max ,@keys))
 
+(define-fit-caliber glue-penalty -10000 0 10000 :infinity t)
+
 ;; #### NOTE: the LINE-PENALTY parameter has no impact on the algorithm, since
 ;; it's a constant which affects all line endings in the same way. It's just
 ;; here so that we can compute the same local demerits as in the Knuth-Plass,
@@ -185,15 +187,18 @@ Return HLIST."
   (calibrate-fit hyphen-penalty)
   (calibrate-fit explicit-hyphen-penalty)
   (mapc (lambda (item)
-	  (when (hyphenation-point-p item)
-	    (cond ((explicitp item)
-		   (setf (penalty item) *explicit-hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *fit-explicit-hyphen-penalty*))
-		  (t
-		   (setf (penalty item) *hyphen-penalty*)
-		   (setf (slot-value item 'caliber)
-			 *fit-hyphen-penalty*)))))
+	  (typecase item
+	    (hyphenation-point
+	     (cond ((explicitp item)
+		    (setf (penalty item) *explicit-hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *fit-explicit-hyphen-penalty*))
+		   (t
+		    (setf (penalty item) *hyphen-penalty*)
+		    (setf (slot-value item 'caliber)
+			  *fit-hyphen-penalty*))))
+	    (glue
+	     (setf (slot-value item 'caliber) *fit-glue-penalty*))))
     hlist)
   hlist)
 
