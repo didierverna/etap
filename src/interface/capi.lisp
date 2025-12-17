@@ -1369,6 +1369,9 @@ not 0."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
+		;; #### FIXME: the character shift functions are not
+		;; completely used below (only on characters) and have never
+		;; been tested as of yet.
 		:do (mapc (lambda (item)
 			    (cond ((typep (object item)
 					  'tfm:character-metrics)
@@ -1403,7 +1406,7 @@ not 0."
 					     (object item)
 					     etap)))
 				   (draw-whitespace-clue
-				    view (x line) (+ par-y (y line)) item
+				    view x y item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))
 				  ((and (eol-clue-p (object item))
