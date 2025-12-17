@@ -1012,13 +1012,17 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
+(defun draw-triangle (view x y &rest args)
+  "Draw a triangular clue in VIEW at (X,Y).
+ARGS are subsequently passed to the drawing function."
+  (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+	 args))
+
 (defun draw-hyphenation-clue (view x y discretionary)
   "Draw an hyphenation clue in VIEW at (X,Y) for DISCRETIONARY."
-  (gp:draw-polygon
-   view
-   (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
-   :filled (not (explicitp discretionary))
-   :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
+  (draw-triangle view x y
+    :filled (not (explicitp discretionary))
+    :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
 
 (defun draw-eol-clue (view x y glue &optional force)
   "Draw an EOL clue in VIEW at (X,Y) for GLUE.
@@ -1026,11 +1030,9 @@ Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
 not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (gp:draw-polygon
-     view
-     (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
-     :filled t
-     :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+    (draw-triangle view x y
+      :filled t
+      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
