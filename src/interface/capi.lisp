@@ -897,6 +897,12 @@ This function returns the corresponding line as a second value."
 
 ;; Motion
 
+;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
+;; will extend beyond the paragraph's right (resp. bottom) side. In order to
+;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
+;; and bottom sides.
+
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
@@ -931,10 +937,8 @@ This function returns the corresponding line as a second value."
 	       (if line
 		 (display-tooltip view :text (properties line))
 		 (display-tooltip view))))
-	    ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring at
-	    ;; the end of the lines, or in the last line.
-	    ((and (<= 0 x (+ par-width 3))
-		  (<= (- (height layout)) y (+ (depth layout) 5)))
+	    ((and (<= 0 x (+ par-width *border-width*))
+		  (<= (- (height layout)) y (+ (depth layout) *border-width*)))
 	     (let ((object (when layout (object-under x y (lines layout)))))
 	       ;; #### FIXME: this is really shaky. We know that currently
 	       ;; OBJECT-UNDER will only return a whitespace or a pinned
@@ -956,6 +960,12 @@ This function returns the corresponding line as a second value."
 
 ;; Post Menu
 
+;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
+;; will extend beyond the paragraph's right (resp. bottom) side. In order to
+;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
+;; and bottom sides.
+
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
 ;; and we already wish we used CLIM...
@@ -976,12 +986,9 @@ displays a penalty adjustment dialog when appropriate."
     ;; returning 0, but this is borderline.
     (decf y (height layout))
     (when layout
-      (let ((object (and ;; #### NOTE: the +3 and (+ ... 5) are for
-			 ;; hyphenation clues occurring at the end of the
-			 ;; lines, or in the last line.
-			 (>= x 0)
-			 (<= x (+ par-width 3))
-			 (<= y (+ (y (car (last (lines layout)))) 5))
+      (let ((object (and (>= x 0)
+			 (<= x (+ par-width *border-width*))
+			 (<= y (+ (y (car (last (lines layout)))) *border-width*))
 			 (object-under x y (lines layout)))))
 	(when object
 	  (setq object
