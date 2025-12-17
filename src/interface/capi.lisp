@@ -1021,6 +1021,15 @@ Otherwise, reselect the previously selected one."
 ;; Paragraph View Interaction
 ;; --------------------------
 
+;; #### NOTE: the paragraph geometry (box) currently doesn't follow the living
+;; text. This has an impact on the motion and post-menu callbacks, which may
+;; end up /not/ detecting objects under the pointer when we're too far away
+;; from the paragraph box. We don't really care though, since the living text
+;; is a different experiment from actual typesetting.
+
+;; #### FIXME: the character shift functions are not completely handled below
+;; (only on characters) and have never been tested as of yet.
+
 ;; CLIM-like object under mouse utilities
 
 (defun line-under (y lines line-y-shift)
@@ -1396,9 +1405,6 @@ not 0."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		;; #### FIXME: the character shift functions are not
-		;; completely used below (only on characters) and have never
-		;; been tested as of yet.
 		:do (mapc (lambda (item)
 			    (cond ((typep (object item)
 					  'tfm:character-metrics)
