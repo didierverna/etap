@@ -1209,13 +1209,18 @@ displays a penalty adjustment dialog when appropriate."
     ;; returning 0, but this is borderline.
     (decf y (height layout))
     (when layout
-      (let ((object (and ;; #### NOTE: the +3 and (+ ... 5) are for
-			 ;; hyphenation clues occurring at the end of the
-			 ;; lines, or in the last line.
-			 (>= x 0)
-			 (<= x (+ par-width 3))
-			 (<= y (+ (y (car (last (lines layout)))) 5))
-			 (object-under x y (lines layout)))))
+      (let* ((line-x-shift (or (capi-object-property view :line-x-shift)
+			       (lambda (line) (declare (ignore line)) 0)))
+	     (line-y-shift (or (capi-object-property view :line-y-shift)
+			       (lambda (line) (declare (ignore line)) 0)))
+	     (object (and ;; #### NOTE: the +3 and (+ ... 5) are for
+			  ;; hyphenation clues occurring at the end of the
+			  ;; lines, or in the last line.
+		      (>= x 0)
+		      (<= x (+ par-width 3))
+		      (<= y (+ (y (car (last (lines layout)))) 5))
+		      (object-under x y (lines layout)
+				    line-x-shift line-y-shift))))
 	(when object
 	  (setq object
 		(etypecase (object object)
