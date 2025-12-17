@@ -625,6 +625,9 @@ new dialog and display it."
 ;; Etap Interface
 ;; ==========================================================================
 
+(defparameter *border-width* 20
+  "The width of the border around the paragraph.")
+
 (defparameter *clues*
   '(:characters :hyphenation-points :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
@@ -636,7 +639,8 @@ new dialog and display it."
   '(:activate :tooltips)
   "The inspector options.")
 
-(defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min))
+(defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min)
+  "The paragraph zoom caliber.")
 
 
 
@@ -915,7 +919,7 @@ This function returns the corresponding line as a second value."
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+      (setq x (/ (- x *border-width*) zoom) y (/ (- y *border-width*) zoom))
       ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and
       ;; DEPTH returning 0, but this is borderline.
       (decf y (height layout))
@@ -967,7 +971,7 @@ This function returns the corresponding line as a second value."
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (getf (widget-value (inspector-box etap)) :activate)
-    (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
+    (setq x (/ (- x *border-width*) zoom) y (/ (- y *border-width*) zoom))
     ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
     ;; returning 0, but this is borderline.
     (decf y (height layout))
@@ -1059,9 +1063,11 @@ not 0."
 	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100)))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
-  (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
-  (gp:with-graphics-translation (view 20 20)
+  (set-horizontal-scroll-parameters view
+    :max-range (+ (* par-width zoom) (* 2 *border-width*)))
+  (set-vertical-scroll-parameters view
+    :max-range (+ (* par-h+d zoom) (* 2 *border-width*)))
+  (gp:with-graphics-translation (view *border-width* *border-width*)
     (gp:with-graphics-scale (view zoom zoom)
       (when (member :paragraph-box clues)
 	(gp:draw-rectangle view 0 0 par-width par-h+d
@@ -1196,8 +1202,8 @@ not 0."
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
-		 (x (/ (- (car pointer) 20) zoom))
-		 (y (/ (- (cdr pointer) 20) zoom)))
+		 (x (/ (- (car pointer) *border-width*) zoom))
+		 (y (/ (- (cdr pointer) *border-width*) zoom)))
 	    (decf y (height layout))
 	    (multiple-value-bind (object line)
 		(object-under x y (lines layout))
