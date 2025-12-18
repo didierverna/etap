@@ -1230,9 +1230,9 @@ not 0."
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
-		 (x (/ (- (car pointer) *border-width*) zoom))
-		 (y (/ (- (cdr pointer) *border-width*) zoom)))
-	    (decf y (height layout))
+		 (x (car pointer))
+		 (y (cdr pointer)))
+	    (to-layout-coordinates x y layout zoom)
 	    (multiple-value-bind (object line)
 		(object-under x y (lines layout))
 	      ;; #### WARNING: we may end up drawing a clue for the second
