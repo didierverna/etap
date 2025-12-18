@@ -895,6 +895,24 @@ This function returns the corresponding line as a second value."
 
 
 
+;; #### NOTE: the paragraph coordinates systems is defined as follows. The X
+;; axis is the baseline of the first line, and the Y axis is the paragraph's
+;; left border, oriented downwards. This means, in particular that the
+;; top-left corner has coordinates (0, - first line's height).
+
+;; #### WARNING: in case there's no layout, we rely on (HEIGHT NIL) = 0, which
+;; is perhaps a bit borderline...
+(defmacro to-layout-coordinates (x y layout zoom)
+  "Convert X and Y to LAYOUT coordinates.
+Originally, X and Y are expressed in the potentially ZOOMed paragraph view's
+coordinate system. This macro modified X and Y directly."
+  `(progn
+     (setq ,x (/ (- ,x *border-width*) ,zoom)
+	   ,y (/ (- ,y *border-width*) ,zoom))
+     (decf ,y (height ,layout))))
+
+
+
 ;; Motion
 
 ;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
@@ -925,10 +943,7 @@ This function returns the corresponding line as a second value."
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (setq x (/ (- x *border-width*) zoom) y (/ (- y *border-width*) zoom))
-      ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and
-      ;; DEPTH returning 0, but this is borderline.
-      (decf y (height layout))
+      (to-layout-coordinates x y layout zoom)
       (cond ((and (< y (- (height layout))) (<= x par-width))
 	     (display-tooltip view
 	       :text (properties breakup :layout-# layout-#)))
@@ -981,10 +996,7 @@ This function returns the corresponding line as a second value."
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (getf (widget-value (inspector-box etap)) :activate)
-    (setq x (/ (- x *border-width*) zoom) y (/ (- y *border-width*) zoom))
-    ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
-    ;; returning 0, but this is borderline.
-    (decf y (height layout))
+    (to-layout-coordinates x y layout zoom)
     (when layout
       (let ((object (and (<= 0 x (+ par-width *border-width*))
 			 (<= (- (height layout))
