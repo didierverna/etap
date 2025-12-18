@@ -900,8 +900,10 @@ This function returns the corresponding line as a second value."
 ;; left border, oriented downwards. This means, in particular that the
 ;; top-left corner has coordinates (0, - first line's height).
 
-;; #### WARNING: in case there's no layout, we rely on (HEIGHT NIL) = 0, which
-;; is perhaps a bit borderline...
+;; #### WARNING: in the few functions below, in case there's no layout, we
+;; rely on (HEIGHT NIL) or (DEPTH NIL) = 0, which is perhaps a bit
+;; borderline...
+
 (defmacro to-layout-coordinates (x y layout zoom)
   "Convert X and Y to LAYOUT coordinates.
 Originally, X and Y are expressed in the potentially ZOOMed paragraph view's
@@ -947,29 +949,33 @@ coordinate system. This macro modified X and Y directly."
       (cond ((and (< y (- (height layout))) (<= x par-width))
 	     (display-tooltip view
 	       :text (properties breakup :layout-# layout-#)))
-	    ((and (< x 0) (<= y (depth layout)))
-	     (let ((line (when layout (line-under y (lines layout )))))
-	       (if line
-		 (display-tooltip view :text (properties line))
-		 (display-tooltip view))))
-	    ((and (<= 0 x (+ par-width *border-width*))
-		  (<= (- (height layout)) y (+ (depth layout) *border-width*)))
-	     (let ((object (when layout (object-under x y (lines layout)))))
-	       ;; #### FIXME: this is really shaky. We know that currently
-	       ;; OBJECT-UNDER will only return a whitespace or a pinned
-	       ;; hyphenation clue. Simplifying the code below would require
-	       ;; defining a PROPERTIES method on the PINNED class
-	       ;; (advertising the properties of the pinned object), but we
-	       ;; don't want to define such a method for every kind of pinable
-	       ;; object (at least not right now).
-	       (if object
-		 (display-tooltip view
-		   :text (if (whitespacep object)
-			   (properties object)
-			   (properties (object object))))
-		 (display-tooltip view))))
-	    (t
-	     (display-tooltip view))))))
+	    (layout
+	     (cond ((and (< x 0) (<= y (depth layout)))
+		    (let ((line (line-under y (lines layout))))
+		      (if line
+			(display-tooltip view :text (properties line))
+			(display-tooltip view))))
+		   ((and (<= 0 x (+ par-width *border-width*))
+			 (<= (- (height layout))
+			     y
+			     (+ (depth layout) *border-width*)))
+		    (let ((object (object-under x y (lines layout))))
+		      ;; #### FIXME: this is really shaky. We know that
+		      ;; currently OBJECT-UNDER will only return a whitespace
+		      ;; or a pinned hyphenation clue. Simplifying the code
+		      ;; below would require defining a PROPERTIES method on
+		      ;; the PINNED class (advertising the properties of the
+		      ;; pinned object), but we don't want to define such a
+		      ;; method for every kind of pinable object (at least not
+		      ;; right now).
+		      (if object
+			(display-tooltip view
+			  :text (if (whitespacep object)
+				  (properties object)
+				  (properties (object object))))
+			(display-tooltip view))))
+		   (t
+		    (display-tooltip view))))))))
 
 
 
@@ -995,24 +1001,23 @@ coordinate system. This macro modified X and Y directly."
   "Function called when the user right clicks in the paragraph VIEW.
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
-  (when (getf (widget-value (inspector-box etap)) :activate)
+  (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
     (to-layout-coordinates x y layout zoom)
-    (when layout
-      (let ((object (and (<= 0 x (+ par-width *border-width*))
-			 (<= (- (height layout))
-			     y
-			     (+ (depth layout) *border-width*))
-			 (object-under x y (lines layout)))))
-	(when object
-	  (setq object
-		(etypecase (object object)
-		  (discretionary-clue (discretionary (object object)))
-		  (eol-clue (glue (object object)))
-		  (glue (object object))))
-	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	  ;; complexity of handling null calibers below.
-	  (when (caliber object)
-	    (make-penalty-adjustment-dialog object etap)))))))
+    (let ((object (and (<= 0 x (+ par-width *border-width*))
+		       (<= (- (height layout))
+			   y
+			   (+ (depth layout) *border-width*))
+		       (object-under x y (lines layout)))))
+      (when object
+	(setq object
+	      (etypecase (object object)
+		(discretionary-clue (discretionary (object object)))
+		(eol-clue (glue (object object)))
+		(glue (object object))))
+	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+	;; complexity of handling null calibers below.
+	(when (caliber object)
+	  (make-penalty-adjustment-dialog object etap))))))
 
 
 
