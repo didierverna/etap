@@ -836,6 +836,9 @@ new dialog and display it."
 ;; Etap Interface
 ;; ==========================================================================
 
+(defparameter *border-width* 20
+  "The width of the border around the paragraph.")
+
 (defparameter *clues*
   '(:characters :hyphenation-points :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
@@ -847,7 +850,8 @@ new dialog and display it."
   '(:activate :tooltips)
   "The inspector options.")
 
-(defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min))
+(defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min)
+  "The paragraph zoom caliber.")
 
 
 
@@ -1060,9 +1064,9 @@ Each point is of the form (X . Y)."
 	     (and (> vp2 0) (<= vp1 0) (<= vp3 0))
 	     (and (> vp3 0) (<= vp1 0) (<= vp2 0))))))
 
-;; #### FIXME: the hyphenation clues geometry (the small triangles under the
-;; lines in between characters) is hard coded at different places, which is
-;; not very cool.
+;; #### TODO: triangular clues are not completely factored out. The triangle
+;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
+;; in DRAW-TRIANGLE.
 (defun clue-under (x y lines line-x-shift line-y-shift &aux (p (cons x y)))
   "Return the clue from LINES which is under (X, Y), or nil.
 The clue is either a discretionary or and EOL one. In the case of a
@@ -1130,7 +1134,31 @@ This function returns the corresponding line as a second value."
 
 
 
+;; #### NOTE: the paragraph coordinates systems is defined as follows. The X
+;; axis is the baseline of the first line, and the Y axis is the paragraph's
+;; left border, oriented downwards. This means, in particular that the
+;; top-left corner has coordinates (0, - first line's height).
+
+;; #### WARNING: in case there's no layout, we rely on (HEIGHT NIL) = 0, which
+;; is perhaps a bit borderline...
+(defmacro to-layout-coordinates (x y layout zoom)
+  "Convert X and Y to LAYOUT coordinates.
+Originally, X and Y are expressed in the potentially ZOOMed paragraph view's
+coordinate system. This macro modified X and Y directly."
+  `(progn
+     (setq ,x (/ (- ,x *border-width*) ,zoom)
+	   ,y (/ (- ,y *border-width*) ,zoom))
+     (decf ,y (height ,layout))))
+
+
+
 ;; Motion
+
+;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
+;; will extend beyond the paragraph's right (resp. bottom) side. In order to
+;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
+;; and bottom sides.
 
 (defun motion-callback
     (view x y
@@ -1154,10 +1182,7 @@ This function returns the corresponding line as a second value."
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-      ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and
-      ;; DEPTH returning 0, but this is borderline.
-      (decf y (height layout))
+      (to-layout-coordinates x y layout zoom)
       (let ((line-x-shift (or (capi-object-property view :line-x-shift)
 			      (lambda (line) (declare (ignore line)) 0)))
 	    (line-y-shift (or (capi-object-property view :line-y-shift)
@@ -1171,10 +1196,10 @@ This function returns the corresponding line as a second value."
 		 (if line
 		   (display-tooltip view :text (properties line))
 		   (display-tooltip view))))
-	      ;; #### NOTE: the +3 and +5 are for hyphenation clues occurring
-	      ;; at the end of the lines, or in the last line.
-	      ((and (<= 0 x (+ par-width 3))
-		    (<= (- (height layout)) y (+ (depth layout) 5)))
+	      ((and (<= 0 x (+ par-width *border-width*))
+		    (<= (- (height layout))
+			y
+			(+ (depth layout) *border-width*)))
 	       (let ((object (when layout
 			       (object-under x y (lines layout)
 					     line-x-shift line-y-shift))))
@@ -1187,9 +1212,9 @@ This function returns the corresponding line as a second value."
 		 ;; pinable object (at least not right now).
 		 (if object
 		   (display-tooltip view
-				    :text (if (whitespacep object)
-					    (properties object)
-					    (properties (object object))))
+		     :text (if (whitespacep object)
+			     (properties object)
+			     (properties (object object))))
 		   (display-tooltip view))))
 	      (t
 	       (display-tooltip view)))))))
@@ -1197,6 +1222,12 @@ This function returns the corresponding line as a second value."
 
 
 ;; Post Menu
+
+;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
+;; will extend beyond the paragraph's right (resp. bottom) side. In order to
+;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
+;; and bottom sides.
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
@@ -1213,23 +1244,18 @@ This function returns the corresponding line as a second value."
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (getf (widget-value (inspector-box etap)) :activate)
-    (setq x (/ (- x 20) zoom) y (/ (- y 20) zoom))
-    ;; #### WARNING: if there's no layout, we rely on WIDTH, HEIGHT, and DEPTH
-    ;; returning 0, but this is borderline.
-    (decf y (height layout))
+    (to-layout-coordinates x y layout zoom)
     (when layout
       (let* ((line-x-shift (or (capi-object-property view :line-x-shift)
 			       (lambda (line) (declare (ignore line)) 0)))
 	     (line-y-shift (or (capi-object-property view :line-y-shift)
 			       (lambda (line) (declare (ignore line)) 0)))
-	     (object (and ;; #### NOTE: the +3 and (+ ... 5) are for
-			  ;; hyphenation clues occurring at the end of the
-			  ;; lines, or in the last line.
-		      (>= x 0)
-		      (<= x (+ par-width 3))
-		      (<= y (+ (y (car (last (lines layout)))) 5))
-		      (object-under x y (lines layout)
-				    line-x-shift line-y-shift))))
+	     (object (and (<= 0 x (+ par-width *border-width*))
+			  (<= (- (height layout))
+			      y
+			      (+ (depth layout) *border-width*))
+			  (object-under x y (lines layout)
+					line-x-shift line-y-shift))))
 	(when object
 	  (setq object
 		(etypecase (object object)
@@ -1259,13 +1285,18 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
+;; #### TODO: see comment atop CLUE-UNDER.
+(defun draw-triangle (view x y &rest args)
+  "Draw a triangular clue in VIEW at (X,Y).
+ARGS are subsequently passed to the drawing function."
+  (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
+	 args))
+
 (defun draw-hyphenation-clue (view x y discretionary)
   "Draw an hyphenation clue in VIEW at (X,Y) for DISCRETIONARY."
-  (gp:draw-polygon
-   view
-   (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
-   :filled (not (explicitp discretionary))
-   :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
+  (draw-triangle view x y
+    :filled (not (explicitp discretionary))
+    :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
 
 (defun draw-eol-clue (view x y glue &optional force)
   "Draw an EOL clue in VIEW at (X,Y) for GLUE.
@@ -1273,11 +1304,9 @@ Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
 not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (gp:draw-polygon
-     view
-     (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
-     :filled t
-     :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+    (draw-triangle view x y
+      :filled t
+      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
@@ -1318,9 +1347,11 @@ not 0."
 			    (lambda (char) (declare (ignore char)) 0))))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
-  (set-horizontal-scroll-parameters view :max-range (+ (* par-width zoom) 40))
-  (set-vertical-scroll-parameters view :max-range (+ (* par-h+d zoom) 40))
-  (gp:with-graphics-translation (view 20 20)
+  (set-horizontal-scroll-parameters view
+    :max-range (+ (* par-width zoom) (* 2 *border-width*)))
+  (set-vertical-scroll-parameters view
+    :max-range (+ (* par-h+d zoom) (* 2 *border-width*)))
+  (gp:with-graphics-translation (view *border-width* *border-width*)
     (gp:with-graphics-scale (view zoom zoom)
       (when (member :paragraph-box clues)
 	(gp:draw-rectangle view 0 0 par-width par-h+d
@@ -1456,8 +1487,8 @@ not 0."
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
-		 (x (/ (- (car pointer) 20) zoom))
-		 (y (/ (- (cdr pointer) 20) zoom)))
+		 (x (/ (- (car pointer) *border-width*) zoom))
+		 (y (/ (- (cdr pointer) *border-width*) zoom)))
 	    (decf y (height layout))
 	    (multiple-value-bind (object line)
 		(object-under x y (lines layout) line-x-shift line-y-shift)
