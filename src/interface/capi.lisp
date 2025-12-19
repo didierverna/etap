@@ -960,19 +960,8 @@ coordinate system. This macro modified X and Y directly."
 			     y
 			     (+ (depth layout) *border-width*)))
 		    (let ((object (object-under x y (lines layout))))
-		      ;; #### FIXME: this is really shaky. We know that
-		      ;; currently OBJECT-UNDER will only return a whitespace
-		      ;; or a pinned hyphenation clue. Simplifying the code
-		      ;; below would require defining a PROPERTIES method on
-		      ;; the PINNED class (advertising the properties of the
-		      ;; pinned object), but we don't want to define such a
-		      ;; method for every kind of pinable object (at least not
-		      ;; right now).
 		      (if object
-			(display-tooltip view
-			  :text (if (whitespacep object)
-				  (properties object)
-				  (properties (object object))))
+			(display-tooltip view :text (properties object))
 			(display-tooltip view))))
 		   (t
 		    (display-tooltip view))))))))
