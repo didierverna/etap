@@ -168,8 +168,8 @@ EOL clues are 0-width objects used to remember the original glue ending a
 flattened harray slice."))
 
 (defmethod properties strnlcat ((clue eol-clue) &key)
-  "Advertise CLUE's glue penalty."
-  (format nil "Penalty: ~A." (penalty (glue clue))))
+  "Advertise CLUE's glue properties."
+  (properties (glue clue)))
 
 (defun make-eol-clue (glue)
   "Make a new EOL clue."

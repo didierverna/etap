@@ -144,6 +144,10 @@ Kerns represent inter-letter horizontal spacing."))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
 
+(defmethod properties strnlcat ((break-point break-point) &key)
+  "Advertise BREAK-POINT's penalty."
+  (format nil "Penalty: ~A." (penalty break-point)))
+
 (defun break-point-p (object)
   "Return T if OBJECT is a break point."
   (typep object 'break-point))
@@ -229,10 +233,6 @@ return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
   (declare (ignore pre-break post-break no-break explicit))
   (apply #'make-instance 'hyphenation-point initargs))
 
-(defmethod properties strnlcat ((hyphenation-point hyphenation-point) &key)
-  "Advertise HYPHENATION-POINT's penalty."
-  (format nil "Penalty: ~A." (penalty hyphenation-point)))
-
 (defgeneric hyphenated (object)
   (:documentation "Return OBJECT's hyphenation status.
 Possible values are :explicit, :implicit, or nil.")
@@ -265,6 +265,13 @@ Glues represent breakable, elastic space."))
   (assert (and (rationalp (shrink glue)) (>= (shrink glue) 0)))
   (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
 	      ($= (stretch glue) +∞))))
+
+(defmethod properties strnlcat ((glue glue) &key)
+  "Advertise GLUE's properties."
+  (format nil "Glue: ~Apt plus ~Apt minus ~Apt."
+    (float (width glue))
+    (float (stretch glue))
+    (float (shrink glue))))
 
 (defun gluep (object)
   "Return T if OBJECT is a glue."

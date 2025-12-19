@@ -43,6 +43,10 @@ expressed relative to a pin board."))
   (:documentation "The PINNED class.
 This class is used to pin any kind of object to a board."))
 
+(defmethod properties strnlcat ((pinned pinned) &key)
+  "Advertise PINNED object's properties."
+  (properties (object pinned)))
+
 (defun pin-object (object board x &optional (y 0))
   "Pin OBJECT on BOARD at position (X, Y)."
   (make-instance 'pinned :object object :board board :x x :y y))
