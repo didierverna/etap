@@ -1142,8 +1142,8 @@ not 0."
 				(- y (height line))
 				(+ par-width 8)
 				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled t :closed t)
+			:foreground :blue
+			:scale-thickness nil :filled t :closed t)
 		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon view
 			  (list (+ par-width 5)
@@ -1152,8 +1152,8 @@ not 0."
 				(- y (height line))
 				(+ par-width 8)
 				(+ y (depth line)))
-			  :foreground :blue
-			  :scale-thickness nil :filled nil :closed t)
+			:foreground :blue
+			:scale-thickness nil :filled nil :closed t)
 		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ par-width 5)
