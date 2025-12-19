@@ -123,8 +123,8 @@
 ;; #### TODO: a lot of the complication below would go away with custom
 ;; widgets looking like rotary knobs.
 
-(defstruct (caliber (:constructor make-caliber (property min default max
-						&key infinity bounded)))
+(defstruct (caliber (:constructor make-caliber
+			(property min default max &key infinity bounded)))
   "The CALIBER structure.
 Calibers establish a correspondence between scalar values and their GUI
 representation through sliders.
