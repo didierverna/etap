@@ -1497,24 +1497,15 @@ not 0."
 	      ;; #### WARNING: we may end up drawing a clue for the second
 	      ;; time here, but this is probably not such a big deal.
 	      (when object
+		(setq x (+ (x line) (funcall line-x-shift line))
+		      y (+ par-y (y line) (funcall line-y-shift line)))
 		(cond ((whitespacep object)
-		       (draw-whitespace-clue
-			view
-			(+ (x line) (funcall line-x-shift line))
-			(+ par-y (y line) (funcall line-y-shift line))
-			object
-			'force))
+		       (draw-whitespace-clue view x y object 'force))
 		      ((discretionary-clue-p (object object))
-		       (draw-hyphenation-clue
-			view
-			(+ (x line) (funcall line-x-shift line) (x object))
-			(+ par-y (y line) (funcall line-y-shift line))
-			(discretionary (object object))))
+		       (draw-hyphenation-clue view (+ x (x object)) y
+			 (discretionary (object object))))
 		      ((eol-clue-p (object object))
-		       (draw-eol-clue
-			view
-			(+ (x line) (funcall line-x-shift line) (x object))
-			(+ par-y (y line) (funcall line-y-shift line))
+		       (draw-eol-clue view (+ x (x object)) y
 			(glue (object object))
 			'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
