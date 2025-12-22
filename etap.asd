@@ -38,6 +38,9 @@
        (:file "language")
        (:file "text")
        (:file "nlstring")))
+     (:module "syntax"
+      :serial t
+      :components ((:file "convert")))
      (:module "typesetting"
       :serial t
       :components
