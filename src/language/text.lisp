@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defvar *text*
   "In olden times when wishing still helped one, there lived a king whose

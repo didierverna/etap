@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defparameter *lm-ec*
   (let ((map (make-array (length *lm-ec-encoding*))))

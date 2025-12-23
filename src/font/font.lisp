@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defvar *font-file*
   (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm")

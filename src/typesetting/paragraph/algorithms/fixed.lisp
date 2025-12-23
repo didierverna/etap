@@ -54,6 +54,7 @@
 ;;    preferred to a word one if the later really is too far away.
 
 (in-package :etap)
+(in-readtable :etap)
 
 
 ;; ==========================================================================

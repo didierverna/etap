@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 ;; #### FIXME: there's currently one slot in the interface for storing the
 ;; currently detected rivers. This was a quick hack to test the idea but it is

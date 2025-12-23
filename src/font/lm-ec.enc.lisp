@@ -9,6 +9,7 @@
 ;; to provide the LM EC encoding as a Lisp array.
 
 (in-package :etap)
+(in-readtable :etap)
 
 ;; Missing from +glyph-list+:
 ;; cwm, perthousandzero, uni2423, hyphen.alt, and Germandbls.

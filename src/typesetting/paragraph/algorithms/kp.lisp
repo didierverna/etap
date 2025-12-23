@@ -19,6 +19,7 @@
 ;; between the graph and the dynamic versions.
 
 (in-package :etap)
+(in-readtable :etap)
 
 
 ;; ==========================================================================

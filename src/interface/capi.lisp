@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 ;; #### WARNING: moving sliders with the mouse (dragging or clicking
 ;; elsewhere) seems to generate :DRAG gestures followed by two :MOVE ones. So

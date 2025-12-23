@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defparameter *languages* '((:english . "en-us") (:français . "fr"))
   "An alist matching language names (keywords) to radicals.

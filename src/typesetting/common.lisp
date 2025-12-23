@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defgeneric properties (object &key)
   (:documentation "Return a string advertising OBJECT's properties.
