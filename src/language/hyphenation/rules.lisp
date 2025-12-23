@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defclass hyphenation-rules ()
   ((patterns :documentation "The hyphenation patterns.

@@ -32,6 +32,7 @@
 ;; that means; I've just commented the superfluous values out.
 
 (in-package :etap)
+(in-readtable :etap)
 
 (defparameter *glyph-list*
   (let ((list '((|A| . #\U+0041)

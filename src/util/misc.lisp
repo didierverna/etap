@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defun hash-table-counts (hash)
   "Count the numbers of non-null (resp. null) entries in HASH table.

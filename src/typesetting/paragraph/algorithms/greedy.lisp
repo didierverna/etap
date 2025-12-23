@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 (defun make-greedy-lines (harray width get-boundary make-line)
   "Break HARRAY greedily for paragraph WIDTH.
