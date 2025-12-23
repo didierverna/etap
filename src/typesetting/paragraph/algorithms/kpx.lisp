@@ -1,6 +1,7 @@
 ;; This is my Knuth-Plass Extended, aka, KPX algorithm.
 
 (in-package :etap)
+(in-readtable :etap)
 
 ;; ==========================================================================
 ;; Specification

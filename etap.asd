@@ -7,7 +7,7 @@
   :source-control "https://github.com/didierverna/etap"
   :license "BSD"
   ;; :version 1.0
-  :depends-on (:net.didierverna.tfm)
+  :depends-on (:net.didierverna.tfm :etap.setup)
   :components
   ((:module "src"
     :serial t

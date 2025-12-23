@@ -9,6 +9,7 @@
 ;; putting an infinite penalty on hyphenation points).
 
 (in-package :etap)
+(in-readtable :etap)
 
 
 ;; ==========================================================================

@@ -3,7 +3,7 @@
 (defpackage :etap
   (:local-nicknames (:tfm :net.didierverna.tfm))
   #+lispworks (:add-use-defaults t)
-  (:use #+lispworks :capi #-lispworks :cl)
+  (:use #+lispworks :capi #-lispworks :cl :etap.setup)
   #+sbcl
   (:import-from :sb-mop :validate-superclass)
   #+lispworks

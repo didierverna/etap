@@ -1,4 +1,5 @@
 (in-package :etap)
+(in-readtable :etap)
 
 ;; Arithmetics with a notion of infinity.
 
