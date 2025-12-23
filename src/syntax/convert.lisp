@@ -1,6 +1,10 @@
 (in-package :etap)
 
 (defun %convert (instr)
+  "Convert input string INSTR to a regular Lisp code string, and return it.
+INSTR is in \"string mode\". Characters are accumulated in strings, until
+a backslash is encountered in which case a lisp expression is read and
+printed, and string mode is set again."
   (with-input-from-string (stream instr)
     (with-output-to-string (outstr)
       (let ((*package* (find-package :etap-user))
@@ -10,20 +14,19 @@
 	      :for char := (read-char stream nil stream)
 	      :until (eq char stream)
 	      :if (eq char #\\)
-		:do (progn (cond (in-string
-				  (write-char #\" outstr)
-				  (setq in-string nil))
-				 ;; Be sure to separate Lisp expressions by at
-				 ;; least a space, in case it is needed to
-				 ;; syntactically separate them (e.g. a
-				 ;; sequence of symbols).
-				 (t (write-char #\Space outstr)))
-			   (prin1 (read-preserving-whitespace stream) outstr))
+		:do (cond (in-string
+			   (write-char #\" outstr)
+			   (setq in-string nil))
+			  ;; Be sure to separate Lisp expressions by at least
+			  ;; a space, in case it is needed to syntactically
+			  ;; separate them (e.g. a sequence of symbols).
+			  (t (write-char #\Space outstr)))
+		:and :do (prin1 (read-preserving-whitespace stream) outstr)
 	      :else
-		:do (progn (unless in-string
-			     (write-char #\" outstr)
-			     (setq in-string t))
-			   (write-char char outstr))
+		:do (unless in-string
+		      (write-char #\" outstr)
+		      (setq in-string t))
+		:and :do (write-char char outstr)
 	      :finally (when in-string (write-char #\" outstr)))
 	outstr))))
 
