@@ -106,6 +106,7 @@ Kerns represent inter-letter horizontal spacing."))
   (make-instance 'kern :width width))
 
 
+
 ;; ------------
 ;; Break points
 ;; ------------
@@ -168,6 +169,7 @@ This is the base class for all objects at which lines can be broken."))
     (idx break-point)))
 
 
+
 ;; Discretionaries
 
 (defclass discretionary (break-point)
@@ -204,6 +206,7 @@ depending on whether the break occurs or not."))
   (1+ (idx discretionary)))
 
 
+
 ;; Hyphenation points
 
 ;; #### NOTE: we use T as the default here because it allows simple calls to
@@ -242,7 +245,7 @@ Possible values are :explicit, :implicit, or nil.")
     (hyphenation-point-p object)))
 
 
-
+
 ;; Glues
 
 (defclass glue (break-point)
@@ -290,6 +293,7 @@ Glues represent breakable, elastic space."))
 	     :stretch (tfm:interword-stretch font)))
 
 
+
 ;; Special break points
 
 (defsingleton bop (break-point)
@@ -391,6 +395,7 @@ This is the default method."
 	:when kern :collect kern))
 
 
+
 ;; --------------------
 ;; Ligatures processing
 ;; --------------------
@@ -495,9 +500,10 @@ to the new hlist, and the unprocessed new remainder."
 	:append done))
 
 
-;; ---------------
-;; Word processing
-;; ---------------
+
+;; -----------------------------
+;; Word processing / hyphenation
+;; -----------------------------
 
 (defun get-character (char font)
   "Get CHAR in FONT. Replace CHAR by a question mark if not found."
@@ -550,9 +556,11 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 	 (map 'list (lambda (char) (get-character char font)) word))))
 
 
-;; ------------
+
+
+;; ==========================================================================
 ;; Text slicing
-;; ------------
+;; ==========================================================================
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline)
   "The list of blank characters.")
