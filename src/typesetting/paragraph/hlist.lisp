@@ -530,7 +530,7 @@ to the new hlist, and the unprocessed new remainder."
       (tfm:get-character (char-code #\?) *font*)))
 
 (defun hyphen-positions+1 (word)
-  "Return WORD (a string)'s explicit hyphen positions + 1."
+  "Return WORD string's explicit hyphen positions + 1."
   (loop :for i :from 1
 	:for char :across word
 	;; We don't want to collect a final hyphen's position, because if a
