@@ -599,11 +599,17 @@ Currently, this means alphabetic or a dash."
 	       &aux (hyphenation-rules
 		     (when *hyphenation* (get-hyphenation-rules *language*)))
 		    slice)
-  "Slice *LANGUAGE* TEXT in *FONT*.
-Depending on *HYPHENATION*, maybe hyphenate words.
-Return a list of FONT characters, interword glues, and maybe hyphenation
-discretionaries. TEXT's leading and trailing spaces are replaced with a single
-:space keyword if applicable."
+  "Slice TEXT into a list of items.
+Words are sliced into *FONT* characters, possibly including ligatures if
+*LIGATURING*. Consecutive interword blanks are replaced with a single
+interword glue.
+
+Depending on *KERNING*, kerns may also be added between characters.
+Depending on *HYPHENATION*, words may also be hyphenated for *LANGUAGE*, and
+discretionaries added accordingly.
+
+TEXT's leading and trailing spaces are replaced with a single :space keyword
+if applicable."
   (setq slice
 	(loop :with string := (string-trim *blanks* text)
 	      :with length := (length string)
@@ -629,6 +635,9 @@ discretionaries. TEXT's leading and trailing spaces are replaced with a single
 	      :else
 		:collect character
 		:and :do (incf i)))
+  ;; #### NOTE: ligatures first, kerning next.
+  (when *ligaturing* (setq slice (process-ligatures slice)))
+  (when *kerning* (setq slice (process-kerns slice)))
   (when (blankp (aref text 0)) (push :space slice))
   (when (blankp (aref text (1- (length text)))) (endpush :space slice))
   slice)
@@ -639,8 +648,6 @@ discretionaries. TEXT's leading and trailing spaces are replaced with a single
 ;; ==========================================================================
 ;; Entry Point
 ;; ==========================================================================
-
-
 
 (defun %make-hlist (nlstring font features &aux (text (text nlstring)))
   "Make a new hlist for NLSTRING in FONT, with FEATURES.
@@ -653,7 +660,4 @@ and :hyphenation."
 	  (*ligaturing* (getf features :ligatures))
 	  (*hyphenation* (getf features :hyphenation)))
       (let ((hlist (slice text)))
-	;; #### NOTE: ligatures first, kerning next.
-	(when *ligaturing* (setq hlist (process-ligatures hlist)))
-	(when *kerning* (setq hlist (process-kerns hlist)))
 	hlist))))
