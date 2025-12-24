@@ -633,9 +633,6 @@ if applicable."
 	      :else
 		:collect (get-character char)
 		:and :do (incf i)))
-  ;; #### NOTE: ligatures first, kerning next.
-  (when *ligaturing* (setq slice (process-ligatures slice)))
-  (when *kerning* (setq slice (process-kerns slice)))
   (when (blankp (aref text 0)) (push :space slice))
   (when (blankp (aref text (1- (length text)))) (endpush :space slice))
   slice)
@@ -658,4 +655,8 @@ and :hyphenation."
 	  (*ligaturing* (getf features :ligatures))
 	  (*hyphenation* (getf features :hyphenation)))
       (let ((hlist (slice text)))
+	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
+	;; the kerning.
+	(when *ligaturing* (setq hlist (process-ligatures hlist)))
+	(when *kerning* (setq hlist (process-kerns hlist)))
 	hlist))))
