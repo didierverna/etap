@@ -286,11 +286,11 @@ Glues represent breakable, elastic space."))
   (declare (ignore width shrink stretch penalty caliber))
   (apply #'make-instance 'glue keys))
 
-(defun make-interword-glue (blank &aux (font (tfm:font blank)))
-  "Make an interword glue, based on BLANK character's font specifications."
-  (make-glue :width (tfm:interword-space font)
-	     :shrink (tfm:interword-shrink font)
-	     :stretch (tfm:interword-stretch font)))
+(defun make-interword-glue ()
+  "Make a *FONT* interword glue."
+  (make-glue :width (tfm:interword-space *font*)
+	     :shrink (tfm:interword-shrink *font*)
+	     :stretch (tfm:interword-stretch *font*)))
 
 
 
@@ -612,7 +612,7 @@ discretionaries. TEXT's leading and trailing spaces are replaced with a single
 	      :for char := (aref string i)
 	      :for character := (get-character char *font*)
 	      :if (blankp char)
-		:collect (make-interword-glue character)
+		:collect (make-interword-glue)
 		;; i cannot be NIL here because we've trimmed any end blanks.
 		:and :do (setq i (position-if-not #'blankp string :start i))
 	      :else :if (alpha-char-p char)
