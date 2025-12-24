@@ -519,6 +519,13 @@ to the new hlist, and the unprocessed new remainder."
 ;; Word processing / hyphenation
 ;; -----------------------------
 
+;; #### FIXME: this comment is not clear to myself anymore...
+;; #### NOTE: the hyphenation process below is simple, different from what TeX
+;; does and should certainly be improved. For instance, TeX will consider only
+;; one word between two glues, so for instance in "... foo.bar ...", bar will
+;; never be hyphenated. There are also other rules that prevent hyphenation in
+;; some situations, which we do not have right now.
+
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
 
 (defun get-character (char)
@@ -590,25 +597,13 @@ if HYPHENATION-RULES."
 Currently, this means alphabetic or a dash."
   (or (alpha-char-p char) (char= char #\-)))
 
-;; #### NOTE: the hyphenation process below is simple, different from what TeX
-;; does and should certainly be improved. For instance, TeX will consider only
-;; one word between two glues, so for instance in "... foo.bar ...", bar will
-;; never be hyphenated. There are also other rules that prevent hyphenation in
-;; some situations, which we do not have right now.
-(defun slice  (text &aux hyphenation-rules slice)
-  "Slice TEXT into a list of items.
-Words are sliced into *FONT* characters, possibly including ligatures if
-*LIGATURING*. Consecutive interword blanks are replaced with a single
-interword glue.
-
-Depending on *KERNING*, kerns may also be added between characters.
-Depending on *HYPHENATION*, words may also be hyphenated for *LANGUAGE*, and
-discretionaries added accordingly.
+(defun slice  (text &aux slice)
+  "Slice TEXT string into a list of items.
+Words are sliced into *FONT* characters. Consecutive blanks are replaced with
+a single interword glue.
 
 TEXT's leading and trailing spaces are replaced with a single :space keyword
 if applicable."
-  (when *hyphenation*
-    (setq hyphenation-rules (get-hyphenation-rules *language*)))
   (setq slice
 	(loop :with string := (string-trim *blanks* text)
 	      :with length := (length string)
@@ -619,6 +614,17 @@ if applicable."
 		:collect (make-interword-glue)
 		;; i cannot be NIL here because we've trimmed any end blanks.
 		:and :do (setq i (position-if-not #'blankp string :start i))
+	      :else
+		:collect (get-character char)
+		:and :do (incf i)))
+  (when (blankp (aref text 0)) (push :space slice))
+  (when (blankp (aref text (1- (length text)))) (endpush :space slice))
+  slice)
+
+#|
+  (when *hyphenation*
+    (setq hyphenation-rules (get-hyphenation-rules *language*)))
+
 	      :else :if (alpha-char-p char)
 		:append (process-word
 			 (subseq string i
@@ -630,14 +636,7 @@ if applicable."
 			       (or (position-if-not #'word-constituent-p string
 				     :start i)
 				   length))
-	      :else
-		:collect (get-character char)
-		:and :do (incf i)))
-  (when (blankp (aref text 0)) (push :space slice))
-  (when (blankp (aref text (1- (length text)))) (endpush :space slice))
-  slice)
-
-
+|#
 
 
 ;; ==========================================================================
