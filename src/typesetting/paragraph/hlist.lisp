@@ -331,6 +331,14 @@ This is the default method."
 ;; Features Processing
 ;; ==========================================================================
 
+;; #### NOTE: it's a bit too early to speak of "lineup" here, but since we
+;; need the features, let's also define this close.
+
+(defparameter *lineup-features*
+  '(:kerning :ligatures :hyphenation)
+  "The lineup features, as advertised by the interface.")
+
+
 ;; #### NOTE: the procedures handling ligatures and kerns below are aware of
 ;; discretionaries, but they are really meant for those inserted automatically
 ;; during the hyphenation process, that is, \discretionary{-}{}{} in the
@@ -344,9 +352,13 @@ This is the default method."
 ;; every time we want to poll the size of various harray chunks. This could be
 ;; rather expensive (although I haven't tried it).
 
+
+
 ;; ----------------
 ;; Kerns processing
 ;; ----------------
+
+(defvar *kerning* nil "Whether kerning is currently enabled.")
 
 (defun get-kern (elt1 elt2)
   "Return kern for ELT1 and ELT2, or NIL."
@@ -399,6 +411,8 @@ This is the default method."
 ;; --------------------
 ;; Ligatures processing
 ;; --------------------
+
+(defvar *ligaturing* nil "Whether ligaturing is currently enabled.")
 
 (defun get-ligature (elt1 elt2)
   "Return a ligature for ELT1 and ELT2, or NIL."
@@ -505,6 +519,8 @@ to the new hlist, and the unprocessed new remainder."
 ;; Word processing / hyphenation
 ;; -----------------------------
 
+(defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
+
 (defun get-character (char font)
   "Get CHAR in FONT. Replace CHAR by a question mark if not found."
   ;; #### TODO: no input encoding support yet.
@@ -579,35 +595,43 @@ Currently, this means alphabetic or a dash."
 ;; one word between two glues, so for instance in "... foo.bar ...", bar will
 ;; never be hyphenated. There are also other rules that prevent hyphenation in
 ;; some situations, which we do not have right now.
-(defun slice
-    (text language font hyphenate
-     &aux (hyphenation-rules (when hyphenate (get-hyphenation-rules language))))
-  "Slice LANGUAGE TEXT in FONT, possibly HYPHENATE'ing it.
-Return a list of FONT characters, interword glues, and discretionaries if
-HYPHENATE. TEXT's leading and trailing spaces are removed,, and inner
-consecutive blanks are replaced with a single interword glue."
-  (loop :with string := (string-trim *blanks* text)
-	:with length := (length string)
-	:with i := 0
-	:while (< i length)
-	:for char := (aref string i)
-	:for character := (get-character char font)
-	:if (blankp char)
-	  :collect (make-interword-glue character)
-	  ;; i cannot be NIL here because we've trimmed any end blanks.
-	  :and :do (setq i (position-if-not #'blankp string :start i))
-	:else :if (alpha-char-p char)
-	  :append (process-word
-		   (subseq string i
-		     (position-if-not #'word-constituent-p string :start i))
-		   font hyphenation-rules)
-	  ;; this could happen here on the other hand.
-	  :and :do (setq i (or (position-if-not #'word-constituent-p string
-				 :start i)
-			       length))
-	:else
-	  :collect character
-	  :and :do (incf i)))
+(defun slice  (text
+	       &aux (hyphenation-rules
+		     (when *hyphenation* (get-hyphenation-rules *language*)))
+		    slice)
+  "Slice *LANGUAGE* TEXT in *FONT*.
+Depending on *HYPHENATION*, maybe hyphenate words.
+Return a list of FONT characters, interword glues, and maybe hyphenation
+discretionaries. TEXT's leading and trailing spaces are replaced with a single
+:space keyword if applicable."
+  (setq slice
+	(loop :with string := (string-trim *blanks* text)
+	      :with length := (length string)
+	      :with i := 0
+	      :while (< i length)
+	      :for char := (aref string i)
+	      :for character := (get-character char *font*)
+	      :if (blankp char)
+		:collect (make-interword-glue character)
+		;; i cannot be NIL here because we've trimmed any end blanks.
+		:and :do (setq i (position-if-not #'blankp string :start i))
+	      :else :if (alpha-char-p char)
+		:append (process-word
+			 (subseq string i
+			   (position-if-not #'word-constituent-p string
+			     :start i))
+			 *font* hyphenation-rules)
+		;; this could happen here on the other hand.
+		:and :do (setq i
+			       (or (position-if-not #'word-constituent-p string
+				     :start i)
+				   length))
+	      :else
+		:collect character
+		:and :do (incf i)))
+  (when (blankp (aref text 0)) (push :space slice))
+  (when (blankp (aref text (1- (length text)))) (endpush :space slice))
+  slice)
 
 
 
@@ -616,14 +640,20 @@ consecutive blanks are replaced with a single interword glue."
 ;; Entry Point
 ;; ==========================================================================
 
+
+
 (defun %make-hlist (nlstring font features &aux (text (text nlstring)))
   "Make a new hlist for NLSTRING in FONT, with FEATURES.
 FEATURES is a Boolean property list possibly requesting :kerning, :ligatures,
 and :hyphenation."
   (when (and text (not (equal text "")))
-    (let ((hlist (slice text (language nlstring) font
-			(getf features :hyphenation))))
-      ;; #### NOTE: ligatures first, kerning next.
-      (when (getf features :ligatures) (setq hlist (process-ligatures hlist)))
-      (when (getf features :kerning) (setq hlist (process-kerns hlist)))
-      hlist)))
+    (let ((*language* (language nlstring))
+	  (*font* font)
+	  (*kerning* (getf features :kerning))
+	  (*ligaturing* (getf features :ligatures))
+	  (*hyphenation* (getf features :hyphenation)))
+      (let ((hlist (slice text)))
+	;; #### NOTE: ligatures first, kerning next.
+	(when *ligaturing* (setq hlist (process-ligatures hlist)))
+	(when *kerning* (setq hlist (process-kerns hlist)))
+	hlist))))

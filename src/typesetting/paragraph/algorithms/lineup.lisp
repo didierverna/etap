@@ -39,10 +39,6 @@ All primary methods must return a (possibly modified) HLIST.")
 ;; Lineups
 ;; ==========================================================================
 
-(defparameter *lineup-features*
-  '(:kerning :ligatures :hyphenation)
-  "The lineup features, as advertised by the interface.")
-
 ;; #### NOTE: contrary to breakups, there is currently no need for
 ;; algorithm-specific lineup subclasses, even though it would make the
 ;; specification (and the generic dispatch) of BREAK-LINEUP much cleaner.
