@@ -521,13 +521,13 @@ to the new hlist, and the unprocessed new remainder."
 
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
 
-(defun get-character (char font)
-  "Get CHAR in FONT. Replace CHAR by a question mark if not found."
+(defun get-character (char)
+  "Get CHAR in *FONT*. Replace CHAR by a question mark if not found."
   ;; #### TODO: no input encoding support yet.
-  (or (tfm:get-character (char-code char) font)
+  (or (tfm:get-character (char-code char) *font*)
       ;; #### FIXME: this one had better be available! Fall back to a null
       ;; character?
-      (tfm:get-character (char-code #\?) font)))
+      (tfm:get-character (char-code #\?) *font*)))
 
 (defun hyphen-positions+1 (word)
   "Return WORD (a string)'s explicit hyphen positions + 1."
@@ -540,36 +540,36 @@ to the new hlist, and the unprocessed new remainder."
 	;; break there.
 	:when (and (char= char #\-) (< i (length word))) :collect i))
 
-(defun process-word-with-hyphenation (word font hyphenation-points hyphenator)
-  "Process WORD (a string) in FONT with HYPHENATION-POINTS.
-Return a list of characters from FONT, alternating with discretionaries at
+(defun process-word-with-hyphenation (word hyphenation-points hyphenator)
+  "Process WORD string with HYPHENATION-POINTS.
+Return a list of *FONT* characters, alternating with discretionaries at
 HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
   (loop :for i :from 0
 	:for char :across word
-	:for character := (get-character char font)
+	:for character := (get-character char)
 	:when (member i hyphenation-points) :collect (funcall hyphenator)
 	  :collect character))
 
 (defun process-word
-    (word font hyphenation-rules &aux hyphenation-points)
-  "Process WORD (a string) in FONT, possibly with HYPHENATION-RULES.
-Return a list of characters from FONT, possibly alternating with
-discretionaries if HYPHENATION-RULES is non-NIL."
+    (word hyphenation-rules &aux hyphenation-points)
+  "Process WORD string, possibly with HYPHENATION-RULES.
+Return a list of *FONT* characters, possibly alternating with discretionaries
+if HYPHENATION-RULES."
   ;; Note that a word with explicit hyphens must not be hyphenated in any
   ;; other way.
   (cond ((and hyphenation-rules
 	      (setq hyphenation-points (hyphen-positions+1 word)))
 	 (process-word-with-hyphenation
-	  word font hyphenation-points #'make-hyphenation-point))
+	  word hyphenation-points #'make-hyphenation-point))
 	((and hyphenation-rules
 	      (setq hyphenation-points (hyphenate word hyphenation-rules)))
 	 (process-word-with-hyphenation
-	  word font hyphenation-points
-	  (let ((pre-break (list (get-character #\- font))))
+	  word hyphenation-points
+	  (let ((pre-break (list (get-character #\-))))
 	    (lambda ()
 	      (make-hyphenation-point :pre-break pre-break :explicit nil)))))
 	(t
-	 (map 'list (lambda (char) (get-character char font)) word))))
+	 (map 'list (lambda (char) (get-character char)) word))))
 
 
 
@@ -595,10 +595,7 @@ Currently, this means alphabetic or a dash."
 ;; one word between two glues, so for instance in "... foo.bar ...", bar will
 ;; never be hyphenated. There are also other rules that prevent hyphenation in
 ;; some situations, which we do not have right now.
-(defun slice  (text
-	       &aux (hyphenation-rules
-		     (when *hyphenation* (get-hyphenation-rules *language*)))
-		    slice)
+(defun slice  (text &aux hyphenation-rules slice)
   "Slice TEXT into a list of items.
 Words are sliced into *FONT* characters, possibly including ligatures if
 *LIGATURING*. Consecutive interword blanks are replaced with a single
@@ -610,13 +607,14 @@ discretionaries added accordingly.
 
 TEXT's leading and trailing spaces are replaced with a single :space keyword
 if applicable."
+  (when *hyphenation*
+    (setq hyphenation-rules (get-hyphenation-rules *language*)))
   (setq slice
 	(loop :with string := (string-trim *blanks* text)
 	      :with length := (length string)
 	      :with i := 0
 	      :while (< i length)
 	      :for char := (aref string i)
-	      :for character := (get-character char *font*)
 	      :if (blankp char)
 		:collect (make-interword-glue)
 		;; i cannot be NIL here because we've trimmed any end blanks.
@@ -626,14 +624,14 @@ if applicable."
 			 (subseq string i
 			   (position-if-not #'word-constituent-p string
 			     :start i))
-			 *font* hyphenation-rules)
+			 hyphenation-rules)
 		;; this could happen here on the other hand.
 		:and :do (setq i
 			       (or (position-if-not #'word-constituent-p string
 				     :start i)
 				   length))
 	      :else
-		:collect character
+		:collect (get-character char)
 		:and :do (incf i)))
   ;; #### NOTE: ligatures first, kerning next.
   (when *ligaturing* (setq slice (process-ligatures slice)))
