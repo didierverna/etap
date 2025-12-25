@@ -354,9 +354,9 @@ This is the default method."
 
 
 
-;; ----------------
-;; Kerns processing
-;; ----------------
+;; -------
+;; Kerning
+;; -------
 
 (defvar *kerning* nil "Whether kerning is currently enabled.")
 
@@ -408,9 +408,9 @@ This is the default method."
 
 
 
-;; --------------------
-;; Ligatures processing
-;; --------------------
+;; ----------
+;; Ligaturing
+;; ----------
 
 (defvar *ligaturing* nil "Whether ligaturing is currently enabled.")
 
@@ -515,9 +515,9 @@ to the new hlist, and the unprocessed new remainder."
 
 
 
-;; -----------------------------
-;; Word processing / hyphenation
-;; -----------------------------
+;; -----------
+;; Hyphenation
+;; -----------
 
 ;; #### FIXME: this comment is not clear to myself anymore...
 ;; #### NOTE: the hyphenation process below is simple, different from what TeX
@@ -558,25 +558,44 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 	  :collect character))
 
 (defun process-word
-    (word hyphenation-rules &aux hyphenation-points)
+    (elts l hyphenation-rules &aux word hyphenation-points)
   "Process WORD string, possibly with HYPHENATION-RULES.
 Return a list of *FONT* characters, possibly alternating with discretionaries
 if HYPHENATION-RULES."
-  ;; Note that a word with explicit hyphens must not be hyphenated in any
-  ;; other way.
-  (cond ((and hyphenation-rules
-	      (setq hyphenation-points (hyphen-positions+1 word)))
+  (setq word (make-string l))
+  (loop :for i :from 0
+	:for elt :in elts
+	:while (and elt (< i l))
+	:do (setf (aref word i) (code-char (tfm:code elt))))
+  ;; A word with explicit hyphens must not be hyphenated in any other way.
+  (cond ((setq hyphenation-points (hyphen-positions+1 word))
 	 (process-word-with-hyphenation
 	  word hyphenation-points #'make-hyphenation-point))
-	((and hyphenation-rules
-	      (setq hyphenation-points (hyphenate word hyphenation-rules)))
+	((setq hyphenation-points (hyphenate word hyphenation-rules))
 	 (process-word-with-hyphenation
 	  word hyphenation-points
 	  (let ((pre-break (list (get-character #\-))))
 	    (lambda ()
 	      (make-hyphenation-point :pre-break pre-break :explicit nil)))))
-	(t
-	 (map 'list (lambda (char) (get-character char)) word))))
+	(t (subseq elts 0 l))))
+
+(defun word-constituent-p (elt)
+  "Return T if ELT is either an alphabetic of a dash font character."
+  (when (typep elt 'tfm:character-metrics)
+    (let ((char (code-char (tfm:code elt))))
+      (or (alpha-char-p char) (char= char #\-)))))
+
+(defun process-hyphenation (hlist &aux hyphenation-rules)
+  "Return a new hyphenated HLIST."
+  (setq hyphenation-rules (get-hyphenation-rules *language*))
+  (loop :with l
+	:with elts := hlist :while elts
+	:if (word-constituent-p (first elts))
+	  :do (setq l (position-if-not #'word-constituent-p elts))
+	  :and :append (process-word elts l hyphenation-rules)
+	  :and :do (setq elts (subseq elts l))
+	:else
+	  :collect (first elts) :and :do (setq elts (cdr elts))))
 
 
 
@@ -592,18 +611,11 @@ if HYPHENATION-RULES."
   "Return T if CHAR is a blank character."
   (member char *blanks*))
 
-(defun word-constituent-p (char)
-  "Return T if CHAR is a word constituent.
-Currently, this means alphabetic or a dash."
-  (or (alpha-char-p char) (char= char #\-)))
-
 (defun slice  (text &aux slice)
   "Slice TEXT string into a list of items.
 Words are sliced into *FONT* characters. Consecutive blanks are replaced with
-a single interword glue.
-
-TEXT's leading and trailing spaces are replaced with a single :space keyword
-if applicable."
+a single interword glue. TEXT's leading and trailing spaces are replaced with
+a single :space keyword if applicable."
   (setq slice
 	(loop :with string := (string-trim *blanks* text)
 	      :with length := (length string)
@@ -621,22 +633,7 @@ if applicable."
   (when (blankp (aref text (1- (length text)))) (endpush :space slice))
   slice)
 
-#|
-  (when *hyphenation*
-    (setq hyphenation-rules (get-hyphenation-rules *language*)))
 
-	      :else :if (alpha-char-p char)
-		:append (process-word
-			 (subseq string i
-			   (position-if-not #'word-constituent-p string
-			     :start i))
-			 hyphenation-rules)
-		;; this could happen here on the other hand.
-		:and :do (setq i
-			       (or (position-if-not #'word-constituent-p string
-				     :start i)
-				   length))
-|#
 
 
 ;; ==========================================================================
@@ -656,6 +653,7 @@ and :hyphenation."
       (let ((hlist (slice text)))
 	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
 	;; the kerning.
+	(when *hyphenation* (setq hlist (process-hyphenation hlist)))
 	(when *ligaturing* (setq hlist (process-ligatures hlist)))
 	(when *kerning* (setq hlist (process-kerns hlist)))
 	hlist))))
