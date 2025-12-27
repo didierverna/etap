@@ -591,7 +591,8 @@ if HYPHENATION-RULES."
   (loop :with l
 	:with elts := hlist :while elts
 	:if (word-constituent-p (first elts))
-	  :do (setq l (position-if-not #'word-constituent-p elts))
+	  :do (setq l (or (position-if-not #'word-constituent-p elts)
+			  (length elts)))
 	  :and :append (process-word elts l hyphenation-rules)
 	  :and :do (setq elts (subseq elts l))
 	:else
