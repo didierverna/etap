@@ -652,7 +652,7 @@ and :hyphenation."
 	  (*hyphenation* (getf features :hyphenation)))
       (let ((hlist (slice text)))
 	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
-	;; the kerning.
+	;; then kerning.
 	(when *hyphenation* (setq hlist (process-hyphenation hlist)))
 	(when *ligaturing* (setq hlist (process-ligatures hlist)))
 	(when *kerning* (setq hlist (process-kerns hlist)))
