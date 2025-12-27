@@ -543,14 +543,12 @@ to the new hlist, and the unprocessed new remainder."
 
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
 
-(defun process-word-with-hyphenation (word hyphenation-points hyphenator)
-  "Process WORD string with HYPHENATION-POINTS.
-Return a list of *FONT* characters, alternating with discretionaries at
-HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
+(defun hyphenate (word points hyphenator)
+  "Hyphenate WORD string at POINTS with HYPHENATOR."
   (loop :for i :from 0
 	:for char :across word
 	:for character := (get-character char)
-	:when (member i hyphenation-points) :collect (funcall hyphenator)
+	:when (member i points) :collect (funcall hyphenator)
 	  :collect character))
 
 (defun explicit-hyphen-positions+1 (elts l)
@@ -579,10 +577,10 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 				       (> position (- l *righthyphenmin*))))
 			  points))
 	 (if points
-	   (process-word-with-hyphenation word points #'make-hyphenation-point)
+	   (hyphenate word points #'make-hyphenation-point)
 	   (subseq elts 0 l)))
 	((setq points (get-hyphenation-points word rules))
-	 (process-word-with-hyphenation
+	 (hyphenate
 	  word points
 	  (let ((pre-break (list (get-character #\-))))
 	    (lambda ()
