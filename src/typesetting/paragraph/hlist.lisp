@@ -93,13 +93,15 @@
 ;; Characters
 ;; ----------
 
-(defun get-character (char)
-  "Get CHAR in *FONT*. Replace CHAR by a question mark if not found."
+#i(get-character 1)
+(defun get-character (char &optional (font *font*))
+  "Get CHAR in FONT (*FONT* by default).
+Replace CHAR by a question mark if not found."
   ;; #### TODO: no input encoding support yet.
-  (or (tfm:get-character (char-code char) *font*)
+  (or (tfm:get-character (char-code char) font)
       ;; #### FIXME: this one had better be available! Fall back to a null
       ;; character?
-      (tfm:get-character (char-code #\?) *font*)))
+      (tfm:get-character (char-code #\?) font)))
 
 
 
@@ -571,14 +573,20 @@ to the new hlist, and the unprocessed new remainder."
 				       (> position (- l *righthyphenmin*))))
 			  points))
 	 (if points
-	   (hyphenate elts l points #'make-hyphenation-point)
+	   (loop :for i :from 0 :upto (1- l)
+		 :for elt :in elts
+		 :when (member i points) :collect (make-hyphenation-point)
+		 :collect elt)
 	   (subseq elts 0 l)))
 	((setq points (get-hyphenation-points elts l rules))
-	 (hyphenate
-	  elts l points
-	  (let ((pre-break (list (get-character #\-))))
-	    (lambda ()
-	      (make-hyphenation-point :pre-break pre-break :explicit nil)))))
+	 (loop :for i :from 0 :upto (1- l)
+	       :for elt :in elts
+	       :when (member i points)
+		 :collect (make-hyphenation-point
+			   :pre-break (list (get-character #\-
+					      (tfm:font (nth (1- i) elts))))
+			   :explicit nil)
+	       :collect elt))
 	(t (subseq elts 0 l))))
 
 (defun word-constituent-p (elt)
