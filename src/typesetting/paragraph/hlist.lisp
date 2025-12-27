@@ -581,7 +581,7 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 	 (if points
 	   (process-word-with-hyphenation word points #'make-hyphenation-point)
 	   (subseq elts 0 l)))
-	((setq points (hyphenate word rules))
+	((setq points (get-hyphenation-points word rules))
 	 (process-word-with-hyphenation
 	  word points
 	  (let ((pre-break (list (get-character #\-))))

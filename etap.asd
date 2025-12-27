@@ -34,7 +34,7 @@
 	:components
 		((:file "rules")
 		 (:file "load")
-		 (:file "hyphenate")))
+		 (:file "points")))
        (:file "language")
        (:file "text")
        (:file "nlstring")))

@@ -8,9 +8,8 @@
 (defparameter *righthyphenmin* 3
   "The minimum number of characters after a potential hyphenation point.")
 
-(defun hyphenate (word rules)
-  "Hyphenate WORD (a string) based on RULES.
-Return a list of hyphenation points."
+(defun get-hyphenation-points (word rules)
+  "Return a list of hyphenation points in WORD (a string) based on RULES."
   (multiple-value-bind (points found) (hyphenation-exception word rules)
     (if found
       points
