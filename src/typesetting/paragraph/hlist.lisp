@@ -88,6 +88,21 @@
 ;; HList Items
 ;; ==========================================================================
 
+
+;; ----------
+;; Characters
+;; ----------
+
+(defun get-character (char)
+  "Get CHAR in *FONT*. Replace CHAR by a question mark if not found."
+  ;; #### TODO: no input encoding support yet.
+  (or (tfm:get-character (char-code char) *font*)
+      ;; #### FIXME: this one had better be available! Fall back to a null
+      ;; character?
+      (tfm:get-character (char-code #\?) *font*)))
+
+
+
 ;; -----
 ;; Kerns
 ;; -----
@@ -527,14 +542,6 @@ to the new hlist, and the unprocessed new remainder."
 ;; some situations, which we do not have right now.
 
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
-
-(defun get-character (char)
-  "Get CHAR in *FONT*. Replace CHAR by a question mark if not found."
-  ;; #### TODO: no input encoding support yet.
-  (or (tfm:get-character (char-code char) *font*)
-      ;; #### FIXME: this one had better be available! Fall back to a null
-      ;; character?
-      (tfm:get-character (char-code #\?) *font*)))
 
 (defun explicit-hyphen-positions+1 (elts l)
   "Return explicit hyphen positions + 1 in word of length L starting at ELTS."
