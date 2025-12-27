@@ -556,13 +556,8 @@ to the new hlist, and the unprocessed new remainder."
 	:for elt :in elts
 	:when (char= (code-char (tfm:code elt)) #\-) :collect (1+ i)))
 
-(defun hyphenate-word (elts l rules &aux word points)
+(defun hyphenate-word (elts l rules &aux points)
   "Hyphenate the first L ELTS (a word) with hyphenation RULES."
-  (setq word (make-string l))
-  (loop :for i :from 0
-	:for elt :in elts
-	:while (and elt (< i l))
-	:do (setf (aref word i) (code-char (tfm:code elt))))
   ;; A word with explicit hyphens must not be hyphenated in any other way.
   (cond ((setq points (explicit-hyphen-positions+1 elts l))
 	 (setq points (remove-if (lambda (position)
@@ -578,7 +573,7 @@ to the new hlist, and the unprocessed new remainder."
 	 (if points
 	   (hyphenate elts l points #'make-hyphenation-point)
 	   (subseq elts 0 l)))
-	((setq points (get-hyphenation-points word rules))
+	((setq points (get-hyphenation-points elts l rules))
 	 (hyphenate
 	  elts l points
 	  (let ((pre-break (list (get-character #\-))))

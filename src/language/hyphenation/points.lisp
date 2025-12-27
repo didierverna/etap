@@ -8,8 +8,13 @@
 (defparameter *righthyphenmin* 3
   "The minimum number of characters after a potential hyphenation point.")
 
-(defun get-hyphenation-points (word rules)
-  "Return a list of hyphenation points in WORD (a string) based on RULES."
+(defun get-hyphenation-points (elts l rules &aux word)
+  "Return a list of hyphenation points for the first L ELTS (a word).
+The points are computed depending on hyphenation RULES."
+  (setq word (make-string l))
+  (loop :for i :from 0 :upto (1- l)
+	:for elt :in elts
+	:do (setf (aref word i) (code-char (tfm:code elt))))
   (multiple-value-bind (points found) (hyphenation-exception word rules)
     (if found
       points
