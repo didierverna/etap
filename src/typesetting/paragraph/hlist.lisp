@@ -545,13 +545,6 @@ to the new hlist, and the unprocessed new remainder."
 
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
 
-(defun hyphenate (elts l points hyphenator)
-  "Hyphenate the first L ELTS (a word) at POINTS with HYPHENATOR."
-  (loop :for i :from 0 :upto (1- l)
-	:for elt :in elts
-	:when (member i points) :collect (funcall hyphenator)
-	:collect elt))
-
 (defun explicit-hyphen-positions+1 (elts l)
   "Return explicit hyphen positions + 1 in the first L ELTS (a word)."
   (loop :for i :from 0 :upto (1- l)
