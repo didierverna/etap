@@ -536,14 +536,9 @@ to the new hlist, and the unprocessed new remainder."
       ;; character?
       (tfm:get-character (char-code #\?) *font*)))
 
-(defun hyphen-positions+1 (elts l)
+(defun explicit-hyphen-positions+1 (elts l)
   "Return explicit hyphen positions + 1 in word of length L starting at ELTS."
-  ;; #### NOTE: we don't want to collect a final hyphen's position, because if
-  ;; a word ends with one, there's not point in inserting a discretionary
-  ;; there. Either the word is followed by a glue, so we will be able to
-  ;; break, or it's followed by, e.g. punctuation, and we don't want to break
-  ;; there.
-  (loop :for i :from 0 :upto (- l 2)
+  (loop :for i :from 0 :upto (1- l)
 	:for elt :in elts
 	:when (char= (code-char (tfm:code elt)) #\-) :collect (1+ i)))
 
@@ -566,9 +561,21 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 	:while (and elt (< i l))
 	:do (setf (aref word i) (code-char (tfm:code elt))))
   ;; A word with explicit hyphens must not be hyphenated in any other way.
-  (cond ((setq hyphenation-points (hyphen-positions+1 elts l))
-	 (process-word-with-hyphenation
-	  word hyphenation-points #'make-hyphenation-point))
+  (cond ((setq hyphenation-points (explicit-hyphen-positions+1 elts l))
+	 (setq hyphenation-points
+	       (remove-if (lambda (position)
+			    ;; #### WARNING: note the large inequality below.
+			    ;; Remember that our positions here are "+1". On
+			    ;; the right side, we're subtracting from the
+			    ;; length L which already is "last position + 1",
+			    ;; so nothing more to do.
+			    (or (<= position *lefthyphenmin*)
+				(> position (- l *righthyphenmin*))))
+		   hyphenation-points))
+	 (if hyphenation-points
+	   (process-word-with-hyphenation
+	    word hyphenation-points #'make-hyphenation-point)
+	   (subseq elts 0 l)))
 	((setq hyphenation-points (hyphenate word hyphenation-rules))
 	 (process-word-with-hyphenation
 	  word hyphenation-points
