@@ -536,16 +536,16 @@ to the new hlist, and the unprocessed new remainder."
       ;; character?
       (tfm:get-character (char-code #\?) *font*)))
 
-(defun hyphen-positions+1 (word)
-  "Return WORD string's explicit hyphen positions + 1."
-  (loop :for i :from 1
-	:for char :across word
-	;; We don't want to collect a final hyphen's position, because if a
-	;; word ends with one, there's not point in inserting a discretionary
-	;; there. Either the word is followed by a glue, so we will be able to
-	;; break, or it's followed by, e.g. punctuation, and we don't want to
-	;; break there.
-	:when (and (char= char #\-) (< i (length word))) :collect i))
+(defun hyphen-positions+1 (elts l)
+  "Return explicit hyphen positions + 1 in word of length L starting at ELTS."
+  ;; #### NOTE: we don't want to collect a final hyphen's position, because if
+  ;; a word ends with one, there's not point in inserting a discretionary
+  ;; there. Either the word is followed by a glue, so we will be able to
+  ;; break, or it's followed by, e.g. punctuation, and we don't want to break
+  ;; there.
+  (loop :for i :from 0 :upto (- l 2)
+	:for elt :in elts
+	:when (char= (code-char (tfm:code elt)) #\-) :collect (1+ i)))
 
 (defun process-word-with-hyphenation (word hyphenation-points hyphenator)
   "Process WORD string with HYPHENATION-POINTS.
@@ -557,18 +557,16 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 	:when (member i hyphenation-points) :collect (funcall hyphenator)
 	  :collect character))
 
-(defun process-word
+(defun hyphenate-word
     (elts l hyphenation-rules &aux word hyphenation-points)
-  "Process WORD string, possibly with HYPHENATION-RULES.
-Return a list of *FONT* characters, possibly alternating with discretionaries
-if HYPHENATION-RULES."
+  "Hyphenate word of length L starting at ELTS with HYPHENATION-RULES."
   (setq word (make-string l))
   (loop :for i :from 0
 	:for elt :in elts
 	:while (and elt (< i l))
 	:do (setf (aref word i) (code-char (tfm:code elt))))
   ;; A word with explicit hyphens must not be hyphenated in any other way.
-  (cond ((setq hyphenation-points (hyphen-positions+1 word))
+  (cond ((setq hyphenation-points (hyphen-positions+1 elts l))
 	 (process-word-with-hyphenation
 	  word hyphenation-points #'make-hyphenation-point))
 	((setq hyphenation-points (hyphenate word hyphenation-rules))
@@ -593,7 +591,7 @@ if HYPHENATION-RULES."
 	:if (word-constituent-p (first elts))
 	  :do (setq l (or (position-if-not #'word-constituent-p elts)
 			  (length elts)))
-	  :and :append (process-word elts l hyphenation-rules)
+	  :and :append (hyphenate-word elts l hyphenation-rules)
 	  :and :do (setq elts (subseq elts l))
 	:else
 	  :collect (first elts) :and :do (setq elts (cdr elts))))
