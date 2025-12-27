@@ -543,12 +543,6 @@ to the new hlist, and the unprocessed new remainder."
 
 (defvar *hyphenation* nil "Whether hyphenation is currently enabled.")
 
-(defun explicit-hyphen-positions+1 (elts l)
-  "Return explicit hyphen positions + 1 in word of length L starting at ELTS."
-  (loop :for i :from 0 :upto (1- l)
-	:for elt :in elts
-	:when (char= (code-char (tfm:code elt)) #\-) :collect (1+ i)))
-
 (defun process-word-with-hyphenation (word hyphenation-points hyphenator)
   "Process WORD string with HYPHENATION-POINTS.
 Return a list of *FONT* characters, alternating with discretionaries at
@@ -559,33 +553,37 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
 	:when (member i hyphenation-points) :collect (funcall hyphenator)
 	  :collect character))
 
-(defun hyphenate-word
-    (elts l hyphenation-rules &aux word hyphenation-points)
-  "Hyphenate word of length L starting at ELTS with HYPHENATION-RULES."
+(defun explicit-hyphen-positions+1 (elts l)
+  "Return explicit hyphen positions + 1 in the first L ELTS (a word)."
+  (loop :for i :from 0 :upto (1- l)
+	:for elt :in elts
+	:when (char= (code-char (tfm:code elt)) #\-) :collect (1+ i)))
+
+(defun hyphenate-word (elts l rules &aux word points)
+  "Hyphenate the first L ELTS (a word) with hyphenation RULES."
   (setq word (make-string l))
   (loop :for i :from 0
 	:for elt :in elts
 	:while (and elt (< i l))
 	:do (setf (aref word i) (code-char (tfm:code elt))))
   ;; A word with explicit hyphens must not be hyphenated in any other way.
-  (cond ((setq hyphenation-points (explicit-hyphen-positions+1 elts l))
-	 (setq hyphenation-points
-	       (remove-if (lambda (position)
-			    ;; #### WARNING: note the large inequality below.
-			    ;; Remember that our positions here are "+1". On
-			    ;; the right side, we're subtracting from the
-			    ;; length L which already is "last position + 1",
-			    ;; so nothing more to do.
-			    (or (<= position *lefthyphenmin*)
-				(> position (- l *righthyphenmin*))))
-		   hyphenation-points))
-	 (if hyphenation-points
-	   (process-word-with-hyphenation
-	    word hyphenation-points #'make-hyphenation-point)
+  (cond ((setq points (explicit-hyphen-positions+1 elts l))
+	 (setq points (remove-if (lambda (position)
+				   ;; #### WARNING: note the large inequality
+				   ;; below. Remember that our positions here
+				   ;; are "+1". On the right side, we're
+				   ;; subtracting from the length L which
+				   ;; already is "last position + 1", so
+				   ;; nothing more to do.
+				   (or (<= position *lefthyphenmin*)
+				       (> position (- l *righthyphenmin*))))
+			  points))
+	 (if points
+	   (process-word-with-hyphenation word points #'make-hyphenation-point)
 	   (subseq elts 0 l)))
-	((setq hyphenation-points (hyphenate word hyphenation-rules))
+	((setq points (hyphenate word rules))
 	 (process-word-with-hyphenation
-	  word hyphenation-points
+	  word points
 	  (let ((pre-break (list (get-character #\-))))
 	    (lambda ()
 	      (make-hyphenation-point :pre-break pre-break :explicit nil)))))
@@ -597,15 +595,15 @@ HYPHENATION-POINTS. Use the function HYPHENATOR to create discretionaries."
     (let ((char (code-char (tfm:code elt))))
       (or (alpha-char-p char) (char= char #\-)))))
 
-(defun process-hyphenation (hlist &aux hyphenation-rules)
+(defun process-hyphenation (hlist &aux rules)
   "Return a new hyphenated HLIST."
-  (setq hyphenation-rules (get-hyphenation-rules *language*))
+  (setq rules (get-hyphenation-rules *language*))
   (loop :with l
 	:with elts := hlist :while elts
 	:if (word-constituent-p (first elts))
 	  :do (setq l (or (position-if-not #'word-constituent-p elts)
 			  (length elts)))
-	  :and :append (hyphenate-word elts l hyphenation-rules)
+	  :and :append (hyphenate-word elts l rules)
 	  :and :do (setq elts (subseq elts l))
 	:else
 	  :collect (first elts) :and :do (setq elts (cdr elts))))
