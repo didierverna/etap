@@ -389,6 +389,7 @@ This is the default method."
   "Return kern for HELT1 and HELT2, or NIL."
   (and (typep helt1 'tfm:character-metrics)
        (typep helt2 'tfm:character-metrics)
+       (eq (tfm:font helt1) (tfm:font helt2))
        (tfm:get-kern helt1 helt2)))
 
 (defgeneric collect-kern (helt1 helt2 tail)
@@ -397,7 +398,7 @@ This is the default method."
     "Return NIL. This is the default method."
     nil)
   (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics) tail
-	    &aux (kern (tfm:get-kern helt1 helt2)))
+	    &aux (kern (get-kern helt1 helt2)))
     "Return a kern for HELT1 and HELT2 (TFM characters), or nil."
     (when kern (make-kern kern)))
   (:method ((helt1 tfm:character-metrics) (helt2 discretionary) tail)
@@ -443,6 +444,7 @@ This is the default method."
   "Return a ligature for HELT1 and HELT2, or NIL."
   (and (typep helt1 'tfm:character-metrics)
        (typep helt2 'tfm:character-metrics)
+       (eq (tfm:font helt1) (tfm:font helt2))
        (tfm:get-ligature helt1 helt2)))
 
 (defgeneric next-characters-1 (helt tail)
@@ -481,7 +483,7 @@ to the new hlist, and the unprocessed new tail.")
     (list (list helt1) (cons helt2 tail)))
   (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics)
 	    tail
-	    &aux (ligature (tfm:get-ligature helt1 helt2)) composition)
+	    &aux (ligature (get-ligature helt1 helt2)) composition)
     "Process ligatures between HELT1 and HELT2 TFM characters."
     (cond (ligature
 	   (unless (tfm:delete-after ligature) (push helt2 composition))
@@ -499,7 +501,7 @@ to the new hlist, and the unprocessed new tail.")
   (:method ((helt1 tfm:character-metrics) (helt2 discretionary) tail
 	    &aux (eat-helt1
 		  (some
-		   (lambda (character) (tfm:get-ligature helt1 character))
+		   (lambda (character) (get-ligature helt1 character))
 		   (next-characters (cons helt2 tail)))))
     "Process ligatures between HELT1 TFM character and HELT2 discretionary."
     (cond (eat-helt1
