@@ -624,27 +624,44 @@ to the new hlist, and the unprocessed new tail."
   "Return T if CHAR is a blank character."
   (member char *blanks*))
 
-(defun slice  (text &aux slice)
-  "Slice TEXT string into a list of items.
+(defun slice  (string)
+  "Slice STRING into an hlist.
 Words are sliced into *FONT* characters. Consecutive blanks are replaced with
-a single interword glue. TEXT's leading and trailing spaces are replaced with
-a single :space keyword if applicable."
-  (setq slice
-	(loop :with string := (string-trim *blanks* text)
-	      :with length := (length string)
-	      :with i := 0
-	      :while (< i length)
-	      :for char := (aref string i)
-	      :if (blankp char)
-		:collect (make-interword-glue)
-		;; i cannot be NIL here because we've trimmed any end blanks.
-		:and :do (setq i (position-if-not #'blankp string :start i))
-	      :else
-		:collect (get-fchar char)
-		:and :do (incf i)))
-  (when (blankp (aref text 0)) (push :space slice))
-  (when (blankp (aref text (1- (length text)))) (endpush :space slice))
-  slice)
+a single :space keyword."
+  (loop :with l := (length string)
+	:with i := 0
+	:while (< i l)
+	:for char := (aref string i)
+	:if (blankp char)
+	  :collect :space
+	  :and :do (setq i (or (position-if-not #'blankp string :start i) l))
+	:else
+	  :collect (get-fchar char)
+	  :and :do (incf i)))
+
+
+
+
+;; ==========================================================================
+;; Text glueing
+;; ==========================================================================
+
+(defun glue-hlist (hlist)
+  "Return a new glued hlist."
+  (when (some (lambda (helt) (not (eq helt :space))) hlist)
+    (while (eq (first hlist) :space) (setq hlist (rest hlist)))
+    (when (eq (first (last hlist)) :space)
+      (setq hlist (subseq hlist 0 (1+ (position-if-not
+					  (lambda (helt) (eq helt :space))
+					  hlist
+					:from-end t)))))
+    (loop :with helts := hlist :while helts
+	  :if (eq (first helts) :space)
+	    :collect (make-interword-glue)
+	    :and :do (while (eq (first helts) :space) (setq helts (rest helts)))
+	  :else
+	    :collect (first helts)
+	    :and :do (setq helts (rest helts)))))
 
 
 
@@ -666,6 +683,7 @@ and :hyphenation."
       (let ((hlist (slice text)))
 	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
 	;; then kerning.
+	(setq hlist (glue-hlist hlist))
 	(when *hyphenation* (setq hlist (hyphenate-hlist hlist)))
 	(when *ligaturing* (setq hlist (ligature-hlist hlist)))
 	(when *kerning* (setq hlist (kern-hlist hlist)))

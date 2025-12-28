@@ -48,6 +48,10 @@ items satisfying PRE-TEST are considered."
   `(setf ,place (nconc ,place (list ,object))))
 
 
+(defmacro while (test &body body)
+  "Execute BODY while TEST."
+  `(do () ((not ,test)) ,@body))
+
 ;; Based on public domain Alexandria / Quickutil version
 (defmacro when-let (bindings &body body)
   "Execute BODY only when all BINDINGS are non-nil.
