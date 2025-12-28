@@ -398,6 +398,9 @@ This is the default method."
     "Return NIL. This is the default method."
     nil)
   (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics) tail
+	    ;; #### NOTE: the first two type checks in GET-KERN will be
+	    ;; redundant because of the specialization of this method, but
+	    ;; it's not such a big deal for now.
 	    &aux (kern (get-kern helt1 helt2)))
     "Return a kern for HELT1 and HELT2 (TFM characters), or nil."
     (when kern (make-kern kern)))
@@ -481,8 +484,10 @@ to the new hlist, and the unprocessed new tail.")
   (:method (helt1 helt2 tail)
     "Return (HELT1) and (HELT2 . TAIL). This is the default method."
     (list (list helt1) (cons helt2 tail)))
-  (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics)
-	    tail
+  (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics) tail
+	    ;; #### NOTE: the first two type checks in GET-LIGATURE will be
+	    ;; redundant because of the specialization of this method, but
+	    ;; it's not such a big deal for now.
 	    &aux (ligature (get-ligature helt1 helt2)) composition)
     "Process ligatures between HELT1 and HELT2 TFM characters."
     (cond (ligature
