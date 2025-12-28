@@ -675,21 +675,29 @@ a single :space keyword."
 ;; Entry Point
 ;; ==========================================================================
 
-(defun %make-hlist (nlstring font features &aux (text (text nlstring)))
+(defun assemble-hlist (&rest args)
+  "Assemble an HLIST from ARGS."
+  (mapcan (lambda (arg)
+	    (typecase arg
+	      (string (slice arg))
+	      (list arg)))
+    args))
+
+(defun %make-hlist (nlstring font features)
   "Make a new hlist for NLSTRING in FONT, with FEATURES.
 FEATURES is a Boolean property list possibly requesting :kerning, :ligatures,
 and :hyphenation."
-  (when (and text (not (equal text "")))
-    (let ((*language* (language nlstring))
-	  (*font* font)
-	  (*kerning* (getf features :kerning))
-	  (*ligaturing* (getf features :ligatures))
-	  (*hyphenation* (getf features :hyphenation)))
-      (let ((hlist (slice text)))
-	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
-	;; then kerning.
-	(setq hlist (glue-hlist hlist))
-	(when *hyphenation* (setq hlist (hyphenate-hlist hlist)))
-	(when *ligaturing* (setq hlist (ligature-hlist hlist)))
-	(when *kerning* (setq hlist (kern-hlist hlist)))
-	hlist))))
+  (let ((*language* (language nlstring))
+	(*font* font)
+	(*kerning* (getf features :kerning))
+	(*ligaturing* (getf features :ligatures))
+	(*hyphenation* (getf features :hyphenation)))
+    (load-buffer (text nlstring))
+    (when *hlist*
+      ;; #### NOTE: the order is important. Glueing, hyphenation, ligaturing,
+      ;; and finally kerning.
+      (setq *hlist* (glue-hlist *hlist*))
+      (when *hyphenation* (setq *hlist* (hyphenate-hlist *hlist*)))
+      (when *ligaturing* (setq *hlist* (ligature-hlist *hlist*)))
+      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))
+      *hlist*)))
