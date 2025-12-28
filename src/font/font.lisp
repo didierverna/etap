@@ -2,7 +2,7 @@
 (in-readtable :etap)
 
 (defvar *font-file*
-  (asdf:system-relative-pathname :etap #p"share/ec-lmr10.tfm")
+  (asdf:system-relative-pathname :etap #p"share/fonts/ec-lmr10.tfm")
   "The TFM font file.")
 
 (defvar *font*
