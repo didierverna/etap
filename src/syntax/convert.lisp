@@ -1,6 +1,6 @@
 (in-package :etap)
 
-(defun %convert (buffer)
+(defun unstring-buffer (buffer)
   "Convert BUFFER string to a regular Lisp code string, and return it.
 BUFFER is in \"string mode\". Characters are accumulated in strings, until
 a backslash is encountered in which case a lisp expression is read and
@@ -31,9 +31,12 @@ printed, and string mode is set again."
 (defvar *hlist*)
 
 (defun load-buffer (buffer)
+  "Load BUFFER (originally an editor pane text) in ETAP-USER package.
+BUFFER is in string mode. Its contents is wrapped into a call of the form
+(SETQ ETAP::*HLIST* (ETAP::ASSEMBLE-HLIST <buffer contents>))."
   (ignore-errors
    (with-input-from-string (s1 "(setq etap::*hlist* (etap::assemble-hlist ")
-     (with-input-from-string (s2 (%convert buffer))
+     (with-input-from-string (s2 (unstring-buffer buffer))
        (with-input-from-string (s3 "))")
 	 (let ((s (make-concatenated-stream s1 s2 s3))
 	       (*package* (find-package :etap-user))
