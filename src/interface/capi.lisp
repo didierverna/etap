@@ -1564,8 +1564,8 @@ that the breakup does not contain any layout."
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
-     :font (gp:make-font-description :family "Latin Modern Roman"
-	     :weight :normal :slant :roman :size 10)
+     :font (apply #'gp:make-font-description
+	     (rest (find *font* *fonts* :key #'first)))
      :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
