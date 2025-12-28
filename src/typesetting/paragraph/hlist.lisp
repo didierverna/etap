@@ -391,43 +391,43 @@ This is the default method."
        (typep helt2 'tfm:character-metrics)
        (tfm:get-kern helt1 helt2)))
 
-(defgeneric collect-kern (helt1 helt2 remainder)
-  (:documentation "Collect kern for (HELT1 HELT2 . REMAINDER).")
-  (:method (helt1 helt2 remainder)
+(defgeneric collect-kern (helt1 helt2 tail)
+  (:documentation "Collect kern for (HELT1 HELT2 . TAIL).")
+  (:method (helt1 helt2 tail)
     "Return NIL. This is the default method."
     nil)
-  (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics)
-	    remainder &aux (kern (tfm:get-kern helt1 helt2)))
+  (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics) tail
+	    &aux (kern (tfm:get-kern helt1 helt2)))
     "Return a kern for HELT1 and HELT2 (TFM characters), or nil."
     (when kern (make-kern kern)))
-  (:method ((helt1 tfm:character-metrics) (helt2 discretionary) remainder)
+  (:method ((helt1 tfm:character-metrics) (helt2 discretionary) tail)
     "Add kerns to discretionary HELT2 if needed."
     (when (pre-break helt2)
-      (let ((kern (get-kern helt1 (car (pre-break helt2)))))
+      (let ((kern (get-kern helt1 (first (pre-break helt2)))))
 	(when kern (push (make-kern kern) (pre-break helt2)))))
     (if (no-break helt2)
-      (let ((kern (get-kern helt1 (car (no-break helt2)))))
+      (let ((kern (get-kern helt1 (first (no-break helt2)))))
 	(when kern (push (make-kern kern) (no-break helt2))))
-      (let ((kern (get-kern helt1 (car remainder))))
+      (let ((kern (get-kern helt1 (first tail))))
 	(when kern (setf (no-break helt2) (list (make-kern kern))))))
     nil)
-  (:method ((helt1 discretionary) (helt2 tfm:character-metrics) remainder)
+  (:method ((helt1 discretionary) (helt2 tfm:character-metrics) tail)
     "Add kerns to discretionary HELT1 if needed."
     (when (no-break helt1)
-      (let ((kern (get-kern (car (last (no-break helt1))) helt2)))
+      (let ((kern (get-kern (first (last (no-break helt1))) helt2)))
 	(when kern (endpush (make-kern kern) (no-break helt1)))))
     (when (post-break helt1)
-      (let ((kern (get-kern (car (last (post-break helt1))) helt2)))
+      (let ((kern (get-kern (first (last (post-break helt1))) helt2)))
 	(when kern (endpush (make-kern kern) (post-break helt1)))))
     nil))
 
-(defun process-kerns (hlist)
+(defun kern-hlist (hlist)
   "Return an new HLIST with kerns."
   (loop :for helts :on hlist
-	:for helt1 := (car helts)
-	:for helt2 := (cadr helts)
-	:for remainder := (cddr helts)
-	:for kern := (collect-kern helt1 helt2 remainder)
+	:for helt1 := (first helts)
+	:for helt2 := (second helts)
+	:for tail := (cddr helts)
+	:for kern := (collect-kern helt1 helt2 tail)
 	:collect helt1
 	:when kern :collect kern))
 
@@ -445,42 +445,42 @@ This is the default method."
        (typep helt2 'tfm:character-metrics)
        (tfm:get-ligature helt1 helt2)))
 
-(defgeneric next-characters-1 (helt remainder)
+(defgeneric next-characters-1 (helt tail)
   (:documentation
-   "Return a list of next characters for (HELT . REMAINDER).
-This function looks up in (HELT . REMAINDER) for all characters directly
+   "Return a list of next characters for (HELT . TAIL).
+This function looks up in (HELT . TAIL) for all characters directly
 accessible. There can be several of them, notably if HELT is a
 discretionary.")
-  (:method (helt remainder)
+  (:method (helt tail)
     "Return NIL. This is the default method."
     nil)
-  (:method ((helt tfm:character-metrics) remainder)
+  (:method ((helt tfm:character-metrics) tail)
     "Return (HELT) since HELT is a TFM character."
     (list helt))
-  (:method ((helt discretionary) remainder)
+  (:method ((helt discretionary) tail)
     "Lookup next characters in discretionary HELT's pre-break and no-break."
     (append (next-characters (pre-break helt))
-	    (next-characters (append (no-break helt) remainder)))))
+	    (next-characters (append (no-break helt) tail)))))
 
 (defun next-characters (hlist)
   "Return a list of next characters in HLIST.
 This function looks up in HLIST for all characters directly accessible.
 There can be several of them, notably if HLIST begins with a discretionary."
-  (when hlist (next-characters-1 (car hlist) (cdr hlist))))
+  (when hlist (next-characters-1 (first hlist) (rest hlist))))
 
 ;; #### NOTE: after processing ligatures, we may end up with adjacent
 ;; discretionaries, but this is normal. For example, in the word ef-fi-cient,
 ;; what we get eventually is
 ;; e\discretionary{f-}{fi}{ffi}\discretionary{-}{}{}cient.
-(defgeneric process-ligatures-2 (helt1 helt2 remainder)
-  (:documentation "Process ligatures for (HELT1 HELT2 . REMAINDER).
+(defgeneric ligature-hlist-2 (helt1 helt2 tail)
+  (:documentation "Ligature hlist made of (HELT1 HELT2 . TAIL).
 Return a list of two values: a list of done elements that should be appended
-to the new hlist, and the unprocessed new remainder.")
-  (:method (helt1 helt2 remainder)
-    "Return (HELT1) and (HELT2 . REMAINDER). This is the default method."
-    (list (list helt1) (cons helt2 remainder)))
+to the new hlist, and the unprocessed new tail.")
+  (:method (helt1 helt2 tail)
+    "Return (HELT1) and (HELT2 . TAIL). This is the default method."
+    (list (list helt1) (cons helt2 tail)))
   (:method ((helt1 tfm:character-metrics) (helt2 tfm:character-metrics)
-	    remainder
+	    tail
 	    &aux (ligature (tfm:get-ligature helt1 helt2)) composition)
     "Process ligatures between HELT1 and HELT2 TFM characters."
     (cond (ligature
@@ -490,52 +490,52 @@ to the new hlist, and the unprocessed new remainder.")
 	   (list (subseq composition 0 (tfm:pass-over ligature))
 		 ;; #### NOTE: because of the way TFM ligature programs work,
 		 ;; we know that there's at least one thing left in this
-		 ;; remainder. Indeed, the pass over cannot exceed the number
+		 ;; tail. Indeed, the pass over cannot exceed the number
 		 ;; of retained original characters.
 		 (append (nthcdr (tfm:pass-over ligature) composition)
-			 remainder)))
+			 tail)))
 	  (t
-	   (list (list helt1) (cons helt2 remainder)))))
-  (:method ((helt1 tfm:character-metrics) (helt2 discretionary) remainder
+	   (list (list helt1) (cons helt2 tail)))))
+  (:method ((helt1 tfm:character-metrics) (helt2 discretionary) tail
 	    &aux (eat-helt1
 		  (some
 		   (lambda (character) (tfm:get-ligature helt1 character))
-		   (next-characters (cons helt2 remainder)))))
+		   (next-characters (cons helt2 tail)))))
     "Process ligatures between HELT1 TFM character and HELT2 discretionary."
     (cond (eat-helt1
 	   (setf (pre-break helt2)
-		 (process-ligatures (cons helt1 (pre-break helt2)))
+		 (ligature-hlist (cons helt1 (pre-break helt2)))
 		 (no-break helt2)
-		 (process-ligatures (cons helt1 (no-break helt2))))
-	   (list nil (cons helt2 remainder)))
+		 (ligature-hlist (cons helt1 (no-break helt2))))
+	   (list nil (cons helt2 tail)))
 	  (t
-	   (list (list helt1) (cons helt2 remainder)))))
-  (:method ((helt1 discretionary) (helt2 tfm:character-metrics) remainder
+	   (list (list helt1) (cons helt2 tail)))))
+  (:method ((helt1 discretionary) (helt2 tfm:character-metrics) tail
 	    &aux (eat-helt2
-		  (or (get-ligature (car (last (no-break helt1))) helt2)
-		      (get-ligature (car (last (post-break helt1))) helt2))))
+		  (or (get-ligature (first (last (no-break   helt1))) helt2)
+		      (get-ligature (first (last (post-break helt1))) helt2))))
     "Process ligatures between HELT1 discretionary and HELT2 TFM character."
     (cond (eat-helt2
 	   (setf (no-break helt1)
-		 (process-ligatures (append (no-break helt1) (list helt2)))
+		 (ligature-hlist (append (no-break helt1) (list helt2)))
 		 (post-break helt1)
-		 (process-ligatures (append (post-break helt1) (list helt2))))
-	   (list nil (cons helt1 remainder)))
+		 (ligature-hlist (append (post-break helt1) (list helt2))))
+	   (list nil (cons helt1 tail)))
 	  (t
-	   (list (list helt1) (cons helt2 remainder))))))
+	   (list (list helt1) (cons helt2 tail))))))
 
-(defun process-ligatures-1 (helt remainder)
-  "Process ligatures for (HELT . REMAINDER).
+(defun ligature-hlist-1 (helt tail)
+  "Ligature hlist made of (HELT . TAIL).
 Return a list of two values: a list of done elements that should be appended
-to the new hlist, and the unprocessed new remainder."
-  (if remainder
-    (process-ligatures-2 helt (car remainder) (cdr remainder))
+to the new hlist, and the unprocessed new tail."
+  (if tail
+    (ligature-hlist-2 helt (first tail) (rest tail))
     (list (list helt))))
 
-(defun process-ligatures (hlist)
+(defun ligature-hlist (hlist)
   "Return a new HLIST with ligatures."
-  (loop :for helts := hlist :then remainder
-	:for (done remainder) := (process-ligatures-1 (car helts) (cdr helts))
+  (loop :for helts := hlist :then tail
+	:for (done tail) := (ligature-hlist-1 (first helts) (rest helts))
 	:while helts
 	:append done))
 
@@ -597,7 +597,7 @@ to the new hlist, and the unprocessed new remainder."
     (let ((char (code-char (tfm:code helt))))
       (or (alpha-char-p char) (char= char #\-)))))
 
-(defun process-hyphenation (hlist &aux rules)
+(defun hyphenate-hlist (hlist &aux rules)
   "Return a new hyphenated HLIST."
   (setq rules (get-hyphenation-rules *language*))
   (loop :with l
@@ -608,7 +608,7 @@ to the new hlist, and the unprocessed new remainder."
 	  :and :append (hyphenate-word helts l rules)
 	  :and :do (setq helts (subseq helts l))
 	:else
-	  :collect (first helts) :and :do (setq helts (cdr helts))))
+	  :collect (first helts) :and :do (setq helts (rest helts))))
 
 
 
@@ -666,7 +666,7 @@ and :hyphenation."
       (let ((hlist (slice text)))
 	;; #### NOTE: the order is important. Hyphenation, then ligaturing,
 	;; then kerning.
-	(when *hyphenation* (setq hlist (process-hyphenation hlist)))
-	(when *ligaturing* (setq hlist (process-ligatures hlist)))
-	(when *kerning* (setq hlist (process-kerns hlist)))
+	(when *hyphenation* (setq hlist (hyphenate-hlist hlist)))
+	(when *ligaturing* (setq hlist (ligature-hlist hlist)))
+	(when *kerning* (setq hlist (kern-hlist hlist)))
 	hlist))))
