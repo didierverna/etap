@@ -303,11 +303,11 @@ Glues represent breakable, elastic space."))
   (declare (ignore width shrink stretch penalty caliber))
   (apply #'make-instance 'glue keys))
 
-(defun make-interword-glue ()
-  "Make a *FONT* interword glue."
-  (make-glue :width (tfm:interword-space *font*)
-	     :shrink (tfm:interword-shrink *font*)
-	     :stretch (tfm:interword-stretch *font*)))
+(defun make-interword-glue (&optional (font *font*))
+  "Make a FONT (*FONT* by default) interword glue."
+  (make-glue :width (tfm:interword-space font)
+	     :shrink (tfm:interword-shrink font)
+	     :stretch (tfm:interword-stretch font)))
 
 
 
@@ -655,12 +655,17 @@ a single :space keyword."
 					  (lambda (helt) (eq helt :space))
 					  hlist
 					:from-end t)))))
-    (loop :with helts := hlist :while helts
+    (loop :with previous-helt
+	  :with helts := hlist :while helts
 	  :if (eq (first helts) :space)
-	    :collect (make-interword-glue)
+	    :collect (make-interword-glue
+		      (or (when (typep previous-helt 'tfm:character-metrics)
+			    (tfm:font previous-helt))
+			  *font*))
 	    :and :do (while (eq (first helts) :space) (setq helts (rest helts)))
 	  :else
-	    :collect (first helts)
+	    :do (setq previous-helt (first helts))
+	    :and :collect previous-helt
 	    :and :do (setq helts (rest helts)))))
 
 
