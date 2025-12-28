@@ -31,6 +31,12 @@
 ;; during their pre-processing stage. Afterwards, an hlist is transformed into
 ;; an array (called the `harray') which is stored in a lineup object.
 
+;; #### TODO: the hlist construction process is currently done in a purely
+;; functional style: every processing step (such as hyphenation, kerning,
+;; etc.) returns a new hlist based on the original one. At some point in the
+;; future, we may want to save up some consing by destructively modifying the
+;; original one instead.
+
 
 (in-package :etap)
 (in-readtable :etap)
