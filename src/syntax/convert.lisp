@@ -23,6 +23,7 @@ printed, and string mode is set again."
 	      :do (unless in-string
 		    (write-char #\" outstr)
 		    (setq in-string t))
+	      :and :if (char= char #\") :do (write-char #\\ outstr) :end
 	      :and :do (write-char char outstr)
 	    :finally (when in-string (write-char #\" outstr)))
       outstr)))
