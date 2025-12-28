@@ -1092,7 +1092,8 @@ not 0."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	(loop :with full-x := (+ (loop :for line :in (lines layout)
+	(loop :with fonts := (capi-object-property view :fonts)
+	      :with full-x := (+ (loop :for line :in (lines layout)
 				       :maximize (+ (x line) (width line)))
 				 5)
 	      :for rest :on (lines layout)
@@ -1186,7 +1187,11 @@ not 0."
 					 (aref *lm-ec*
 					       (tfm:code (object item)))
 					 (+ x (x item))
-					 y)))
+					 y
+					 :font (cdr
+						(find (tfm:font (object item))
+						    fonts
+						  :key #'car)))))
 				  ((and (discretionary-clue-p (object item))
 					(hyphenation-point-p
 					 (discretionary (object item)))
@@ -1660,6 +1665,13 @@ that the breakup does not contain any layout."
 This currently involves setting ETAP to the required state and fixating the
 geometry of option panes so that resizing the interface is done sensibly."
   (funcall (capi-object-property etap :initialization-function))
+  (let ((view (view-area etap)))
+    (setf (capi-object-property view :fonts)
+	  (mapcar (lambda (font)
+		    (cons (first font)
+			  (gp:find-best-font view
+			    (apply #'gp:make-font-description (rest font)))))
+	    *fonts*)))
   (let* ((layout (slot-value etap 'settings-1))
 	 (size (multiple-value-list (simple-pane-visible-size layout))))
     (set-hint-table layout
