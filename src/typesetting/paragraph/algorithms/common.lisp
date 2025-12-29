@@ -481,9 +481,13 @@ Optionally preset ASAR and ESAR."
   (setf (slot-value line 'items)
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
-	      ;; #### FIXME: this will break the day a line begins with a
-	      ;; whitespace!
-	      :with h
+	      ;; Somewhat arbitrary but small initial value. The idea is to
+	      ;; make whitespaces of the same height as the preceding
+	      ;; character's ex (in the future, the preceding box's height),
+	      ;; while remaining on the safe side if there's no previous
+	      ;; height to get (for instance if a line ever begins with a
+	      ;; whitespace).
+	      :with h := 3
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
 	      :if (or (discretionary-clue-p object) (eol-clue-p object))
