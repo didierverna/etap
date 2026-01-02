@@ -554,7 +554,7 @@ discretionaries if HYPHENATION-RULES is non-NIL."
 ;; Text slicing
 ;; ------------
 
-(defparameter *blanks* '(#\Space #\Tab #\Newline)
+(defparameter *blanks* '(#\Space #\Tab #\Newline #\Return)
   "The list of blank characters.")
 
 (defun blankp (char)
