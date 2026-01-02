@@ -624,7 +624,7 @@ to the new hlist, and the unprocessed new tail."
 ;; Text slicing
 ;; ==========================================================================
 
-(defparameter *blanks* '(#\Space #\Tab #\Newline)
+(defparameter *blanks* '(#\Space #\Tab #\Newline #\Return)
   "The list of blank characters.")
 
 (defun blankp (char)
