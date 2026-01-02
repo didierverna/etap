@@ -36,8 +36,7 @@
 		 (:file "load")
 		 (:file "points")))
        (:file "language")
-       (:file "text")
-       (:file "nlstring")))
+       (:file "text")))
      (:module "syntax"
       :serial t
       :components ((:file "convert")))

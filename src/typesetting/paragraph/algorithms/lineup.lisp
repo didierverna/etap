@@ -44,11 +44,14 @@ All primary methods must return a (possibly modified) HLIST.")
 ;; specification (and the generic dispatch) of BREAK-LINEUP much cleaner.
 
 (defclass lineup ()
-  ((nlstring
-    :documentation "The lineup's original nlstring."
-    :initarg :nlstring :reader nlstring)
+  ((buffer
+    :documentation "The lineup's buffer."
+    :initarg :buffer :reader buffer)
+   (language
+    :documentation "The lineup's default language."
+    :initarg :language :reader language)
    (font
-    :documentation "The lineup's font."
+    :documentation "The lineup's default font."
     :initarg :font :reader font)
    (features
     :documentation "The lineup's features."
@@ -77,7 +80,8 @@ This currently involves:
 - creating the harray and initializing the break point indexes,
 - computing the total number of (usable) break points, and theoretical
   solutions."
-  (setq hlist (%make-hlist (nlstring lineup) (font lineup) (features lineup)))
+  (setq hlist (%make-hlist (buffer lineup) (language lineup) (font lineup)
+			   (features lineup)))
   (when hlist
     (setq hlist (apply #'post-process-hlist hlist
 		       (disposition lineup)
@@ -116,8 +120,8 @@ breaking solutions."
 ;; Entry Point
 ;; ==========================================================================
 
-(defun %make-lineup (nlstring font features disposition algorithm)
+(defun %make-lineup (buffer language font features disposition algorithm)
   "Make a new lineup. See `context' for an explanation of the arguments."
   (make-instance 'lineup
-    :nlstring nlstring :font font :features features
-    :disposition disposition :algorithm algorithm))
+    :buffer buffer :language language :font font
+    :features features :disposition disposition :algorithm algorithm))

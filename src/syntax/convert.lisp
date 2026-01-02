@@ -34,7 +34,7 @@ printed, and string mode is set again."
   "Load BUFFER (originally an editor pane text) in ETAP-USER package.
 BUFFER is in string mode. Its contents is wrapped into a call of the form
 (SETQ ETAP::*HLIST* (ETAP::ASSEMBLE-HLIST <buffer contents>))."
-  (ignore-errors
+ ; (ignore-errors
    (with-input-from-string (s1 "(setq etap::*hlist* (etap::assemble-hlist ")
      (with-input-from-string (s2 (unstring-buffer buffer))
        (with-input-from-string (s3 "))")
@@ -43,4 +43,4 @@ BUFFER is in string mode. Its contents is wrapped into a call of the form
 	       (*print-readably* t)
 	       (*print-pretty* nil))
 	   (unwind-protect (load s :verbose nil :print nil)
-	     (close s))))))))
+	     (close s)))))));)

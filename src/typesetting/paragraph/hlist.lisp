@@ -19,11 +19,11 @@
 ;; HLists created by the function %MAKE-HLIST below are independent from
 ;; paragraph formatting considerations (paragraph width, disposition,
 ;; algorithm), so in theory they could be reified into an actual data
-;; structure and reused multiple times (when the nlstring, font, and lineup
-;; features do not change). However, most typesetting algorithms modify the
-;; hlist right after it is created (adjusting penalties, adding a final glue,
-;; etc.). Consequently, in order to share the original hlist, we would need
-;; the algorithms to work on fresh copies of it. It would in fact be more
+;; structure and reused multiple times (when the buffer, font, language, and
+;; lineup features do not change). However, most typesetting algorithms modify
+;; the hlist right after it is created (adjusting penalties, adding a final
+;; glue, etc.). Consequently, in order to share the original hlist, we would
+;; need the algorithms to work on fresh copies of it. It would in fact be more
 ;; complicated to do (and perhaps not even more efficient) than recreating it
 ;; from scratch. Because of that, hlists are currently just temporary objects
 ;; owned by the algorithms.
@@ -690,16 +690,16 @@ a single :space keyword."
 	      (list arg)))
     args))
 
-(defun %make-hlist (nlstring font features)
-  "Make a new hlist for NLSTRING in FONT, with FEATURES.
+(defun %make-hlist (buffer language font features)
+  "Make a new hlist for BUFFER, with default LANGUAGE and FONT, and FEATURES.
 FEATURES is a Boolean property list possibly requesting :kerning, :ligatures,
 and :hyphenation."
-  (let ((*language* (language nlstring))
+  (let ((*language* language)
 	(*font* font)
 	(*kerning* (getf features :kerning))
 	(*ligaturing* (getf features :ligatures))
 	(*hyphenation* (getf features :hyphenation)))
-    (load-buffer (text nlstring))
+    (load-buffer buffer)
     (when *hlist*
       ;; #### NOTE: the order is important. Glueing, hyphenation, ligaturing,
       ;; and finally kerning.

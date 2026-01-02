@@ -390,9 +390,8 @@ Display LAYOUT number (1 by default)."
   (remake-with-lineup
    etap
    (%make-lineup
-    (make-nlstring
-     :text (editor-pane-text (text etap))
-     :language (language-specification etap))
+    (editor-pane-text (text etap))
+    (language-specification etap)
     (capi-object-property etap :font)
     (widget-value (features-box etap))
     (disposition-specification etap)
@@ -780,16 +779,19 @@ Otherwise, reselect the previously selected one."
 
 ;; Source text menu
 
-(defun text-menu-callback (item etap &aux nlstring)
+(defun text-menu-callback (item etap)
   "Function called when the ITEM source text menu button is clicked in ETAP."
-  (setq nlstring (case item
-		   (:reset-to-original
-		    (capi-object-property etap :original-nlstring))
-		   (:reset-to-default
-		    (make-nlstring :text *text* :language *language*))))
-  (setf (editor-pane-text (text etap)) (text nlstring))
-  (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language nlstring))
+  (case item
+    (:reset-to-original
+     (setf (editor-pane-text (text etap))
+	   (capi-object-property etap :original-buffer)
+	   (choice-selected-item (first (menu-items (language-menu etap))))
+	   (capi-object-property etap :original-language)))
+    (:reset-to-default
+     (setf (editor-pane-text (text etap))
+	   *text*
+	   (choice-selected-item (first (menu-items (language-menu etap))))
+	   *language*)))
   (remake etap))
 
 
@@ -1711,10 +1713,23 @@ those which may affect the lineup."
 ;; State
 
 (defun set-state
-    (etap nlstring font features disposition algorithm width
+    (etap buffer language font features disposition algorithm width
      clues inspector zoom)
   "Set ETAP interface's widgets state."
-  (setf (capi-object-property etap :original-nlstring) nlstring)
+  (setf (capi-object-property etap :original-buffer) buffer)
+  (setf (capi-object-property etap :original-language) language)
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	language)
+  ;; #### WARNING: this callback mess is needed because programmatically
+  ;; changing the editor pane's text triggers its change callback. This
+  ;; entails two problems:
+  ;; 1. it doesn't work when the interface is initialized (the call to
+  ;;    top-level-interface returns nil),
+  ;; 2. when calling this function from outside the interface, the application
+  ;; logic (remake) would be executed twice.
+  (setf (editor-pane-change-callback (text etap)) nil)
+  (setf (editor-pane-text (text etap)) buffer)
+  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
   (setf (capi-object-property etap :font) font)
   (setf (widget-value (features-box etap)) features)
   (setf (widget-value (disposition-type-box etap))
@@ -1752,42 +1767,32 @@ those which may affect the lineup."
   (setf (widget-value (clues-box etap)) clues)
   (setf (widget-value (inspector-box etap)) inspector)
   (enable-inspector (inspector-box etap))
-  (setf (widget-value (zoom-cursor etap)) zoom)
-  (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language nlstring))
-  ;; #### WARNING: this callback mess is needed because programmatically
-  ;; changing the editor pane's text triggers its change callback. This
-  ;; entails two problems:
-  ;; 1. it doesn't work when the interface is initialized (the call to
-  ;;    top-level-interface returns nil),
-  ;; 2. when calling this function from outside the interface, the application
-  ;; logic (remake) would be executed twice.
-  (setf (editor-pane-change-callback (text etap)) nil)
-  (setf (editor-pane-text (text etap)) (text nlstring))
-  (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
+  (setf (widget-value (zoom-cursor etap)) zoom))
 
+#i(set-state-from-lineup 1)
 (defun set-state-from-lineup (etap lineup width clues inspector zoom)
   "Set ETAP interface's widgets state using LINEUP."
   (set-state etap
-    (nlstring lineup) (font lineup)
-    (features lineup) (disposition lineup)
-    (algorithm lineup) width
+    (buffer lineup) (language lineup) (font lineup)
+    (features lineup) (disposition lineup) (algorithm lineup) width
     clues inspector zoom))
 
+#i(set-state-from-breakup 1)
 (defun set-state-from-breakup (etap breakup clues inspector zoom)
   "Set ETAP interface's widgets state using BREAKUP."
   (set-state-from-lineup etap
     (lineup breakup) (paragraph-width breakup)
     clues inspector zoom))
 
+#i(set-state-and-remake 1)
 (defun set-state-and-remake
     (etap
-     breakup lineup nlstring font features disposition algorithm width
+     breakup lineup buffer language font features disposition algorithm width
      layout clues inspector zoom)
   "Set ETAP interface's widgets state and remake as needed."
   (cond ((and (null lineup) (null breakup))
 	 (set-state etap
-	   nlstring font features disposition algorithm width
+	   buffer language font features disposition algorithm width
 	   clues inspector zoom)
 	 (remake etap))
 	(lineup
@@ -1814,13 +1819,13 @@ those which may affect the lineup."
 See also `interface-breakup'."
   (values
    (make-context
+    :buffer (editor-pane-text (text interface))
+    :language (language-specification interface)
     :font (capi-object-property interface :font)
-    :algorithm (algorithm-specification interface)
-    :disposition (disposition-specification interface)
     :features (widget-value (features-box interface))
-    :paragraph-width (widget-value (paragraph-width-cursor interface))
-    :text (editor-pane-text (text interface))
-    :language (language-specification interface))
+    :disposition (disposition-specification interface)
+    :algorithm (algorithm-specification interface)
+    :paragraph-width (widget-value (paragraph-width-cursor interface)))
    (list
     :clues (widget-value (clues-box interface))
     :inspector (widget-value (inspector-box interface))
@@ -1837,16 +1842,8 @@ See also `interface-state'."
 (defun visualize
     (&key (interface *interface*)
 	  (context *context*)
-	  (text
-	   (if (and context (nlstring context))
-	     (text (nlstring context))
-	     *text*)
-	   textp)
-	  (language
-	   (if (and context (nlstring context))
-	     (language (nlstring context))
-	     *language*)
-	   languagep)
+	  (buffer (if context (buffer context) *text*) bufferp)
+	  (language (if context (language context) *language*) languagep)
 	  (font (if context (font context) *font*) fontp)
 	  (features (when context (features context)) featuresp)
 	  (kerning (getf features :kerning) kerningp)
@@ -1864,10 +1861,7 @@ See also `interface-state'."
 	  (clues '(:characters t))
 	  inspector
 	  (zoom 100)
-     &aux (nlstring (if (or textp languagep (null context))
-		      (make-nlstring :text text :language language)
-		      (nlstring context)))
-	  reuse)
+     &aux reuse)
   "Run a typesetting visualization with the specified parameters.
 INTERFACE defaults to *INTERFACE*, which is initially null.
 If INTERFACE is null, create a new interface. Otherwise, reuse the provided
@@ -1904,8 +1898,7 @@ See also `interface-state' and `interface-breakup'."
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
-  (when (or textp languagep
-	    fontp
+  (when (or bufferp languagep fontp
 	    featuresp kerningp ligaturesp hyphenationp
 	    dispositionp
 	    algorithmp)
@@ -1917,7 +1910,7 @@ See also `interface-state' and `interface-breakup'."
 	   #'set-state-and-remake
 	   interface
 	   breakup lineup
-	   nlstring font features disposition algorithm width
+	   buffer language font features disposition algorithm width
 	   layout clues inspector zoom))
 	(t
 	 ;; See comment atop INTERFACE-DISPLAY about this.
@@ -1926,7 +1919,7 @@ See also `interface-state' and `interface-breakup'."
 		 (set-state-and-remake
 		  interface
 		  breakup lineup
-		  nlstring font features disposition algorithm width
+		  buffer language font features disposition algorithm width
 		  layout clues inspector zoom)))
 	 (display interface)))
   interface)
