@@ -15,7 +15,7 @@
 
 
 ;; ==========================================================================
-;; Algorithm HList Post-Processing
+;; Algorithm HList Processing
 ;; ==========================================================================
 
 ;; #### WARNING: the DISPOSITION argument is currently unused, but will be
@@ -25,10 +25,10 @@
 ;; knowing in advance whether they're going to be used or not, so we need to
 ;; relax keyword argument checking.
 
-(defgeneric post-process-hlist
+(defgeneric process-hlist
     (hlist disposition algorithm &key &allow-other-keys)
   (:documentation
-   "Post-process HLIST for DISPOSITION in an ALGORITHM-specific way.
+   "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
 All primary methods must return a (possibly modified) HLIST.")
   (:method (hlist disposition algorithm &key)
     "Return HLIST as-is. This is the default method."
@@ -92,15 +92,15 @@ This currently involves:
 	(*hyphenation* (getf features :hyphenation)))
     (load-buffer (buffer lineup))
     (when *hlist*
-      ;; #### NOTE: the order is important. Handling blanks, hyphenation,
-      ;; ligaturing, and finally kerning.
-      (setq *hlist* (apply #'post-process-hlist *hlist*
-			   (disposition lineup)
-			   (algorithm-type algorithm)
-			   (algorithm-options algorithm)))
+      ;; #### NOTE: the order is important: Hyphenation, ligaturing, and
+      ;; finally kerning.
       (when *hyphenation* (setq *hlist* (hyphenate-hlist *hlist*)))
       (when *ligaturing* (setq *hlist* (ligature-hlist *hlist*)))
-      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))))
+      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))
+      (setq *hlist* (apply #'process-hlist *hlist*
+			   (disposition lineup)
+			   (algorithm-type algorithm)
+			   (algorithm-options algorithm)))))
   (with-slots (harray) lineup
     (setq harray (make-array (length *hlist*) :initial-contents *hlist*))
     ;; #### NOTE: for clarity, we want to make a distinction between and empty

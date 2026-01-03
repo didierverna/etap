@@ -177,7 +177,7 @@ See `define-caliber' for more information."
 ;; HList
 ;; ==========================================================================
 
-(defmethod post-process-hlist
+(defmethod process-hlist
     (hlist disposition (algorithm (eql :fit))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))

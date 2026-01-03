@@ -1,32 +1,19 @@
 ;; Borrowing terminology from TeX, an `hlist' (Horizontal List) is the result
 ;; of slicing (hashing? but that's not the meaning of the h in hlist ;-)) the
-;; input text into a list of items called `helts' (Horizontal Elements). The
-;; basic helts are `fchars' (Font Characters) and interword glues. Depending
-;; on the requested (lineup) features, an hlist may also contain kerns,
-;; ligatures, and hyphenation discretionaries.
+;; input text into a list of items called `helts' (Horizontal Elements).
+;; Depending on the requested lineup features and algorithmic options, the
+;; possible helts are `fchars' (Font Characters, possibly including
+;; ligatures), kerns, glues, and discretionaries (in particular for
+;; hyphenation purposes).
 
-;; There are a number of characteristics in the hlist that affect the way
-;; algorithms are implemented. These specificities should be kept in mind
-;; because should they change, said algorithms may become buggy.
-;; In particular:
-;; - the paragraph string has leading and trailing spaces removed. There is a
-;;   single glue between words (the KP algorithm adds an infinitely
-;;   stretchable one at the end),
-;; - the only discretionaries that we have come from the hyphenation step, so
-;;   they originally appear only in the middle of words. However, they may
-;;   turn out to be anywhere after adding ligatures and kerns.
-
-;; HLists created by the function %MAKE-HLIST below are independent from
-;; paragraph formatting considerations (paragraph width, disposition,
-;; algorithm), so in theory they could be reified into an actual data
-;; structure and reused multiple times (when the buffer, font, language, and
-;; lineup features do not change). However, most typesetting algorithms modify
-;; the hlist right after it is created (adjusting penalties, adding a final
-;; glue, etc.). Consequently, in order to share the original hlist, we would
-;; need the algorithms to work on fresh copies of it. It would in fact be more
-;; complicated to do (and perhaps not even more efficient) than recreating it
-;; from scratch. Because of that, hlists are currently just temporary objects
-;; owned by the algorithms.
+;; HLists remain independent from the paragraph width but not from the
+;; typesetting algorithm. Algorithms are passed a "raw" hlist in which blank
+;; space is represented by a :BLANK keyword. It is each algorithm's
+;; responsibility to perform glueing (because it might be done in different
+;; ways depending on the algorithm, or the paragraph's disposition). See the
+;; function `process-hlist' for more information. Hyphenation, ligaturing, and
+;; kerning can be done independently from the algorithm however, and is
+;; performed afterwards during lineup initialization.
 
 ;; HLists are lists because it makes it easier for algorithms to modified them
 ;; during their pre-processing stage. Afterwards, an hlist is transformed into
@@ -621,7 +608,7 @@ to the new hlist, and the unprocessed new tail."
 
 
 ;; ==========================================================================
-;; Text slicing
+;; Slicing
 ;; ==========================================================================
 
 (defparameter *blanks* '(#\Space #\Tab #\Newline #\Return)
