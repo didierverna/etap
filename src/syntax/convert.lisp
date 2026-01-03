@@ -33,9 +33,9 @@ printed, and string mode is set again."
 (defun load-buffer (buffer)
   "Load BUFFER (originally an editor pane text) in ETAP-USER package.
 BUFFER is in string mode. Its contents is wrapped into a call of the form
-(SETQ ETAP::*HLIST* (ETAP::ASSEMBLE-HLIST <buffer contents>))."
-  (ignore-errors
-   (with-input-from-string (s1 "(setq etap::*hlist* (etap::assemble-hlist ")
+(SETQ ETAP::*HLIST* (ETAP::MAKE-HLIST <buffer contents>))."
+  (ignore-errors ; gross, but allows partial editing in the CAPI pane.
+   (with-input-from-string (s1 "(setq etap::*hlist* (etap::make-hlist ")
      (with-input-from-string (s2 (unstring-buffer buffer))
        (with-input-from-string (s3 "))")
 	 (let ((s (make-concatenated-stream s1 s2 s3))

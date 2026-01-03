@@ -682,29 +682,26 @@ a single :blank keyword."
 ;; Entry Point
 ;; ==========================================================================
 
-(defun assemble-hlist (&rest args)
-  "Assemble an HLIST from ARGS."
-  (mapcan (lambda (arg)
-	    (typecase arg
-	      (string (slice arg))
-	      (list arg)))
-    args))
-
-(defun %make-hlist (buffer language font features)
-  "Make a new hlist for BUFFER, with default LANGUAGE and FONT, and FEATURES.
-FEATURES is a Boolean property list possibly requesting :kerning, :ligatures,
-and :hyphenation."
-  (let ((*language* language)
-	(*font* font)
-	(*kerning* (getf features :kerning))
-	(*ligaturing* (getf features :ligatures))
-	(*hyphenation* (getf features :hyphenation)))
-    (load-buffer buffer)
-    (when *hlist*
-      ;; #### NOTE: the order is important. Glueing, hyphenation, ligaturing,
-      ;; and finally kerning.
-      (setq *hlist* (glue-hlist *hlist*))
-      (when *hyphenation* (setq *hlist* (hyphenate-hlist *hlist*)))
-      (when *ligaturing* (setq *hlist* (ligature-hlist *hlist*)))
-      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))
-      *hlist*)))
+;; This is the function that wraps buffer contents.
+(defun make-hlist (&rest args &aux hlist)
+  "Make an HLIST from ARGS.
+ARGS are MAPCAN'ed together after processing. The processing in question
+depends on the type of the argument. More specifically:
+- lists are used as-is,
+- strings are sliced (see `slice').
+Finally, consecutive occurrences of :BLANK are replaced with a single one.
+This function returns NIL of the resulting hlist only contains blanks."
+  (setq hlist (mapcan (lambda (arg)
+			(typecase arg
+			  (string (slice arg))
+			  (list arg)))
+		args))
+  (when (some (lambda (helt) (not (eq helt :blank))) hlist)
+    (loop :with helts := hlist :while helts
+	  :for helt := (first helts)
+	  :if (eq helt :blank)
+	    :collect :blank
+	    :and :do (while (eq (first helts) :blank) (setq helts (rest helts)))
+	  :else
+	    :collect helt
+	    :and :do (setq helts (rest helts)))))

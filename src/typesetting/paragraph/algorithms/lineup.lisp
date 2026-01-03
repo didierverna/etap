@@ -74,21 +74,33 @@ All primary methods must return a (possibly modified) HLIST.")
   (:documentation "The LINEUP class."))
 
 (defmethod initialize-instance :after
-    ((lineup lineup) &key &aux (algorithm (algorithm lineup)) hlist)
+    ((lineup lineup)
+     &key
+     &aux (features (features lineup))
+	  (algorithm (algorithm lineup)))
   "Finalize LINEUP.
 This currently involves:
 - creating the harray and initializing the break point indexes,
 - computing the total number of (usable) break points, and theoretical
   solutions."
-  (setq hlist (%make-hlist (buffer lineup) (language lineup) (font lineup)
-			   (features lineup)))
-  (when hlist
-    (setq hlist (apply #'post-process-hlist hlist
-		       (disposition lineup)
-		       (algorithm-type algorithm)
-		       (algorithm-options algorithm))))
+  (let ((*language* (language lineup))
+	(*font* (font lineup))
+	(*kerning* (getf features :kerning))
+	(*ligaturing* (getf features :ligatures))
+	(*hyphenation* (getf features :hyphenation)))
+    (load-buffer (buffer lineup))
+    (when *hlist*
+      ;; #### NOTE: the order is important. Handling blanks, hyphenation,
+      ;; ligaturing, and finally kerning.
+      (setq *hlist* (apply #'post-process-hlist *hlist*
+			   (disposition lineup)
+			   (algorithm-type algorithm)
+			   (algorithm-options algorithm)))
+      (when *hyphenation* (setq *hlist* (hyphenate-hlist *hlist*)))
+      (when *ligaturing* (setq *hlist* (ligature-hlist *hlist*)))
+      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))))
   (with-slots (harray) lineup
-    (setq harray (make-array (length hlist) :initial-contents hlist))
+    (setq harray (make-array (length *hlist*) :initial-contents *hlist*))
     ;; #### NOTE: for clarity, we want to make a distinction between and empty
     ;; paragraph and a non-empty one with no break points. In the former case,
     ;; we state that we have 0 solutions, while in the later case we have one.
