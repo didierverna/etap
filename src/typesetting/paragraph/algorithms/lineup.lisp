@@ -91,6 +91,10 @@ This currently involves:
 	(*ligaturing* (getf features :ligatures))
 	(*hyphenation* (getf features :hyphenation)))
     (load-buffer (buffer lineup))
+    ;; #### NOTE: I'm doing this here instead of in MAKE-HLIST in prevision
+    ;; for this function being called recursively.
+    (when (eq (first *hlist*) :blank) (setq *hlist* (rest *hlist*)))
+    (when (eq (first (last *hlist*)) :blank) (setq *hlist* (nbutlast *hlist*)))
     (when *hlist*
       ;; #### NOTE: the order is important: Hyphenation, ligaturing, and
       ;; finally kerning.
