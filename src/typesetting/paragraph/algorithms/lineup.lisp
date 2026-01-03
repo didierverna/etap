@@ -3,10 +3,12 @@
 ;; equivalent of an hlist, in array form).
 
 ;; In addition to the harray, the lineup also stores the computation of the
-;; break points and theoretical solutions numbers. We associate those numbers
-;; with the lineup's harray rather than with the original hlist because some
-;; algorithms have control over the availability of break points (e.g. by
-;; putting an infinite penalty on hyphenation points).
+;; potential break points and theoretical solutions numbers. We associate
+;; those numbers with the lineup's harray rather than with the original hlist
+;; in order to let algorithms prepare the harray in any way they see fit (this
+;; might affect the number of break points). Note that the computed number of
+;; break-points is theoretical. In particular it doesn't reflect dynamically
+;; adjusted penalties.
 
 (in-package :etap)
 (in-readtable :etap)
@@ -66,7 +68,7 @@ All primary methods must return a (possibly modified) HLIST.")
     :documentation "The lineup's harray."
     :reader harray)
    (break-points-#
-    :documentation "The number of break points."
+    :documentation "The number of theoretical break points."
     :initform 0 :reader break-points-#)
    (theoretical-solutions-#
     :documentation "The number of theoretical solutions (2^n)."
@@ -109,9 +111,8 @@ This currently involves:
 	    :for item :across harray
 	    :for i :from 0
 	    :when (break-point-p item)
-	      :do (progn
-		    (setf (slot-value item 'idx) i)
-		    (when ($< (penalty item) +∞) (incf break-points-#)))
+	      :do (setf (slot-value item 'idx) i)
+	      :and :do (incf break-points-#)
 	    :finally (setf (slot-value lineup 'break-points-#)
 			   break-points-#
 			   (slot-value lineup 'theoretical-solutions-#)
