@@ -637,30 +637,22 @@ a single :blank keyword."
 
 
 ;; ==========================================================================
-;; Text glueing
+;; Glueing
 ;; ==========================================================================
 
 (defun glue-hlist (hlist)
   "Return a new glued hlist."
-  (when (some (lambda (helt) (not (eq helt :blank))) hlist)
-    (while (eq (first hlist) :blank) (setq hlist (rest hlist)))
-    (when (eq (first (last hlist)) :blank)
-      (setq hlist (subseq hlist 0 (1+ (position-if-not
-					  (lambda (helt) (eq helt :blank))
-					  hlist
-					:from-end t)))))
-    (loop :with previous-helt
-	  :with helts := hlist :while helts
-	  :if (eq (first helts) :blank)
-	    :collect (make-interword-glue
-		      (or (when (typep previous-helt 'tfm:character-metrics)
-			    (tfm:font previous-helt))
-			  *font*))
-	    :and :do (while (eq (first helts) :blank) (setq helts (rest helts)))
-	  :else
-	    :do (setq previous-helt (first helts))
-	    :and :collect previous-helt
-	    :and :do (setq helts (rest helts)))))
+  (loop :with previous-helt
+	:for helt :in hlist
+	:if (eq helt :blank)
+	  :collect (make-interword-glue
+		    ;; #### TODO: should look into previous discretionary.
+		    (or (when (typep previous-helt 'tfm:character-metrics)
+			  (tfm:font previous-helt))
+			*font*))
+	:else
+	  :do (setq previous-helt helt)
+	  :and :collect helt))
 
 
 

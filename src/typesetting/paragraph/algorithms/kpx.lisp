@@ -90,6 +90,7 @@ caliber.
 Return HLIST."
   (calibrate-kpx hyphen-penalty)
   (calibrate-kpx explicit-hyphen-penalty)
+  (setq hlist (glue-hlist hlist))
   (mapc (lambda (item)
 	  (typecase item
 	    (discretionary

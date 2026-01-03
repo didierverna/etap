@@ -187,6 +187,7 @@ caliber.
 Return HLIST."
   (calibrate-fit hyphen-penalty)
   (calibrate-fit explicit-hyphen-penalty)
+  (setq hlist (glue-hlist hlist))
   (mapc (lambda (item)
 	  (typecase item
 	    (hyphenation-point
