@@ -634,13 +634,13 @@ to the new hlist, and the unprocessed new tail."
 (defun slice  (string)
   "Slice STRING into an hlist.
 Words are sliced into *FONT* characters. Consecutive blanks are replaced with
-a single :space keyword."
+a single :blank keyword."
   (loop :with l := (length string)
 	:with i := 0
 	:while (< i l)
 	:for char := (aref string i)
 	:if (blankp char)
-	  :collect :space
+	  :collect :blank
 	  :and :do (setq i (or (position-if-not #'blankp string :start i) l))
 	:else
 	  :collect (get-fchar char)
@@ -655,21 +655,21 @@ a single :space keyword."
 
 (defun glue-hlist (hlist)
   "Return a new glued hlist."
-  (when (some (lambda (helt) (not (eq helt :space))) hlist)
-    (while (eq (first hlist) :space) (setq hlist (rest hlist)))
-    (when (eq (first (last hlist)) :space)
+  (when (some (lambda (helt) (not (eq helt :blank))) hlist)
+    (while (eq (first hlist) :blank) (setq hlist (rest hlist)))
+    (when (eq (first (last hlist)) :blank)
       (setq hlist (subseq hlist 0 (1+ (position-if-not
-					  (lambda (helt) (eq helt :space))
+					  (lambda (helt) (eq helt :blank))
 					  hlist
 					:from-end t)))))
     (loop :with previous-helt
 	  :with helts := hlist :while helts
-	  :if (eq (first helts) :space)
+	  :if (eq (first helts) :blank)
 	    :collect (make-interword-glue
 		      (or (when (typep previous-helt 'tfm:character-metrics)
 			    (tfm:font previous-helt))
 			  *font*))
-	    :and :do (while (eq (first helts) :space) (setq helts (rest helts)))
+	    :and :do (while (eq (first helts) :blank) (setq helts (rest helts)))
 	  :else
 	    :do (setq previous-helt (first helts))
 	    :and :collect previous-helt
