@@ -95,22 +95,65 @@ caliber.
 Return HLIST."
   (calibrate-kp hyphen-penalty)
   (calibrate-kp explicit-hyphen-penalty)
-  (setq hlist (glue-hlist hlist))
-  (mapc (lambda (item)
-	  (typecase item
-	    (discretionary
-	     (cond ((pre-break item)
-		    (setf (penalty item) *hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kp-hyphen-penalty*))
-		   (t
-		    (setf (penalty item) *explicit-hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kp-explicit-hyphen-penalty*))))
-	    (glue
-	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
-    hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*) hlist)
+  (case (disposition-type disposition)
+    (:flush-left
+     (setq hlist
+	   (loop :with previous-helt
+		 :for helt :in hlist
+		 :if (eq helt :blank)
+		   :collect
+		 ;; #### TODO: should look into previous discretionary.
+		   (let* ((font (or (when (typep previous-helt
+						 'tfm:character-metrics)
+				      (tfm:font previous-helt))
+				    *font*))
+			  (em (tfm:em font)))
+		     (make-discretionary
+		      :pre-break (list (make-glue :stretch (* 2 em)
+						  :caliber *kp-glue-penalty*))
+		      :no-break (list (make-glue :width (/ em 3)
+						 :caliber *kp-glue-penalty*))))
+		 :else
+		   :do (when (discretionaryp helt)
+			 ;; #### TODO: should look into previous discretionary.
+			 (let* ((font (or (when (typep previous-helt
+						       'tfm:character-metrics)
+					    (tfm:font previous-helt))
+					  *font*))
+				(em (tfm:em font)))
+			   (endpush (make-glue :stretch (* 2 em)
+					       :caliber *kp-glue-penalty*)
+				    (pre-break helt)))
+			 (cond ((pre-break helt)
+				(setf (penalty helt) *hyphen-penalty*)
+				(setf (slot-value helt 'caliber)
+				      *kp-hyphen-penalty*))
+			       (t
+				(setf (penalty helt) *explicit-hyphen-penalty*)
+				(setf (slot-value helt 'caliber)
+				      *kp-explicit-hyphen-penalty*))))
+		   :and :do (setq previous-helt helt)
+		   :and :collect helt))
+     (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+	      hlist))
+    (t
+     (setq hlist (glue-hlist hlist))
+     (mapc (lambda (item)
+	     (typecase item
+	       (discretionary
+		(cond ((pre-break item)
+		       (setf (penalty item) *hyphen-penalty*)
+		       (setf (slot-value item 'caliber)
+			     *kp-hyphen-penalty*))
+		      (t
+		       (setf (penalty item) *explicit-hyphen-penalty*)
+		       (setf (slot-value item 'caliber)
+			     *kp-explicit-hyphen-penalty*))))
+	       (glue
+		(setf (slot-value item 'caliber) *kp-glue-penalty*))))
+       hlist)
+     (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+	      hlist)))
   hlist)
 
 
@@ -392,7 +435,7 @@ This is the Knuth-Plass version for the graph variant.
 	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
 	  (make-line
 	   (case disposition-type
-	     (:justified
+	     ((:justified :flush-left)
 	      (lambda (harray bol boundary demerits)
 		(kp-make-justified-line harray bol boundary
 		  stretch-tolerance overshrink demerits)))
