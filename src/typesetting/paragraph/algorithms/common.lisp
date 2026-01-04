@@ -240,23 +240,41 @@ If BREAK-POINT is an EOP one, return NIL."
 ;; Geometry
 ;; --------
 
+(defun list-dimensions (list &aux (width 0) (stretch 0) (shrink 0))
+  "Compute the total width, stretch, and shrink amounts of helts in LIST.
+Return those as three values.
+LIST may contain any kind of helt except for discretionary *-breaks (so no
+sub-list)."
+  (mapc (lambda (helt)
+	  (incf width (width helt))
+	  (when (gluep helt)
+	    (setq stretch ($+ stretch (stretch helt)))
+	    (incf shrink (shrink helt))))
+    list)
+  (values width stretch shrink))
+
 (defun harray-width (harray start stop)
   "Compute HARRAY's width between START and STOP.
 Return five values: the natural, maximum, and minimum width, followed by the
 stretch and shrink amounts."
-  (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
+  (loop :with width := 0 :with stretch := 0 :with shrink := 0
 	:for i :from start :upto (1- stop)
-	;; #### FIXME: this works for now, but it is not quite right in the
-	;; general case. When ELEMENT is a list (typically the contents of a
-	;; discretionary, there could be anything inside, including, e.g.,
-	;; glues. See also the long comment above the KERNING function.
-	:for element := (haref harray i start stop)
-	:do (incf width (width element))
-	:when (gluep element)
-	  :do (setq stretch ($+ stretch (stretch element))
-		    shrink (+ shrink (shrink element)))
+	:for helt := (haref harray i start stop)
+	:do (typecase helt
+	      (glue
+	       (incf width (width helt))
+	       (setq stretch ($+ stretch (stretch helt)))
+	       (incf shrink (shrink helt)))
+	      ;; From a discretionary *-break, and / or something with clues
+	      ;; added by HAREF.
+	      (list
+	       (multiple-value-bind (lwidth lstretch lshrink)
+		   (list-dimensions helt)
+		 (incf width lwidth)
+		 (setq stretch ($+ stretch lstretch))
+		 (incf shrink lshrink)))
+	      (t
+	       (incf width (width helt))))
 	:finally (return (values width ($+ width stretch) (- width shrink)
 				 stretch shrink))))
 

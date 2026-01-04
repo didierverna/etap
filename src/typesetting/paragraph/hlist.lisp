@@ -39,10 +39,7 @@
     (tfm:width fchar))
   (:method ((pinned pinned))
     "Return PINNED object's width."
-    (width (object pinned)))
-  (:method ((list list))
-    "Return the sum of the widths of all elements in LIST."
-    (reduce #'+ (mapcar #'width list))))
+    (width (object pinned))))
 
 (defgeneric height (object)
   (:documentation "Return OBJECT's height.")
