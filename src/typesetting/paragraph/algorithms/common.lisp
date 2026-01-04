@@ -191,12 +191,8 @@ flattened harray slice."))
 If element is a discretionary, return the appropriate pre/no/post break part.
 This function also handles discretionary and eol clues."
   (cond ((discretionaryp element)
-	 ;; #### WARNING: after all the pre-processing done on the hlist,
-	 ;; including ligatures / kerning management in the presence of
-	 ;; hyphenation points, we may end up with harrays beginning or ending
-	 ;; with discretionaries (or even consecutive discretionaries for that
-	 ;; matter). When discretionaries begin or end the harray, we must not
-	 ;; consider them as post- or pre-breaks though.
+	 ;; #### WARNING: when discretionaries begin or end the harray, we
+	 ;; must not consider them as post- or pre-breaks.
 	 (cond ((and (= i start) (not (zerop start)))
 		(post-break element))
 	       ((and (= i (1- stop)) (not (= stop (length harray))))
