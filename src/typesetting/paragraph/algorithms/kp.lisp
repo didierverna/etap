@@ -755,7 +755,7 @@ or, in case of equality, a lesser amount of demerits."
 	  (nodes (make-hash-table :test #'equal))
 	  (make-node
 	   (case disposition-type
-	     (:justified
+	     ((:justified :flush-left)
 	      (lambda (harray bol boundary demerits previous)
 		(kp-make-justified-line harray bol boundary
 		  stretch-tolerance overshrink demerits :previous previous)))
