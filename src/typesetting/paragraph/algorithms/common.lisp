@@ -202,6 +202,10 @@ This function also handles discretionary and eol clues."
 		(cons (make-discretionary-clue element)
 		      (no-break element)))))
 	((and (= i (1- stop)) (not (= stop (length harray))))
+	 ;; #### NOTE: if the break point is a discretionary, it would be
+	 ;; included in the line for its pre-break element so we would have
+	 ;; caught it above. This means that if we get here, the next break
+	 ;; point has to be a glue.
 	 (assert (gluep (aref harray stop)))
 	 (list element (make-eol-clue (aref harray stop))))
 	(t
