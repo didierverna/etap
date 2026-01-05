@@ -1070,11 +1070,10 @@ Each point is of the form (X . Y)."
 ;; in DRAW-TRIANGLE.
 (defun clue-under (x y lines line-x-shift line-y-shift &aux (p (cons x y)))
   "Return the clue from LINES which is under (X, Y), or nil.
-The clue is either a discretionary or and EOL one. In the case of a
-discretionary clue, it is returned only if it corresponds to an hyphenation
-point (as opposed to a general discretionary). The object returned is in fact
-the pin containing the clue.
-Technically, (X, Y) is not over the clue (which has a width of 0), but over
+In the case of a discretionary clue, it is returned only if it corresponds to
+an hyphenation point (as opposed to a general discretionary). The object
+returned is in fact the pin containing the clue.
+Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
   (let ((line (find-if (lambda (line)
@@ -1086,10 +1085,9 @@ This function returns the corresponding line as a second value."
       (let* ((x (+ (x line) (funcall line-x-shift line)))
 	     (y (+ (y line) (funcall line-y-shift line))))
 	(values (find-if (lambda (item)
-			   (and (or (and (discretionary-clue-p (object item))
-					 (hyphenation-point-p
-					  (discretionary (object item))))
-				    (eol-clue-p (object item)))
+			   (and (cluep (object item))
+				(or (not (discretionaryp (helt (object item))))
+				    (hyphenation-point-p (helt (object item))))
 				(triangle-under-p
 				 p
 				 (cons (+ x (x item)) y)
@@ -1123,9 +1121,9 @@ This function returns the corresponding line as a second value."
 
 (defun object-under (x y lines line-x-shift line-y-shift)
   "Return the object from LINES which is under (X, Y), or nil.
-This currently includes whitespaces and hyphenation points.
-For hyphenation points, (X, Y) is not technically over it, but over the
-corresponding hyphenation clue.
+This currently includes whitespaces and pinned clues.
+For clues, (X, Y) is not technically over it, but over the corresponding
+visual representation (the small triangle beneath it.
 This function returns the corresponding line as a second value."
   (multiple-value-bind (object line)
       (clue-under x y lines line-x-shift line-y-shift)
@@ -1252,8 +1250,7 @@ displays a penalty adjustment dialog when appropriate."
       (when object
 	(setq object
 	      (etypecase (object object)
-		(discretionary-clue (discretionary (object object)))
-		(eol-clue (glue (object object)))
+		(clue (helt (object object)))
 		(glue (object object))))
 	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
 	;; complexity of handling null calibers below.
@@ -1447,16 +1444,15 @@ not 0."
 					 (+ x (x item)
 					    (funcall char-x-shift item))
 					 (+ y (funcall char-y-shift item)))))
-				  ((and (discretionary-clue-p (object item))
+				  ((and (cluep (object item))
 					(hyphenation-point-p
-					 (discretionary (object item)))
+					 (helt (object item)))
 					(or (member :hyphenation-points clues)
 					    (find-penalty-adjustment-dialog
-					     (discretionary (object item))
+					     (helt (object item))
 					     etap)))
 				   (draw-hyphenation-clue
-				    view (+ x (x item)) y
-				    (discretionary (object item))))
+				    view (+ x (x item)) y (helt (object item))))
 				  ((and (whitespacep item)
 					(or (member :whitespaces clues)
 					    (find-penalty-adjustment-dialog
@@ -1466,16 +1462,17 @@ not 0."
 				    view x y item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))
-				  ((and (eol-clue-p (object item))
+				  ((and (cluep (object item))
+					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
-					     (glue (object item))
+					     (helt (object item))
 					     etap)))
 				   (draw-eol-clue
 				    view (+ x (x item)) y
-				    (glue (object item))
+				    (helt (object item))
 				    (find-penalty-adjustment-dialog
-				     (glue (object item))
+				     (helt (object item))
 				     etap)))))
 		      (items line)))
 	(when (member :activate inspect)
@@ -1492,12 +1489,14 @@ not 0."
 		      y (+ par-y (y line) (funcall line-y-shift line)))
 		(cond ((whitespacep object)
 		       (draw-whitespace-clue view x y object 'force))
-		      ((discretionary-clue-p (object object))
+		      ((and (cluep (object object))
+			    (discretionaryp (helt (object object))))
 		       (draw-hyphenation-clue view (+ x (x object)) y
-			 (discretionary (object object))))
-		      ((eol-clue-p (object object))
+			 (helt (object object))))
+		      ((and (cluep (object object))
+			    (gluep (helt (object object))))
 		       (draw-eol-clue view (+ x (x object)) y
-			(glue (object object))
+			(helt (object object))
 			'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
