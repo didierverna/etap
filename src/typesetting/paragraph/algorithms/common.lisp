@@ -119,66 +119,45 @@ traits such as adjacency problems or hyphenation ladders."
 ;; HArrays
 ;; ==========================================================================
 
-;; An harray can be as simple as an array version of the original hlist, but
-;; contrary to the hlist, it depends on the final paragraph disposition and
-;; typesetting algorithm in use. Most algorithms post-process the hlist (for
-;; example by adjusting penalties or adding glues).
+;; -----
+;; Clues
+;; -----
 
-;; -------------------
-;; Discretionary clues
-;; -------------------
+;; Clues are 0-sized objects that are dynamically inserted into a flattened
+;; harray slice (see `haref' below). They are used for introspection purposes
+;; in the GUI, in order to remember original helts that do not appear directly
+;; in the resulting slice. This currently includes discarded EOL glues, and
+;; discretionaries (including hyphenation ones) which only appear by pre-,
+;; no-, or post-break contents.
 
-(defclass discretionary-clue ()
+(defclass clue ()
   ((width
-    :documentation "This discretionary clue's width (always 0)."
+    :documentation "This clue's width (always 0)."
     :allocation :class :initform 0 :reader width)
-   (discretionary
-    :documentation "The corresponding discretionary."
-    :initarg :discretionary :reader discretionary))
-  (:documentation "The Discretionary Clue class.
-Discretionary clues are 0-width objects used to remember the original
-discretionary in a flattened harray slice."))
+   (height
+    :documentation "This clue's height (always 0)."
+    :allocation :class :initform 0 :reader height)
+   (depth
+    :documentation "This clue's depth (always 0)."
+    :allocation :class :initform 0 :reader depth)
+   (helt
+    :documentation "The original helt."
+    :initarg :helt :reader helt))
+  (:documentation "The Clue class.
+Clues are 0-sized objects used to remember original helts in a flattened
+harray slice."))
 
-(defmethod properties strnlcat ((clue discretionary-clue) &key)
-  "Advertise CLUE's discretionary properties."
-  (properties (discretionary clue)))
+(defmethod properties strnlcat ((clue clue) &key)
+  "Advertise CLUE's helt properties."
+  (properties (helt clue)))
 
-(defun make-discretionary-clue (discretionary)
-  "Make a new discretionary clue."
-  (make-instance 'discretionary-clue :discretionary discretionary))
+(defun make-clue (helt)
+  "Make a new clue for HELT."
+  (make-instance 'clue :helt helt))
 
-(defun discretionary-clue-p (object)
-  "Return T if OBJECT is a discretionary clue."
-  (typep object 'discretionary-clue))
-
-
-
-;; -----------------
-;; End of line clues
-;; -----------------
-
-(defclass eol-clue ()
-  ((width
-    :documentation "This EOL clue's width (always 0)."
-    :allocation :class :initform 0 :reader width)
-   (glue
-    :documentation "The corresponding glue."
-    :initarg :glue :reader glue))
-  (:documentation "The End-of-Line Clue class.
-EOL clues are 0-width objects used to remember the original glue ending a
-flattened harray slice."))
-
-(defmethod properties strnlcat ((clue eol-clue) &key)
-  "Advertise CLUE's glue properties."
-  (properties (glue clue)))
-
-(defun make-eol-clue (glue)
-  "Make a new EOL clue."
-  (make-instance 'eol-clue :glue glue))
-
-(defun eol-clue-p (object)
-  "Return T if OBJECT is an EOL clue."
-  (typep object 'eol-clue))
+(defun cluep (object)
+  "Return T if OBJECT is a clue."
+  (typep object 'clue))
 
 
 
@@ -186,11 +165,12 @@ flattened harray slice."))
 ;; Access
 ;; ------
 
-(defun haref (harray i start stop &aux (element (aref harray i)))
-  "Return HARRAY element at position I, between START and STOP boundaries.
-If element is a discretionary, return the appropriate pre/no/post break part.
-This function also handles discretionary and eol clues."
-  (cond ((discretionaryp element)
+(defun haref (harray i start stop &aux (helt (aref harray i)))
+  "Return HARRAY helt(s) at position I, between START and STOP boundaries.
+If the helt at that position is a discretionary, return the appropriate
+pre/no/post break part. This function also injects discretionary and EOL
+clues in the returned value when appropriate."
+  (cond ((discretionaryp helt)
 	 ;; #### WARNING: after all the pre-processing done on the hlist,
 	 ;; including ligatures / kerning management in the presence of
 	 ;; hyphenation points, we may end up with harrays beginning or ending
@@ -198,18 +178,16 @@ This function also handles discretionary and eol clues."
 	 ;; matter). When discretionaries begin or end the harray, we must not
 	 ;; consider them as post- or pre-breaks though.
 	 (cond ((and (= i start) (not (zerop start)))
-		(post-break element))
+		(post-break helt))
 	       ((and (= i (1- stop)) (not (= stop (length harray))))
-		(append (pre-break element)
-			(list (make-discretionary-clue element))))
+		(append (pre-break helt) (list (make-clue helt))))
 	       (t
-		(cons (make-discretionary-clue element)
-		      (no-break element)))))
+		(cons (make-clue helt) (no-break helt)))))
 	((and (= i (1- stop)) (not (= stop (length harray))))
 	 (assert (gluep (aref harray stop)))
-	 (list element (make-eol-clue (aref harray stop))))
+	 (list helt (make-clue (aref harray stop))))
 	(t
-	 element)))
+	 helt)))
 
 (defun flatten-harray (harray start stop)
   "Return a flattened list of HARRAY elements between START and STOP."
@@ -395,7 +373,7 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
-Currently, those are characters, whitespaces, and discretionary and eol clues.
+Currently, those are characters, whitespaces, and clues.
 These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin."
     :reader items))
@@ -490,7 +468,7 @@ Optionally preset ASAR and ESAR."
 	      :with h := 3
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
-	      :if (or (discretionary-clue-p object) (eol-clue-p object))
+	      :if (cluep object)
 		:collect (pin-object object line x)
 	      :else :if (typep object 'tfm:character-metrics)
 		:collect (pin-object object line x)
