@@ -1191,7 +1191,7 @@ not 0."
 						(find (tfm:font (object item))
 						    fonts
 						  :key #'car)))))
-				  ((and (clue-p (object item))
+				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
 					(or (member :hyphenation-points clues)
