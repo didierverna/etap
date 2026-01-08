@@ -1224,28 +1224,28 @@ not 0."
 				     (object item) etap)))))
 		      (items line)))
 	(when (member :activate inspect)
-	  (let* ((pointer (capi-object-property view :pointer))
-		 (x (car pointer))
-		 (y (cdr pointer)))
-	    (to-layout-coordinates x y layout zoom)
-	    (multiple-value-bind (object line)
-		(object-under x y (lines layout))
-	      ;; #### WARNING: we may end up drawing a clue for the second
-	      ;; time here, but this is probably not such a big deal.
-	      (when object
+	  (multiple-value-bind (object line)
+	      (let* ((pointer (capi-object-property view :pointer))
+		     (x (car pointer))
+		     (y (cdr pointer)))
+		(to-layout-coordinates x y layout zoom)
+		(object-under x y (lines layout)))
+	    ;; #### WARNING: we may end up drawing a clue for the second
+	    ;; time here, but this is probably not such a big deal.
+	    (when object
+	      (let ((x (x line))
+		    (y (+ par-y (y line))))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue
-			view (+ (x line) (x object)) (+ par-y (y line))
-			(helt (object object))))
+		       (draw-clue iew (+ x (x object)) y
+				  (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-clue
-			view (+ (x line) (x object)) (+ par-y (y line))
-			(helt (object object)) :force))
+		       (draw-clue view (+ x (x object)) y
+				  (helt (object object))
+			 :force))
 		      ((whitespacep object)
-		       (draw-whitespace-clue
-			view (x line) (+ par-y (y line)) object 'force)))))))
+		       (draw-whitespace-clue view x y object 'force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
