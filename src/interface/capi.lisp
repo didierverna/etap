@@ -1282,21 +1282,30 @@ ARGS are subsequently passed to the drawing function."
   (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
 	 args))
 
-(defun draw-hyphenation-clue (view x y discretionary)
-  "Draw an hyphenation clue in VIEW at (X,Y) for DISCRETIONARY."
+(defun draw-penalty-clue (view x y break-point &optional (filled t))
+  "Draw a triangle clue in VIEW at (X,Y) for BREAK-POINT.
+The triangle may be FILLED (T by default), and its color is computed based on
+  BREAK-POINT's penalty."
   (draw-triangle view x y
-    :filled (not (explicitp discretionary))
-    :foreground (color:make-hsv (penalty-hue discretionary) 1s0 .7s0)))
+      :filled filled
+      :foreground (color:make-hsv (penalty-hue break-point) 1s0 .7s0)))
 
-(defun draw-eol-clue (view x y glue &optional force)
-  "Draw an EOL clue in VIEW at (X,Y) for GLUE.
+(defgeneric draw-clue (view x y helt &optional force)
+  (:documentation "Draw a clue in VIEW at (X,Y) for HELT.")
+  (:method (view x y (hyphenation-point hyphenation-point) &optional force)
+    "Draw clue in VIEW at (X,Y) for HYPHENATION-POINT.
+The clue is outlined or filled, depending on whether HYPHENATION-POINT is
+explicit or computed."
+    (declare (ignore force))
+    (draw-penalty-clue view x y hyphenation-point
+      (not (explicitp hyphenation-point))))
+  (:method (view x y (glue glue) &optional force)
+    "Draw clue in VIEW at (X,Y) for end of line GLUE.
 Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
 not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (draw-triangle view x y
-      :filled t
-      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+    (draw-penalty-clue view x y glue))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
@@ -1451,8 +1460,19 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-hyphenation-clue
-				    view (+ x (x item)) y (helt (object item))))
+				   (draw-clue view (+ x (x item)) y
+					      (helt (object item))))
+				  ((and (cluep (object item))
+					(gluep (helt (object item)))
+					(or (member :ends-of-line clues)
+					    (find-penalty-adjustment-dialog
+					     (helt (object item))
+					     etap)))
+				   (draw-clue view (+ x (x item)) y
+					      (helt (object item))
+				     (find-penalty-adjustment-dialog
+				      (helt (object item))
+				      etap)))
 				  ((and (whitespacep item)
 					(or (member :whitespaces clues)
 					    (find-penalty-adjustment-dialog
@@ -1461,19 +1481,7 @@ not 0."
 				   (draw-whitespace-clue
 				    view x y item
 				    (find-penalty-adjustment-dialog
-				     (object item) etap)))
-				  ((and (cluep (object item))
-					(gluep (helt (object item)))
-					(or (member :ends-of-line clues)
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
-				   (draw-eol-clue
-				    view (+ x (x item)) y
-				    (helt (object item))
-				    (find-penalty-adjustment-dialog
-				     (helt (object item))
-				     etap)))))
+				     (object item) etap)))))
 		      (items line)))
 	(when (member :activate inspect)
 	  (let* ((pointer (capi-object-property view :pointer))
@@ -1487,17 +1495,17 @@ not 0."
 	      (when object
 		(setq x (+ (x line) (funcall line-x-shift line))
 		      y (+ par-y (y line) (funcall line-y-shift line)))
-		(cond ((whitespacep object)
-		       (draw-whitespace-clue view x y object 'force))
-		      ((and (cluep (object object))
+		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-hyphenation-clue view (+ x (x object)) y
-			 (helt (object object))))
+		       (draw-clue view (+ x (x object)) y
+				  (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-eol-clue view (+ x (x object)) y
-			(helt (object object))
-			'force)))))))
+		       (draw-clue view (+ x (x object)) y
+				  (helt (object object))
+			 :force))
+		      ((whitespacep object)
+		       (draw-whitespace-clue view x y object 'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
