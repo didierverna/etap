@@ -560,6 +560,27 @@ to the new hlist, and the unprocessed new tail."
 
 
 ;; ==========================================================================
+;; Glueing
+;; ==========================================================================
+
+(defun glue-hlist (hlist)
+  "Return a new glued hlist."
+  (loop :with previous-helt
+	:for helt :in hlist
+	:if (eq helt :blank)
+	  :collect (make-interword-glue
+		    ;; #### TODO: should look into previous discretionary.
+		    (or (when (typep previous-helt 'tfm:character-metrics)
+			  (tfm:font previous-helt))
+			*font*))
+	:else
+	  :do (setq previous-helt helt)
+	  :and :collect helt))
+
+
+
+
+;; ==========================================================================
 ;; Slicing
 ;; ==========================================================================
 
@@ -584,27 +605,6 @@ a single :blank keyword."
 	:else
 	  :collect (get-fchar char)
 	  :and :do (incf i)))
-
-
-
-
-;; ==========================================================================
-;; Glueing
-;; ==========================================================================
-
-(defun glue-hlist (hlist)
-  "Return a new glued hlist."
-  (loop :with previous-helt
-	:for helt :in hlist
-	:if (eq helt :blank)
-	  :collect (make-interword-glue
-		    ;; #### TODO: should look into previous discretionary.
-		    (or (when (typep previous-helt 'tfm:character-metrics)
-			  (tfm:font previous-helt))
-			*font*))
-	:else
-	  :do (setq previous-helt helt)
-	  :and :collect helt))
 
 
 
