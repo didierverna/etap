@@ -1,12 +1,6 @@
 (in-package :etap)
 (in-readtable :etap)
 
-(defgeneric properties (object &key)
-  (:documentation "Return a string advertising OBJECT's properties.
-Methods may return an empty string or NIL if there is nothing to advertise.")
-  (:method-combination strnlcat :most-specific-last))
-
-
 ;; #### NOTE: we currently provide two different ways for pinning objects.
 ;; - The fist one is to use the PINNED class to pin any object. It's useful
 ;;   when you want to reference a pinned object without actually touching it.
@@ -44,10 +38,22 @@ expressed relative to a pin board."))
   (:documentation "The PINNED class.
 This class is used to pin any kind of object to a board."))
 
+(defun pin-object (object board x &optional (y 0))
+  "Pin OBJECT on BOARD at position (X, Y)."
+  (make-instance 'pinned :object object :board board :x x :y y))
+
 (defmethod properties strnlcat ((pinned pinned) &key)
   "Advertise PINNED object's properties."
   (properties (object pinned)))
 
-(defun pin-object (object board x &optional (y 0))
-  "Pin OBJECT on BOARD at position (X, Y)."
-  (make-instance 'pinned :object object :board board :x x :y y))
+(defmethod width ((pinned pinned))
+  "Return PINNED object's width."
+  (width (object pinned)))
+
+(defmethod height ((pinned pinned))
+  "Return PINNED object's height."
+  (height (object pinned)))
+
+(defmethod depth ((pinned pinned))
+  "Return PINNED object's depth."
+  (depth (object pinned)))

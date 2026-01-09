@@ -29,42 +29,6 @@
 
 ;; #### FIXME: this does not belong in this file.
 
-(defgeneric width (object)
-  (:documentation "Return OBJECT's width.")
-  (:method (object)
-    "Return 0 by default."
-    0)
-  (:method ((fchar tfm:character-metrics))
-    "Return FCHAR (a TFM character)'s width."
-    (tfm:width fchar))
-  (:method ((pinned pinned))
-    "Return PINNED object's width."
-    (width (object pinned))))
-
-(defgeneric height (object)
-  (:documentation "Return OBJECT's height.")
-  (:method (object)
-    "Return 0 by default."
-    0)
-  (:method ((fchar tfm:character-metrics))
-    "Return FCHAR (a TFM character)'s height."
-    (tfm:height fchar))
-  (:method ((pinned pinned))
-    "Return PINNED object's height."
-    (height (object pinned))))
-
-(defgeneric depth (object)
-  (:documentation "Return OBJECT's depth.")
-  (:method (object)
-    "Return 0 by default."
-    0)
-  (:method ((fchar tfm:character-metrics))
-    "Return FCHAR (a TFM character)'s depth."
-    (tfm:depth fchar))
-  (:method ((pinned pinned))
-    "Return PINNED object's depth."
-    (depth (object pinned))))
-
 
 
 

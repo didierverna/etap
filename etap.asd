@@ -17,7 +17,8 @@
       :serial t
       :components
       ((:file "misc")
-       (:file "arith")))
+       (:file "arith")
+       (:file "protocols")))
      (:module "font"
       :serial t
       :components
@@ -43,7 +44,7 @@
      (:module "typesetting"
       :serial t
       :components
-      ((:file "common")
+      ((:file "pin")
        (:module "paragraph"
 	:serial t
 	:components

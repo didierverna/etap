@@ -25,3 +25,15 @@ graphics port.")
 
 (defvar *font* (first (first *fonts*))
   "The current TFM font.")
+
+(defmethod width ((fchar tfm:character-metrics))
+  "Return FCHAR (a TFM character)'s width."
+  (tfm:width fchar))
+
+(defmethod height ((fchar tfm:character-metrics))
+  "Return FCHAR (a TFM character)'s height."
+  (tfm:height fchar))
+
+(defmethod depth ((fchar tfm:character-metrics))
+  "Return FCHAR (a TFM character)'s depth."
+  (tfm:depth fchar))
