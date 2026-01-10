@@ -171,11 +171,9 @@ If the helt at that position is a discretionary, return the appropriate
 pre/no/post break part. This function also injects discretionary and EOL
 clues in the returned value when appropriate."
   (cond ((discretionaryp helt)
-	 ;; #### WARNING: when discretionaries begin or end the harray, we
-	 ;; must not consider them as post- or pre-breaks.
-	 (cond ((and (= i start) (not (zerop start)))
+	 (cond ((= i start)
 		(post-break helt))
-	       ((and (= i (1- stop)) (not (= stop (length harray))))
+	       ((= i (1- stop))
 		(append (pre-break helt) (list (make-clue helt))))
 	       (t
 		(cons (make-clue helt) (no-break helt)))))
