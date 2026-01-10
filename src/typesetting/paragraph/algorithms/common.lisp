@@ -323,15 +323,12 @@ for that)."))
 ;; Whitespaces
 ;; -----------
 
-;; #### WARNING: do not confuse whitespaces (pinned glues) with glues, or
-;; blank characters. In fact, newlines are considered blank characters, but
-;; they do not produce whitespaces.
-
 ;; #### NOTE: glues are currently the only items that cannot be pinned
-;; directly, hence the class below. The reason is that the width of a pinned
-;; glue is different from the glue's width in general (it depends on the
-;; line's SAR).
-(defclass whitespace (pinned)
+;; directly (with the basic PIN class) because the width of the resulting
+;; whitespace is in general different from the original glue's width (it
+;; depends on the line's SAR). This is why we need the class below.
+
+(defclass whitespace (pin)
   ((width
     :documentation "The whitespace's width."
     :initarg :width :reader width)
@@ -340,7 +337,7 @@ for that)."))
     :initarg :height :reader height))
   (:documentation "The WHITESPACE class.
 This class represents pinned glues and stores their width after scaling.
-A whitespace's height is set to the ex of the preceding character."))
+A whitespace's height depends on what surrounds it."))
 
 (defmethod properties strnlcat ((whitespace whitespace) &key)
   "Advertise WHITESPACE's actual width."
@@ -350,8 +347,8 @@ A whitespace's height is set to the ex of the preceding character."))
   "Return T if ITEM is a whitespace."
   (typep item 'whitespace))
 
-(defun pin-glue (glue width height board x)
-  "Pin GLUE of scaled WIDTH and HEIGHT on BOARD at (X, 0)."
+(defun make-whitespace (width height glue board x)
+  "Make a whitespace of WIDTH and HEIGHT pinning GLUE on BOARD at (X, 0)."
   (make-instance 'whitespace
     :width width :height height :object glue :board board :x x))
 
@@ -389,9 +386,10 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
-Currently, those are characters, whitespaces, and clues.
+Currently, those are pinned characters and clues, and whitespaces.
 These items are positioned relatively to the line's origin (which may be
-different from the paragraph's origin."
+different from the paragraph's origin.
+This slot is unbound until the line is rendered."
     :reader items))
   (:documentation "The LINE class.
 A line represents one step in a layout, that is, a particular path from the
@@ -485,9 +483,9 @@ Optionally preset ASAR and ESAR."
 	      :for object
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
 	      :if (cluep object)
-		:collect (pin-object object line x)
+		:collect (make-pin object line :x x)
 	      :else :if (typep object 'tfm:character-metrics)
-		:collect (pin-object object line x)
+		:collect (make-pin object line :x x)
 		:and :do (incf x (width object))
 		:and :do (setq h (tfm:ex (tfm:font object)))
 	      :else :if (kernp object)
@@ -499,7 +497,7 @@ Optionally preset ASAR and ESAR."
 				  (* esar (stretch object))
 				  (* esar (shrink object))))
 		  :end
-		:and :collect (pin-glue object w h line x)
+		:and :collect (make-whitespace w h object line x)
 		:and :do (incf x w)))
   line)
 
@@ -514,11 +512,11 @@ Optionally preset ASAR and ESAR."
   ((breakup
     :documentation "The breakup this layout belongs to."
     :initarg :breakup :reader breakup)
-   (pinned-line-class
-    :documentation "The class to use when pinning lines."
-    :allocation :class :initform 'pinned-line :reader pinned-line-class)
    (lines
-    :documentation "This layout's list of lines."
+    :documentation "This layout's list of lines.
+Before rendering, these are effectively objects if some possibly
+algorithm-dependent line class. After rendering, this slot is updated to
+contain pinned lines instead."
     :initform nil :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
@@ -531,10 +529,8 @@ specific global properties."))
 ;; Rendering
 ;; ---------
 
-(defclass pinned-line (line pin)
-  ()
-  (:documentation "The LINNED-LINE class."))
-
+;; #### FIXME: this function should disappear now that we have flush
+;; dispositions processed differently.
 (defun render-layout
     (layout
      &aux (lines (lines layout))
@@ -542,20 +538,19 @@ specific global properties."))
 	  (par-width (paragraph-width breakup)))
   "Render LAYOUT's lines and pin them. Return LAYOUT."
   (when lines
-    (loop :with class := (pinned-line-class layout)
-	  :with baseline-skip := (baseline-skip (harray breakup))
-	  :with x := (ecase (disposition-type (disposition breakup))
-		       ((:flush-left :justified)
-			(lambda (line) (declare (ignore line)) 0))
-		       (:centered
-			(lambda (line) (/ (- par-width (width line)) 2)))
-		       (:flush-right
-			(lambda (line) (- par-width (width line)))))
-	  :for y := 0 :then (+ y baseline-skip)
-	  :for line :in lines
-	  :do (render-line line)
-	  :do (change-class line class
-		:board layout :x (funcall x line) :y y)))
+    (setf (slot-value layout 'lines)
+	  (loop :with baseline-skip := (baseline-skip (harray breakup))
+		:with x := (ecase (disposition-type (disposition breakup))
+			     ((:flush-left :justified)
+			      (lambda (line) (declare (ignore line)) 0))
+			     (:centered
+			      (lambda (line) (/ (- par-width (width line)) 2)))
+			     (:flush-right
+			      (lambda (line) (- par-width (width line)))))
+		:for y := 0 :then (+ y baseline-skip)
+		:for line :in lines
+		:do (render-line line)
+		:collect (make-pin line layout :x (funcall x line) :y y))))
   layout)
 
 ;; #### NOTE: nothing prevents an algorithm from sharing an object
@@ -563,9 +558,9 @@ specific global properties."))
 ;; programming implementation of the Knuth-Plass does exactly that. As a
 ;; consequence, we need to check that /all/ layout lines have been rendered
 ;; below. Not just, say, the first one.
-(defun renderedp (layout &aux (class (pinned-line-class layout)))
-  "Return T if LAYOUT is rendered."
-  (every (lambda (line) (typep line class)) (lines layout)))
+(defun renderedp (layout)
+  "Return T if LAYOUT is fully rendered."
+  (every (lambda (line) (typep line 'pin)) (lines layout)))
 
 
 (defun lines-# (layout)

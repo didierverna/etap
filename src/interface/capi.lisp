@@ -815,11 +815,12 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-(defun line-under (y lines)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line)
-	     (<= (- (y line) (height line)) y (+ (y line) (depth line))))
-	   lines))
+(defun line-under-pin (y line-pins)
+  "Return the pin of the line from LINE-PINS which is under Y coordinate.
+If no such line pin exists, return NIL."
+  (find-if (lambda (pin &aux (line (object pin)))
+	     (<= (- (y pin) (height line)) y (+ (y pin) (depth line))))
+	   line-pins))
 
 (defun vector-product (p1 p2 p3)
   "Return the vector product of P1P2 - P1P3.
@@ -844,20 +845,20 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under (x y lines &aux (p (cons x y)))
-  "Return the clue from LINES which is under (X, Y), or nil.
-In the case of a discretionary clue, it is returned only if it corresponds to
-an hyphenation point (as opposed to a general discretionary). The object
-returned is in fact the pin containing the clue.
+(defun clue-under-pin (x y line-pins &aux (p (cons x y)))
+  "Return the pin of the clue from LINE-PINS which is under (X, Y).
+If no such clue is found, return NIL.
+In the case of a discretionary clue, the pin is returned only in the case of
+an hyphenation point (as opposed to a general discretionary).
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
-This function returns the corresponding line as a second value."
-  (let ((line (find-if (lambda (line)
-			 (and (>= y (y line)) (<= y (+ (y line) 5))))
-		       lines)))
-    (when line
-      (let* ((x (x line))
-	     (y (y line)))
+This function returns the corresponding line's pin as a second value."
+  (let ((pin (find-if (lambda (pin) (and (>= y (y pin)) (<= y (+ (y pin) 5))))
+		      line-pins)))
+    (when pin
+      (let* ((x (x pin))
+	     (y (y pin))
+	     (line (object pin)))
 	(values (find-if (lambda (item)
 			   (and (cluep (object item))
 				(or (not (discretionaryp (helt (object item))))
@@ -868,31 +869,34 @@ This function returns the corresponding line as a second value."
 				 (cons (+ x (x item) -3) (+ y 5))
 				 (cons (+ x (x item) +3) (+ y 5)))))
 			 (items line))
-		line)))))
+		pin)))))
 
-(defun whitespace-under (x y lines &aux (line (line-under y lines)))
-  "Return the whitespace from LINES which is under (X, Y), or nil.
-This function returns the corresponding line as a second value."
-  (when line
+(defun whitespace-under
+    (x y line-pins &aux (pin (line-under-pin y line-pins)))
+  "Return the whitespace from LINE-PINS which is under (X, Y).
+If no such whitespace is found, return NIL.
+This function returns the corresponding line's pin as a second value."
+  (when pin
     (values (find-if (lambda (item)
 		       (and (whitespacep item)
-			    (<= (+ (x line) (x item))
+			    (<= (+ (x pin) (x item))
 				x
-				(+ (x line) (x item) (width item)))
-			    (<= (- (y line) (height item)) y (y line))))
-		     (items line))
-	    line)))
+				(+ (x pin) (x item) (width item)))
+			    (<= (- (y pin) (height item)) y (y pin))))
+		     (items (object pin)))
+	    pin)))
 
-(defun object-under (x y lines)
-  "Return the object from LINES which is under (X, Y), or nil.
-This currently includes whitespaces and pinned clues.
+(defun object-under-pin (x y line-pins)
+  "Return the pin of the object from LINE-PINS which is under (X, Y).
+If no such object is found, return NIL.
+Considered objects currently include clues and glues.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it.
-This function returns the corresponding line as a second value."
-  (multiple-value-bind (object line) (clue-under x y lines)
-    (if object ;; OR doesn't propagate secondary values on its first args!
-      (values object line)
-      (whitespace-under x y lines))))
+This function returns the corresponding line's pin as a second value."
+  (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y line-pins)
+    (if clue-pin ;; OR doesn't propagate secondary values on its first args!
+      (values clue-pin line-pin)
+      (whitespace-under x y line-pins))))
 
 
 
@@ -920,7 +924,7 @@ coordinate system. This macro modified X and Y directly."
 
 ;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
 ;; will extend beyond the paragraph's right (resp. bottom) side. In order to
-;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; handle those and still optimize a bit, we only call OBJECT-UNDER-PIN if the
 ;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
 ;; and bottom sides.
 
@@ -952,17 +956,17 @@ coordinate system. This macro modified X and Y directly."
 	       :text (properties breakup :layout-# layout-#)))
 	    (layout
 	     (cond ((and (< x 0) (<= y (depth layout)))
-		    (let ((line (line-under y (lines layout))))
-		      (if line
-			(display-tooltip view :text (properties line))
+		    (let ((pin (line-under-pin y (lines layout))))
+		      (if pin
+			(display-tooltip view :text (properties pin))
 			(display-tooltip view))))
 		   ((and (<= 0 x (+ par-width *border-width*))
 			 (<= (- (height layout))
 			     y
 			     (+ (depth layout) *border-width*)))
-		    (let ((object (object-under x y (lines layout))))
-		      (if object
-			(display-tooltip view :text (properties object))
+		    (let ((pin (object-under-pin x y (lines layout))))
+		      (if pin
+			(display-tooltip view :text (properties pin))
 			(display-tooltip view))))
 		   (t
 		    (display-tooltip view))))))))
@@ -973,9 +977,9 @@ coordinate system. This macro modified X and Y directly."
 
 ;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
 ;; will extend beyond the paragraph's right (resp. bottom) side. In order to
-;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
-;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
-;; and bottom sides.
+;; handle those and still optimize a bit, we only call OBJECT-UNDER-PIN if
+;; the pointer is above the paragraph, but *BORDER-WIDTH* included on the
+;; right and bottom sides.
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
@@ -993,20 +997,19 @@ This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
     (to-layout-coordinates x y layout zoom)
-    (let ((object (and (<= 0 x (+ par-width *border-width*))
-		       (<= (- (height layout))
-			   y
-			   (+ (depth layout) *border-width*))
-		       (object-under x y (lines layout)))))
-      (when object
-	(setq object
-	      (etypecase (object object)
-		(clue (helt (object object)))
-		(glue (object object))))
-	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	;; complexity of handling null calibers below.
-	(when (caliber object)
-	  (make-penalty-adjustment-dialog object etap))))))
+    (let ((pin (and (<= 0 x (+ par-width *border-width*))
+		    (<= (- (height layout))
+			y
+			(+ (depth layout) *border-width*))
+		    (object-under-pin x y (lines layout)))))
+      (when pin
+	(let ((object (etypecase (object pin)
+			(clue (helt (object pin)))
+			(glue (object pin)))))
+	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+	  ;; complexity of handling null calibers below.
+	  (when (caliber object)
+	    (make-penalty-adjustment-dialog object etap)))))))
 
 
 
@@ -1026,7 +1029,7 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))
     2s0))
 
-;; #### TODO: see comment atop CLUE-UNDER.
+;; #### TODO: see comment atop CLUE-UNDER-PIN.
 (defun draw-triangle (view x y &rest args)
   "Draw a triangular clue in VIEW at (X,Y).
 ARGS are subsequently passed to the drawing function."
@@ -1101,13 +1104,15 @@ not 0."
 	  :scale-thickness nil))
       (when layout
 	(loop :with fonts := (capi-object-property view :fonts)
-	      :with full-x := (+ (loop :for line :in (lines layout)
-				       :maximize (+ (x line) (width line)))
-				 5)
+	      :with full-x ; for positioning *ful boxes
+		:= (+ (loop :for pin :in (lines layout)
+			    :maximize (+ (x pin) (width (object pin))))
+		      5)
 	      :for rest :on (lines layout)
-	      :for line := (car rest)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
+	      :for pin := (car rest)
+	      :for x := (x pin)
+	      :for y := (+ par-y (y pin))
+	      :for line := (object pin)
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
 			x
@@ -1225,34 +1230,31 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (object item)
 					     etap)))
-				   (draw-whitespace-clue
-				    view (x line) (+ par-y (y line)) item
+				   (draw-whitespace-clue view x y item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
 		      (items line)))
 	(when (member :activate inspect)
-	  (multiple-value-bind (object line)
+	  (multiple-value-bind (object-pin line-pin)
 	      (let* ((pointer (capi-object-property view :pointer))
 		     (x (car pointer))
 		     (y (cdr pointer)))
 		(to-layout-coordinates x y layout zoom)
-		(object-under x y (lines layout)))
+		(object-under-pin x y (lines layout)))
 	    ;; #### WARNING: we may end up drawing a clue for the second
 	    ;; time here, but this is probably not such a big deal.
-	    (when object
-	      (let ((x (x line))
-		    (y (+ par-y (y line))))
-		(cond ((and (cluep (object object))
-			    (discretionaryp (helt (object object))))
-		       (draw-clue iew (+ x (x object)) y
-				  (helt (object object))))
-		      ((and (cluep (object object))
-			    (gluep (helt (object object))))
-		       (draw-clue view (+ x (x object)) y
-				  (helt (object object))
+	    (when object-pin
+	      (let ((x (x line-pin))
+		    (y (+ par-y (y line-pin)))
+		    (object (object object-pin)))
+		(cond ((and (cluep object) (discretionaryp (helt object)))
+		       (draw-clue view (+ x (x object-pin)) y (helt object)))
+		      ((and (cluep object) (gluep (helt object)))
+		       (draw-clue view (+ x (x object-pin)) y (helt object)
 			 :force))
-		      ((whitespacep object)
-		       (draw-whitespace-clue view x y object 'force)))))))
+		      ((whitespacep object-pin)
+		       (draw-whitespace-clue view x y object-pin
+			 :force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))

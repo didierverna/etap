@@ -159,11 +159,6 @@ order (from last to first)."
       :asar asar :esar esar :weight weight)))
 
 
-(defclass duncan-pinned-line (duncan-line pin)
-  ()
-  (:documentation "The Duncan Pinned Line class."))
-
-
 
 
 ;; ==========================================================================
@@ -172,8 +167,7 @@ order (from last to first)."
 
 ;; #### NOTE: the layout's weight is in fact the weight of the last line.
 (defclass duncan-layout (layout)
-  ((pinned-line-class :initform 'duncan-pinned-line) ; slot override
-   (weight
+  ((weight
     :documentation "This layout's total weight."
     :initform 0 :reader weight)
    (hyphens

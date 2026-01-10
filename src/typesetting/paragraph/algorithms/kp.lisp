@@ -297,14 +297,6 @@ instantiated instead."
       :asar asar :esar esar :demerits demerits
       keys)))
 
-;; #### NOTE: there's no need for a KP-PINNED-NODE because when pinning lines,
-;; we don't care about the previous one anymore. Thus, we can safely
-;; CHANGE-CLASS a KP-NODE into a KP-PINNED-LINE, thereby dropping the PREVIOUS
-;; slot.
-(defclass kp-pinned-line (kp-line pin)
-  ()
-  (:documentation "The Knuth-Plass Pinned Line class."))
-
 
 ;; -------
 ;; Layouts
@@ -312,8 +304,7 @@ instantiated instead."
 
 ;; #### NOTE: the layout's demerits is in fact the demerits of the last line.
 (defclass kp-layout (layout)
-  ((pinned-line-class :initform 'kp-pinned-line) ; slot override
-   (demerits
+  ((demerits
     :documentation "This layout's total demerits."
     :initarg :demerits :reader demerits)
    (size

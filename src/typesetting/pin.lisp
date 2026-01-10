@@ -1,24 +1,12 @@
 (in-package :etap)
 (in-readtable :etap)
 
-;; #### NOTE: we currently provide two different ways for pinning objects.
-;; - The fist one is to use the PINNED class to pin any object. It's useful
-;;   when you want to reference a pinned object without actually touching it.
-;;   This is what we do in lines, because line items are in fact harray items
-;;   (except for whitespaces) and those items can potentially be shared
-;;   across different lines.
-;; - The second one is to subclass an original class, mixing it in with the
-;;   PIN mixin. This comes in handy when no sharing is expected, and this is
-;;   what we do with lines becoming pinned lines (by way of change-class) when
-;;   a layout is rendered.
-;; On the other hand, this might go away some day. Indeed, the distinction
-;; between lines and pinned lines only comes from the fact that our algorithms
-;; currently don't take the vertical spacing into account when they break the
-;; harray. This will probably change in the future.
-
 (defclass pin ()
-  ((board
-    :documentation "The pin board."
+  ((object
+    :documentation "The pinned object."
+    :initarg :object :reader object)
+   (board
+    :documentation "The pin's board."
     :initarg :board :reader board)
    (x
     :documentation "The pin's X coordinate, relative to its board."
@@ -27,33 +15,26 @@
     :documentation "The pin's Y coordinate, relative to its board."
     :initform 0 :initarg :y :reader y))
   (:documentation "The PIN class.
-This class can be used as a mixin for pinning objects to a fixed 2D position,
-expressed relative to a pin board."))
+This class is used to pin objects at some position on a board."))
 
+(defun make-pin (object board &rest keys &key x y)
+  "Make a new pin for OBJECT at position (X, Y) on BOARD.
+The default position is BOARD's origin."
+  (declare (ignore x y))
+  (apply #'make-instance 'pin :object object :board board keys))
 
-(defclass pinned (pin)
-  ((object
-    :documentation "The pinned object."
-    :initarg :object :reader object))
-  (:documentation "The PINNED class.
-This class is used to pin any kind of object to a board."))
+(defmethod properties strnlcat ((pin pin) &key)
+  "Advertise PINned object's properties."
+  (properties (object pin)))
 
-(defun pin-object (object board x &optional (y 0))
-  "Pin OBJECT on BOARD at position (X, Y)."
-  (make-instance 'pinned :object object :board board :x x :y y))
+(defmethod width ((pin pin))
+  "Return PINned object's width."
+  (width (object pin)))
 
-(defmethod properties strnlcat ((pinned pinned) &key)
-  "Advertise PINNED object's properties."
-  (properties (object pinned)))
+(defmethod height ((pin pin))
+  "Return PINned object's height."
+  (height (object pin)))
 
-(defmethod width ((pinned pinned))
-  "Return PINNED object's width."
-  (width (object pinned)))
-
-(defmethod height ((pinned pinned))
-  "Return PINNED object's height."
-  (height (object pinned)))
-
-(defmethod depth ((pinned pinned))
-  "Return PINNED object's depth."
-  (depth (object pinned)))
+(defmethod depth ((pin pin))
+  "Return PINned object's depth."
+  (depth (object pin)))
