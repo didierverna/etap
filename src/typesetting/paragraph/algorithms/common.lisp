@@ -175,11 +175,10 @@ clues in the returned value when appropriate."
 	 ;; including ligatures / kerning management in the presence of
 	 ;; hyphenation points, we may end up with harrays beginning or ending
 	 ;; with discretionaries (or even consecutive discretionaries for that
-	 ;; matter). When discretionaries begin or end the harray, we must not
-	 ;; consider them as post- or pre-breaks though.
-	 (cond ((and (= i start) (not (zerop start)))
+	 ;; matter).
+	 (cond ((= i start)
 		(post-break helt))
-	       ((and (= i (1- stop)) (not (= stop (length harray))))
+	       ((= i (1- stop))
 		(append (pre-break helt) (list (make-clue helt))))
 	       (t
 		(cons (make-clue helt) (no-break helt)))))
