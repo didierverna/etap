@@ -32,7 +32,6 @@
 ;; Font characters
 ;; --------------
 
-#i(get-fchar 1)
 (defun get-fchar (char &optional (font *font*))
   "Get CHARacter in FONT (*FONT* by default).
 Replace CHAR by a question mark if not found."
