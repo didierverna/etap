@@ -1003,12 +1003,8 @@ displays a penalty adjustment dialog when appropriate."
 			(+ (depth layout) *border-width*))
 		    (object-under-pin x y (lines layout)))))
       (when pin
-	(let ((object (etypecase (object pin)
-			(clue (helt (object pin)))
-			(glue (object pin)))))
-	  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	  ;; complexity of handling null calibers below.
-	  (when (caliber object)
+	(let ((object (if (whitespacep pin) (object pin) (helt (object pin)))))
+	  (when (typep object 'penalty-mixin)
 	    (make-penalty-adjustment-dialog object etap)))))))
 
 
@@ -1017,17 +1013,18 @@ displays a penalty adjustment dialog when appropriate."
 ;; Paragraph View Rendering
 ;; ------------------------
 
-(defun penalty-hue (break-point &aux (caliber (caliber break-point)))
-  "Return BREAK-POINT's penalty HUE in HSV model.
+(defgeneric clue-hue (break-point)
+  (:documentation "Return BREAK-POINT's clue HUE in HSV model.")
+  (:method (break-point)
+    "Return 2 (for green). This is the default method."
+    2s0)
+  (:method ((break-point penalty-mixin) &aux (caliber (caliber break-point)))
+    "Return soft BREAK-POINT's clue HUE based on its penalty.
 Colors are interpolated from  blue (min) through green (0), to red (max).
 Min and max values depend on BREAK-POINT's penalty and caliber."
-  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-  ;; complexity of handling null calibers below.
-  (if caliber
     (- 4s0 (* 4s0 (/ (- (decalibrated-value (penalty break-point) caliber)
 			(float (caliber-min caliber)))
-		     (- (caliber-max caliber) (caliber-min caliber)))))
-    2s0))
+		     (- (caliber-max caliber) (caliber-min caliber)))))))
 
 ;; #### TODO: see comment atop CLUE-UNDER-PIN.
 (defun draw-triangle (view x y &rest args)
@@ -1036,46 +1033,53 @@ ARGS are subsequently passed to the drawing function."
   (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
 	 args))
 
-(defun draw-penalty-clue (view x y break-point &optional (filled t))
+(defun draw-break-point-clue (view x y break-point &optional (filled t))
   "Draw a triangle clue in VIEW at (X,Y) for BREAK-POINT.
 The triangle may be FILLED (T by default), and its color is computed based on
   BREAK-POINT's penalty."
   (draw-triangle view x y
       :filled filled
-      :foreground (color:make-hsv (penalty-hue break-point) 1s0 .7s0)))
+      :foreground (color:make-hsv (clue-hue break-point) 1s0 .7s0)))
 
-(defgeneric draw-clue (view x y helt &optional force)
+;; #### TODO: we shouldn't systematically draw hyphenation clues at the end of
+;; lines because the hyphenation is visible (since the line is broken).
+(defgeneric draw-helt-clue (view x y helt &optional force)
   (:documentation "Draw a clue in VIEW at (X,Y) for HELT.")
   (:method (view x y (hyphenation-point hyphenation-point) &optional force)
     "Draw clue in VIEW at (X,Y) for HYPHENATION-POINT.
 The clue is outlined or filled, depending on whether HYPHENATION-POINT is
 explicit or computed."
     (declare (ignore force))
-    (draw-penalty-clue view x y hyphenation-point
+    (draw-break-point-clue view x y hyphenation-point
       (not (explicitp hyphenation-point))))
   (:method (view x y (glue glue) &optional force)
-    "Draw clue in VIEW at (X,Y) for end of line GLUE.
-Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
-not 0."
+    "Draw clue in VIEW at (X,Y) for end of line hard GLUE.
+Draw only if FORCE."
+    (when force (draw-break-point-clue view x y glue)))
+  (:method (view x y (glue soft-glue) &optional force)
+    "Draw clue in VIEW at (X,Y) for end of line soft GLUE.
+Unless FORCE, the clue is drawn only if GLUE's penalty is not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (draw-penalty-clue view x y glue))))
+    (draw-break-point-clue view x y glue))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
   "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
 (X,Y) is the point which WHITESPACE is positioned relatively to.
-Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
-not 0."
+Unless FORCE, the clue is drawn only if WHITESPACE's glue is a soft one, and
+its penalty is not 0."
   (when (or force
-	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
+	    (and (typep glue 'soft-glue)
+		 (not (zerop (decalibrated-value (penalty glue)
+						 (caliber glue))))))
     (gp:draw-rectangle view
 	(+ x (x whitespace))
 	(- y (height whitespace))
 	(width whitespace)
 	(+ (height whitespace) (depth whitespace))
-      :filled t ;; (not (explicitp discretionary))
-      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+      :filled t
+      :foreground (color:make-hsv (clue-hue glue) 1s0 .7s0))))
 
 (defun display-callback
     (view x y width height
@@ -1212,16 +1216,16 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))))
+				   (draw-helt-clue view (+ x (x item)) y
+						   (helt (object item))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))
+				   (draw-helt-clue view (+ x (x item)) y
+						   (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1248,9 +1252,11 @@ not 0."
 		    (y (+ par-y (y line-pin)))
 		    (object (object object-pin)))
 		(cond ((and (cluep object) (discretionaryp (helt object)))
-		       (draw-clue view (+ x (x object-pin)) y (helt object)))
+		       (draw-helt-clue view
+			 (+ x (x object-pin)) y (helt object)))
 		      ((and (cluep object) (gluep (helt object)))
-		       (draw-clue view (+ x (x object-pin)) y (helt object)
+		       (draw-helt-clue view
+			 (+ x (x object-pin)) y (helt object)
 			 :force))
 		      ((whitespacep object-pin)
 		       (draw-whitespace-clue view x y object-pin

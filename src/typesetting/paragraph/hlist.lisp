@@ -157,6 +157,14 @@ depending on whether the break occurs or not."))
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
 
+;; #### NOTE: there's a method for hard glues (see below), but we have nothing
+;; to advertise for hard discretionaries. Since we still need at least one
+;; applicable method, here's one that does nothing. Maybe one day we'll want
+;; to show something for non-hyphenation discretionaries...
+(defmethod properties strnlcat ((break-point discretionary) &key)
+  "Advertise nothing."
+  nil)
+
 (defmethod bol-idx ((discretionary discretionary))
   "Return DISCRETIONARY's IDX."
   (idx discretionary))
@@ -298,6 +306,10 @@ This class represents weighted glues."))
     "Return T if OBJECT is an EOP (End of Paragraph) one.
 This is the default method."
     (typep object 'eop)))
+
+(defmethod properties strnlcat ((eop eop) &key)
+  "Advertise nothing."
+  nil)
 
 (defmethod bol-idx ((eop eop))
   "Return NIL."
