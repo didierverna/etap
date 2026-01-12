@@ -1237,7 +1237,7 @@ not 0."
 		    (y (+ par-y (y line))))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue iew (+ x (x object)) y
+		       (draw-clue view (+ x (x object)) y
 				  (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
