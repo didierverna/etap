@@ -18,6 +18,7 @@
       :components
       ((:file "misc")
        (:file "arith")
+       (:file "caliber")
        (:file "protocols")))
      (:module "font"
       :serial t
