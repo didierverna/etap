@@ -27,7 +27,6 @@
 ;; H-Elements
 ;; ==========================================================================
 
-
 ;; ---------------
 ;; Font characters
 ;; --------------
@@ -78,32 +77,12 @@ Kerns represent inter-letter horizontal spacing."))
 ;; Note that if we ever fix this, maybe the whole notion of infinite penalty
 ;; is going away.
 
-(defgeneric penalty (helt)
-  (:documentation "Return HELT's penalty.")
-  ;; This methods applies to the last boundary (which has a null helt), and
-  ;; means to force the break there.
-  (:method ((helt null))
-    "Return -∞."
-    -∞))
-
-;; #### FIXME: not all algorithms define penalties and calibers. it's clumsy
-;; at best to have them here.
 (defabstract break-point ()
   ((idx
     :documentation "This break point's harray index."
-    :reader idx)
-   (penalty
-    :documentation "The penalty for breaking here."
-    :initform 0 :initarg :penalty :accessor penalty)
-   (caliber
-    :documentation "The penalty's caliber."
-    :initform nil :initarg :caliber :reader caliber))
+    :reader idx))
   (:documentation "The BREAK-POINT abstract class.
 This is the base class for all objects at which lines can be broken."))
-
-(defmethod properties strnlcat ((break-point break-point) &key)
-  "Advertise BREAK-POINT's penalty."
-  (format nil "Penalty: ~A." (penalty break-point)))
 
 (defun break-point-p (object)
   "Return T if OBJECT is a break point."
@@ -122,6 +101,32 @@ This is the base class for all objects at which lines can be broken."))
   (:method (break-point)
     "Return BREAK-POINT's IDX. This is the default method."
     (idx break-point)))
+
+
+
+;; Penalty mixin
+
+(defgeneric penalty (helt)
+  (:documentation "Return HELT's penalty.")
+  ;; This methods applies to the last boundary (which has a null helt), and
+  ;; means to force the break there.
+  (:method ((helt null))
+    "Return -∞."
+    -∞))
+
+(defabstract penalty-mixin ()
+  ((penalty
+    :documentation "The penalty associated with that break point."
+    :initform 0 :initarg :penalty :accessor penalty)
+   (caliber
+    :documentation "The penalty's corresponding caliber."
+    :initform nil :initarg :caliber :reader caliber))
+  (:documentation "The PENALTY-MIXIN class.
+This class is a mixin for weighted break point classes."))
+
+(defmethod properties strnlcat ((break-point penalty-mixin) &key)
+  "Advertise weighted BREAK-POINT's penalty."
+  (format nil "Penalty: ~A." (penalty break-point)))
 
 
 
@@ -161,6 +166,12 @@ depending on whether the break occurs or not."))
   (1+ (idx discretionary)))
 
 
+(defclass soft-discretionary (discretionary penalty-mixin)
+  ()
+  (:documentation "The SOFT-DISCRETIONARY class.
+This class represents weighted discretionaries."))
+
+
 
 ;; Hyphenation points
 
@@ -198,6 +209,13 @@ Possible values are :explicit, :implicit, or nil.")
   (:method (object)
     "Call `hyphenation-point-p' on OBJECT. This is the default method."
     (hyphenation-point-p object)))
+
+
+(defclass soft-hyphenation-point
+    (discretionary hyphenation-mixin penalty-mixin)
+  ()
+  (:documentation "The SOFT-HYPHENATION-POINT class.
+This class represents weighted hyphenation point discretionaries."))
 
 
 
@@ -246,6 +264,12 @@ Glues represent breakable, elastic space."))
   (make-glue :width (tfm:interword-space font)
 	     :shrink (tfm:interword-shrink font)
 	     :stretch (tfm:interword-stretch font)))
+
+
+(defclass soft-glue (break-point penlaty-mixin)
+  ()
+  (:documentation "The SOFT-GLUE class.
+This class represents weighted glues."))
 
 
 
