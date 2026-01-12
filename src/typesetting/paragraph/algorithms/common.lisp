@@ -292,8 +292,8 @@ for that)."))
   (eopp (break-point boundary)))
 
 (defmethod properties strnlcat ((boundary boundary) &key)
-  "Return a string advertising BOUNDARY's penalty."
-  (format nil "Penalty: ~A." (penalty boundary)))
+  "Return a string advertising BOUNDARY's break point properties."
+  (properties (break-point boundary)))
 
 
 
