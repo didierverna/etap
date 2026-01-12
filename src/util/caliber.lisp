@@ -1,10 +1,6 @@
 (in-package :etap)
 (in-readtable :etap)
 
-;; ==========================================================================
-;; Calibers
-;; ==========================================================================
-
 ;; #### TODO: a lot of the complication below would go away with custom
 ;; widgets looking like rotary knobs.
 
