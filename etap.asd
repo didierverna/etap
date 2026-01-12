@@ -17,7 +17,8 @@
       :serial t
       :components
       ((:file "misc")
-       (:file "arith")))
+       (:file "arith")
+       (:file "caliber")))
      (:module "font"
       :serial t
       :components
