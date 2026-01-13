@@ -197,10 +197,12 @@ return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
   (when (typep object 'hyphenation-point)
     (if (explicitp object) :explicit :implicit)))
 
-(defun make-hyphenation-point
-    (&rest initargs &key pre-break post-break no-break explicit)
+;; #### TODO: we could provide a special :font initarg here that would allow
+;; automatic filling of the pre-break section with the appropriate dash fchar.
+;; This would be cleaner
+(defun make-hyphenation-point (&rest initargs &key pre-break explicit)
   "Make a new EXPLICITP hyphenation point."
-  (declare (ignore pre-break post-break no-break explicit))
+  (declare (ignore pre-break explicit))
   (apply #'make-instance 'hyphenation-point initargs))
 
 (defgeneric hyphenated (object)
@@ -243,6 +245,18 @@ Glues represent breakable, elastic space."))
   (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
 	      ($= (stretch glue) +∞))))
 
+(defun make-glue (&rest keys &key width shrink stretch)
+  "Make a new hard glue out of WIDTH, SHRINK, STRETCH."
+  (declare (ignore width shrink stretch))
+  (apply #'make-instance 'glue keys))
+
+(defun make-interword-glue (&key (font *font*))
+  "Make a hard interword glue.
+Use FONT (*FONT* by default) to set up the spacing."
+  (make-glue :width (tfm:interword-space font)
+	     :shrink (tfm:interword-shrink font)
+	     :stretch (tfm:interword-stretch font)))
+
 (defmethod properties strnlcat ((glue glue) &key)
   "Advertise GLUE's properties."
   (format nil "Glue: ~Apt plus ~Apt minus ~Apt."
@@ -259,22 +273,6 @@ Glues represent breakable, elastic space."))
   ()
   (:documentation "The SOFT-GLUE class.
 This class represents weighted glues."))
-
-
-(defun make-glue (&rest keys &key hard width shrink stretch penalty caliber)
-  "Make a new HARD or soft (the default) glue out of WIDTH, SHRINK, STRETCH.
-Soft glues also accept initial PERNALTY and CALIBER."
-  (declare (ignore width shrink stretch penalty caliber))
-  (apply #'make-instance (if hard 'glue 'soft-glue)
-	 (remove-keys keys :hard)))
-
-(defun make-interword-glue (&key hard (font *font*))
-  "Make a HARD or soft (the default) interword glue.
-Use FONT (*FONT* by default) to set up the spacing."
-  (make-glue :hard hard
-	     :width (tfm:interword-space font)
-	     :shrink (tfm:interword-shrink font)
-	     :stretch (tfm:interword-stretch font)))
 
 
 
@@ -600,13 +598,12 @@ to the new hlist, and the unprocessed new tail."
 ;; Glueing
 ;; ==========================================================================
 
-(defun glue-hlist (hlist &optional hard)
-  "Return a new glued hlist. Use HARD or soft (the default) glues."
+(defun glue-hlist (hlist)
+  "Return a new hard glued hlist."
   (loop :with previous-helt
 	:for helt :in hlist
 	:if (eq helt :blank)
 	  :collect (make-interword-glue
-		    :hard hard
 		    ;; #### TODO: should look into previous discretionary.
 		    :font (or (when (typep previous-helt
 					   'tfm:character-metrics)

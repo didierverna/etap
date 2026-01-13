@@ -32,7 +32,7 @@
 All primary methods must return a (possibly modified) HLIST.")
   (:method (hlist disposition algorithm &key)
     "Return a new hard glued HLIST. This is the default method."
-    (glue-hlist hlist :hard)))
+    (glue-hlist hlist)))
 
 
 
