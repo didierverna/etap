@@ -181,8 +181,7 @@ See `define-caliber' for more information."
     (hlist disposition (algorithm (eql :fit))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Finish setting up hyphenation points.
-This means defaulting their penalties and initializing the corresponding
+  "Glue HLIST and convert all break points to soft ones.
 caliber.
 Return HLIST."
   (calibrate-fit hyphen-penalty)
