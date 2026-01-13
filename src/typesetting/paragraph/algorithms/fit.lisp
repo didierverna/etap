@@ -187,19 +187,19 @@ Return HLIST."
   (calibrate-fit hyphen-penalty)
   (calibrate-fit explicit-hyphen-penalty)
   (setq hlist (glue-hlist hlist))
-  (mapc (lambda (item)
-	  (typecase item
+  (mapc (lambda (helt)
+	  (typecase helt
 	    (hyphenation-point
-	     (cond ((explicitp item)
-		    (change-class item 'soft-hyphenation-point
+	     (cond ((explicitp helt)
+		    (change-class helt 'soft-hyphenation-point
 		      :penalty *explicit-hyphen-penalty*
 		      :caliber *fit-explicit-hyphen-penalty*))
 		   (t
-		    (change-class item 'soft-hyphenation-point
+		    (change-class helt 'soft-hyphenation-point
 		      :penalty *hyphen-penalty*
 		      :caliber *fit-hyphen-penalty*))))
 	    (glue
-	     (change-class item 'soft-glue :caliber *fit-glue-penalty*))))
+	     (change-class helt 'soft-glue :caliber *fit-glue-penalty*))))
     hlist)
   hlist)
 
