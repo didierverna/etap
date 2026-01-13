@@ -106,14 +106,6 @@ This is the base class for all objects at which lines can be broken."))
 
 ;; Penalty mixin
 
-(defgeneric penalty (helt)
-  (:documentation "Return HELT's penalty.")
-  ;; This methods applies to the last boundary (which has a null helt), and
-  ;; means to force the break there.
-  (:method ((helt null))
-    "Return -∞."
-    -∞))
-
 (defabstract penalty-mixin ()
   ((penalty
     :documentation "The penalty associated with that break point."
