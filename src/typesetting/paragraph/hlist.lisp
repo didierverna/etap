@@ -220,7 +220,7 @@ Possible values are :explicit, :implicit, or nil.")
 
 
 (defclass soft-hyphenation-point
-    (discretionary hyphenation-mixin penalty-mixin)
+    (hyphenation-point penalty-mixin)
   ()
   (:documentation "The SOFT-HYPHENATION-POINT class.
 This class represents weighted hyphenation point discretionaries."))
@@ -263,7 +263,7 @@ Glues represent breakable, elastic space."))
   (typep object 'glue))
 
 
-(defclass soft-glue (break-point penlaty-mixin)
+(defclass soft-glue (glue penalty-mixin)
   ()
   (:documentation "The SOFT-GLUE class.
 This class represents weighted glues."))
