@@ -320,6 +320,11 @@ This is the default method."
   "Return NIL."
   nil)
 
+;; #### NOTE: this avoid the need for creating soft EOP break points.
+(defmethod penalty ((eop eop))
+  "Return 0."
+  0)
+
 
 
 
