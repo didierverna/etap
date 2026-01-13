@@ -122,14 +122,6 @@ Kerns represent inter-letter horizontal spacing."))
 ;; Note that if we ever fix this, maybe the whole notion of infinite penalty
 ;; is going away.
 
-(defgeneric penalty (item)
-  (:documentation "Return ITEM's penalty.")
-  ;; This methods applies to the last boundary (which has a null item), and
-  ;; means to force the break there.
-  (:method ((item null))
-    "Return -∞."
-    -∞))
-
 ;; #### FIXME: not all algorithms define penalties and calibers. it's clumsy
 ;; at best to have them here.
 (defabstract break-point ()
