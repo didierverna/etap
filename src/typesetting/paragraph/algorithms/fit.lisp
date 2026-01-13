@@ -192,15 +192,15 @@ Return HLIST."
 	  (typecase item
 	    (hyphenation-point
 	     (cond ((explicitp item)
-		    (setf (penalty item) *explicit-hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *fit-explicit-hyphen-penalty*))
+		    (change-class item 'soft-hyphenation-point
+		      :penalty *explicit-hyphen-penalty*
+		      :caliber *fit-explicit-hyphen-penalty*))
 		   (t
-		    (setf (penalty item) *hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *fit-hyphen-penalty*))))
+		    (change-class item 'soft-hyphenation-point
+		      :penalty *hyphen-penalty*
+		      :caliber *fit-hyphen-penalty*))))
 	    (glue
-	     (setf (slot-value item 'caliber) *fit-glue-penalty*))))
+	     (change-class item 'soft-glue :caliber *fit-glue-penalty*))))
     hlist)
   hlist)
 
