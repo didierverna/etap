@@ -262,22 +262,27 @@ Glues represent breakable, elastic space."))
   "Return T if OBJECT is a glue."
   (typep object 'glue))
 
-(defun make-glue (&rest keys &key width shrink stretch penalty caliber)
-  "Make a new glue out of WIDTH, SHRINK, STRETCH, and PENALTY."
-  (declare (ignore width shrink stretch penalty caliber))
-  (apply #'make-instance 'glue keys))
-
-(defun make-interword-glue (&optional (font *font*))
-  "Make a FONT (*FONT* by default) interword glue."
-  (make-glue :width (tfm:interword-space font)
-	     :shrink (tfm:interword-shrink font)
-	     :stretch (tfm:interword-stretch font)))
-
 
 (defclass soft-glue (break-point penlaty-mixin)
   ()
   (:documentation "The SOFT-GLUE class.
 This class represents weighted glues."))
+
+
+(defun make-glue (&rest keys &key hard width shrink stretch penalty caliber)
+  "Make a new HARD or soft (the default) glue out of WIDTH, SHRINK, STRETCH.
+Soft glues also accept initial PERNALTY and CALIBER."
+  (declare (ignore width shrink stretch penalty caliber))
+  (apply #'make-instance (if hard 'glue 'soft-glue)
+	 (remove-keys keys :hard)))
+
+(defun make-interword-glue (&key hard (font *font*))
+  "Make a HARD or soft (the default) interword glue.
+Use FONT (*FONT* by default) to set up the spacing."
+  (make-glue :hard hard
+	     :width (tfm:interword-space font)
+	     :shrink (tfm:interword-shrink font)
+	     :stretch (tfm:interword-stretch font)))
 
 
 
@@ -598,16 +603,18 @@ to the new hlist, and the unprocessed new tail."
 ;; Glueing
 ;; ==========================================================================
 
-(defun glue-hlist (hlist)
-  "Return a new glued hlist."
+(defun glue-hlist (hlist &optional hard)
+  "Return a new glued hlist. Use HARD or soft (the default) glues."
   (loop :with previous-helt
 	:for helt :in hlist
 	:if (eq helt :blank)
 	  :collect (make-interword-glue
+		    :hard hard
 		    ;; #### TODO: should look into previous discretionary.
-		    (or (when (typep previous-helt 'tfm:character-metrics)
-			  (tfm:font previous-helt))
-			*font*))
+		    :font (or (when (typep previous-helt
+					   'tfm:character-metrics)
+				(tfm:font previous-helt))
+			      *font*))
 	:else
 	  :do (setq previous-helt helt)
 	  :and :collect helt))

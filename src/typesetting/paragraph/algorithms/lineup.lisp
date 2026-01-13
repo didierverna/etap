@@ -31,8 +31,8 @@
    "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
 All primary methods must return a (possibly modified) HLIST.")
   (:method (hlist disposition algorithm &key)
-    "Return a new glued HLIST. This is the default method."
-    (glue-hlist hlist)))
+    "Return a new hard glued HLIST. This is the default method."
+    (glue-hlist hlist :hard)))
 
 
 
