@@ -124,6 +124,9 @@ This class is a mixin for weighted break point classes."))
 
 ;; Discretionaries
 
+;; #### NOTE: maybe one day we would need to process kerns and ligatures
+;; within user-defined discretionaries' pre/post/no-break values!
+
 (defclass discretionary (break-point)
   ((pre-break
     :documentation "Contents to insert before the break."
@@ -142,10 +145,8 @@ depending on whether the break occurs or not."))
   "Return T if OBJECT is a discretionary."
   (typep object 'discretionary))
 
-;; #### NOTE: maybe one day we would need to process kerns and ligatures
-;; within user-defined discretionaries' pre/post/no-break values!
 (defun make-discretionary (&rest initargs &key pre-break post-break no-break)
-  "Make a new discretionary out of PRE-BREAK, POST-BREAK, and NO-BREAK."
+  "Make a new hard discretionary."
   (declare (ignore pre-break post-break no-break))
   (apply #'make-instance 'discretionary initargs))
 
@@ -170,6 +171,12 @@ depending on whether the break occurs or not."))
   ()
   (:documentation "The SOFT-DISCRETIONARY class.
 This class represents weighted discretionaries."))
+
+(defun make-soft-discretionary
+    (&rest initargs &key pre-break post-break no-break penalty caliber)
+  "Make a new soft discretionary."
+  (declare (ignore pre-break post-break no-break penalty caliber))
+  (apply #'make-instance 'soft-discretionary initargs))
 
 
 
@@ -273,6 +280,11 @@ Use FONT (*FONT* by default) to set up the spacing."
   ()
   (:documentation "The SOFT-GLUE class.
 This class represents weighted glues."))
+
+(defun make-soft-glue (&rest keys &key width shrink stretch penalty caliber)
+  "Make a new soft glue."
+  (declare (ignore width shrink stretch penalty caliber))
+  (apply #'make-instance 'soft-glue keys))
 
 
 

@@ -108,11 +108,11 @@ Return HLIST."
 				      (tfm:font previous-helt))
 				    *font*))
 			  (em (tfm:em font)))
-		     (make-discretionary
-		      :pre-break (list (make-glue :stretch (* 2 em)
-						  :caliber *kp-glue-penalty*))
-		      :no-break (list (make-glue :width (/ em 3)
-						 :caliber *kp-glue-penalty*))))
+		     (make-soft-discretionary
+		      :pre-break (list (make-glue :stretch (* 2 em)))
+		      :no-break (list (make-soft-glue
+				       :width (/ em 3)
+				       :caliber *kp-glue-penalty*))))
 		 :else
 		   :do (when (discretionaryp helt)
 			 ;; #### TODO: should look into previous discretionary.
@@ -121,20 +121,26 @@ Return HLIST."
 					    (tfm:font previous-helt))
 					  *font*))
 				(em (tfm:em font)))
-			   (endpush (make-glue :stretch (* 2 em)
-					       :caliber *kp-glue-penalty*)
+			   (endpush (make-glue :stretch (* 2 em))
 				    (pre-break helt)))
 			 (cond ((pre-break helt)
-				(setf (penalty helt) *hyphen-penalty*)
-				(setf (slot-value helt 'caliber)
-				      *kp-hyphen-penalty*))
+				(change-class helt
+				    (if (hyphenation-point-p helt)
+				      'soft-hyphenation-point
+				      'soft-discretionary)
+				  :penalty *hyphen-penalty*
+				  :caliber *kp-hyphen-penalty*))
 			       (t
-				(setf (penalty helt) *explicit-hyphen-penalty*)
-				(setf (slot-value helt 'caliber)
-				      *kp-explicit-hyphen-penalty*))))
+				(change-class helt
+				    (if (hyphenation-point-p helt)
+				      'soft-hyphenation-point
+				      'soft-discretionary)
+				  :penalty *explicit-hyphen-penalty*
+				  :caliber *kp-explicit-hyphen-penalty*))))
 		   :and :do (setq previous-helt helt)
 		   :and :collect helt))
-     (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+     (endpush (make-soft-glue
+	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
 	      hlist))
     (t
      (setq hlist (glue-hlist hlist))
@@ -142,17 +148,24 @@ Return HLIST."
 	     (typecase item
 	       (discretionary
 		(cond ((pre-break item)
-		       (setf (penalty item) *hyphen-penalty*)
-		       (setf (slot-value item 'caliber)
-			     *kp-hyphen-penalty*))
+		       (change-class item
+			   (if (hyphenation-point-p item)
+			     'soft-hyphenation-point
+			     'soft-discretionary)
+			 :penalty *hyphen-penalty*
+			 :caliber *kp-hyphen-penalty*))
 		      (t
-		       (setf (penalty item) *explicit-hyphen-penalty*)
-		       (setf (slot-value item 'caliber)
-			     *kp-explicit-hyphen-penalty*))))
+		       (change-class item
+			   (if (hyphenation-point-p item)
+			     'soft-hyphenation-point
+			     'soft-discretionary)
+			 :penalty  *explicit-hyphen-penalty*
+			 :caliber *kp-explicit-hyphen-penalty*))))
 	       (glue
-		(setf (slot-value item 'caliber) *kp-glue-penalty*))))
+		(change-class item 'soft-glue :caliber *kp-glue-penalty*))))
        hlist)
-     (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+     (endpush (make-soft-glue
+	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
 	      hlist)))
   hlist)
 
