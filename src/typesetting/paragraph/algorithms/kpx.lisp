@@ -91,21 +91,29 @@ Return HLIST."
   (calibrate-kpx hyphen-penalty)
   (calibrate-kpx explicit-hyphen-penalty)
   (setq hlist (glue-hlist hlist))
-  (mapc (lambda (item)
-	  (typecase item
+  (mapc (lambda (helt)
+	  (typecase helt
 	    (discretionary
-	     (cond ((pre-break item)
-		    (setf (penalty item) *hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kpx-hyphen-penalty*))
+	     (cond ((pre-break helt)
+		    (change-class helt
+			(if (hyphenation-point-p helt)
+			  'soft-hyphenation-point
+			  'soft-discretionary)
+		      :penalty *hyphen-penalty*
+		      :caliber *kpx-hyphen-penalty*))
 		   (t
-		    (setf (penalty item) *explicit-hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kpx-explicit-hyphen-penalty*))))
+		    (change-class helt
+			(if (hyphenation-point-p helt)
+			  'soft-hyphenation-point
+			  'soft-discretionary)
+		      :penalty *explicit-hyphen-penalty*
+		      :caliber *kpx-explicit-hyphen-penalty*))))
 	    (glue
-	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
+	     (change-class helt 'soft-glue :caliber *kp-glue-penalty*))))
     hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*) hlist)
+  (endpush (make-soft-glue
+	    :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+	   hlist)
   hlist)
 
 
