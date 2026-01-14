@@ -1041,8 +1041,6 @@ The triangle may be FILLED (T by default), and its color is computed based on
       :filled filled
       :foreground (color:make-hsv (clue-hue break-point) 1s0 .7s0)))
 
-;; #### TODO: we shouldn't systematically draw hyphenation clues at the end of
-;; lines because the hyphenation is visible (since the line is broken).
 (defgeneric draw-helt-clue (view x y helt &optional force)
   (:documentation "Draw a clue in VIEW at (X,Y) for HELT.")
   (:method (view x y (hyphenation-point hyphenation-point) &optional force)
@@ -1065,7 +1063,7 @@ Unless FORCE, the clue is drawn only if GLUE's penalty is not 0."
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
-  "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
+  "Draw a WHITESPACE clue in VIEW relatively to (X,Y).
 (X,Y) is the point which WHITESPACE is positioned relatively to.
 Unless FORCE, the clue is drawn only if WHITESPACE's glue is a soft one, and
 its penalty is not 0."
@@ -1117,6 +1115,7 @@ its penalty is not 0."
 	      :for x := (x pin)
 	      :for y := (+ par-y (y pin))
 	      :for line := (object pin)
+	      :for last-item := (car (last (items line)))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
 			x
@@ -1212,7 +1211,10 @@ its penalty is not 0."
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
-					(or (member :hyphenation-points clues)
+					(or (and
+					     (member :hyphenation-points
+						     clues)
+					     (not (eq item last-item)))
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
