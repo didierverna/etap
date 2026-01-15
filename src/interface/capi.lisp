@@ -401,6 +401,25 @@ Display LAYOUT number (1 by default)."
 
 
 ;; ==========================================================================
+;; Retrievers
+;; ==========================================================================
+
+(defun global-value (etap caliber)
+  "Return CALIBER property's global value as set in ETAP, or NIL.
+The property is supposed to a slider-adjustable algorithm parameter
+(otherwise, NIL is returned). The returned value is uncalibrated (it is just
+the slider position)."
+  (let ((widget (find-widget
+		 (caliber-property caliber)
+		 (slot-value etap
+			     (second
+			      (choice-selected-item (algorithm-tabs etap)))))))
+    (when widget (range-slug-start widget))))
+
+
+
+
+;; ==========================================================================
 ;; River Detection Dialog
 ;; ==========================================================================
 
@@ -575,15 +594,11 @@ Display LAYOUT number (1 by default)."
 	  :data (caliber-default caliber)
 	  :visible-max-width nil)
 	reset-buttons)
-  (let ((widget (find-widget
-		 (caliber-property caliber)
-		 (slot-value
-		  etap
-		  (second (choice-selected-item (algorithm-tabs etap)))))))
-    (when widget
+  (let ((value (global-value etap caliber)))
+    (when value
       (push (make-instance 'push-button
 	      :text "Reset to Global"
-	      :data (range-slug-start widget)
+	      :data value
 	      :visible-max-width nil)
 	    reset-buttons)))
   (push (make-instance 'push-button
