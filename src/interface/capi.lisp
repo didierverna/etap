@@ -1028,6 +1028,28 @@ displays a penalty adjustment dialog when appropriate."
 ;; Paragraph View Rendering
 ;; ------------------------
 
+;; Clues
+;; -----
+
+;; #### NOTE: the general policy for deciding whether a clue should be visible
+;; is as follows.
+;; First of all, the simple cases.
+;; - A penalty adjustment dialog exists (soft break points).
+;; - The inspector is active and the mouse is over it.
+;; Otherwise, it's more complicated. The specific clue option must be active,
+;; but that is not enough.
+;; - First of all, only clues for objects which are not directly visible are
+;;   displayed. For instance, whitespaces are obviously visible but not
+;;   discretionaries (granted, some are, like explicit hyphenation points, but
+;;   we will still show the clue in case one day we have unbreakable hyphens
+;;   outside discretionaries). However, whitespace clues will be displayed if
+;;   the corresponding (soft) glue's penalty has been customized; in other
+;;   words, if its value is different from the global UI one.
+;; - And then, there's another special case, which is that of the ends of
+;;   lines. There, all breaks are obviously visible because that's the end of
+;;   a line. So as above, the clues would only be displayed if the
+;;   corresponding (soft) break point's penalty has been customized.
+
 (defgeneric clue-hue (break-point)
   (:documentation "Return BREAK-POINT's clue HUE in HSV model.")
   (:method (break-point)
@@ -1094,6 +1116,10 @@ its penalty is not 0."
       :filled t
       :foreground (color:make-hsv (clue-hue glue) 1s0 .7s0))))
 
+
+
+;; Paragraph
+;; ---------
 (defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
