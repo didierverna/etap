@@ -404,7 +404,7 @@ Display LAYOUT number (1 by default)."
 ;; Retrievers
 ;; ==========================================================================
 
-(defun global-value (etap caliber)
+(defun global-value (caliber etap)
   "Return CALIBER property's global value as set in ETAP, or NIL.
 The property is supposed to a slider-adjustable algorithm parameter
 (otherwise, NIL is returned). The returned value is uncalibrated (it is just
@@ -415,6 +415,17 @@ the slider position)."
 			     (second
 			      (choice-selected-item (algorithm-tabs etap)))))))
     (when widget (range-slug-start widget))))
+
+(defun customizedp (helt etap)
+  "Return T if HELT has been customized in ETAP.
+HELT must be a soft break point, and its penalty must be different from
+the corresponding property's global (UI) value, or 0 if the property is not
+customizable."
+  (and (typep helt 'penalty-mixin)
+       ($/= (penalty helt)
+	    (or (when-let (value (global-value (caliber helt) etap))
+		  (calibrated-value value (caliber helt)))
+		0))))
 
 
 
@@ -594,7 +605,7 @@ the slider position)."
 	  :data (caliber-default caliber)
 	  :visible-max-width nil)
 	reset-buttons)
-  (let ((value (global-value etap caliber)))
+  (let ((value (global-value caliber etap)))
     (when value
       (push (make-instance 'push-button
 	      :text "Reset to Global"
@@ -1089,26 +1100,17 @@ explicit or computed."
     (draw-break-point-clue view x y hyphenation-point
       (not (explicitp hyphenation-point))))
   (:method (view x y (glue glue) &optional force)
-    "Draw clue in VIEW at (X,Y) for end of line hard GLUE.
-Draw only if FORCE."
-    (when force (draw-break-point-clue view x y glue)))
-  (:method (view x y (glue soft-glue) &optional force)
-    "Draw clue in VIEW at (X,Y) for end of line soft GLUE.
-Unless FORCE, the clue is drawn only if GLUE's penalty is not 0."
-  (when (or force
-	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (draw-break-point-clue view x y glue))))
+    "Draw clue in VIEW at (X,Y) for end of line GLUE.
+Unless FORCE, draw only if (soft) GLUE's penalty has been customized."
+    (when (or force (customizedp glue (top-level-interface view)))
+      (draw-break-point-clue view x y glue))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
   "Draw a WHITESPACE clue in VIEW relatively to (X,Y).
 (X,Y) is the point which WHITESPACE is positioned relatively to.
-Unless FORCE, the clue is drawn only if WHITESPACE's glue is a soft one, and
-its penalty is not 0."
-  (when (or force
-	    (and (typep glue 'soft-glue)
-		 (not (zerop (decalibrated-value (penalty glue)
-						 (caliber glue))))))
+Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
+  (when (or force (customizedp glue (top-level-interface view)))
     (gp:draw-rectangle view
 	(+ x (x whitespace))
 	(- y (height whitespace))
@@ -1253,13 +1255,15 @@ its penalty is not 0."
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
-					(or (and
+					(or (find-penalty-adjustment-dialog
+					     (helt (object item)) etap)
+					    (and
 					     (member :hyphenation-points
 						     clues)
-					     (not (eq item last-item)))
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
+					     (or (not (eq item last-item))
+						 (customizedp
+						  (helt (object item))
+						  etap)))))
 				   (draw-helt-clue view (+ x (x item)) y
 						   (helt (object item))))
 				  ((and (cluep (object item))
