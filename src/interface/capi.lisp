@@ -1043,8 +1043,9 @@ displays a penalty adjustment dialog when appropriate."
 ;;   discretionaries (granted, some are, like explicit hyphenation points, but
 ;;   we will still show the clue in case one day we have unbreakable hyphens
 ;;   outside discretionaries). However, whitespace clues will be displayed if
-;;   the corresponding (soft) glue's penalty has been customized; in other
-;;   words, if its value is different from the global UI one.
+;;   the corresponding (soft) glue's penalty has been customized, that is, if
+;;   its value is different from the global UI one, or (for non customizable
+;;   values), the caliber's default one.
 ;; - And then, there's another special case, which is that of the ends of
 ;;   lines. There, all breaks are obviously visible because that's the end of
 ;;   a line. So as above, the clues would only be displayed if the
