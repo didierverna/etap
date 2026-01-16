@@ -119,9 +119,8 @@ Return HLIST."
 			 (let* ((font (or (when (typep previous-helt
 						       'tfm:character-metrics)
 					    (tfm:font previous-helt))
-					  *font*))
-				(em (tfm:em font)))
-			   (endpush (make-glue :stretch (* 2 em))
+					  *font*)))
+			   (endpush (make-glue :stretch (* 2 (tfm:em font)))
 				    (pre-break helt)))
 			 (cond ((pre-break helt)
 				(change-class helt
