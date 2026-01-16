@@ -110,9 +110,8 @@ Return HLIST."
 		     (make-soft-discretionary
 		      :pre-break (list (make-glue
 					:stretch (* 2 (tfm:em font))))
-		      :no-break (list (make-soft-glue
-				       :width (tfm:interword-space font)
-				       :caliber *kp-glue-penalty*))))
+		      :no-break (list (make-glue
+				       :width (tfm:interword-space font)))))
 		 :else
 		   :do (when (discretionaryp helt)
 			 ;; #### TODO: should look into previous discretionary.
