@@ -655,7 +655,8 @@ new dialog and display it."
   "The width of the border around the paragraph.")
 
 (defparameter *clues*
-  '(:characters :hyphenation-points :whitespaces :ends-of-line
+  '(:characters
+    :hyphenation-points :discretionaries :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
     :paragraph-box :line-boxes :character-boxes :baselines)
@@ -874,8 +875,6 @@ Each point is of the form (X . Y)."
 (defun clue-under-pin (x y line-pins &aux (p (cons x y)))
   "Return the pin of the clue from LINE-PINS which is under (X, Y).
 If no such clue is found, return NIL.
-In the case of a discretionary clue, the pin is returned only in the case of
-an hyphenation point (as opposed to a general discretionary).
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
@@ -887,8 +886,6 @@ This function returns the corresponding line's pin as a second value."
 	     (line (object pin)))
 	(values (find-if (lambda (item)
 			   (and (cluep (object item))
-				(or (not (discretionaryp (helt (object item))))
-				    (hyphenation-point-p (helt (object item))))
 				(triangle-under-p
 				 p
 				 (cons (+ x (x item)) y)
@@ -1246,6 +1243,18 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 						(find (tfm:font (object item))
 						    fonts
 						  :key #'car)))))
+				  ((and (cluep (object item))
+					(discretionaryp (helt (object item)))
+					(not (hyphenation-point-p
+					      (helt (object item))))
+					(or (member :discretionaries clues)
+					    (find-penalty-adjustment-dialog
+					     (helt (object item)) etap)))
+				   (draw-helt-clue view (+ x (x item)) y
+				     (helt (object item))
+				     (or (find-penalty-adjustment-dialog
+					  (helt (object item)) etap)
+					 (not (eq item last-item)))))
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
