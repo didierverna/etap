@@ -1090,20 +1090,14 @@ The triangle may be FILLED (T by default), and its color is computed based on
       :filled filled
       :foreground (color:make-hsv (clue-hue break-point) 1s0 .7s0)))
 
-(defgeneric draw-helt-clue (view x y helt &optional force)
-  (:documentation "Draw a clue in VIEW at (X,Y) for HELT.")
-  (:method (view x y (hyphenation-point hyphenation-point) &optional force)
-    "Draw clue in VIEW at (X,Y) for HYPHENATION-POINT.
-The clue is outlined or filled, depending on whether HYPHENATION-POINT is
-explicit or computed."
-    (declare (ignore force))
-    (draw-break-point-clue view x y hyphenation-point
-      (not (explicitp hyphenation-point))))
-  (:method (view x y (glue glue) &optional force)
-    "Draw clue in VIEW at (X,Y) for end of line GLUE.
-Unless FORCE, draw only if (soft) GLUE's penalty has been customized."
-    (when (or force (customizedp glue (top-level-interface view)))
-      (draw-break-point-clue view x y glue))))
+(defun draw-helt-clue (view x y helt &optional force)
+  "Draw an HELT clue in VIEW at (X,Y).
+Unless FORCE, draw only if (soft) HELT's penalty has been customized.
+The clue is normally filled, but only outlined for explicit hyphenation
+points."
+  (when (or force (customizedp helt (top-level-interface view)))
+    (draw-break-point-clue view x y helt
+      (or (not (hyphenation-point-p helt)) (not (explicitp helt))))))
 
 (defun draw-whitespace-clue
     (view x y whitespace &optional force &aux (glue (object whitespace)))
@@ -1255,25 +1249,21 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
-					(or (find-penalty-adjustment-dialog
-					     (helt (object item)) etap)
-					    (and
-					     (member :hyphenation-points
-						     clues)
-					     (or (not (eq item last-item))
-						 (customizedp
-						  (helt (object item))
-						  etap)))))
+					(or (member :hyphenation-points clues)
+					    (find-penalty-adjustment-dialog
+					     (helt (object item)) etap)))
 				   (draw-helt-clue view (+ x (x item)) y
-						   (helt (object item))))
+				     (helt (object item))
+				     (or (find-penalty-adjustment-dialog
+					  (helt (object item)) etap)
+					 (not (eq item last-item)))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
+					     (helt (object item)) etap)))
 				   (draw-helt-clue view (+ x (x item)) y
-						   (helt (object item))
+				     (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1299,16 +1289,12 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	      (let ((x (x line-pin))
 		    (y (+ par-y (y line-pin)))
 		    (object (object object-pin)))
-		(cond ((and (cluep object) (discretionaryp (helt object)))
-		       (draw-helt-clue view
-			 (+ x (x object-pin)) y (helt object)))
-		      ((and (cluep object) (gluep (helt object)))
+		(cond ((cluep object)
 		       (draw-helt-clue view
 			 (+ x (x object-pin)) y (helt object)
 			 :force))
 		      ((whitespacep object-pin)
-		       (draw-whitespace-clue view x y object-pin
-			 :force)))))))
+		       (draw-whitespace-clue view x y object-pin :force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
