@@ -106,12 +106,12 @@ Return HLIST."
 		   (let* ((font (or (when (typep previous-helt
 						 'tfm:character-metrics)
 				      (tfm:font previous-helt))
-				    *font*))
-			  (em (tfm:em font)))
+				    *font*)))
 		     (make-soft-discretionary
-		      :pre-break (list (make-glue :stretch (* 2 em)))
+		      :pre-break (list (make-glue
+					:stretch (* 2 (tfm:em font))))
 		      :no-break (list (make-soft-glue
-				       :width (/ em 3)
+				       :width (tfm:interword-space font)
 				       :caliber *kp-glue-penalty*))))
 		 :else
 		   :do (when (discretionaryp helt)
