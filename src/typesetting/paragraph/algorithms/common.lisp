@@ -334,7 +334,10 @@ for that)."))
     :initarg :width :reader width)
    (height
     :documentation "The whitespace's height."
-    :initarg :height :reader height))
+    :initarg :height :reader height)
+   (depth
+    :documentation "The whitespace's depth (always 0)."
+    :allocation :class :initform 0 :reader depth))
   (:documentation "The WHITESPACE class.
 This class represents pinned glues and stores their width after scaling.
 A whitespace's height depends on what surrounds it."))
