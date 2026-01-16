@@ -182,14 +182,17 @@ This class represents weighted discretionaries."))
 
 ;; Hyphenation points
 
-;; #### NOTE: we use T as the default here because it allows simple calls to
-;; MAKE-HYPHENATION-POINT without arguments (the pre, post, and no-breaks are
-;; empty in that case).
+;; #### WARNING: in theory, we know if a hyphenation point is explicit or not
+;; based on whether the pre-break is empty or not. However, our hlist
+;; processing can modify the pre-break (e.g. by appending a clue at the end),
+;; so we need to remember the original type of hyphenation point. Hence the
+;; EXPLICITP slot below.
+
 (defabstract hyphenation-mixin ()
   ((explicitp
     :documentation
     "Whether this hyphenation point comes from an explicit hyphen."
-    :initform t :initarg :explicit :reader explicitp))
+    :initarg :explicit :reader explicitp))
   (:documentation "The HYPHENATION-MIXIN class.
 This is a mixin for hyphenation points."))
 
@@ -204,13 +207,11 @@ return :explicit or :implicit if OBJECT is a hyphenation point, or nil."
   (when (typep object 'hyphenation-point)
     (if (explicitp object) :explicit :implicit)))
 
-;; #### TODO: we could provide a special :font initarg here that would allow
-;; automatic filling of the pre-break section with the appropriate dash fchar.
-;; This would be cleaner
-(defun make-hyphenation-point (&rest initargs &key pre-break explicit)
-  "Make a new EXPLICITP hyphenation point."
-  (declare (ignore pre-break explicit))
-  (apply #'make-instance 'hyphenation-point initargs))
+(defun make-hyphenation-point (&optional dash)
+  "Make a new hyphenation point, either explicit, or with DASH fchar."
+  (make-instance 'hyphenation-point
+    :explicit (not dash)
+    :pre-break (when dash (list dash))))
 
 (defgeneric hyphenated (object)
   (:documentation "Return OBJECT's hyphenation status.
@@ -578,9 +579,7 @@ to the new hlist, and the unprocessed new tail."
 	       :for helt :in helts
 	       :when (member i points)
 		 :collect (make-hyphenation-point
-			   :pre-break (list (get-fchar #\-
-					      (tfm:font (nth (1- i) helts))))
-			   :explicit nil)
+			   (get-fchar #\- (tfm:font (nth (1- i) helts))))
 	       :collect helt))
 	(t (subseq helts 0 l))))
 
