@@ -111,7 +111,8 @@ Return HLIST."
 		      :pre-break (list (make-glue
 					:stretch (* 2 (tfm:em font))))
 		      :no-break (list (make-glue
-				       :width (tfm:interword-space font)))))
+				       :width (tfm:interword-space font)))
+		      :caliber *kp-glue-penalty*))
 		 :else
 		   :do (when (discretionaryp helt)
 			 ;; #### TODO: should look into previous discretionary.
