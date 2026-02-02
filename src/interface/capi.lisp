@@ -1357,8 +1357,11 @@ not 0."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	(loop :with full-x := (+ (loop :for line :in (lines layout)
-				       :maximize (+ (x line) (width line)))
+	(loop :with full-x
+		:= (+ (loop :for line :in (lines layout)
+			    :maximize (+ (x line)
+					 (funcall line-x-shift line)
+					 (width line)))
 				 5)
 	      :for rest :on (lines layout)
 	      :for line := (car rest)
