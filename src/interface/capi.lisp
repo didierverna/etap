@@ -1103,12 +1103,12 @@ not 0."
 				 5)
 	      :for rest :on (lines layout)
 	      :for line := (car rest)
-	      :for x := (x line)
-	      :for y := (+ par-y (y line))
+	      :for lx := (x line)
+	      :for ly := (+ par-y (y line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
-			x
-			(- y (height line))
+			lx
+			(- ly (height line))
 			(width line)
 			(+ (height line) (depth line))
 		      :foreground :blue
@@ -1116,7 +1116,7 @@ not 0."
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width line) par-width)
 		  :do (gp:draw-rectangle view
-			  full-x  (- y (height line))
+			  full-x  (- ly (height line))
 			  5  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
@@ -1125,7 +1125,7 @@ not 0."
 				   :justified)
 			       (< (width line) par-width))
 		  :do (gp:draw-rectangle view
-			  full-x (- y (height line))
+			  full-x (- ly (height line))
 			  5 (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
@@ -1133,66 +1133,66 @@ not 0."
 		:if ($< (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($> (asar line) 1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
-		:do (gp:draw-line view x y (+ x (width line)) y
+		:do (gp:draw-line view lx ly (+ lx (width line)) ly
 		      :foreground :purple
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item)
+		:do (mapc (lambda (item
+				   &aux (ix (+ lx (x item)))
+					(iy (+ ly (y item))))
 			    (cond ((typep (object item)
 					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle view
-					 (+ x (x item))
-					 (- y (height item))
+					 ix
+					 (- ly (height item))
 					 (width item)
-					 (+ (height item)
-					    (depth item))
+					 (+ (height item) (depth item))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character view
 					 (aref *lm-ec*
 					       (tfm:code (object item)))
-					 (+ x (x item))
-					 y)))
+					 ix iy)))
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
@@ -1200,16 +1200,14 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))))
+				   (draw-clue view ix iy (helt (object item))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))
+				   (draw-clue view ix iy (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1218,8 +1216,7 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (object item)
 					     etap)))
-				   (draw-whitespace-clue
-				    view (x line) (+ par-y (y line)) item
+				   (draw-whitespace-clue view lx ly item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
 		      (items line)))
@@ -1233,19 +1230,18 @@ not 0."
 	    ;; #### WARNING: we may end up drawing a clue for the second
 	    ;; time here, but this is probably not such a big deal.
 	    (when object
-	      (let ((x (x line))
-		    (y (+ par-y (y line))))
+	      (let* ((lx (x line))
+		     (ly (+ par-y (y line)))
+		     (ix (+ lx (x object)))
+		     (iy ly))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue view (+ x (x object)) y
-				  (helt (object object))))
+		       (draw-clue view ix iy (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-clue view (+ x (x object)) y
-				  (helt (object object))
-			 :force))
+		       (draw-clue view ix iy (helt (object object)) :force))
 		      ((whitespacep object)
-		       (draw-whitespace-clue view x y object 'force)))))))
+		       (draw-whitespace-clue view lx ly object 'force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
