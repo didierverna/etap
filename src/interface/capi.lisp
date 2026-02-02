@@ -849,7 +849,7 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under (x y lines &aux (p (cons x y)))
+(defun clue-under (x y lines)
   "Return the clue from LINES which is under (X, Y), or nil.
 In the case of a discretionary clue, it is returned only if it corresponds to
 an hyphenation point (as opposed to a general discretionary). The object
@@ -857,34 +857,33 @@ returned is in fact the pin containing the clue.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
-  (let ((line (find-if (lambda (line)
-			 (and (>= y (y line)) (<= y (+ (y line) 5))))
-		       lines)))
-    (when line
-      (let* ((x (x line))
-	     (y (y line)))
-	(values (find-if (lambda (item)
-			   (and (cluep (object item))
-				(or (not (discretionaryp (helt (object item))))
-				    (hyphenation-point-p (helt (object item))))
-				(triangle-under-p
-				 p
-				 (cons (+ x (x item)) y)
-				 (cons (+ x (x item) -3) (+ y 5))
-				 (cons (+ x (x item) +3) (+ y 5)))))
-			 (items line))
-		line)))))
+  (when-let (line (find-if (lambda (line &aux (ly (y line)))
+			     (<= ly y (+ ly 5)))
+			   lines))
+    (let ((p (cons x y))
+	  (lx (x line))
+	  (ly (y line)))
+      (values (find-if (lambda (item &aux (ix (+ lx (x item))) (iy ly))
+			 (and (cluep (object item))
+			      (or (not (discretionaryp (helt (object item))))
+				  (hyphenation-point-p (helt (object item))))
+			      (triangle-under-p
+			       p
+			       (cons ix iy)
+			       (cons (+ ix -3) (+ iy 5))
+			       (cons (+ ix +3) (+ iy 5)))))
+		       (items line))
+	      line))))
 
-(defun whitespace-under (x y lines &aux (line (line-under-y y lines)))
+(defun whitespace-under (x y lines)
   "Return the whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
-  (when line
-    (values (find-if (lambda (item)
+  (when-let (line (line-under-y y lines))
+    (values (find-if (lambda (item
+			      &aux (ix (+ (x line) (x item))) (iy (y line)))
 		       (and (whitespacep item)
-			    (<= (+ (x line) (x item))
-				x
-				(+ (x line) (x item) (width item)))
-			    (<= (- (y line) (height item)) y (y line))))
+			    (<= ix x (+ ix (width item)))
+			    (<= (- iy (height item)) y iy)))
 		     (items line))
 	    line)))
 
@@ -932,12 +931,7 @@ coordinate system. This macro modified X and Y directly."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (inspect (widget-value (inspector-box etap)))
-	  (zoom (zoom-value etap))
-	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
-	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
-	  (layout (when layout-# (get-layout layout-# breakup))))
+	  (inspect (widget-value (inspector-box etap))))
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the paragraph properties when the mouse is above the first line.
 - Display the line properties when the mouse is in the left margin of a line.
@@ -945,32 +939,34 @@ coordinate system. This macro modified X and Y directly."
   hyphenation point)."
   (setf (capi-object-property view :pointer) (cons x y))
   (when (getf inspect :activate)
-    ;; We have the view directly here, so no need to go through REDRAW.
-    ;; #### TODO: this could be optimized in order to avoid redrawing at every
+    ;; We have the view directly here, so no need to go through REDRAW. ####
+    ;; TODO: this could be optimized in order to avoid redrawing at every
     ;; single move. We could remember the previous move state and see if
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (to-layout-coordinates x y layout zoom)
-      (cond ((and (< y (- (height layout))) (<= x par-width))
-	     (display-tooltip view
-	       :text (properties breakup :layout-# layout-#)))
-	    (layout
-	     (cond ((and (< x 0) (<= y (depth layout)))
-		    (let ((line (line-under-y y (lines layout))))
-		      (if line
+      (let* ((breakup (breakup etap))
+	     (par-width (paragraph-width breakup))
+	     (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
+	     (layout (when layout-# (get-layout layout-# breakup))))
+	(to-layout-coordinates x y layout (zoom-value etap))
+	(cond ((and (< y (- (height layout))) (<= x par-width))
+	       (display-tooltip view
+		 :text (properties breakup :layout-# layout-#)))
+	      (layout
+	       (cond ((and (< x 0) (<= y (depth layout)))
+		      (if-let (line (line-under-y y (lines layout)))
 			(display-tooltip view :text (properties line))
-			(display-tooltip view))))
-		   ((and (<= 0 x (+ par-width *border-width*))
-			 (<= (- (height layout))
-			     y
-			     (+ (depth layout) *border-width*)))
-		    (let ((object (object-under x y (lines layout))))
-		      (if object
+			(display-tooltip view)))
+		     ((and (<= 0 x (+ par-width *border-width*))
+			   (<= (- (height layout))
+			       y
+			       (+ (depth layout) *border-width*)))
+		      (if-let (object (object-under x y (lines layout)))
 			(display-tooltip view :text (properties object))
-			(display-tooltip view))))
-		   (t
-		    (display-tooltip view))))))))
+			(display-tooltip view)))
+		     (t
+		      (display-tooltip view)))))))))
 
 
 
@@ -988,30 +984,29 @@ coordinate system. This macro modified X and Y directly."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (zoom-value etap))
 	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the user right clicks in the paragraph VIEW.
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
-    (to-layout-coordinates x y layout zoom)
-    (let ((object (and (<= 0 x (+ par-width *border-width*))
-		       (<= (- (height layout))
-			   y
-			   (+ (depth layout) *border-width*))
-		       (object-under x y (lines layout)))))
-      (when object
-	(setq object
-	      (etypecase (object object)
-		(clue (helt (object object)))
-		(glue (object object))))
-	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	;; complexity of handling null calibers below.
-	(when (caliber object)
-	  (make-penalty-adjustment-dialog object etap))))))
+    (to-layout-coordinates x y layout (zoom-value etap))
+    (when-let (object (and (<= 0
+			       x
+			       (+ (paragraph-width breakup) *border-width*))
+			   (<= (- (height layout))
+			       y
+			       (+ (depth layout) *border-width*))
+			   (object-under x y (lines layout))))
+      (setq object
+	    (etypecase (object object)
+	      (clue (helt (object object)))
+	      (glue (object object))))
+      ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
+      ;; complexity of handling null calibers below.
+      (when (caliber object)
+	(make-penalty-adjustment-dialog object etap)))))
 
 
 

@@ -9,7 +9,7 @@
   #+lispworks
   (:shadow
    ;; From the Lispworks package:
-   :when-let
+   :when-let :if-let
    ;; From the CAPI package (this sucks):
    :item :layout)
   (:export
