@@ -1084,8 +1084,6 @@ not 0."
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
 	  (clues (choice-selected-items (clues-box etap)))
-	  (inspect (mapcar #'item-data
-		     (choice-selected-items (inspector-box etap))))
 	  (zoom (zoom-value etap)))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
@@ -1225,7 +1223,7 @@ not 0."
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
 		      (items line)))
-	(when (member :activate inspect)
+	(when (getf (widget-value (inspector-box etap)) :activate)
 	  (multiple-value-bind (object line)
 	      (let* ((pointer (capi-object-property view :pointer))
 		     (x (car pointer))
