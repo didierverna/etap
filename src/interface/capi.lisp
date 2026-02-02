@@ -1037,7 +1037,10 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-(defun line-under (y lines line-y-shift)
+;; #### NOTE: this function is *not* a `line-under' function. It only checks
+;; for a vertical match since it is also used to advertise a line's properties
+;; when the mouse is in the left margin.
+(defun line-under-y (y lines line-y-shift)
   "Return the line from LINES which is under Y coordinate, or NIL."
   (find-if (lambda (line)
 	     (<= (- (+ (y line) (funcall line-y-shift line)) (height line))
@@ -1098,7 +1101,7 @@ This function returns the corresponding line as a second value."
 
 (defun whitespace-under
     (x y lines line-x-shift line-y-shift
-     &aux (line (line-under y lines line-y-shift)))
+     &aux (line (line-under-y y lines line-y-shift)))
   "Return the whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
   (when line
@@ -1195,7 +1198,7 @@ coordinate system. This macro modified X and Y directly."
 		     (or (capi-object-property view :line-y-shift)
 			 (lambda (line) (declare (ignore line)) 0))))
 	       (cond ((and (< x 0) (<= y (depth layout)))
-		      (let ((line (line-under y (lines layout) line-y-shift)))
+		      (let ((line (line-under-y y (lines layout) line-y-shift)))
 			(if line
 			  (display-tooltip view :text (properties line))
 			  (display-tooltip view))))
