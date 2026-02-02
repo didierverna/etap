@@ -842,7 +842,10 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-(defun line-under-pin (y line-pins)
+;; #### NOTE: this function is *not* a `line-under-pin' function. It only
+;; checks for a vertical match since it is also used to advertise a line's
+;; properties when the mouse is in the left margin.
+(defun line-under-y-pin (y line-pins)
   "Return the pin of the line from LINE-PINS which is under Y coordinate.
 If no such line pin exists, return NIL."
   (find-if (lambda (pin &aux (line (object pin)))
@@ -895,7 +898,7 @@ This function returns the corresponding line's pin as a second value."
 		pin)))))
 
 (defun whitespace-under
-    (x y line-pins &aux (pin (line-under-pin y line-pins)))
+    (x y line-pins &aux (pin (line-under-y-pin y line-pins)))
   "Return the whitespace from LINE-PINS which is under (X, Y).
 If no such whitespace is found, return NIL.
 This function returns the corresponding line's pin as a second value."
@@ -979,7 +982,7 @@ coordinate system. This macro modified X and Y directly."
 	       :text (properties breakup :layout-# layout-#)))
 	    (layout
 	     (cond ((and (< x 0) (<= y (depth layout)))
-		    (let ((pin (line-under-pin y (lines layout))))
+		    (let ((pin (line-under-y-pin y (lines layout))))
 		      (if pin
 			(display-tooltip view :text (properties pin))
 			(display-tooltip view))))
