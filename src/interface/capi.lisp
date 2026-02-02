@@ -1032,9 +1032,6 @@ Otherwise, reselect the previously selected one."
 ;; from the paragraph box. We don't really care though, since the living text
 ;; is a different experiment from actual typesetting.
 
-;; #### FIXME: the character shift functions are not completely handled below
-;; (only on characters) and have never been tested as of yet.
-
 ;; CLIM-like object under mouse utilities
 
 ;; #### NOTE: this function is *not* a `line-under' function. It only checks
@@ -1071,8 +1068,9 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under (x y lines line-x-shift line-y-shift &aux (p (cons x y)))
-  "Return the clue from LINES which is under (X, Y), or nil.
+(defun clue-under (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift
+		   &aux (p (cons x y)))
+  "Return the shifted clue from LINES which is under (X, Y), or nil.
 In the case of a discretionary clue, it is returned only if it corresponds to
 an hyphenation point (as opposed to a general discretionary). The object
 returned is in fact the pin containing the clue.
@@ -1093,46 +1091,56 @@ This function returns the corresponding line as a second value."
 				    (hyphenation-point-p (helt (object item))))
 				(triangle-under-p
 				 p
-				 (cons (+ x (x item)) y)
-				 (cons (+ x (x item) -3) (+ y 5))
-				 (cons (+ x (x item) +3) (+ y 5)))))
+				 (cons (+ x (x item) (funcall elt-x-shift item))
+				       (+ y (funcall elt-y-shift item)))
+				 (cons (+ x (x item) (funcall elt-x-shift item)
+					  -3)
+				       (+ y (funcall elt-y-shift item)
+					  5))
+				 (cons (+ x (x item) (funcall elt-x-shift item)
+					  +3)
+				       (+ y (funcall elt-y-shift item)
+					  5)))))
 			 (items line))
 		line)))))
 
 (defun whitespace-under
-    (x y lines line-x-shift line-y-shift
+    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift
      &aux (line (line-under-y y lines line-y-shift)))
-  "Return the whitespace from LINES which is under (X, Y), or nil.
+  "Return the shifted whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
   (when line
     (values (find-if (lambda (item)
 		       (and (whitespacep item)
-			    (<= (+ (x line)
-				   (funcall line-x-shift line)
-				   (x item))
+			    (<= (+ (x line) (funcall line-x-shift line)
+				   (x item) (funcall elt-x-shift item))
 				x
-				(+ (x line)
-				   (funcall line-x-shift line)
-				   (x item)
+				(+ (x line) (funcall line-x-shift line)
+				   (x item) (funcall elt-x-shift item)
 				   (width item)))
-			    (<= (- (+ (y line) (funcall line-y-shift line))
+			    (<= (- (+ (y line) (funcall line-y-shift line)
+				      (funcall elt-y-shift item))
 				   (height item))
 				y
-				(y line))))
+				(+ (y line) (funcall line-y-shift line)
+				   (funcall elt-y-shift item)))))
 		     (items line))
 	    line)))
 
-(defun object-under (x y lines line-x-shift line-y-shift)
+(defun object-under
+    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
   "Return the object from LINES which is under (X, Y), or nil.
 This currently includes whitespaces and pinned clues.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it.
 This function returns the corresponding line as a second value."
   (multiple-value-bind (object line)
-      (clue-under x y lines line-x-shift line-y-shift)
+      (clue-under
+       x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
     (if object ;; OR doesn't propagate secondary values on its first args!
       (values object line)
-      (whitespace-under x y lines line-x-shift line-y-shift))))
+      (whitespace-under
+       x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift))))
 
 
 
@@ -1196,7 +1204,13 @@ coordinate system. This macro modified X and Y directly."
 			 (lambda (line) (declare (ignore line)) 0)))
 		   (line-y-shift
 		     (or (capi-object-property view :line-y-shift)
-			 (lambda (line) (declare (ignore line)) 0))))
+			 (lambda (line) (declare (ignore line)) 0)))
+		   (elt-x-shift
+		     (or (capi-object-property view :elt-x-shift)
+			 (lambda (elt) (declare (ignore elt)) 0)))
+		   (elt-y-shift
+		     (or (capi-object-property view :elt-y-shift)
+			 (lambda (elt) (declare (ignore elt)) 0))))
 	       (cond ((and (< x 0) (<= y (depth layout)))
 		      (let ((line (line-under-y y (lines layout) line-y-shift)))
 			(if line
@@ -1207,7 +1221,8 @@ coordinate system. This macro modified X and Y directly."
 			y
 			(+ (depth layout) *border-width*)))
 	       (let ((object (object-under x y (lines layout)
-					   line-x-shift line-y-shift)))
+					   line-x-shift line-y-shift
+					   elt-x-shift elt-y-shift)))
 		 (if object
 		   (display-tooltip view :text (properties object))
 		   (display-tooltip view)))))))
@@ -1244,12 +1259,17 @@ displays a penalty adjustment dialog when appropriate."
 			     (lambda (line) (declare (ignore line)) 0)))
 	   (line-y-shift (or (capi-object-property view :line-y-shift)
 			     (lambda (line) (declare (ignore line)) 0)))
+	   (elt-x-shift (or (capi-object-property view :elt-x-shift)
+			    (lambda (elt) (declare (ignore elt)) 0)))
+	   (elt-y-shift (or (capi-object-property view :elt-y-shift)
+			    (lambda (elt) (declare (ignore elt)) 0)))
 	   (object (and (<= 0 x (+ par-width *border-width*))
 			(<= (- (height layout))
 			    y
 			    (+ (depth layout) *border-width*))
 			(object-under x y (lines layout)
-				      line-x-shift line-y-shift))))
+				      line-x-shift line-y-shift
+				      elt-x-shift elt-y-shift))))
       (when object
 	(setq object
 	      (etypecase (object object)
@@ -1502,7 +1522,8 @@ not 0."
 		 (y (cdr pointer)))
 	    (to-layout-coordinates x y layout zoom)
 	    (multiple-value-bind (object line)
-		(object-under x y (lines layout) line-x-shift line-y-shift)
+		(object-under x y (lines layout)
+		  line-x-shift line-y-shift elt-x-shift elt-y-shift)
 	      ;; #### WARNING: we may end up drawing a clue for the second
 	      ;; time here, but this is probably not such a big deal.
 	      (when object
@@ -1510,12 +1531,16 @@ not 0."
 		      y (+ par-y (y line) (funcall line-y-shift line)))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue view (+ x (x object)) y
-				  (helt (object object))))
+		       (draw-clue view
+			 (+ x (x object) (funcall elt-x-shift object))
+			 (+ y (funcall elt-y-shift object))
+			 (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-clue view (+ x (x object)) y
-				  (helt (object object))
+		       (draw-clue view
+			 (+ x (x object) (funcall elt-x-shift object))
+			 (+ y (funcall elt-y-shift object))
+			 (helt (object object))
 			 :force))
 		      ((whitespacep object)
 		       (draw-whitespace-clue view
