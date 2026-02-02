@@ -1370,9 +1370,9 @@ not 0."
 	  (line-y-shift (or (capi-object-property view :line-y-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
 	  (elt-x-shift (or (capi-object-property view :elt-x-shift)
-			   (lambda (char) (declare (ignore char)) 0)))
+			   (lambda (elt) (declare (ignore elt)) 0)))
 	  (elt-y-shift (or (capi-object-property view :elt-y-shift)
-			   (lambda (char) (declare (ignore char)) 0))))
+			   (lambda (elt) (declare (ignore elt)) 0))))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters view
