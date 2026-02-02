@@ -879,40 +879,36 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under-pin (x y line-pins &aux (p (cons x y)))
+(defun clue-under-pin (x y line-pins)
   "Return the pin of the clue from LINE-PINS which is under (X, Y).
 If no such clue is found, return NIL.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
-  (let ((pin (find-if (lambda (pin) (and (>= y (y pin)) (<= y (+ (y pin) 5))))
-		      line-pins)))
-    (when pin
-      (let* ((x (x pin))
-	     (y (y pin))
-	     (line (object pin)))
-	(values (find-if (lambda (item)
-			   (and (cluep (object item))
-				(triangle-under-p
-				 p
-				 (cons (+ x (x item)) y)
-				 (cons (+ x (x item) -3) (+ y 5))
-				 (cons (+ x (x item) +3) (+ y 5)))))
-			 (items line))
-		pin)))))
+  (when-let (pin (find-if (lambda (pin &aux (ly (y pin))) (<= ly y (+ ly 5)))
+			  line-pins))
+    (let ((p (cons x y))
+	  (lx (x pin))
+	  (ly (y pin)))
+      (values (find-if (lambda (item &aux (ix (+ lx (x item))) (iy ly))
+			 (and (cluep (object item))
+			      (triangle-under-p
+			       p
+			       (cons ix iy)
+			       (cons (+ ix -3) (+ iy 5))
+			       (cons (+ ix +3) (+ iy 5)))))
+		       (items (object pin)))
+	      pin))))
 
-(defun whitespace-under
-    (x y line-pins &aux (pin (line-under-y-pin y line-pins)))
+(defun whitespace-under (x y line-pins)
   "Return the whitespace from LINE-PINS which is under (X, Y).
 If no such whitespace is found, return NIL.
 This function returns the corresponding line's pin as a second value."
-  (when pin
-    (values (find-if (lambda (item)
+  (when-let (pin (line-under-y-pin y line-pins))
+    (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (iy (y pin)))
 		       (and (whitespacep item)
-			    (<= (+ (x pin) (x item))
-				x
-				(+ (x pin) (x item) (width item)))
-			    (<= (- (y pin) (height item)) y (y pin))))
+			    (<= ix x (+ ix (width item)))
+			    (<= (- iy (height item)) y iy)))
 		     (items (object pin)))
 	    pin)))
 
@@ -961,12 +957,7 @@ coordinate system. This macro modified X and Y directly."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (inspect (widget-value (inspector-box etap)))
-	  (zoom (zoom-value etap))
-	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
-	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
-	  (layout (when layout-# (get-layout layout-# breakup))))
+	  (inspect (widget-value (inspector-box etap))))
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the paragraph properties when the mouse is above the first line.
 - Display the line properties when the mouse is in the left margin of a line.
@@ -980,26 +971,28 @@ coordinate system. This macro modified X and Y directly."
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (to-layout-coordinates x y layout zoom)
+      (let* ((breakup (breakup etap))
+	     (par-width (paragraph-width breakup))
+	     (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
+	     (layout (when layout-# (get-layout layout-# breakup))))
+	(to-layout-coordinates x y layout (zoom-value etap))
       (cond ((and (< y (- (height layout))) (<= x par-width))
 	     (display-tooltip view
 	       :text (properties breakup :layout-# layout-#)))
 	    (layout
 	     (cond ((and (< x 0) (<= y (depth layout)))
-		    (let ((pin (line-under-y-pin y (lines layout))))
-		      (if pin
-			(display-tooltip view :text (properties pin))
-			(display-tooltip view))))
+		    (if-let (pin (line-under-y-pin y (lines layout)))
+		      (display-tooltip view :text (properties pin))
+		      (display-tooltip view)))
 		   ((and (<= 0 x (+ par-width *border-width*))
 			 (<= (- (height layout))
 			     y
 			     (+ (depth layout) *border-width*)))
-		    (let ((pin (object-under-pin x y (lines layout))))
-		      (if pin
-			(display-tooltip view :text (properties pin))
-			(display-tooltip view))))
+		    (if-let (pin (object-under-pin x y (lines layout)))
+		      (display-tooltip view :text (properties pin))
+		      (display-tooltip view)))
 		   (t
-		    (display-tooltip view))))))))
+		    (display-tooltip view)))))))))
 
 
 
@@ -1017,25 +1010,22 @@ coordinate system. This macro modified X and Y directly."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (zoom-value etap))
 	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the user right clicks in the paragraph VIEW.
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
-    (to-layout-coordinates x y layout zoom)
-    (let ((pin (and (<= 0 x (+ par-width *border-width*))
-		    (<= (- (height layout))
-			y
-			(+ (depth layout) *border-width*))
-		    (object-under-pin x y (lines layout)))))
-      (when pin
-	(let ((object (if (whitespacep pin) (object pin) (helt (object pin)))))
-	  (when (typep object 'penalty-mixin)
-	    (make-penalty-adjustment-dialog object etap)))))))
+    (to-layout-coordinates x y layout (zoom-value etap))
+    (when-let (pin (and (<= 0 x (+ (paragraph-width breakup) *border-width*))
+			(<= (- (height layout))
+			    y
+			    (+ (depth layout) *border-width*))
+			(object-under-pin x y (lines layout))))
+      (let ((object (if (whitespacep pin) (object pin) (helt (object pin)))))
+	(when (typep object 'penalty-mixin)
+	  (make-penalty-adjustment-dialog object etap))))))
 
 
 
@@ -1131,8 +1121,6 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
 	  (clues (choice-selected-items (clues-box etap)))
-	  (inspect (mapcar #'item-data
-		     (choice-selected-items (inspector-box etap))))
 	  (zoom (zoom-value etap)))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
@@ -1154,14 +1142,14 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		      5)
 	      :for rest :on (lines layout)
 	      :for pin := (car rest)
-	      :for x := (x pin)
-	      :for y := (+ par-y (y pin))
+	      :for lx := (x pin)
+	      :for ly := (+ par-y (y pin))
 	      :for line := (object pin)
 	      :for last-item := (car (last (items line)))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
-			x
-			(- y (height line))
+			lx
+			(- ly (height line))
 			(width line)
 			(+ (height line) (depth line))
 		      :foreground :blue
@@ -1169,7 +1157,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width line) par-width)
 		  :do (gp:draw-rectangle view
-			  full-x  (- y (height line))
+			  full-x  (- ly (height line))
 			  5  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
@@ -1178,7 +1166,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 				   :justified)
 			       (< (width line) par-width))
 		  :do (gp:draw-rectangle view
-			  full-x (- y (height line))
+			  full-x (- ly (height line))
 			  5 (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
@@ -1186,64 +1174,65 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		:if ($< (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($> (asar line) 1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
-		:do (gp:draw-line view x y (+ x (width line)) y
+		:do (gp:draw-line view lx ly (+ lx (width line)) ly
 		      :foreground :purple
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item &aux (object (object item)))
+		:do (mapc (lambda (item
+				   &aux (object (object item))
+					(ix (+ lx (x item)))
+					(iy (+ ly (y item))))
 			    (cond ((typep object 'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle view
-					 (+ x (x item))
-					 (- y (height item))
+					 ix
+					 (- ly (height item))
 					 (width item)
-					 (+ (height item)
-					    (depth item))
+					 (+ (height item) (depth item))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character view
 					 (aref *lm-ec* (tfm:code object))
-					 (+ x (x item))
-					 y
+					 ix iy
 					 :font (cdr (find (tfm:font object)
 							fonts
 						      :key #'car)))))
@@ -1254,8 +1243,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :discretionaries clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view (+ x (x item)) y
-				     (helt object)
+				   (draw-helt-clue view ix iy (helt object)
 				     (or (find-penalty-adjustment-dialog
 					  (helt object) etap)
 					 (not (eq item last-item)))))
@@ -1264,8 +1252,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :hyphenation-points clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view (+ x (x item)) y
-				     (helt object)
+				   (draw-helt-clue view ix iy (helt object)
 				     (or (find-penalty-adjustment-dialog
 					  (helt object) etap)
 					 (not (eq item last-item)))))
@@ -1274,19 +1261,18 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view (+ x (x item)) y
-				     (helt object)
+				   (draw-helt-clue view ix iy (helt object)
 				     (find-penalty-adjustment-dialog
 				      (helt object) etap)))
 				  ((and (whitespacep item)
 					(or (member :whitespaces clues)
 					    (find-penalty-adjustment-dialog
 					     object etap)))
-				   (draw-whitespace-clue view x y item
-				    (find-penalty-adjustment-dialog
-				     object etap)))))
+				   (draw-whitespace-clue view lx ly item
+				     (find-penalty-adjustment-dialog
+				      object etap)))))
 		      (items line)))
-	(when (member :activate inspect)
+	(when (getf (widget-value (inspector-box etap)) :activate)
 	  (multiple-value-bind (object-pin line-pin)
 	      (let* ((pointer (capi-object-property view :pointer))
 		     (x (car pointer))
@@ -1296,15 +1282,15 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	    ;; #### WARNING: we may end up drawing a clue for the second
 	    ;; time here, but this is probably not such a big deal.
 	    (when object-pin
-	      (let ((x (x line-pin))
-		    (y (+ par-y (y line-pin)))
+	      (let ((lx (x line-pin))
+		    (ly (+ par-y (y line-pin)))
 		    (object (object object-pin)))
 		(cond ((cluep object)
 		       (draw-helt-clue view
-			 (+ x (x object-pin)) y (helt object)
+			 (+ lx (x object-pin)) ly (helt object)
 			 :force))
 		      ((whitespacep object-pin)
-		       (draw-whitespace-clue view x y object-pin :force)))))))
+		       (draw-whitespace-clue view lx ly object-pin :force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
