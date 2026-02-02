@@ -854,6 +854,10 @@ new dialog and display it."
 (defparameter *zoom* (make-caliber :zoom 1 100 500 :bounded :min)
   "The paragraph zoom caliber.")
 
+(defun zoom-value (etap)
+  "Return ETAP's zoom value from its percentage cursor value."
+  (/ (range-slug-start (zoom-cursor etap)) 100))
+
 
 
 ;; ---------
@@ -1176,7 +1180,7 @@ coordinate system. This macro modified X and Y directly."
     (view x y
      &aux (etap (top-level-interface view))
 	  (inspect (widget-value (inspector-box etap)))
-	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
+	  (zoom (zoom-value etap))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -1245,7 +1249,7 @@ coordinate system. This macro modified X and Y directly."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
+	  (zoom (zoom-value etap))
 	  (breakup (breakup etap))
 	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
@@ -1360,15 +1364,15 @@ not 0."
 	  (clues (choice-selected-items (clues-box etap)))
 	  (inspect (mapcar #'item-data
 		     (choice-selected-items (inspector-box etap))))
-	  (zoom (/ (range-slug-start (zoom-cursor etap)) 100))
+	  (zoom (zoom-value etap))
 	  (line-x-shift (or (capi-object-property view :line-x-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
 	  (line-y-shift (or (capi-object-property view :line-y-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
 	  (elt-x-shift (or (capi-object-property view :elt-x-shift)
-			    (lambda (char) (declare (ignore char)) 0)))
+			   (lambda (char) (declare (ignore char)) 0)))
 	  (elt-y-shift (or (capi-object-property view :elt-y-shift)
-			    (lambda (char) (declare (ignore char)) 0))))
+			   (lambda (char) (declare (ignore char)) 0))))
   "Function called when paragraph VIEW needs to be redrawn."
   (declare (ignore x y width height))
   (set-horizontal-scroll-parameters view
