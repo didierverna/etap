@@ -813,7 +813,10 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-(defun line-under (y lines)
+;; #### NOTE: this function is *not* a `line-under' function. It only checks
+;; for a vertical match since it is also used to advertise a line's properties
+;; when the mouse is in the left margin.
+(defun line-under-y (y lines)
   "Return the line from LINES which is under Y coordinate, or NIL."
   (find-if (lambda (line)
 	     (<= (- (y line) (height line)) y (+ (y line) (depth line))))
@@ -868,7 +871,7 @@ This function returns the corresponding line as a second value."
 			 (items line))
 		line)))))
 
-(defun whitespace-under (x y lines &aux (line (line-under y lines)))
+(defun whitespace-under (x y lines &aux (line (line-under-y y lines)))
   "Return the whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
   (when line
@@ -950,7 +953,7 @@ coordinate system. This macro modified X and Y directly."
 	       :text (properties breakup :layout-# layout-#)))
 	    (layout
 	     (cond ((and (< x 0) (<= y (depth layout)))
-		    (let ((line (line-under y (lines layout))))
+		    (let ((line (line-under-y y (lines layout))))
 		      (if line
 			(display-tooltip view :text (properties line))
 			(display-tooltip view))))
