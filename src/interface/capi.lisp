@@ -1308,7 +1308,9 @@ not 0."
     (draw-penalty-clue view x y glue))))
 
 (defun draw-whitespace-clue
-    (view x y whitespace &optional force &aux (glue (object whitespace)))
+    (view x y elt-x-shift elt-y-shift whitespace
+     &optional force
+     &aux (glue (object whitespace)))
   "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
 (X,Y) is the point which WHITESPACE is positioned relatively to.
 Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
@@ -1316,8 +1318,8 @@ not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
     (gp:draw-rectangle view
-	(+ x (x whitespace))
-	(- y (height whitespace))
+	(+ x (x whitespace) (funcall elt-x-shift whitespace))
+	(- (+ y (funcall elt-y-shift whitespace)) (height whitespace))
 	(width whitespace)
 	(+ (height whitespace) (depth whitespace))
       :filled t ;; (not (explicitp discretionary))
@@ -1443,11 +1445,12 @@ not 0."
 					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle view
-					 (+ x (x item))
-					 (- y (height item))
+					 (+ x (x item)
+					    (funcall elt-x-shift item))
+					 (- (+ y (funcall elt-y-shift item))
+					    (height item))
 					 (width item)
-					 (+ (height item)
-					    (depth item))
+					 (+ (height item) (depth item))
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character view
@@ -1463,16 +1466,20 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))))
+				   (draw-clue view
+				     (+ x (x item) (funcall elt-x-shift item))
+				     (+ y (funcall elt-y-shift item))
+				     (helt (object item))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view (+ x (x item)) y
-					      (helt (object item))
+				   (draw-clue view
+				     (+ x (x item) (funcall elt-x-shift item))
+				     (+ y (funcall elt-y-shift item))
+				     (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1482,7 +1489,7 @@ not 0."
 					     (object item)
 					     etap)))
 				   (draw-whitespace-clue
-				    view x y item
+				    view x y elt-x-shift elt-y-shift item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
 		      (items line)))
@@ -1508,7 +1515,9 @@ not 0."
 				  (helt (object object))
 			 :force))
 		      ((whitespacep object)
-		       (draw-whitespace-clue view x y object 'force)))))))
+		       (draw-whitespace-clue view
+			 x y elt-x-shift elt-y-shift
+			 object 'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
