@@ -849,12 +849,12 @@ Otherwise, reselect the previously selected one."
 ;; #### NOTE: this function is *not* a `line-under-pin' function. It only
 ;; checks for a vertical match since it is also used to advertise a line's
 ;; properties when the mouse is in the left margin.
-(defun line-under-y-pin (y line-pins)
-  "Return the pin of the line from LINE-PINS which is under Y coordinate.
-If no such line pin exists, return NIL."
+(defun line-under-y-pin (y pins)
+  "Find a line from line PINS which is under Y coordinate. Return its pin.
+If no such line exists, return NIL."
   (find-if (lambda (pin &aux (line (object pin)))
 	     (<= (- (y pin) (height line)) y (+ (y pin) (depth line))))
-	   line-pins))
+	   pins))
 
 (defun vector-product (p1 p2 p3)
   "Return the vector product of P1P2 - P1P3.
@@ -879,14 +879,14 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under-pin (x y line-pins)
-  "Return the pin of the clue from LINE-PINS which is under (X, Y).
+(defun clue-under-pin (x y pins)
+  "Find a clue from line PINS which is under (X, Y). Return its pin.
 If no such clue is found, return NIL.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
   (when-let (pin (find-if (lambda (pin &aux (ly (y pin))) (<= ly y (+ ly 5)))
-			  line-pins))
+			  pins))
     (let ((p (cons x y))
 	  (lx (x pin))
 	  (ly (y pin)))
@@ -900,11 +900,11 @@ This function returns the corresponding line's pin as a second value."
 		       (items (object pin)))
 	      pin))))
 
-(defun whitespace-under (x y line-pins)
-  "Return the whitespace from LINE-PINS which is under (X, Y).
+(defun whitespace-under (x y pins)
+  "Return the whitespace from line PINS which is under (X, Y).
 If no such whitespace is found, return NIL.
 This function returns the corresponding line's pin as a second value."
-  (when-let (pin (line-under-y-pin y line-pins))
+  (when-let (pin (line-under-y-pin y pins))
     (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
 		       (and (whitespacep item)
 			    (<= ix x (+ ix (width item)))
@@ -912,17 +912,18 @@ This function returns the corresponding line's pin as a second value."
 		     (items (object pin)))
 	    pin)))
 
-(defun object-under-pin (x y line-pins)
-  "Return the pin of the object from LINE-PINS which is under (X, Y).
+(defun object-under-pin (x y pins)
+  "Find the object from line PINS which is under (X, Y). Return its pin.
 If no such object is found, return NIL.
 Considered objects currently include clues and glues.
 For clues, (X, Y) is not technically over it, but over the corresponding
-visual representation (the small triangle beneath it.
+visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
-  (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y line-pins)
-    (if clue-pin ;; OR doesn't propagate secondary values on its first args!
+  ;; No-can-do with OR. Need second values.
+  (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y pins)
+    (if clue-pin
       (values clue-pin line-pin)
-      (whitespace-under x y line-pins))))
+      (whitespace-under x y pins))))
 
 
 
