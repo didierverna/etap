@@ -863,15 +863,15 @@ This function returns the corresponding line as a second value."
     (let ((p (cons x y))
 	  (lx (x line))
 	  (ly (y line)))
-      (values (find-if (lambda (item &aux (ix (+ lx (x item))) (iy ly))
+      (values (find-if (lambda (item &aux (ix (+ lx (x item))))
 			 (and (cluep (object item))
 			      (or (not (discretionaryp (helt (object item))))
 				  (hyphenation-point-p (helt (object item))))
 			      (triangle-under-p
 			       p
-			       (cons ix iy)
-			       (cons (+ ix -3) (+ iy 5))
-			       (cons (+ ix +3) (+ iy 5)))))
+			       (cons ix ly)
+			       (cons (+ ix -3) (+ ly 5))
+			       (cons (+ ix +3) (+ ly 5)))))
 		       (items line))
 	      line))))
 
@@ -880,10 +880,10 @@ This function returns the corresponding line as a second value."
 This function returns the corresponding line as a second value."
   (when-let (line (line-under-y y lines))
     (values (find-if (lambda (item
-			      &aux (ix (+ (x line) (x item))) (iy (y line)))
+			      &aux (ix (+ (x line) (x item))) (ly (y line)))
 		       (and (whitespacep item)
 			    (<= ix x (+ ix (width item)))
-			    (<= (- iy (height item)) y iy)))
+			    (<= (- ly (height item)) y ly)))
 		     (items line))
 	    line)))
 
@@ -1176,9 +1176,7 @@ not 0."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item
-				   &aux (ix (+ lx (x item)))
-					(iy (+ ly (y item))))
+		:do (mapc (lambda (item &aux (ix (+ lx (x item))))
 			    (cond ((typep (object item)
 					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
@@ -1192,7 +1190,7 @@ not 0."
 				     (gp:draw-character view
 					 (aref *lm-ec*
 					       (tfm:code (object item)))
-					 ix iy)))
+					 ix ly)))
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
@@ -1200,14 +1198,14 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view ix iy (helt (object item))))
+				   (draw-clue view ix ly (helt (object item))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view ix iy (helt (object item))
+				   (draw-clue view ix ly (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1232,14 +1230,13 @@ not 0."
 	    (when object
 	      (let* ((lx (x line))
 		     (ly (+ par-y (y line)))
-		     (ix (+ lx (x object)))
-		     (iy ly))
+		     (ix (+ lx (x object))))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue view ix iy (helt (object object))))
+		       (draw-clue view ix ly (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-clue view ix iy (helt (object object)) :force))
+		       (draw-clue view ix ly (helt (object object)) :force))
 		      ((whitespacep object)
 		       (draw-whitespace-clue view lx ly object 'force)))))))
 	(when (and (member :rivers clues) (rivers etap))
