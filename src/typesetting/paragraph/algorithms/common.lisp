@@ -319,41 +319,45 @@ for that)."))
 ;; Lines
 ;; ==========================================================================
 
-;; -----------
-;; Whitespaces
-;; -----------
+;; ----------------
+;; Horizontal Casts
+;; ----------------
 
 ;; #### NOTE: glues are currently the only items that cannot be pinned
-;; directly (with the basic PIN class) because the width of the resulting
-;; whitespace is in general different from the original glue's width (it
-;; depends on the line's SAR). This is why we need the class below.
+;; directly because the width of the resulting white space is in general
+;; different from the glue's width (it depends on the line's SAR).
 
-(defclass whitespace (pin)
+(defclass hcast ()
   ((width
-    :documentation "The whitespace's width."
+    :documentation "The hcast's width."
     :initarg :width :reader width)
    (height
-    :documentation "The whitespace's height."
+    :documentation "The hcast's height."
     :initarg :height :reader height)
    (depth
-    :documentation "The whitespace's depth (always 0)."
-    :allocation :class :initform 0 :reader depth))
-  (:documentation "The WHITESPACE class.
-This class represents pinned glues and stores their width after scaling.
-A whitespace's height depends on what surrounds it."))
+    :documentation "The hcast's depth (always 0)."
+    :allocation :class :initform 0 :reader depth)
+   (glue
+    :documentation "The hcast's original glue."
+    ;; The HELT reader helps harmonizing the behavior with that of clues.
+    :initarg :glue :reader glue :reader helt))
+  (:documentation "The HCAST class.
+This class represents a glue frozen to a specific width in a line.
+An hcast's height depends on what surrounds it."))
 
-(defmethod properties strnlcat ((whitespace whitespace) &key)
-  "Advertise WHITESPACE's actual width."
-  (format nil "Width: ~Apt." (float (width whitespace))))
+(defun hcastp (object)
+  "Return T if OBJECT is a horizontal cast."
+  (typep object 'hcast))
 
-(defun whitespacep (item)
-  "Return T if ITEM is a whitespace."
-  (typep item 'whitespace))
+(defmethod properties strnlcat ((hcast hcast) &key)
+  "Advertise HCAST's width and the original glue's properties."
+  (format nil "Width: ~Apt.~%~A"
+    (float (width hcast))
+    (properties (glue hcast))))
 
-(defun make-whitespace (width height glue board x)
-  "Make a whitespace of WIDTH and HEIGHT pinning GLUE on BOARD at (X, 0)."
-  (make-instance 'whitespace
-    :width width :height height :object glue :board board :x x))
+(defun make-hcast (width height glue)
+  "Make a horizontal cast of WIDTH and HEIGHT out of GLUE."
+  (make-instance 'hcast :width width :height height :glue glue))
 
 
 
@@ -389,7 +393,7 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The list of items in the line.
-Currently, those are pinned characters and clues, and whitespaces.
+Currently, those are pinned characters, hcasts, and clues.
 These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin.
 This slot is unbound until the line is rendered."
@@ -477,30 +481,29 @@ Optionally preset ASAR and ESAR."
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
 	      ;; Somewhat arbitrary but small initial value. The idea is to
-	      ;; make whitespaces of the same height as the preceding
-	      ;; character's ex (in the future, the preceding box's height),
-	      ;; while remaining on the safe side if there's no previous
-	      ;; height to get (for instance if a line ever begins with a
-	      ;; whitespace).
+	      ;; make hcasts of the same height as the preceding character's
+	      ;; ex (in the future, the preceding box's height), while
+	      ;; remaining on the safe side if there's no previous height to
+	      ;; get (for instance if a line ever begins with an hcast).
 	      :with h := 3
-	      :for object
+	      :for item ; technically, clues are not helts so let's say "item"
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
-	      :if (cluep object)
-		:collect (make-pin object line :x x)
-	      :else :if (typep object 'tfm:character-metrics)
-		:collect (make-pin object line :x x)
-		:and :do (incf x (width object))
-		:and :do (setq h (tfm:ex (tfm:font object)))
-	      :else :if (kernp object)
-		:do (incf x (width object))
-	      :else :if (gluep object)
-		:do (setq w (width object))
+	      :if (cluep item)
+		:collect (make-pin item line :x x)
+	      :else :if (typep item 'tfm:character-metrics)
+		:collect (make-pin item line :x x)
+		:and :do (incf x (width item))
+		:and :do (setq h (tfm:ex (tfm:font item)))
+	      :else :if (kernp item)
+		:do (incf x (width item))
+	      :else :if (gluep item)
+		:do (setq w (width item))
 		:and :unless (zerop esar)
 		  :do (incf w (if (> esar 0)
-				  (* esar (stretch object))
-				  (* esar (shrink object))))
+				  (* esar (stretch item))
+				  (* esar (shrink item))))
 		  :end
-		:and :collect (make-whitespace w h object line x)
+		:and :collect (make-pin (make-hcast w h item) line :x x)
 		:and :do (incf x w)))
   line)
 

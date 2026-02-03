@@ -900,13 +900,13 @@ This function returns the corresponding line's pin as a second value."
 		       (items (object pin)))
 	      pin))))
 
-(defun whitespace-under (x y pins)
-  "Return the whitespace from line PINS which is under (X, Y).
-If no such whitespace is found, return NIL.
+(defun hcast-under (x y pins)
+  "Return the horizontal cast from line PINS which is under (X, Y).
+If no such cast is found, return NIL.
 This function returns the corresponding line's pin as a second value."
   (when-let (pin (line-under-y-pin y pins))
     (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
-		       (and (whitespacep item)
+		       (and (hcastp (object item))
 			    (<= ix x (+ ix (width item)))
 			    (<= (- ly (height item)) y ly)))
 		     (items (object pin)))
@@ -915,7 +915,7 @@ This function returns the corresponding line's pin as a second value."
 (defun object-under-pin (x y pins)
   "Find the object from line PINS which is under (X, Y). Return its pin.
 If no such object is found, return NIL.
-Considered objects currently include clues and glues.
+Considered objects currently include clues and horizontal casts.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
@@ -923,7 +923,7 @@ This function returns the corresponding line's pin as a second value."
   (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y pins)
     (if clue-pin
       (values clue-pin line-pin)
-      (whitespace-under x y pins))))
+      (hcast-under x y pins))))
 
 
 
@@ -1025,9 +1025,9 @@ displays a penalty adjustment dialog when appropriate."
 			    y
 			    (+ (depth layout) *border-width*))
 			(object-under-pin x y (lines layout))))
-      (let ((object (if (whitespacep pin) (object pin) (helt (object pin)))))
-	(when (typep object 'penalty-mixin)
-	  (make-penalty-adjustment-dialog object etap))))))
+      (let ((helt (helt (object pin))))
+	(when (typep helt 'penalty-mixin)
+	  (make-penalty-adjustment-dialog helt etap))))))
 
 
 
@@ -1046,13 +1046,13 @@ displays a penalty adjustment dialog when appropriate."
 ;; Otherwise, it's more complicated. The specific clue option must be active,
 ;; but that is not enough.
 ;; - First of all, only clues for objects which are not directly visible are
-;;   displayed. For instance, whitespaces are obviously visible but not
+;;   displayed. For instance, horizontal casts are obviously visible but not
 ;;   discretionaries (granted, some are, like explicit hyphenation points, but
 ;;   we will still show the clue in case one day we have unbreakable hyphens
-;;   outside discretionaries). However, whitespace clues will be displayed if
-;;   the corresponding (soft) glue's penalty has been customized, that is, if
-;;   its value is different from the global UI one, or (for non customizable
-;;   values), the caliber's default one.
+;;   outside discretionaries). However, horizontal cast clues will be
+;;   displayed if the corresponding (soft) glue's penalty has been customized,
+;;   that is, if its value is different from the global UI one, or (for non
+;;   customizable values), the caliber's default one.
 ;; - And then, there's another special case, which is that of the ends of
 ;;   lines. There, all breaks are obviously visible because that's the end of
 ;;   a line. So as above, the clues would only be displayed if the
@@ -1095,17 +1095,14 @@ points."
     (draw-break-point-clue view x y helt
       (or (not (hyphenation-point-p helt)) (not (explicitp helt))))))
 
-(defun draw-whitespace-clue
-    (view x y whitespace &optional force &aux (glue (object whitespace)))
-  "Draw a WHITESPACE clue in VIEW relatively to (X,Y).
-(X,Y) is the point which WHITESPACE is positioned relatively to.
+(defun draw-hcast-clue (view x y hcast &optional force &aux (glue (glue hcast)))
+  "Draw a horizontal cast clue in VIEW at (X,Y).
 Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
   (when (or force (customizedp glue (top-level-interface view)))
     (gp:draw-rectangle view
-	(+ x (x whitespace))
-	(- y (height whitespace))
-	(width whitespace)
-	(+ (height whitespace) (depth whitespace))
+	x (- y (height hcast))
+	(width hcast)
+	(+ (height hcast) (depth hcast))
       :filled t
       :foreground (color:make-hsv (clue-hue glue) 1s0 .7s0))))
 
@@ -1264,11 +1261,11 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 				   (draw-helt-clue view ix ly (helt object)
 				     (find-penalty-adjustment-dialog
 				      (helt object) etap)))
-				  ((and (whitespacep item)
+				  ((and (hcastp object)
 					(or (member :whitespaces clues)
 					    (find-penalty-adjustment-dialog
 					     object etap)))
-				   (draw-whitespace-clue view lx ly item
+				   (draw-hcast-clue view ix ly object
 				     (find-penalty-adjustment-dialog
 				      object etap)))))
 		      (items line)))
@@ -1282,15 +1279,13 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	    ;; #### WARNING: we may end up drawing a clue for the second
 	    ;; time here, but this is probably not such a big deal.
 	    (when object-pin
-	      (let ((lx (x line-pin))
+	      (let ((ix (+ (x line-pin) (x object-pin)))
 		    (ly (+ par-y (y line-pin)))
 		    (object (object object-pin)))
 		(cond ((cluep object)
-		       (draw-helt-clue view
-			 (+ lx (x object-pin)) ly (helt object)
-			 :force))
-		      ((whitespacep object-pin)
-		       (draw-whitespace-clue view lx ly object-pin :force)))))))
+		       (draw-helt-clue view ix ly (helt object) :force))
+		      ((hcastp object)
+		       (draw-hcast-clue view ix ly object :force)))))))
 	(when (and (member :rivers clues) (rivers etap))
 	  (maphash (lambda (source arms)
 		     (mapc (lambda (arm &aux (mouth (mouth arm)))
