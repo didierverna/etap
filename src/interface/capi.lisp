@@ -1123,12 +1123,13 @@ This function returns the corresponding line as a second value."
   "Return the object from LINES which is under (X, Y), or nil.
 This currently includes whitespaces and pinned clues.
 For clues, (X, Y) is not technically over it, but over the corresponding
-visual representation (the small triangle beneath it.
+visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
+  ;; No-can-do with OR. Need second values.
   (multiple-value-bind (object line)
       (clue-under
        x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
-    (if object ;; OR doesn't propagate secondary values on its first args!
+    (if object
       (values object line)
       (whitespace-under
        x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift))))
