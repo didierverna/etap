@@ -890,13 +890,13 @@ This function returns the corresponding line's pin as a second value."
     (let ((p (cons x y))
 	  (lx (x pin))
 	  (ly (y pin)))
-      (values (find-if (lambda (item &aux (ix (+ lx (x item))) (iy ly))
+      (values (find-if (lambda (item &aux (ix (+ lx (x item))))
 			 (and (cluep (object item))
 			      (triangle-under-p
 			       p
-			       (cons ix iy)
-			       (cons (+ ix -3) (+ iy 5))
-			       (cons (+ ix +3) (+ iy 5)))))
+			       (cons ix ly)
+			       (cons (+ ix -3) (+ ly 5))
+			       (cons (+ ix +3) (+ ly 5)))))
 		       (items (object pin)))
 	      pin))))
 
@@ -905,10 +905,10 @@ This function returns the corresponding line's pin as a second value."
 If no such whitespace is found, return NIL.
 This function returns the corresponding line's pin as a second value."
   (when-let (pin (line-under-y-pin y line-pins))
-    (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (iy (y pin)))
+    (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
 		       (and (whitespacep item)
 			    (<= ix x (+ ix (width item)))
-			    (<= (- iy (height item)) y iy)))
+			    (<= (- ly (height item)) y ly)))
 		     (items (object pin)))
 	    pin)))
 
@@ -1217,10 +1217,8 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item
-				   &aux (object (object item))
-					(ix (+ lx (x item)))
-					(iy (+ ly (y item))))
+		:do (mapc (lambda (item &aux (object (object item))
+					     (ix (+ lx (x item))))
 			    (cond ((typep object 'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle view
@@ -1232,7 +1230,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 				   (when (member :characters clues)
 				     (gp:draw-character view
 					 (aref *lm-ec* (tfm:code object))
-					 ix iy
+					 ix ly
 					 :font (cdr (find (tfm:font object)
 							fonts
 						      :key #'car)))))
@@ -1243,7 +1241,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :discretionaries clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view ix iy (helt object)
+				   (draw-helt-clue view ix ly (helt object)
 				     (or (find-penalty-adjustment-dialog
 					  (helt object) etap)
 					 (not (eq item last-item)))))
@@ -1252,7 +1250,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :hyphenation-points clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view ix iy (helt object)
+				   (draw-helt-clue view ix ly (helt object)
 				     (or (find-penalty-adjustment-dialog
 					  (helt object) etap)
 					 (not (eq item last-item)))))
@@ -1261,7 +1259,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt object) etap)))
-				   (draw-helt-clue view ix iy (helt object)
+				   (draw-helt-clue view ix ly (helt object)
 				     (find-penalty-adjustment-dialog
 				      (helt object) etap)))
 				  ((and (whitespacep item)
