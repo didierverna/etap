@@ -48,6 +48,21 @@ items satisfying PRE-TEST are considered."
 
 
 ;; Based on public domain Alexandria / Quickutil version
+(defmacro if-let (bindings &body (then-form &optional else-form))
+  "Execute THEN-FORM only if all BINDINGS are non-nil.
+Otherwise execute ELSE-FORM (nil by default).
+BINDINGS must be either a single binding of the form (VARIABLE VALUE),
+or a list of such. VALUEs are computed sequentially in the specified order,
+and then VARIABLEs are bound to the corresponding VALUEs. "
+  (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+			 (list bindings)
+			 bindings))
+	 (variables (mapcar #'car binding-list)))
+    `(let ,binding-list
+       (if (and ,@variables)
+	 ,then-form
+	 ,else-form))))
+
 (defmacro when-let (bindings &body body)
   "Execute BODY only when all BINDINGS are non-nil.
 BINDINGS must be either a single binding of the form (VARIABLE VALUE),

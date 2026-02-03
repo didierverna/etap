@@ -1072,8 +1072,7 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift
-		   &aux (p (cons x y)))
+(defun clue-under (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
   "Return the shifted clue from LINES which is under (X, Y), or nil.
 In the case of a discretionary clue, it is returned only if it corresponds to
 an hyphenation point (as opposed to a general discretionary). The object
@@ -1081,53 +1080,43 @@ returned is in fact the pin containing the clue.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line as a second value."
-  (let ((line (find-if (lambda (line)
-			 (<= (+ (y line) (funcall line-y-shift line))
-			     y
-			     (+ (y line) (funcall line-y-shift line) 5)))
-		       lines)))
-    (when line
-      (let* ((x (+ (x line) (funcall line-x-shift line)))
-	     (y (+ (y line) (funcall line-y-shift line))))
-	(values (find-if (lambda (item)
-			   (and (cluep (object item))
-				(or (not (discretionaryp (helt (object item))))
-				    (hyphenation-point-p (helt (object item))))
-				(triangle-under-p
-				 p
-				 (cons (+ x (x item) (funcall elt-x-shift item))
-				       (+ y (funcall elt-y-shift item)))
-				 (cons (+ x (x item) (funcall elt-x-shift item)
-					  -3)
-				       (+ y (funcall elt-y-shift item)
-					  5))
-				 (cons (+ x (x item) (funcall elt-x-shift item)
-					  +3)
-				       (+ y (funcall elt-y-shift item)
-					  5)))))
-			 (items line))
-		line)))))
+  (when-let (line (find-if (lambda (line
+				    &aux (ly (+ (y line)
+						(funcall line-y-shift line))))
+			     (<= ly y (+ ly 5)))
+			   lines))
+    (let ((p (cons x y))
+	  (lx (+ (x line) (funcall line-x-shift line)))
+	  (ly (+ (y line) (funcall line-y-shift line))))
+      (values (find-if (lambda (item
+				&aux (ix (+ lx
+					    (x item)
+					    (funcall elt-x-shift item)))
+				     (iy (+ ly (funcall elt-y-shift item))))
+			 (and (cluep (object item))
+			      (or (not (discretionaryp (helt (object item))))
+				  (hyphenation-point-p (helt (object item))))
+			      (triangle-under-p
+			       p
+			       (cons ix iy)
+			       (cons (+ ix -3) (+ iy 5))
+			       (cons (+ ix +3) (+ iy 5)))))
+		       (items line))
+	      line))))
 
 (defun whitespace-under
-    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift
-     &aux (line (line-under-y y lines line-y-shift)))
+    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
   "Return the shifted whitespace from LINES which is under (X, Y), or nil.
 This function returns the corresponding line as a second value."
-  (when line
-    (values (find-if (lambda (item)
+  (when-let (line (line-under-y y lines line-y-shift))
+    (values (find-if (lambda (item
+			      &aux (ix (+ (x line) (funcall line-x-shift line)
+					  (x item) (funcall elt-x-shift item)))
+				   (iy (+ (y line) (funcall line-y-shift line)
+					  (funcall elt-y-shift item))))
 		       (and (whitespacep item)
-			    (<= (+ (x line) (funcall line-x-shift line)
-				   (x item) (funcall elt-x-shift item))
-				x
-				(+ (x line) (funcall line-x-shift line)
-				   (x item) (funcall elt-x-shift item)
-				   (width item)))
-			    (<= (- (+ (y line) (funcall line-y-shift line)
-				      (funcall elt-y-shift item))
-				   (height item))
-				y
-				(+ (y line) (funcall line-y-shift line)
-				   (funcall elt-y-shift item)))))
+			    (<= ix x (+ ix (width item)))
+			    (<= (- iy (height item)) y iy)))
 		     (items line))
 	    line)))
 
@@ -1158,13 +1147,14 @@ This function returns the corresponding line as a second value."
 ;; borderline...
 
 (defmacro to-layout-coordinates (x y layout zoom)
-  "Convert X and Y to LAYOUT coordinates.
-Originally, X and Y are expressed in the potentially ZOOMed paragraph view's
-coordinate system. This macro modified X and Y directly."
-  `(progn
-     (setq ,x (/ (- ,x *border-width*) ,zoom)
-	   ,y (/ (- ,y *border-width*) ,zoom))
-     (decf ,y (height ,layout))))
+  "Convert X and Y to LAYOUT coordinates with ZOOM factor.
+Originally, X and Y are expressed in the paragraph view's coordinate system.
+X and Y must be variable names (not evaluated). They are modified in-place."
+  (let ((the-zoom (gensym "the-zoom")))
+    `(let ((,the-zoom ,zoom))
+       (setq ,x (/ (- ,x *border-width*) ,the-zoom)
+	     ,y (/ (- ,y *border-width*) ,the-zoom))
+       (decf ,y (height ,layout)))))
 
 
 
@@ -1179,12 +1169,7 @@ coordinate system. This macro modified X and Y directly."
 (defun motion-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (inspect (widget-value (inspector-box etap)))
-	  (zoom (zoom-value etap))
-	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
-	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
-	  (layout (when layout-# (get-layout layout-# breakup))))
+	  (inspect (widget-value (inspector-box etap))))
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the paragraph properties when the mouse is above the first line.
 - Display the line properties when the mouse is in the left margin of a line.
@@ -1192,46 +1177,49 @@ coordinate system. This macro modified X and Y directly."
   hyphenation point)."
   (setf (capi-object-property view :pointer) (cons x y))
   (when (getf inspect :activate)
-    ;; We have the view directly here, so no need to go through REDRAW.
-    ;; #### TODO: this could be optimized in order to avoid redrawing at every
+    ;; We have the view directly here, so no need to go through REDRAW. ####
+    ;; TODO: this could be optimized in order to avoid redrawing at every
     ;; single move. We could remember the previous move state and see if
     ;; something has changed.
     (gp:invalidate-rectangle view)
     (when (getf inspect :tooltips)
-      (to-layout-coordinates x y layout zoom)
-      (cond ((and (< y (- (height layout))) (<= x par-width))
-	     (display-tooltip view
+      (let* ((breakup (breakup etap))
+	     (par-width (paragraph-width breakup))
+	     (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
+	     (layout (when layout-# (get-layout layout-# breakup))))
+	(to-layout-coordinates x y layout (zoom-value etap))
+	(cond ((and (< y (- (height layout))) (<= x par-width))
+	       (display-tooltip view
 	       :text (properties breakup :layout-# layout-#)))
-	    (layout
-	     (let ((line-x-shift
-		     (or (capi-object-property view :line-x-shift)
-			 (lambda (line) (declare (ignore line)) 0)))
-		   (line-y-shift
-		     (or (capi-object-property view :line-y-shift)
-			 (lambda (line) (declare (ignore line)) 0)))
-		   (elt-x-shift
-		     (or (capi-object-property view :elt-x-shift)
-			 (lambda (elt) (declare (ignore elt)) 0)))
-		   (elt-y-shift
-		     (or (capi-object-property view :elt-y-shift)
-			 (lambda (elt) (declare (ignore elt)) 0))))
-	       (cond ((and (< x 0) (<= y (depth layout)))
-		      (let ((line (line-under-y y (lines layout) line-y-shift)))
-			(if line
+	      (layout
+	       (let ((line-x-shift
+		       (or (capi-object-property view :line-x-shift)
+			   (lambda (line) (declare (ignore line)) 0)))
+		     (line-y-shift
+		       (or (capi-object-property view :line-y-shift)
+			   (lambda (line) (declare (ignore line)) 0)))
+		     (elt-x-shift
+		       (or (capi-object-property view :elt-x-shift)
+			   (lambda (elt) (declare (ignore elt)) 0)))
+		     (elt-y-shift
+		       (or (capi-object-property view :elt-y-shift)
+			   (lambda (elt) (declare (ignore elt)) 0))))
+		 (cond ((and (< x 0) (<= y (depth layout)))
+			(if-let (line (line-under-y y (lines layout)
+					line-y-shift))
 			  (display-tooltip view :text (properties line))
-			  (display-tooltip view))))
-	      ((and (<= 0 x (+ par-width *border-width*))
-		    (<= (- (height layout))
-			y
-			(+ (depth layout) *border-width*)))
-	       (let ((object (object-under x y (lines layout)
-					   line-x-shift line-y-shift
-					   elt-x-shift elt-y-shift)))
-		 (if object
-		   (display-tooltip view :text (properties object))
-		   (display-tooltip view)))))))
-	    (t
-	     (display-tooltip view))))))
+			  (display-tooltip view)))
+		       ((and (<= 0 x (+ par-width *border-width*))
+			     (<= (- (height layout))
+				 y
+				 (+ (depth layout) *border-width*)))
+			(if-let (object (object-under x y (lines layout)
+				  line-x-shift line-y-shift
+				  elt-x-shift elt-y-shift))
+			  (display-tooltip view :text (properties object))
+			  (display-tooltip view))))))
+	      (t
+	       (display-tooltip view)))))))
 
 
 
@@ -1249,16 +1237,14 @@ coordinate system. This macro modified X and Y directly."
 (defun post-menu-callback
     (view x y
      &aux (etap (top-level-interface view))
-	  (zoom (zoom-value etap))
 	  (breakup (breakup etap))
-	  (par-width (paragraph-width breakup))
 	  (layout-# (let ((i (1- (layout etap)))) (when (>= i 0) i)))
 	  (layout (when layout-# (get-layout layout-# breakup))))
   "Function called when the user right clicks in the paragraph VIEW.
 This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
-    (to-layout-coordinates x y layout zoom)
+    (to-layout-coordinates x y layout (zoom-value etap))
     (let* ((line-x-shift (or (capi-object-property view :line-x-shift)
 			     (lambda (line) (declare (ignore line)) 0)))
 	   (line-y-shift (or (capi-object-property view :line-y-shift)
@@ -1267,13 +1253,13 @@ displays a penalty adjustment dialog when appropriate."
 			    (lambda (elt) (declare (ignore elt)) 0)))
 	   (elt-y-shift (or (capi-object-property view :elt-y-shift)
 			    (lambda (elt) (declare (ignore elt)) 0)))
-	   (object (and (<= 0 x (+ par-width *border-width*))
+	   (object (and (<= 0 x (+ (paragraph-width breakup) *border-width*))
 			(<= (- (height layout))
 			    y
 			    (+ (depth layout) *border-width*))
 			(object-under x y (lines layout)
-				      line-x-shift line-y-shift
-				      elt-x-shift elt-y-shift))))
+			  line-x-shift line-y-shift
+			  elt-x-shift elt-y-shift))))
       (when object
 	(setq object
 	      (etypecase (object object)
@@ -1362,8 +1348,6 @@ not 0."
 	  (par-y (height layout))
 	  (par-h+d (+ par-y (depth layout)))
 	  (clues (choice-selected-items (clues-box etap)))
-	  (inspect (mapcar #'item-data
-		     (choice-selected-items (inspector-box etap))))
 	  (zoom (zoom-value etap))
 	  (line-x-shift (or (capi-object-property view :line-x-shift)
 			    (lambda (line) (declare (ignore line)) 0)))
@@ -1394,12 +1378,12 @@ not 0."
 				 5)
 	      :for rest :on (lines layout)
 	      :for line := (car rest)
-	      :for x := (+ (x line) (funcall line-x-shift line))
-	      :for y := (+ par-y (y line) (funcall line-y-shift line))
+	      :for lx := (+ (x line) (funcall line-x-shift line))
+	      :for ly := (+ par-y (y line) (funcall line-y-shift line))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
-			x
-			(- y (height line))
+			lx
+			(- ly (height line))
 			(width line)
 			(+ (height line) (depth line))
 		      :foreground :blue
@@ -1407,7 +1391,7 @@ not 0."
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width line) par-width)
 		  :do (gp:draw-rectangle view
-			  full-x  (- y (height line))
+			  full-x  (- ly (height line))
 			  5  (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
@@ -1416,7 +1400,7 @@ not 0."
 				   :justified)
 			       (< (width line) par-width))
 		  :do (gp:draw-rectangle view
-			  full-x (- y (height line))
+			  full-x (- ly (height line))
 			  5 (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled nil)
@@ -1424,58 +1408,61 @@ not 0."
 		:if ($< (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($< (asar line) -1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 11)
-				(- y (height line))
+				(- ly (height line))
 				(+ full-x 8)
-				(+ y (depth line)))
+				(+ ly (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 		:else :if ($> (esar line) (asar line))
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled t :closed t)
 		:else :if ($> (asar line) 1)
 		  :do (gp:draw-polygon view
 			  (list (+ full-x 5)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 11)
-				(+ y (depth line))
+				(+ ly (depth line))
 				(+ full-x 8)
-				(- y (height line)))
+				(- ly (height line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil :closed t)
 	      :when (member :baselines clues)
-		:do (gp:draw-line view x y (+ x (width line)) y
+		:do (gp:draw-line view lx ly (+ lx (width line)) ly
 		      :foreground :purple
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item)
+		:do (mapc (lambda (item
+				   &aux (ix (+ lx
+					       (x item)
+					       (funcall elt-x-shift item)))
+					(iy (+ ly
+					       (funcall elt-y-shift item))))
 			    (cond ((typep (object item)
 					  'tfm:character-metrics)
 				   (when (member :character-boxes clues)
 				     (gp:draw-rectangle view
-					 (+ x (x item)
-					    (funcall elt-x-shift item))
-					 (- (+ y (funcall elt-y-shift item))
-					    (height item))
+					 ix
+					 (- iy (height item))
 					 (width item)
 					 (+ (height item) (depth item))
 				       :scale-thickness nil))
@@ -1483,9 +1470,7 @@ not 0."
 				     (gp:draw-character view
 					 (aref *lm-ec*
 					       (tfm:code (object item)))
-					 (+ x (x item)
-					    (funcall elt-x-shift item))
-					 (+ y (funcall elt-y-shift item)))))
+					 ix iy)))
 				  ((and (cluep (object item))
 					(hyphenation-point-p
 					 (helt (object item)))
@@ -1493,20 +1478,14 @@ not 0."
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view
-				     (+ x (x item) (funcall elt-x-shift item))
-				     (+ y (funcall elt-y-shift item))
-				     (helt (object item))))
+				   (draw-clue view ix iy (helt (object item))))
 				  ((and (cluep (object item))
 					(gluep (helt (object item)))
 					(or (member :ends-of-line clues)
 					    (find-penalty-adjustment-dialog
 					     (helt (object item))
 					     etap)))
-				   (draw-clue view
-				     (+ x (x item) (funcall elt-x-shift item))
-				     (+ y (funcall elt-y-shift item))
-				     (helt (object item))
+				   (draw-clue view ix iy (helt (object item))
 				     (find-penalty-adjustment-dialog
 				      (helt (object item))
 				      etap)))
@@ -1516,40 +1495,34 @@ not 0."
 					     (object item)
 					     etap)))
 				   (draw-whitespace-clue
-				    view x y elt-x-shift elt-y-shift item
+				    view lx ly elt-x-shift elt-y-shift item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
 		      (items line)))
-	(when (member :activate inspect)
-	  (let* ((pointer (capi-object-property view :pointer))
-		 (x (car pointer))
-		 (y (cdr pointer)))
-	    (to-layout-coordinates x y layout zoom)
-	    (multiple-value-bind (object line)
+	(when (getf (widget-value (inspector-box etap)) :activate)
+	  (multiple-value-bind (object line)
+	      (let* ((pointer (capi-object-property view :pointer))
+		     (x (car pointer))
+		     (y (cdr pointer)))
+		(to-layout-coordinates x y layout zoom)
 		(object-under x y (lines layout)
-		  line-x-shift line-y-shift elt-x-shift elt-y-shift)
-	      ;; #### WARNING: we may end up drawing a clue for the second
-	      ;; time here, but this is probably not such a big deal.
-	      (when object
-		(setq x (+ (x line) (funcall line-x-shift line))
-		      y (+ par-y (y line) (funcall line-y-shift line)))
+		  line-x-shift line-y-shift elt-x-shift elt-y-shift))
+	    ;; #### WARNING: we may end up drawing a clue for the second time
+	    ;; here, but this is probably not such a big deal.
+	    (when object
+	      (let* ((lx (+ (x line) (funcall line-x-shift line)))
+		     (ly (+ par-y (y line) (funcall line-y-shift line)))
+		     (ix (+ lx (x object) (funcall elt-x-shift object)))
+		     (iy (+ ly (funcall elt-y-shift object))))
 		(cond ((and (cluep (object object))
 			    (discretionaryp (helt (object object))))
-		       (draw-clue view
-			 (+ x (x object) (funcall elt-x-shift object))
-			 (+ y (funcall elt-y-shift object))
-			 (helt (object object))))
+		       (draw-clue view ix iy (helt (object object))))
 		      ((and (cluep (object object))
 			    (gluep (helt (object object))))
-		       (draw-clue view
-			 (+ x (x object) (funcall elt-x-shift object))
-			 (+ y (funcall elt-y-shift object))
-			 (helt (object object))
-			 :force))
+		       (draw-clue view ix iy (helt (object object)) :force))
 		      ((whitespacep object)
-		       (draw-whitespace-clue view
-			 x y elt-x-shift elt-y-shift
-			 object 'force)))))))
+		       (draw-whitespace-clue view lx ly
+			 elt-x-shift elt-y-shift object 'force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
