@@ -937,13 +937,14 @@ This function returns the corresponding line's pin as a second value."
 ;; borderline...
 
 (defmacro to-layout-coordinates (x y layout zoom)
-  "Convert X and Y to LAYOUT coordinates.
-Originally, X and Y are expressed in the potentially ZOOMed paragraph view's
-coordinate system. This macro modified X and Y directly."
-  `(progn
-     (setq ,x (/ (- ,x *border-width*) ,zoom)
-	   ,y (/ (- ,y *border-width*) ,zoom))
-     (decf ,y (height ,layout))))
+  "Convert X and Y to LAYOUT coordinates with ZOOM factor.
+Originally, X and Y are expressed in the paragraph view's coordinate system.
+X and Y must be variable names (not evaluated). They are modified in-place."
+  (let ((the-zoom (gensym "the-zoom")))
+    `(let ((,the-zoom ,zoom))
+       (setq ,x (/ (- ,x *border-width*) ,the-zoom)
+	     ,y (/ (- ,y *border-width*) ,the-zoom))
+       (decf ,y (height ,layout)))))
 
 
 
