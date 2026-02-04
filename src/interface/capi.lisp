@@ -550,6 +550,15 @@ Stop animation if running, uninstall the living text, and redraw."
 (define-interface living-text ()
   ((etap :reader etap))
   (:panes
+   (animation-tabs tab-layout
+     :visible-max-width nil
+     :combine-child-constraints t
+     :items '((:line-waves lwaves-settings))
+     :print-function (lambda (item) (title-capitalize (car item)))
+     :callback-type '(:element :interface)
+     :selection-callback 'living-text-animation-tabs-callback
+     :visible-child-function #'second
+     :reader animation-tabs)
    (xamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
@@ -595,14 +604,11 @@ Stop animation if running, uninstall the living text, and redraw."
      :callback 'living-text-start/stop-callback
      :reader start/stop-button))
   (:layouts
-   (main column-layout '(settings))
-   (settings column-layout '(xy-settings start/stop)
-     :adjust :center
-     :reader settings)
-   (xy-settings row-layout '(horizontal vertical))
-   (horizontal column-layout '(xamp xond xprop xphase)
+   (main column-layout '(animation-tabs start/stop) :adjust :center)
+   (lwaves-settings row-layout '(lwaves-horizontal lwaves-vertical))
+   (lwaves-horizontal column-layout '(xamp xond xprop xphase)
      :title "Horizontal" :title-position :frame :adjust :center)
-   (vertical column-layout '(yamp yond yprop yphase)
+   (lwaves-vertical column-layout '(yamp yond yprop yphase)
      :title "Vertical" :title-position :frame :adjust :center))
   (:default-initargs
    :title "Living Text"
