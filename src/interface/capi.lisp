@@ -519,28 +519,6 @@ function and redraw. Otherwise, return :STOP."
 	(t
 	 :stop)))
 
-(defun living-text-switch-callback
-    (switch dialog
-     &aux (enable (button-selected switch))
-	  (etap (etap dialog))
-	  (view (view-area etap)))
-  "Function called when the living text SWITCH is toggled.
-- Toggle the rest of the living text interface's enabled status.
-- Upon activation, install the Line Waves functions and data structures.
-- Upon deactivation, stop animation if running.
-- Redraw."
-  (enable-pane (settings dialog) enable)
-  (cond (enable
-	 (lwaves-install dialog view))
-	(t
-	 (setf (capi-object-property view :living-text-animation) nil)
-	 (setf (item-data (start/stop-button dialog)) :run-animation)
-	 (setf (capi-object-property view :line-x-shift) nil)
-	 (setf (capi-object-property view :line-y-shift) nil)
-	 (setf (capi-object-property view :elt-x-shift) nil)
-	 (setf (capi-object-property view :elt-y-shift) nil)))
-  (redraw etap))
-
 (defun living-text-start/stop-callback
     (button dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the living text start/stop BUTTON is pushed.
@@ -557,70 +535,67 @@ Switch the animation:
 	 (mp:schedule-timer-relative-milliseconds
 	  (mp:make-timer 'living-text-timer etap) 30 30))))
 
+(defun living-text-destroy-callback
+    (dialog &aux (etap (etap dialog))(view (view-area etap)))
+  "Function called when the living text DIALOG is destroyed.
+Stop animation if running, uninstall the living text, and redraw."
+  (setf (capi-object-property view :living-text-animation) nil)
+  (setf (item-data (start/stop-button dialog)) :run-animation)
+  (setf (capi-object-property view :line-x-shift) nil)
+  (setf (capi-object-property view :line-y-shift) nil)
+  (setf (capi-object-property view :elt-x-shift) nil)
+  (setf (capi-object-property view :elt-y-shift) nil)
+  (redraw etap))
+
 (define-interface living-text ()
   ((etap :reader etap))
   (:panes
-   (switch check-button
-     :text "Enable living text"
-     :callback-type '(:element :interface)
-     :selection-callback 'living-text-switch-callback
-     :retract-callback 'living-text-switch-callback
-     :reader switch)
    (xamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader xamp)
    (xond cursor
      :property :ondulation
      :caliber *sine-ondulation*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader xond)
    (xprop cursor
      :property :propagation
      :caliber *sine-propagation*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader xprop)
    (xphase push-button
      :text "Reset Phase"
      :data :x
-     :callback 'lwaves-phase-reset-callback
-     :enabled nil)
+     :callback 'lwaves-phase-reset-callback)
    (yamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader yamp)
    (yond cursor
      :property :ondulation
      :caliber *sine-ondulation*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader yond)
    (yprop cursor
      :property :propagation
      :caliber *sine-propagation*
      :callback 'lwaves-cursor-callback
-     :enabled nil
      :reader yprop)
    (yphase push-button
      :text "Reset Phase"
      :data :y
-     :callback 'lwaves-phase-reset-callback
-     :enabled nil)
+     :callback 'lwaves-phase-reset-callback)
    (start/stop push-button
      :data :run-animation
      :print-function 'title-capitalize
      :callback-type '(:item :interface)
      :callback 'living-text-start/stop-callback
-     :enabled nil
      :reader start/stop-button))
   (:layouts
-   (main column-layout '(switch settings))
+   (main column-layout '(settings))
    (settings column-layout '(xy-settings start/stop)
      :adjust :center
      :reader settings)
@@ -631,7 +606,15 @@ Switch the animation:
      :title "Vertical" :title-position :frame :adjust :center))
   (:default-initargs
    :title "Living Text"
-   :window-styles '(:always-on-top t :toolbox t)))
+   :window-styles '(:always-on-top t :toolbox t)
+   :destroy-callback 'living-text-destroy-callback))
+
+(defmethod interface-display :before
+    ((dialog living-text) &aux (etap (etap dialog)) (view (view-area etap)))
+  "Function called when the living text DIALOG is displayed.
+Install the Line Waves functions and data structures, and redraw."
+  (lwaves-install dialog view)
+  (redraw etap))
 
 
 
