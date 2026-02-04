@@ -178,7 +178,10 @@ items are ignored."
 ;; this is not such a big deal.
 
 (defclass cursor (widget slider)
-  ((caliber
+  ((prefix
+    :documentation "This cursor's title prefix (defaults to the property."
+    :initform nil :initarg :prefix :reader prefix)
+   (caliber
     :documentation "This cursor's corresponding caliber."
     :initarg :caliber :reader caliber))
   (:default-initargs
@@ -195,10 +198,10 @@ items are ignored."
 (defgeneric cursor-title (cursor)
   (:documentation "Compute CURSOR's title based on its current value.")
   (:method ((cursor cursor))
-    "Return a string of the form \"<Property>: <calibrated value>\".
+    "Return a string of the form \"<prefix>: <calibrated value>\".
 This is the default method."
     (format nil "~A: ~A"
-      (title-capitalize (property cursor))
+      (title-capitalize (prefix cursor))
       (calibrated-cursor-value cursor))))
 
 (defun update-cursor-title (cursor)
@@ -217,6 +220,7 @@ This means setting its range start and end, default value, and title."
 	(range-end cursor)   (caliber-max caliber))
   (setf (range-slug-start cursor)
 	(decalibrated-value (caliber-default caliber) caliber))
+  (unless (prefix cursor) (setf (slot-value cursor 'prefix) (property cursor)))
   (update-cursor-title cursor))
 
 
