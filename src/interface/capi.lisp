@@ -413,56 +413,36 @@ Display LAYOUT number (1 by default)."
 ;; Line Waves Animation
 ;; --------------------
 
-(defstruct sine
-  "The SINE structure.
-This structure describes a sinusoid wave, with amplitude, ondulation
-frequency, propagation speed, and phase."
-  amp ond prop phase)
-
-(defun sine-shift (y sine)
-  "Return a shifting amount for Y position based on SINE structure.
-Note that this function is used for both horizontal and vertical shifting, as
-lines are differentiated from each other only by their vertical position."
-  (+ (sine-amp sine)
-     (* (sine-amp sine)
-	(sin (+ (sine-phase sine) (/ (* 2 pi (sine-ond sine) y) 20000))))))
-
-(defmacro define-sine-caliber
+(defmacro define-lwaves-caliber
     (name min default max &rest keys &key infinity bounded)
-  "Define a NAMEd SINE caliber with MIN, DEFAULT, and MAX values."
+  "Define a NAMEd lwaves caliber with MIN, DEFAULT, and MAX values."
   (declare (ignore infinity bounded))
-  `(define-caliber sine ,name ,min ,default ,max ,@keys))
+  `(define-caliber lwaves ,name ,min ,default ,max ,@keys))
 
-(defmacro calibrate-sine (name)
-  "Calibrate NAMEd sine variable."
+(defmacro calibrate-lwaves (name)
+  "Calibrate NAMEd lwaves variable."
   `(calibrate sine ,name :earmuffs nil))
 
-(define-sine-caliber amplitude 0 0 10 :bounded t)
-(define-sine-caliber ondulation 0 0 400 :bounded t)
-(define-sine-caliber propagation 0 0 100 :bounded t)
+(define-lwaves-caliber amplitude 0 0 10 :bounded t)
+(define-lwaves-caliber ondulation 0 0 400 :bounded t)
+(define-lwaves-caliber propagation 0 0 100 :bounded t)
 
-(defun lwaves-install (dialog view)
-  "Install the Line Waves functions and data structures in VIEW from DIALOG."
-  (unless (capi-object-property view :xsine)
-    (setf (capi-object-property view :xsine)
-	  (make-sine
-	   :amp (widget-value (xamp dialog))
-	   :ond (widget-value (xond dialog))
-	   :prop (widget-value (xprop dialog))
-	   :phase 0)))
-  (unless (capi-object-property view :ysine)
-    (setf (capi-object-property view :ysine)
-	  (make-sine
-	   :amp (widget-value (yamp dialog))
-	   :ond (widget-value (yond dialog))
-	   :prop (widget-value (yprop dialog))
-	   :phase 0)))
-  (setf (capi-object-property view :line-x-shift)
-	(lambda (line)
-	  (sine-shift (y line) (capi-object-property view :xsine))))
-  (setf (capi-object-property view :line-y-shift)
-	(lambda (line)
-	  (sine-shift (y line) (capi-object-property view :ysine)))))
+(defun lwaves-x-shift (y &key xamp xphase xond &allow-other-keys)
+  "Return a horizontal shifting amount for Y position based on LWAVES."
+  (+ xamp (* xamp (sin (+ xphase (/ (* 2 pi xond y) 20000))))))
+
+(defun lwaves-y-shift (y &key yamp yphase yond &allow-other-keys)
+  "Return a vertical shifting amount for Y position based on LWAVES."
+  (+ yamp (* yamp (sin (+ yphase (/ (* 2 pi yond y) 20000))))))
+
+(defun lwaves-install (view specification)
+  "Install the Line Waves animation in VIEW with SPECIFICATION."
+  (let ((lwaves `(:xphase 0 :yphase 0 ,@(cdr specification))))
+    (setf (capi-object-property view :living-text-specification) lwaves)
+    (setf (capi-object-property view :line-x-shift)
+	  (lambda (line) (apply #'lwaves-x-shift (y line) lwaves)))
+    (setf (capi-object-property view :line-y-shift)
+	  (lambda (line) (apply #'lwaves-y-shift (y line) lwaves)))))
 
 
 
@@ -478,40 +458,49 @@ Update CURSOR's title and propagate the new value where appropriate."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    ;; #### FIXME: do this better (do cursors have :data ?)
-    (let ((sine (if (member cursor (list (xamp dialog)
-					 (xond dialog)
-					 (xprop dialog)))
-		  (capi-object-property view :xsine)
-		  (capi-object-property view :ysine))))
-      (case (property cursor)
-	(:amplitude (setf (sine-amp sine) (widget-value cursor)))
-	(:ondulation (setf (sine-ond sine) (widget-value cursor)))
-	(:propagation (setf (sine-prop sine) (widget-value cursor)))))
-    (unless (capi-object-property view :living-text-animation)
-      (redraw etap))))
+    (setf (getf (capi-object-property view :living-text-specification)
+		(property cursor))
+	  (widget-value cursor))
+    (unless (capi-object-property view :living-text-animation) (redraw etap))))
 
 (defun lwaves-phase-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when a Line Waves animation's phase reset button is pushed."
-  (ecase data
-    (:x (setf (sine-phase (capi-object-property view :xsine)) 0))
-    (:y (setf (sine-phase (capi-object-property view :ysine)) 0)))
-  (unless (capi-object-property view :living-text-animation)
-    (redraw etap)))
+  (setf (getf (capi-object-property view :living-text-specification) data) 0)
+  (unless (capi-object-property view :living-text-animation) (redraw etap)))
 
 (defun lwaves-step (view)
-  (let ((xsine (capi-object-property view :xsine))
-	(ysine (capi-object-property view :ysine)))
-    (setf (sine-phase xsine)
-	  (+ (sine-phase xsine) (/ (sine-prop xsine) 100)))
-    (setf (sine-phase ysine)
-	  (+ (sine-phase ysine) (/ (sine-prop ysine) 100)))))
+  (let ((spec (capi-object-property view :living-text-specification)))
+    (setf (getf spec :xphase)
+	  (+ (getf spec :xphase) (/ (getf spec :xprop) 100)))
+    (setf (getf spec :yphase)
+	  (+ (getf spec :yphase) (/ (getf spec :yprop) 100)))))
 
 
 
 ;; Living Text Interface
 ;; ---------------------
+
+(defun living-text-specification
+    (dialog &aux (item (choice-selected-item (animation-tabs dialog))))
+  "Return living text DIALOG interface's current animation specification."
+  (cons (first item)
+	(let ((options))
+	  (map-pane-descendant-children
+	   (slot-value dialog (second item))
+	   (lambda (child)
+	     (typecase child
+	       (check-box
+		;; #### WARNING: this special case is because check boxes in
+		;; animations currently only represent additional options for
+		;; which the widget's property is meaningless (typically
+		;; :options). We do not have anything working like the clues
+		;; check box in algorithms right now, but if that changes, we
+		;; will have a problem here.
+		(setq options (append options (widget-value child))))
+	       (widget
+		(setq options (append options (widget-specification child)))))))
+	  options)))
 
 (defun living-text-timer (etap &aux (view (view-area etap)))
   "Living text timer function.
@@ -540,7 +529,7 @@ Switch the animation:
 	  (mp:make-timer 'living-text-timer etap) 30 30))))
 
 (defun living-text-destroy-callback
-    (dialog &aux (etap (etap dialog))(view (view-area etap)))
+    (dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the living text DIALOG is destroyed.
 Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :living-text-animation) nil)
@@ -564,42 +553,48 @@ Stop animation if running, uninstall the living text, and redraw."
      :visible-child-function #'second
      :reader animation-tabs)
    (xamp pt-cursor
-     :property :amplitude
-     :caliber *sine-amplitude*
+     :prefix :amplitude
+     :property :xamp
+     :caliber *lwaves-amplitude*
      :callback 'lwaves-cursor-callback
      :reader xamp)
    (xond cursor
-     :property :ondulation
-     :caliber *sine-ondulation*
+     :prefix :ondulation
+     :property :xond
+     :caliber *lwaves-ondulation*
      :callback 'lwaves-cursor-callback
      :reader xond)
    (xprop cursor
-     :property :propagation
-     :caliber *sine-propagation*
+     :prefix :propagation
+     :property :xprop
+     :caliber *lwaves-propagation*
      :callback 'lwaves-cursor-callback
      :reader xprop)
    (xphase push-button
      :text "Reset Phase"
-     :data :x
+     :data :xphase
      :callback 'lwaves-phase-reset-callback)
    (yamp pt-cursor
-     :property :amplitude
-     :caliber *sine-amplitude*
+     :prefix :amplitude
+     :property :yamp
+     :caliber *lwaves-amplitude*
      :callback 'lwaves-cursor-callback
      :reader yamp)
    (yond cursor
-     :property :ondulation
-     :caliber *sine-ondulation*
+     :prefix :ondulation
+     :property :yond
+     :caliber *lwaves-ondulation*
      :callback 'lwaves-cursor-callback
      :reader yond)
    (yprop cursor
-     :property :propagation
-     :caliber *sine-propagation*
+     :prefix :propagation
+     :property :yprop
+     :caliber *lwaves-propagation*
      :callback 'lwaves-cursor-callback
      :reader yprop)
    (yphase push-button
      :text "Reset Phase"
-     :data :y
+     :data :yphase
      :callback 'lwaves-phase-reset-callback)
    (start/stop push-button
      :data :run-animation
@@ -623,7 +618,7 @@ Stop animation if running, uninstall the living text, and redraw."
     ((dialog living-text) &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the living text DIALOG is displayed.
 Install the Line Waves functions and data structures, and redraw."
-  (lwaves-install dialog view)
+  (lwaves-install view (living-text-specification dialog))
   (redraw etap))
 
 
