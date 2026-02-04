@@ -251,7 +251,7 @@ If VALUE is NIL, use the default value of CURSOR's caliber instead."
   "Return a string of the form \"<Property>: <calibrated value>%\".
 The calibrated value is displayed with 3 digits."
   (format nil "~A: ~3D%"
-    (title-capitalize (property cursor))
+    (title-capitalize (prefix cursor))
     (calibrated-cursor-value cursor)))
 
 
@@ -267,7 +267,7 @@ The calibrated value is displayed with 3 digits."
   "Return a string of the form \"<Property>: <calibrated value>pt (<in>cm)\".
 The cm equivalent part is not displayed if the value is +/-∞."
   (format nil "~A: ~A~@[pt (~Acm)~]"
-    (title-capitalize (property cursor))
+    (title-capitalize (prefix cursor))
     value
     (when (numberp value) (float (/ value 28.452755)))))
 
@@ -286,7 +286,7 @@ The cm equivalent part is not displayed if the value is +/-∞."
   "Return a string of the form \"<Property>: <calibrated value>°\".
 The calibrated value is displayed with 3 digits."
   (format nil "~A: ~3D°"
-    (title-capitalize (property cursor))
+    (title-capitalize (prefix cursor))
     (calibrated-cursor-value cursor)))
 
 
