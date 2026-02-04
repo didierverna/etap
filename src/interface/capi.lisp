@@ -405,19 +405,23 @@ Display LAYOUT number (1 by default)."
 ;; Living Text Dialog
 ;; ==========================================================================
 
-(defstruct sine amp ond prop phase)
+;; --------------------
+;; Line Waves Animation
+;; --------------------
 
-(defun line-sine-shift (line sine)
+(defstruct sine
+  "The SINE structure.
+This structure describes a sinusoid wave, with amplitude, ondulation
+frequency, propagation speed, and phase."
+  amp ond prop phase)
+
+(defun sine-shift (y sine)
+  "Return a shifting amount for Y position based on SINE structure.
+Note that this function is used for both horizontal and vertical shifting, as
+lines are differentiated from each other only by their vertical position."
   (+ (sine-amp sine)
      (* (sine-amp sine)
-	(sin (+ (sine-phase sine)
-		(/ (* 2 pi (sine-ond sine) (y line)) 20000))))))
-
-
-
-;; --------
-;; Calibers
-;; --------
+	(sin (+ (sine-phase sine) (/ (* 2 pi (sine-ond sine) y) 20000))))))
 
 (defmacro define-sine-caliber
     (name min default max &rest keys &key infinity bounded)
@@ -433,58 +437,40 @@ Display LAYOUT number (1 by default)."
 (define-sine-caliber ondulation 0 0 400 :bounded t)
 (define-sine-caliber propagation 0 0 100 :bounded t)
 
+(defun lwaves-install (dialog view)
+  "Install the Line Waves functions and data structures in VIEW from DIALOG."
+  (unless (capi-object-property view :xsine)
+    (setf (capi-object-property view :xsine)
+	  (make-sine
+	   :amp (widget-value (xamp dialog))
+	   :ond (widget-value (xond dialog))
+	   :prop (widget-value (xprop dialog))
+	   :phase 0)))
+  (unless (capi-object-property view :ysine)
+    (setf (capi-object-property view :ysine)
+	  (make-sine
+	   :amp (widget-value (yamp dialog))
+	   :ond (widget-value (yond dialog))
+	   :prop (widget-value (yprop dialog))
+	   :phase 0)))
+  (setf (capi-object-property view :line-x-shift)
+	(lambda (line)
+	  (sine-shift (y line) (capi-object-property view :xsine))))
+  (setf (capi-object-property view :line-y-shift)
+	(lambda (line)
+	  (sine-shift (y line) (capi-object-property view :ysine)))))
+
 
 
-;; ---------
-;; Callbacks
-;; ---------
+;; Line waves GUI elements
 
-(defun sine-switch-callback
-    (switch dialog
-     &aux (enable (button-selected switch))
-	  (etap (etap dialog))
-	  (view (view-area etap)))
-  "Function called when the sine living text SWITCH is toggled.
-- Toggle the rest of the living text interface's enabled status.
-- On deactivation, stop animation if running.
-- Install or uninstall the Sine functions and data structures.
-- Redraw."
-  (enable-pane (settings dialog) enable)
-  (cond (enable
-	 (unless (capi-object-property view :xsine)
-	   (setf (capi-object-property view :xsine)
-		 (make-sine
-		  :amp (widget-value (xamp dialog))
-		  :ond (widget-value (xond dialog))
-		  :prop (widget-value (xprop dialog))
-		  :phase 0)))
-	 (unless (capi-object-property view :ysine)
-	   (setf (capi-object-property view :ysine)
-		 (make-sine
-		  :amp (widget-value (yamp dialog))
-		  :ond (widget-value (yond dialog))
-		  :prop (widget-value (yprop dialog))
-		  :phase 0)))
-	 (setf (capi-object-property view :line-x-shift)
-	       (lambda (line)
-		 (line-sine-shift line (capi-object-property view :xsine))))
-	 (setf (capi-object-property view :line-y-shift)
-	       (lambda (line)
-		 (line-sine-shift line (capi-object-property view :ysine)))))
-	(t
-	 (setf (capi-object-property view :living-text-animation) nil)
-	 (setf (item-data (animate dialog)) :run-animation)
-	 (setf (capi-object-property view :line-x-shift) nil)
-	 (setf (capi-object-property view :line-y-shift) nil)))
-  (redraw etap))
-
-(defun sine-cursor-callback
+(defun lwaves-cursor-callback
     (cursor value gesture
      &aux (dialog (top-level-interface cursor))
 	  (etap (etap dialog))
 	  (view (view-area etap)))
-  "Function called when the lliving text amplitude CURSOR is dragged.
-- Update CURSOR's title."
+  "Function called when a Line Waves animation's CURSOR is dragged.
+Update CURSOR's title and propagate the new value where appropriate."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
@@ -501,103 +487,141 @@ Display LAYOUT number (1 by default)."
     (unless (capi-object-property view :living-text-animation)
       (redraw etap))))
 
-(defun sine-phase-reset-callback
+(defun lwaves-phase-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Function called when a Line Waves animation's phase reset button is pushed."
   (ecase data
     (:x (setf (sine-phase (capi-object-property view :xsine)) 0))
     (:y (setf (sine-phase (capi-object-property view :ysine)) 0)))
   (unless (capi-object-property view :living-text-animation)
     (redraw etap)))
 
-(defun sine-run-step (etap &aux (view (view-area etap)))
+(defun lwaves-step (view)
+  (let ((xsine (capi-object-property view :xsine))
+	(ysine (capi-object-property view :ysine)))
+    (setf (sine-phase xsine)
+	  (+ (sine-phase xsine) (/ (sine-prop xsine) 100)))
+    (setf (sine-phase ysine)
+	  (+ (sine-phase ysine) (/ (sine-prop ysine) 100)))))
+
+
+
+;; Living Text Interface
+;; ---------------------
+
+(defun living-text-timer (etap &aux (view (view-area etap)))
+  "Living text timer function.
+If the animation should continue running, call the animation's stepper
+function and redraw. Otherwise, return :STOP."
   (cond ((capi-object-property view :living-text-animation)
-	 (let ((xsine (capi-object-property view :xsine))
-	       (ysine (capi-object-property view :ysine)))
-	   (setf (sine-phase xsine)
-		 (+ (sine-phase xsine) (/ (sine-prop xsine) 100)))
-	   (setf (sine-phase ysine)
-		 (+ (sine-phase ysine) (/ (sine-prop ysine) 100))))
+	 (lwaves-step view)
 	 (redisplay-element view))
 	(t
 	 :stop)))
 
-(defun sine-run-callback
-    (animate dialog &aux (etap (etap dialog)) (view (view-area etap)))
+(defun living-text-switch-callback
+    (switch dialog
+     &aux (enable (button-selected switch))
+	  (etap (etap dialog))
+	  (view (view-area etap)))
+  "Function called when the living text SWITCH is toggled.
+- Toggle the rest of the living text interface's enabled status.
+- Upon activation, install the Line Waves functions and data structures.
+- Upon deactivation, stop animation if running.
+- Redraw."
+  (enable-pane (settings dialog) enable)
+  (cond (enable
+	 (lwaves-install dialog view))
+	(t
+	 (setf (capi-object-property view :living-text-animation) nil)
+	 (setf (item-data (start/stop-button dialog)) :run-animation)
+	 (setf (capi-object-property view :line-x-shift) nil)
+	 (setf (capi-object-property view :line-y-shift) nil)
+	 (setf (capi-object-property view :elt-x-shift) nil)
+	 (setf (capi-object-property view :elt-y-shift) nil)))
+  (redraw etap))
+
+(defun living-text-start/stop-callback
+    (button dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Function called when the living text start/stop BUTTON is pushed.
+Switch the animation:
+- indicate the new status in the Etap view's property,
+- update the button's data (hence its title),
+- Upon running, start the animation timer."
   (cond ((capi-object-property view :living-text-animation)
-	 (setf (item-data animate) :run-animation)
+	 (setf (item-data button) :run-animation)
 	 (setf (capi-object-property view :living-text-animation) nil))
 	(t
+	 (setf (item-data button) :stop-animation)
 	 (setf (capi-object-property view :living-text-animation) t)
-	 (setf (item-data animate) :stop-animation)
 	 (mp:schedule-timer-relative-milliseconds
-	  (mp:make-timer 'sine-run-step etap) 30 30))))
-
+	  (mp:make-timer 'living-text-timer etap) 30 30))))
 
 (define-interface living-text ()
   ((etap :reader etap))
   (:panes
    (switch check-button
-     :text "Make ondulating paragraph"
+     :text "Enable living text"
      :callback-type '(:element :interface)
-     :selection-callback 'sine-switch-callback
-     :retract-callback 'sine-switch-callback
+     :selection-callback 'living-text-switch-callback
+     :retract-callback 'living-text-switch-callback
      :reader switch)
    (xamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader xamp)
    (xond cursor
      :property :ondulation
      :caliber *sine-ondulation*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader xond)
    (xprop cursor
      :property :propagation
      :caliber *sine-propagation*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader xprop)
    (xphase push-button
      :text "Reset Phase"
      :data :x
-     :callback 'sine-phase-reset-callback
+     :callback 'lwaves-phase-reset-callback
      :enabled nil)
    (yamp pt-cursor
      :property :amplitude
      :caliber *sine-amplitude*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader yamp)
    (yond cursor
      :property :ondulation
      :caliber *sine-ondulation*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader yond)
    (yprop cursor
      :property :propagation
      :caliber *sine-propagation*
-     :callback 'sine-cursor-callback
+     :callback 'lwaves-cursor-callback
      :enabled nil
      :reader yprop)
    (yphase push-button
      :text "Reset Phase"
      :data :y
-     :callback 'sine-phase-reset-callback
+     :callback 'lwaves-phase-reset-callback
      :enabled nil)
-   (animate push-button
+   (start/stop push-button
      :data :run-animation
      :print-function 'title-capitalize
      :callback-type '(:item :interface)
-     :callback 'sine-run-callback
+     :callback 'living-text-start/stop-callback
      :enabled nil
-     :reader animate))
+     :reader start/stop-button))
   (:layouts
    (main column-layout '(switch settings))
-   (settings column-layout '(xy-settings animate)
+   (settings column-layout '(xy-settings start/stop)
      :adjust :center
      :reader settings)
    (xy-settings row-layout '(horizontal vertical))
