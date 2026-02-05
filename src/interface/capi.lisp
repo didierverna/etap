@@ -500,8 +500,8 @@ Switch the animation:
 - update the button's data (hence its title),
 - Upon running, start the animation timer."
   (cond ((capi-object-property view :living-text-animation)
-	 (setf (item-data button) :run-animation)
-	 (setf (capi-object-property view :living-text-animation) nil))
+	 (setf (capi-object-property view :living-text-animation) nil)
+	 (setf (item-data button) :run-animation))
 	(t
 	 (setf (item-data button) :stop-animation)
 	 (setf (capi-object-property view :living-text-animation) t)
@@ -520,8 +520,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :elt-y-shift) nil)
   (redraw etap))
 
-
-(defgeneric install-animation (animation view)
+(defgeneric living-text-install-animation (animation view)
   (:documentation "Install ANIMATION in VIEW.")
   (:method ((animation (eql :line-waves)) view)
     (let ((lwave-x (capi-object-property view :lwave-x))
@@ -547,6 +546,14 @@ Stop animation if running, uninstall the living text, and redraw."
       (setf (capi-object-property view :living-text-step)
 	    (lambda () (lwaves-step lwave-x lwave-y))))))
 
+(defun living-text-animation-tabs-callback
+    (item dialog &aux (view (view-area (etap dialog))))
+  "Function called when a living text animation tab is selected.
+Stop animation if running and install the new one."
+  (when (capi-object-property view :living-text-animation)
+    (setf (capi-object-property view :living-text-animation) nil)
+    (setf (item-data (start/stop-button dialog)) :run-animation))
+  (living-text-install-animation (first item) view))
 
 (define-interface living-text ()
   ((etap :reader etap))
@@ -556,7 +563,7 @@ Stop animation if running, uninstall the living text, and redraw."
      :combine-child-constraints t
      :items '((:line-waves lwaves-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
-     :callback-type '(:element :interface)
+     :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
      :visible-child-function #'second
      :reader animation-tabs)
@@ -620,7 +627,7 @@ Stop animation if running, uninstall the living text, and redraw."
     ((dialog living-text) &aux (etap (etap dialog)))
   "Function called when the living text DIALOG is displayed.
 Install the Line Waves functions and data structures, and redraw."
-  (install-animation
+  (living-text-install-animation
    (first (choice-selected-item (animation-tabs dialog))) (view-area etap))
   (redraw etap))
 
