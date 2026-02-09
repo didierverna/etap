@@ -68,5 +68,4 @@
       :components
       ((:file "capi" :if-feature :lispworks)))
      (:file "entry")
-     (:file "user")
-     (:file "living-text" :if-feature :lispworks)))))
+     (:file "user")))))
