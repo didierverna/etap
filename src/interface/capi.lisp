@@ -919,6 +919,10 @@ new dialog and display it."
 (defun menu-callback (item etap)
   "Function called when the ETAP menu is popped up."
   (ecase item
+    (:select-font
+     (when-let (font (prompt-for-font "Please select Latin Modern Roman 10pt"))
+       (setf (simple-pane-font (view-area etap)) font)
+       (redraw etap)))
     (:river-detection
      (display (river-detection-dialog etap) :owner etap))
     (:living-text
@@ -1941,7 +1945,7 @@ that the breakup does not contain any layout."
        nil                         kpx-similar-demerits       kpx-looseness)
      :columns 3))
   (:menus
-   (etap-menu "ETAP" (:river-detection :living-text)
+   (etap-menu "ETAP" (:select-font :river-detection :living-text)
      :print-function 'title-capitalize
      :callback 'menu-callback)
    (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
