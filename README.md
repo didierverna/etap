@@ -5,7 +5,8 @@ have the [Latin
 Modern](https://www.gust.org.pl/projects/e-foundry/latin-modern) (10pt) font
 installed on you machine. The OTF version will do just fine, and can be
 downloaded from
-[here](https://www.gust.org.pl/projects/e-foundry/latin-modern/download).
+[here](https://www.gust.org.pl/projects/e-foundry/latin-modern/download). See
+also the troubleshooting section below.
 
 ![ETAP](share/screenshots/etap.png "The ETAP Interface")
 
@@ -58,3 +59,15 @@ to play with ETAP, open LispWorks and type this:
 (ql:quickload :etap)
 (etap:visualize)
 ```
+
+# Troubleshooting
+Currently, the font is hard-wired to Latin Modern Roman 10pt (this is why the
+first requirement is to have it installed on your machine). In principle, it
+should load and display correctly at startup, but there has been circumstances
+in which it doesn't.
+
+If for some reason the paragraph's font looks wrong and you are positively
+certain that it is installed on your machine, then please go to the Etap menu
+and select "Select Font". This will open a font selection popup. Try to select
+the font (typeface "Latin Modern Roman", style "10 Regular", size "10") and
+see if it works better.
