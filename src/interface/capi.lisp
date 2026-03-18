@@ -1355,13 +1355,14 @@ Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
 not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (gp:draw-rectangle view
-	(+ x (x whitespace) (funcall elt-x-shift whitespace))
-	(- (+ y (funcall elt-y-shift whitespace)) (height whitespace))
-	(width whitespace)
-	(+ (height whitespace) (depth whitespace))
-      :filled t ;; (not (explicitp discretionary))
-      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+    (let ((h/2 (/ (+ (height whitespace) (depth whitespace)) 2)))
+      (gp:draw-circle view
+	(+ x (x whitespace) (funcall elt-x-shift whitespace)
+	   (/ (width whitespace) 2))
+	(- (+ y (funcall elt-y-shift whitespace)) h/2)
+	h/2
+	:filled t ;; (not (explicitp discretionary))
+	:foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0)))))
 
 (defun display-callback
     (view x y width height
