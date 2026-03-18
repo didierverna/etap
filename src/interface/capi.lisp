@@ -1107,7 +1107,7 @@ points."
   "Draw a horizontal cast clue in VIEW at (X,Y).
 Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
   (when (or force (customizedp glue (top-level-interface view)))
-    (gp:draw-rectangle view
+    (gp:draw-ellipse view
 	x (- y (height hcast))
 	(width hcast)
 	(+ (height hcast) (depth hcast))
