@@ -1107,13 +1107,14 @@ points."
   "Draw a horizontal cast clue in VIEW at (X,Y).
 Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
   (when (or force (customizedp glue (top-level-interface view)))
-    (gp:draw-ellipse view
+    (let ((h/2 (/ (+ (height hcast) (depth hcast)) 2)))
+      (gp:draw-ellipse view
 	(+ x (/ (width hcast) 2))
-	(- y (/ (+ (height hcast) (depth hcast)) 2))
+	(- y h/2)
 	(/ (width hcast) 2)
-	(/ (+ (height hcast) (depth hcast)) 2)
-      :filled t
-      :foreground (color:make-hsv (clue-hue glue) 1s0 .7s0))))
+	h/2
+	:filled t
+	:foreground (color:make-hsv (clue-hue glue) 1s0 .7s0)))))
 
 
 
