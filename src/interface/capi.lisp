@@ -1070,7 +1070,7 @@ Otherwise, reselect the previously selected one."
 (defun line-under-y (y lines line-y-shift)
   "Return the line from LINES which is under Y coordinate, or NIL."
   (find-if (lambda (line &aux (ly (+ (y line) (funcall line-y-shift line))))
-	     (<= (- ly (height line)) y (+  (depth line))))
+	     (<= (- ly (height line)) y (+ ly (depth line))))
 	   lines))
 
 (defun vector-product (p1 p2 p3)
