@@ -409,105 +409,142 @@ Display LAYOUT number (1 by default)."
 ;; Living Text Dialog
 ;; ==========================================================================
 
+;; --------------------
+;; Line Waves Animation
+;; --------------------
 
-(defun cwaves-cursor-callback
+(defmacro define-lwaves-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd lwaves caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber lwaves ,name ,min ,default ,max ,@keys))
+
+(defmacro calibrate-lwaves (name)
+  "Calibrate NAMEd lwaves variable."
+  `(calibrate sine ,name :earmuffs nil))
+
+(define-lwaves-caliber amplitude 0 0 10 :bounded t)
+(define-lwaves-caliber ondulation 0 0 400 :bounded t)
+(define-lwaves-caliber propagation 0 0 100 :bounded t)
+
+(defstruct lwave amplitude ondulation propagation phase)
+
+;; #### NOTE: lines are differentiated from each other only by their vertical
+;; position, which explains why Y is used for both horizontal and vertical
+;; shifting.
+(defun lwaves-shift (y lwave)
+  "Return an LWAVE shifting amount for Y position."
+  (+ (lwave-amplitude lwave) ; preserve the paragraph's left border
+     (* (lwave-amplitude lwave)
+	(sin (+ (lwave-phase lwave)
+		(/ (* 2 pi (lwave-ondulation lwave) y) 20000))))))
+
+(defun lwaves-step (lwave-x lwave-y)
+  (incf (lwave-phase lwave-x) (/ (lwave-propagation lwave-x) 100))
+  (incf (lwave-phase lwave-y) (/ (lwave-propagation lwave-y) 100)))
+
+
+
+;; Line waves GUI elements
+
+(defun lwaves-cursor-callback
     (cursor value gesture
      &aux (dialog (top-level-interface cursor))
 	  (etap (etap dialog))
 	  (view (view-area etap)))
-  "Function called when a Char Waves animation's CURSOR is dragged.
+  "Function called when a Line Waves animation's CURSOR is dragged.
 Update CURSOR's title and propagate the new value where appropriate."
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)
-    (let ((cwave-x (capi-object-property view :cwave-x))
-	  (cwave-y (capi-object-property view :cwave-y)))
-      (ecase (property cursor)
-	(:cxamp  (setf (lwave-amplitude   cwave-x) (widget-value cursor)))
-	(:cxond  (setf (lwave-ondulation  cwave-x) (widget-value cursor)))
-	(:cxprop (setf (lwave-propagation cwave-x) (widget-value cursor)))
-	(:cyamp  (setf (lwave-amplitude   cwave-y) (widget-value cursor)))
-	(:cyond  (setf (lwave-ondulation  cwave-y) (widget-value cursor)))
-	(:cyprop (setf (lwave-propagation cwave-y) (widget-value cursor))))
+    (let ((lwave-x (capi-object-property view :lwave-x))
+	  (lwave-y (capi-object-property view :lwave-y)))
+      (ecase (property cursor) ; Yuck!
+	(:xamp (setf (lwave-amplitude lwave-x) (widget-value cursor)))
+	(:xond (setf (lwave-ondulation lwave-x) (widget-value cursor)))
+	(:xprop (setf (lwave-propagation lwave-x) (widget-value cursor)))
+	(:yamp (setf (lwave-amplitude lwave-y) (widget-value cursor)))
+	(:yond (setf (lwave-ondulation lwave-y) (widget-value cursor)))
+	(:yprop (setf (lwave-propagation lwave-y) (widget-value cursor))))
       (unless (capi-object-property view :living-text-animation)
 	(redraw etap)))))
 
-
-(defun cwaves-phase-reset-callback
+(defun lwaves-phase-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
-  "Function called when a Char Waves animation's phase reset button is pushed."
+  "Function called when a Line Waves animation's phase reset button is pushed."
   (ecase data
-    (:cx 
-      ;(setf (lwave-phase (capi-object-property view :cwave-x)) 0)
-      (setf (widget-value (find-widget :cxamp dialog)) nil)
-      (setf (widget-value (find-widget :cxond dialog)) nil)
-      (setf (widget-value (find-widget :cxprop dialog)) nil)
-      (setf (capi-object-property view :cwave-x) nil))
-
-    (:cy 
-      ;(setf (lwave-phase (capi-object-property view :cwave-y)) 0)
-      (setf (widget-value (find-widget :cyamp dialog)) nil)
-      (setf (widget-value (find-widget :cyond dialog)) nil)
-      (setf (widget-value (find-widget :cyprop dialog)) nil)
-      (setf (capi-object-property view :cwave-y) nil)))
-
-    ;(setf (capi-object-property view :elt-x-shift) nil)
-    ;(setf (capi-object-property view :elt-y-shift) nil)
-
-  (living-text-install-animation :char-waves view)
-  (redraw etap))
+    (:x (setf (lwave-phase (capi-object-property view :lwave-x)) 0))
+    (:y (setf (lwave-phase (capi-object-property view :lwave-y)) 0)))
+  (unless (capi-object-property view :living-text-animation) (redraw etap)))
 
 
-(defun duration-cursor-callback (cursor value gesture)
-  (declare (ignore value))
-  (when (eq gesture :drag)
-    (update-cursor-title cursor)))
-
-
-
+
 ;; Living Text Interface
 ;; ---------------------
 
 (defun living-text-timer (view)
-  "Living text timer function. Play the animation for a period of time then stop"
+  "Living text timer function.
+If the animation should continue running, call the animation's stepper
+function and redraw. Otherwise, return :STOP."
   (cond ((capi-object-property view :living-text-animation)
-    (let ((remaining (capi-object-property view :living-text-remaining)))
-      (cond ((> remaining 0)
-        (setf (capi-object-property view :living-text-remaining)
-              (1- remaining))
-        (funcall (capi-object-property view :living-text-step))
-        (redisplay-element view))
-        (t
-        (setf (capi-object-property view :living-text-animation) nil)
-        :stop)
-      )
-    ))
-    (t :stop)
-  )
-)
-
+	 (funcall (capi-object-property view :living-text-step))
+	 (redisplay-element view))
+	(t
+	 :stop)))
 
 (defun living-text-start/stop-callback
-    (dialog &aux (view (view-area (etap dialog))))
-  "Lance l'animation une fois pour la durée définie."
-  (let ((frames (* (widget-value (duration-cursor dialog)) 33)))
-    (setf (capi-object-property view :living-text-remaining) frames)
-    (setf (capi-object-property view :living-text-animation) t)
-    (mp:schedule-timer-relative-milliseconds
-     (mp:make-timer 'living-text-timer view) 30 30)))
-
-
+    (button dialog &aux (view (view-area (etap dialog))))
+  "Function called when the living text start/stop BUTTON is pushed.
+Switch the animation:
+- indicate the new status in the Etap view's property,
+- update the button's data (hence its title),
+- Upon running, start the animation timer."
+  (cond ((capi-object-property view :living-text-animation)
+	 (setf (capi-object-property view :living-text-animation) nil)
+	 (setf (item-data button) :run-animation))
+	(t
+	 (setf (item-data button) :stop-animation)
+	 (setf (capi-object-property view :living-text-animation) t)
+	 (mp:schedule-timer-relative-milliseconds
+	  (mp:make-timer 'living-text-timer view) 30 30))))
 
 (defun living-text-destroy-callback
     (dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the living text DIALOG is destroyed.
 Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :living-text-animation) nil)
-  ;(setf (item-data (start/stop-button dialog)) :run-animation)
+  (setf (item-data (start/stop-button dialog)) :run-animation)
+  (setf (capi-object-property view :line-x-shift) nil)
+  (setf (capi-object-property view :line-y-shift) nil)
   (setf (capi-object-property view :elt-x-shift) nil)
   (setf (capi-object-property view :elt-y-shift) nil)
   (redraw etap))
 
+(defgeneric living-text-install-animation (animation view)
+  (:documentation "Install ANIMATION in VIEW.")
+  (:method ((animation (eql :line-waves)) view)
+    (let ((lwave-x (capi-object-property view :lwave-x))
+	  (lwave-y (capi-object-property view :lwave-y)))
+      (unless lwave-x
+	(setq lwave-x (make-lwave
+		       :phase 0
+		       :amplitude (caliber-default *lwaves-amplitude*)
+		       :ondulation (caliber-default *lwaves-ondulation*)
+		       :propagation (caliber-default *lwaves-propagation*)))
+	(setf (capi-object-property view :lwave-x) lwave-x))
+      (unless lwave-y
+	(setq lwave-y (make-lwave
+		       :phase 0
+		       :amplitude (caliber-default *lwaves-amplitude*)
+		       :ondulation (caliber-default *lwaves-ondulation*)
+		       :propagation (caliber-default *lwaves-propagation*)))
+	(setf (capi-object-property view :lwave-y) lwave-y))
+      (setf (capi-object-property view :line-x-shift)
+	    (lambda (line) (lwaves-shift (y line) lwave-x)))
+      (setf (capi-object-property view :line-y-shift)
+	    (lambda (line) (lwaves-shift (y line) lwave-y)))
+      (setf (capi-object-property view :living-text-step)
+	    (lambda () (lwaves-step lwave-x lwave-y))))))
 
 (defun living-text-animation-tabs-callback
     (item dialog &aux (view (view-area (etap dialog))))
@@ -515,7 +552,8 @@ Stop animation if running, uninstall the living text, and redraw."
 Stop animation if running and install the new one."
   (when (capi-object-property view :living-text-animation)
     (setf (capi-object-property view :living-text-animation) nil)
-  (living-text-install-animation (first item) view)))
+    (setf (item-data (start/stop-button dialog)) :run-animation))
+  (living-text-install-animation (first item) view))
 
 (define-interface living-text ()
   ((etap :reader etap))
@@ -523,78 +561,63 @@ Stop animation if running and install the new one."
    (animation-tabs tab-layout
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:char-waves cwaves-settings)) ;; wave
+     :items '((:line-waves lwaves-settings))
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
      :visible-child-function #'second
      :reader animation-tabs)
-   
-   ;; Char waves panes
-
-    ; Duration
-    (duration cursor
-      :prefix :duration
-      :property :cduration
-      :caliber *cwaves-duration*
-      :callback 'duration-cursor-callback
-      :reader duration-cursor)
-
-    ; XPhase
-   (cxamp pt-cursor
+   (xamp pt-cursor
      :prefix :amplitude
-     :property :cxamp
-     :caliber *cwaves-amplitude*
-     :callback 'cwaves-cursor-callback)
-   (cxond cursor
+     :property :xamp
+     :caliber *lwaves-amplitude*
+     :callback 'lwaves-cursor-callback)
+   (xond cursor
      :prefix :ondulation
-     :property :cxond
-     :caliber *cwaves-ondulation*
-     :callback 'cwaves-cursor-callback)
-   (cxprop cursor
+     :property :xond
+     :caliber *lwaves-ondulation*
+     :callback 'lwaves-cursor-callback)
+   (xprop cursor
      :prefix :propagation
-     :property :cxprop
-     :caliber *cwaves-propagation*
-     :callback 'cwaves-cursor-callback)
-   (cxphase push-button
+     :property :xprop
+     :caliber *lwaves-propagation*
+     :callback 'lwaves-cursor-callback)
+   (xphase push-button
      :text "Reset Phase"
-     :data :cx
-     :callback 'cwaves-phase-reset-callback)
-
-    ; YPhase
-   (cyamp pt-cursor
+     :data :x
+     :callback 'lwaves-phase-reset-callback)
+   (yamp pt-cursor
      :prefix :amplitude
-     :property :cyamp
-     :caliber *cwaves-amplitude*
-     :callback 'cwaves-cursor-callback)
-   (cyond cursor
+     :property :yamp
+     :caliber *lwaves-amplitude*
+     :callback 'lwaves-cursor-callback)
+   (yond cursor
      :prefix :ondulation
-     :property :cyond
-     :caliber *cwaves-ondulation*
-     :callback 'cwaves-cursor-callback)
-   (cyprop cursor
+     :property :yond
+     :caliber *lwaves-ondulation*
+     :callback 'lwaves-cursor-callback)
+   (yprop cursor
      :prefix :propagation
-     :property :cyprop
-     :caliber *cwaves-propagation*
-     :callback 'cwaves-cursor-callback)
-   (cyphase push-button
+     :property :yprop
+     :caliber *lwaves-propagation*
+     :callback 'lwaves-cursor-callback)
+   (yphase push-button
      :text "Reset Phase"
-     :data :cy
-     :callback 'cwaves-phase-reset-callback)
-   
-   (play push-button ; Play
-      :text "Play"
-      :callback-type '(:interface)
-      :callback 'living-text-start/stop-callback))
+     :data :y
+     :callback 'lwaves-phase-reset-callback)
+   (start/stop push-button
+     :data :run-animation
+     :print-function 'title-capitalize
+     :callback-type '(:item :interface)
+     :callback 'living-text-start/stop-callback
+     :reader start/stop-button))
   (:layouts
-   (main column-layout '(animation-tabs play) :adjust :center)
-   
-   (cwaves-settings row-layout '(cwaves-horizontal cwaves-vertical)) ;; CHAR ADD 
-   (cwaves-horizontal column-layout '(duration cxamp cxond cxprop cxphase) ;; CHAR ADD 
+   (main column-layout '(animation-tabs start/stop) :adjust :center)
+   (lwaves-settings row-layout '(lwaves-horizontal lwaves-vertical))
+   (lwaves-horizontal column-layout '(xamp xond xprop xphase)
      :title "Horizontal" :title-position :frame :adjust :center)
-   (cwaves-vertical column-layout '(cyamp cyond cyprop cyphase) ;; CHAR ADD 
+   (lwaves-vertical column-layout '(yamp yond yprop yphase)
      :title "Vertical" :title-position :frame :adjust :center))
-
   (:default-initargs
    :title "Living Text"
    :window-styles '(:always-on-top t :toolbox t)
@@ -610,6 +633,7 @@ Install the Line Waves functions and data structures, and redraw."
 
 
 
+
 ;; ==========================================================================
 ;; River Detection Dialog
 ;; ==========================================================================
@@ -891,6 +915,7 @@ new dialog and display it."
 
 
 ;; ETAP menu
+
 (defun menu-callback (item etap)
   "Function called when the ETAP menu is popped up."
   (ecase item
@@ -1045,7 +1070,7 @@ Otherwise, reselect the previously selected one."
 (defun line-under-y (y lines line-y-shift)
   "Return the line from LINES which is under Y coordinate, or NIL."
   (find-if (lambda (line &aux (ly (+ (y line) (funcall line-y-shift line))))
-	     (<= (- ly (height line)) y (+  (depth line))))
+	     (<= (- ly (height line)) y (+ ly (depth line))))
 	   lines))
 
 (defun vector-product (p1 p2 p3)
@@ -1330,13 +1355,14 @@ Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
 not 0."
   (when (or force
 	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (gp:draw-rectangle view
-	(+ x (x whitespace) (funcall elt-x-shift whitespace))
-	(- (+ y (funcall elt-y-shift whitespace)) (height whitespace))
-	(width whitespace)
-	(+ (height whitespace) (depth whitespace))
-      :filled t ;; (not (explicitp discretionary))
-      :foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0))))
+    (let ((h/2 (/ (+ (height whitespace) (depth whitespace)) 2)))
+      (gp:draw-circle view
+	(+ x (x whitespace) (funcall elt-x-shift whitespace)
+	   (/ (width whitespace) 2))
+	(- (+ y (funcall elt-y-shift whitespace)) h/2)
+	h/2
+	:filled t ;; (not (explicitp discretionary))
+	:foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0)))))
 
 (defun display-callback
     (view x y width height

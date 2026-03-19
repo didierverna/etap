@@ -65,7 +65,9 @@
 		 (:file "rivers")))))
      (:file "context")
      (:module "interface"
+      :serial t
       :components
-      ((:file "capi" :if-feature :lispworks)))
+      ((:file "animation" :if-feature :lispworks)
+        (:file "capi" :if-feature :lispworks)))
      (:file "entry")
      (:file "user")))))
