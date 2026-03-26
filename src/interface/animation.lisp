@@ -3,6 +3,64 @@
 
 (defstruct lwave amplitude ondulation propagation phase)
 
+
+;; ----------------------------------------
+;;              Line Waves
+;; ----------------------------------------
+
+; Macro
+(defmacro define-lwaves-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd lwaves caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber lwaves ,name ,min ,default ,max ,@keys))
+
+(define-lwaves-caliber amplitude 0 0 10 :bounded t)
+(define-lwaves-caliber ondulation 0 0 400 :bounded t)
+(define-lwaves-caliber propagation 0 0 100 :bounded t)
+(define-lwaves-caliber duration 1 3 100 :bounded t)
+
+
+
+; Calcul
+(defun lwaves-shift (y lwave)
+  "Return an LWAVE shifting amount for Y position."
+  (+ (lwave-amplitude lwave) ; preserve the paragraph's left border
+     (* (lwave-amplitude lwave)
+	(sin (+ (lwave-phase lwave)
+		(/ (* 2 pi (lwave-ondulation lwave) y) 20000))))))
+
+(defun lwaves-step (lwave-x lwave-y)
+  (incf (lwave-phase lwave-x) (/ (lwave-propagation lwave-x) 100))
+  (incf (lwave-phase lwave-y) (/ (lwave-propagation lwave-y) 100)))
+
+
+
+;Instalation
+(defmethod living-text-install-animation ((animation (eql :lines-waves)) view)
+  (let ((lwave-x (capi-object-property view :lwave-x))
+        (lwave-y (capi-object-property view :lwave-y)))
+    (unless lwave-x
+      (setq lwave-x (make-lwave
+                     :phase 0
+                     :amplitude   (caliber-default *lwaves-amplitude*)
+                     :ondulation  (caliber-default *lwaves-ondulation*)
+                     :propagation (caliber-default *lwaves-propagation*)))
+      (setf (capi-object-property view :lwave-x) lwave-x))
+    (unless lwave-y
+      (setq lwave-y (make-lwave
+                     :phase 0
+                     :amplitude   (caliber-default *lwaves-amplitude*)
+                     :ondulation  (caliber-default *lwaves-ondulation*)
+                     :propagation (caliber-default *lwaves-propagation*)))
+      (setf (capi-object-property view :lwave-y) lwave-y))
+    (setf (capi-object-property view :line-x-shift)
+          (lambda (line) (lwaves-shift (x line) lwave-x)))
+    (setf (capi-object-property view :line-y-shift)
+          (lambda (line) (lwaves-shift (y line) lwave-y)))
+    (setf (capi-object-property view :living-text-step)
+          (lambda () (lwaves-step lwave-x lwave-y)))))
+
 ;; ----------------------------------------
 ;;              Char Waves
 ;; ----------------------------------------
@@ -19,6 +77,7 @@
 (define-cwaves-caliber ondulation  0 0  400 :bounded t)
 (define-cwaves-caliber propagation 0 0  100 :bounded t)
 (define-cwaves-caliber duration 1 3  100 :bounded t)
+
 
 
 ; Calcul
