@@ -454,9 +454,25 @@ Update CURSOR's title and propagate the new value where appropriate."
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when a Line Waves animation's phase reset button is pushed."
   (ecase data
-    (:x (setf (lwave-phase (capi-object-property view :lwave-x)) 0))
-    (:y (setf (lwave-phase (capi-object-property view :lwave-y)) 0)))
-  (unless (capi-object-property view :living-text-animation) (redraw etap)))
+    (:lx 
+      ;(setf (lwave-phase (capi-object-property view :cwave-x)) 0)
+      (setf (widget-value (find-widget :xamp dialog)) nil)
+      (setf (widget-value (find-widget :xond dialog)) nil)
+      (setf (widget-value (find-widget :xprop dialog)) nil)
+      (setf (capi-object-property view :lwave-x) nil))
+
+    (:ly 
+      ;(setf (lwave-phase (capi-object-property view :cwave-y)) 0)
+      (setf (widget-value (find-widget :yamp dialog)) nil)
+      (setf (widget-value (find-widget :yond dialog)) nil)
+      (setf (widget-value (find-widget :yprop dialog)) nil)
+      (setf (capi-object-property view :lwave-y) nil)))
+
+    ;(setf (capi-object-property view :elt-x-shift) nil)
+    ;(setf (capi-object-property view :elt-y-shift) nil)
+
+  (living-text-install-animation :lines-waves view)
+  (redraw etap))
 
 
 ;; -----------------------
@@ -633,7 +649,7 @@ Stop animation if running, uninstall the living text, and redraw."
      :callback 'lwaves-cursor-callback)
    (xphase push-button
      :text "Reset Phase"
-     :data :x
+     :data :lx
      :callback 'lwaves-phase-reset-callback)
    (yamp pt-cursor
      :prefix :amplitude
@@ -652,7 +668,7 @@ Stop animation if running, uninstall the living text, and redraw."
      :callback 'lwaves-cursor-callback)
    (yphase push-button
      :text "Reset Phase"
-     :data :y
+     :data :ly
      :callback 'lwaves-phase-reset-callback)
     
     (lwaves-duration cursor ; duration
@@ -707,6 +723,8 @@ Stop animation if running, uninstall the living text, and redraw."
    (cyprop cursor
      :prefix :propagation
      :property :cyprop
+
+     
      :caliber *cwaves-propagation*
      :callback 'cwaves-cursor-callback)
    (cyphase push-button
