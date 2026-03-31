@@ -546,6 +546,10 @@ Update CURSOR's title and propagate the new value where appropriate."
                   (redisplay-element view))
                  (t                       ; mode play, terminé
                   (setf (capi-object-property view :living-text-animation) nil)
+                  (let ((btn (capi-object-property view :living-text-active-button)))
+                    (when btn
+                      (setf (item-data btn) :run-animation)
+                      (setf (capi-object-property view :living-text-active-button) nil)))
                   :stop))))
         (t :stop)))
 
@@ -555,6 +559,7 @@ Update CURSOR's title and propagate the new value where appropriate."
   "Callback de play"
   (let ((frames (* (widget-value (funcall duration-reader dialog)) 33)))
     (setf (capi-object-property view :living-text-remaining) frames)
+    (setf (capi-object-property view :living-text-active-button) nil)
     (setf (capi-object-property view :living-text-animation) t)
     (mp:schedule-timer-relative-milliseconds
     (mp:make-timer 'living-text-timer view) 30 30)))
@@ -567,15 +572,17 @@ Switch the animation:
 - indicate the new status in the Etap view's property,
 - update the button's data (hence its title),
 - Upon running, start the animation timer."
-  (cond ((capi-object-property view :living-text-animation)
+  (cond ((eq (item-data button) :stop-animation)
 	 (setf (capi-object-property view :living-text-animation) nil)
+   (setf (capi-object-property view :living-text-active-button) nil) 
 	 (setf (item-data button) :run-animation))
 	(t
 	 (setf (item-data button) :stop-animation)
+   (setf (capi-object-property view :living-text-remaining) nil)
+   (setf (capi-object-property view :living-text-active-button) button)
 	 (setf (capi-object-property view :living-text-animation) t)
 	 (mp:schedule-timer-relative-milliseconds
 	  (mp:make-timer 'living-text-timer view) 30 30))))
-
 
 
 
@@ -684,8 +691,9 @@ Stop animation if running, uninstall the living text, and redraw."
      :data :run-animation
      :print-function 'title-capitalize
      :callback-type '(:item :interface)
-     :callback 'lwaves-play-callback
+     :callback 'living-text-start/stop-callback ;'lwaves-play-callback
      :reader lwaves-start/stop-button)
+
 
    ;; Char waves panes
 
@@ -745,7 +753,7 @@ Stop animation if running, uninstall the living text, and redraw."
      :data :run-animation
      :print-function 'title-capitalize
      :callback-type '(:item :interface)
-     :callback 'cwaves-play-callback
+     :callback 'living-text-start/stop-callback
      :reader cwaves-start/stop-button)
 
     )
