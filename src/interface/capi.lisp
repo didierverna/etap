@@ -1242,7 +1242,7 @@ not 0."
 				    (x mouth)
 				    (/ (width mouth) 2))
 				 (+ par-y (y (board mouth)) (y mouth))
-			       :foreground :red :scale-thickness nil))
+			       :foreground :red :thickness 1))
 		       arms))
 		   (rivers etap)))))))
 
