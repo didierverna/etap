@@ -166,7 +166,7 @@ and the next one."
       (append bol-items
 	      (loop :for i :from idx :upto (1- (length harray))
 		    ;;                ╰► probably terminated sooner by :until
-		    :for item := (aref harray i)
+		    :for item := (svref harray i)
 		    :until (break-point-p item)
 		    :when (eq (type-of item) 'tfm:character-metrics)
 		      :collect item)))))
@@ -183,7 +183,7 @@ point, in reverse order."
 				:key #'type-of))
 	(decf idx))
       (loop :for i :from idx :downto 0 ; probably terminated sooner by :until
-	    :for item := (aref harray i)
+	    :for item := (svref harray i)
 	    :until (break-point-p item)
 	    :when (eq (type-of item) 'tfm:character-metrics)
 	      :do (push item eol-items))

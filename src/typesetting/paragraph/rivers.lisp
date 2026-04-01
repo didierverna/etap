@@ -7,9 +7,9 @@
 ;; storage should thus be implemented in breakups.
 
 
-;; =========
+;; ==========================================================================
 ;; Utilities
-;; =========
+;; ==========================================================================
 
 (defun vector-magnitude (dx dy)
   "Return the magnitude of vector (dx, dy)."
@@ -27,9 +27,31 @@ that is, vector (0, 1)."
   (* 180 (/ (acos (scalar-product 0 1 dx dy)) pi)))
 
 
-;; ==========
+
+;; --------
+;; Calibers
+;; --------
+
+(defmacro define-river-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd RIVER caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber river ,name ,min ,default ,max ,@keys))
+
+(defmacro calibrate-river (name)
+  "Calibrate NAMEd RIVER variable."
+  `(calibrate river ,name :earmuffs nil))
+
+;; #### TODO: in cases like this one, it would make sense for caliber clamping
+;; to take circularity into account (i.e. 360 = 0, etc.).
+(define-river-caliber angle 0 0 60 :bounded t)
+
+
+
+
+;; ==========================================================================
 ;; River Arms
-;; ==========
+;; ==========================================================================
 
 (defclass arm ()
   ((mouth :documentation "This river arm's mouth (the whitespace it leads to)."
