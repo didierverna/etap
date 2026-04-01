@@ -1179,8 +1179,8 @@ not 0."
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character view
-					 (aref *lm-ec*
-					       (tfm:code (object item)))
+					 (svref *lm-ec*
+						(tfm:code (object item)))
 					 ix ly)))
 				  ((and (cluep (object item))
 					(hyphenation-point-p

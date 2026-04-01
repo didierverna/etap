@@ -165,7 +165,7 @@ harray slice."))
 ;; Access
 ;; ------
 
-(defun haref (harray i start stop &aux (helt (aref harray i)))
+(defun haref (harray i start stop &aux (helt (svref harray i)))
   "Return HARRAY helt(s) at position I, between START and STOP boundaries.
 If the helt at that position is a discretionary, return the appropriate
 pre/no/post break part. This function also injects discretionary and EOL
@@ -183,8 +183,8 @@ clues in the returned value when appropriate."
 	       (t
 		(cons (make-clue helt) (no-break helt)))))
 	((and (= i (1- stop)) (not (= stop (length harray))))
-	 (assert (gluep (aref harray stop)))
-	 (list helt (make-clue (aref harray stop))))
+	 (assert (gluep (svref harray stop)))
+	 (list helt (make-clue (svref harray stop))))
 	(t
 	 helt)))
 
