@@ -1167,48 +1167,49 @@ not 0."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item &aux (ix (+ lx (x item))))
-			    (cond ((typep (object item)
-					  'tfm:character-metrics)
-				   (when (member :character-boxes clues)
-				     (gp:draw-rectangle view
-					 ix
-					 (- ly (height item))
-					 (width item)
-					 (+ (height item) (depth item))
-				       :scale-thickness nil))
-				   (when (member :characters clues)
-				     (gp:draw-character view
-					 (svref *lm-ec*
-						(tfm:code (object item)))
-					 ix ly)))
-				  ((and (cluep (object item))
-					(hyphenation-point-p
-					 (helt (object item)))
-					(or (member :hyphenation-points clues)
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
-				   (draw-clue view ix ly (helt (object item))))
-				  ((and (cluep (object item))
-					(gluep (helt (object item)))
-					(or (member :ends-of-line clues)
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
-				   (draw-clue view ix ly (helt (object item))
-				     (find-penalty-adjustment-dialog
-				      (helt (object item))
-				      etap)))
-				  ((and (whitespacep item)
-					(or (member :whitespaces clues)
-					    (find-penalty-adjustment-dialog
-					     (object item)
-					     etap)))
-				   (draw-whitespace-clue view lx ly item
+		:do (map nil
+			 (lambda (item &aux (ix (+ lx (x item))))
+			   (cond ((typep (object item)
+					 'tfm:character-metrics)
+				  (when (member :character-boxes clues)
+				    (gp:draw-rectangle view
+					ix
+					(- ly (height item))
+					(width item)
+					(+ (height item) (depth item))
+				      :scale-thickness nil))
+				  (when (member :characters clues)
+				    (gp:draw-character view
+					(svref *lm-ec*
+					       (tfm:code (object item)))
+					ix ly)))
+				 ((and (cluep (object item))
+				       (hyphenation-point-p
+					(helt (object item)))
+				       (or (member :hyphenation-points clues)
+					   (find-penalty-adjustment-dialog
+					    (helt (object item))
+					    etap)))
+				  (draw-clue view ix ly (helt (object item))))
+				 ((and (cluep (object item))
+				       (gluep (helt (object item)))
+				       (or (member :ends-of-line clues)
+					   (find-penalty-adjustment-dialog
+					    (helt (object item))
+					    etap)))
+				  (draw-clue view ix ly (helt (object item))
+					     (find-penalty-adjustment-dialog
+					      (helt (object item))
+					      etap)))
+				 ((and (whitespacep item)
+				       (or (member :whitespaces clues)
+					   (find-penalty-adjustment-dialog
+					    (object item)
+					    etap)))
+				  (draw-whitespace-clue view lx ly item
 				    (find-penalty-adjustment-dialog
 				     (object item) etap)))))
-		      (items line)))
+			 (items line)))
 	(when (getf (widget-value (inspector-box etap)) :activate)
 	  (multiple-value-bind (object line)
 	      (let* ((pointer (capi-object-property view :pointer))
