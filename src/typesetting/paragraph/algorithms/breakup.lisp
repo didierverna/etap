@@ -73,7 +73,7 @@ global properties."))
   "Return BREAKUP's layouts number."
   (length (layouts breakup)))
 
-(defun get-layout (nth breakup &aux (layout (aref (layouts breakup) nth)))
+(defun get-layout (nth breakup &aux (layout (svref (layouts breakup) nth)))
   "Get the Nth BREAKUP's layout. Make sure it is rendered first."
   (if (renderedp layout) layout (render-layout layout)))
 
