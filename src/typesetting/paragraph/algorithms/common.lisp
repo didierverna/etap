@@ -392,7 +392,7 @@ algorithmic one, depending on the algorithm itself, and on the Overstretch and
 Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
-    :documentation "The list of items in the line.
+    :documentation "The array of items in the line.
 Currently, those are pinned characters, hcasts, and clues.
 These items are positioned relatively to the line's origin (which may be
 different from the paragraph's origin.
@@ -421,7 +421,7 @@ Optionally preset ASAR and ESAR."
   "Return LINE's BOL index."
   (bol-idx (bol line)))
 
-(Defmethod eol-idx ((line line))
+(defmethod eol-idx ((line line))
   "Return LINE's EOL index."
   (eol-idx (boundary line)))
 
@@ -430,17 +430,19 @@ Optionally preset ASAR and ESAR."
 ;; already. Doing it otherwise is possible in theory (because we know the
 ;; ESAR), but would require additional and redundant computation.
 
-(defmethod width ((line line) &aux (item (car (last (items line)))))
+(defmethod width ((line line))
   "Return LINE's width."
-  (+ (x item) (width item)))
+  (let* ((items (items line))
+	 (last (svref items (1- (length items)))))
+    (+ (x last) (width last))))
 
 (defmethod height ((line line))
   "Return LINE's height."
-  (loop :for item :in (items line) :maximize (height item)))
+  (loop :for item :across (items line) :maximize (height item)))
 
 (defmethod depth ((line line))
   "Return LINE's depth."
-  (loop :for item :in (items line) :maximize (depth item)))
+  (loop :for item :across (items line) :maximize (depth item)))
 
 (defmethod hyphenated ((line line))
   "Return LINE's hyphenation status."
@@ -470,14 +472,14 @@ Optionally preset ASAR and ESAR."
 ;; Rendering
 ;; ---------
 
-(defun render-line (line &aux (esar (esar line)))
+(defun render-line (line &aux (esar (esar line)) items)
   "Pin LINE's items and return LINE."
   ;; #### NOTE: infinite ESAR means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting ESAR to 0.
   (unless (numberp esar) (setq esar 0))
-  (setf (slot-value line 'items)
+  (setq items
 	(loop :with x := 0 :with w
 	      :with harray := (harray line)
 	      ;; Somewhat arbitrary but small initial value. The idea is to
@@ -505,6 +507,8 @@ Optionally preset ASAR and ESAR."
 		  :end
 		:and :collect (make-pin (make-hcast w h item) line :x x)
 		:and :do (incf x w)))
+  (setf (slot-value line 'items)
+	(make-array (length items) :initial-contents items))
   line)
 
 

@@ -1135,7 +1135,8 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	      :for lx := (x pin)
 	      :for ly := (+ par-y (y pin))
 	      :for line := (object pin)
-	      :for last-item := (car (last (items line)))
+	      :for items := (items line)
+	      :for last-item := (svref items (1- (length items)))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
 			lx
@@ -1207,59 +1208,60 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item &aux (object (object item))
-					     (ix (+ lx (x item))))
-			    (cond ((typep object 'tfm:character-metrics)
-				   (when (member :character-boxes clues)
-				     (gp:draw-rectangle view
-					 ix
-					 (- ly (height item))
-					 (width item)
-					 (+ (height item) (depth item))
-				       :scale-thickness nil))
-				   (when (member :characters clues)
-				     (gp:draw-character view
-					 (svref *lm-ec* (tfm:code object))
-					 ix ly
-					 :font (cdr (find (tfm:font object)
-							fonts
-						      :key #'car)))))
-				  ((and (cluep object)
-					(discretionaryp (helt object))
-					(not (hyphenation-point-p
-					      (helt object)))
-					(or (member :discretionaries clues)
-					    (find-penalty-adjustment-dialog
-					     (helt object) etap)))
-				   (draw-helt-clue view ix ly (helt object)
-				     (or (find-penalty-adjustment-dialog
-					  (helt object) etap)
-					 (not (eq item last-item)))))
-				  ((and (cluep object)
-					(hyphenation-point-p (helt object))
-					(or (member :hyphenation-points clues)
-					    (find-penalty-adjustment-dialog
-					     (helt object) etap)))
-				   (draw-helt-clue view ix ly (helt object)
-				     (or (find-penalty-adjustment-dialog
-					  (helt object) etap)
-					 (not (eq item last-item)))))
-				  ((and (cluep object)
-					(gluep (helt object))
-					(or (member :ends-of-line clues)
-					    (find-penalty-adjustment-dialog
-					     (helt object) etap)))
-				   (draw-helt-clue view ix ly (helt object)
-				     (find-penalty-adjustment-dialog
-				      (helt object) etap)))
-				  ((and (hcastp object)
-					(or (member :whitespaces clues)
-					    (find-penalty-adjustment-dialog
-					     object etap)))
-				   (draw-hcast-clue view ix ly object
-				     (find-penalty-adjustment-dialog
-				      object etap)))))
-		      (items line)))
+		:do (map nil
+			 (lambda (item &aux (object (object item))
+					    (ix (+ lx (x item))))
+			   (cond ((typep object 'tfm:character-metrics)
+				  (when (member :character-boxes clues)
+				    (gp:draw-rectangle view
+					ix
+					(- ly (height item))
+					(width item)
+					(+ (height item) (depth item))
+				      :scale-thickness nil))
+				  (when (member :characters clues)
+				    (gp:draw-character view
+					(svref *lm-ec* (tfm:code object))
+					ix ly
+					:font (cdr (find (tfm:font object)
+						       fonts
+						     :key #'car)))))
+				 ((and (cluep object)
+				       (discretionaryp (helt object))
+				       (not (hyphenation-point-p
+					     (helt object)))
+				       (or (member :discretionaries clues)
+					   (find-penalty-adjustment-dialog
+					    (helt object) etap)))
+				  (draw-helt-clue view ix ly (helt object)
+				    (or (find-penalty-adjustment-dialog
+					 (helt object) etap)
+					(not (eq item last-item)))))
+				 ((and (cluep object)
+				       (hyphenation-point-p (helt object))
+				       (or (member :hyphenation-points clues)
+					   (find-penalty-adjustment-dialog
+					    (helt object) etap)))
+				  (draw-helt-clue view ix ly (helt object)
+				    (or (find-penalty-adjustment-dialog
+					 (helt object) etap)
+					(not (eq item last-item)))))
+				 ((and (cluep object)
+				       (gluep (helt object))
+				       (or (member :ends-of-line clues)
+					   (find-penalty-adjustment-dialog
+					    (helt object) etap)))
+				  (draw-helt-clue view ix ly (helt object)
+				    (find-penalty-adjustment-dialog
+				     (helt object) etap)))
+				 ((and (hcastp object)
+				       (or (member :whitespaces clues)
+					   (find-penalty-adjustment-dialog
+					    object etap)))
+				  (draw-hcast-clue view ix ly object
+				    (find-penalty-adjustment-dialog
+				     object etap)))))
+			 items))
 	(when (getf (widget-value (inspector-box etap)) :activate)
 	  (multiple-value-bind (object-pin line-pin)
 	      (let* ((pointer (capi-object-property view :pointer))
