@@ -801,25 +801,6 @@ Install the Line Waves functions and data structures, and redraw."
 ;; River Detection Dialog
 ;; ==========================================================================
 
-;; --------
-;; Calibers
-;; --------
-
-(defmacro define-river-detection-caliber
-    (name min default max &rest keys &key infinity bounded)
-  "Define a NAMEd RIVER-DETECTION caliber with MIN, DEFAULT, and MAX values."
-  (declare (ignore infinity bounded))
-  `(define-caliber river-detection ,name ,min ,default ,max ,@keys))
-
-(defmacro calibrate-river-detection (name)
-  "Calibrate NAMEd RIVER-DETECTION variable."
-  `(calibrate river-detection ,name :earmuffs nil))
-
-;; #### TODO: in cases like this one, it would make sense for caliber clamping
-;; to take circularity into account (i.e. 360 = 0, etc.).
-(define-river-detection-caliber angle 0 0 45 :bounded t)
-
-
 
 ;; ---------
 ;; Callbacks
@@ -833,10 +814,10 @@ Install the Line Waves functions and data structures, and redraw."
   (setf (simple-pane-enabled (angle-cursor dialog)) (button-selected switch))
   (remake-rivers etap))
 
-(defun river-detection-angle-callback
+(defun river-angle-callback
     (cursor value gesture
      &aux (etap (etap (top-level-interface cursor))))
-  "Function called when the river detection angle CURSOR is dragged.
+  "Function called when the river angle CURSOR is dragged.
 - Update CURSOR's title.
 - Remake rivers and redraw."
   (declare (ignore value))
@@ -855,9 +836,9 @@ Install the Line Waves functions and data structures, and redraw."
      :reader switch)
    (angle dg-cursor
      :property :angle
-     :caliber *river-detection-angle*
+     :caliber *river-angle*
      :enabled nil
-     :callback 'river-detection-angle-callback
+     :callback 'river-angle-callback
      :reader angle-cursor))
   (:layouts
    (main column-layout '(switch angle)))
@@ -1655,7 +1636,7 @@ not 0."
 				       :scale-thickness nil))
 				   (when (member :characters clues)
 				     (gp:draw-character view
-					 (aref *lm-ec*
+					 (svref *lm-ec*
 					       (tfm:code (object item)))
 					 ix iy)))
 				  ((and (cluep (object item))
@@ -1737,7 +1718,7 @@ not 0."
 				    (funcall line-y-shift (board mouth))
 				    (y mouth)
 				    (funcall elt-y-shift mouth))
-			       :foreground :red :scale-thickness nil))
+			       :foreground :red :thickness 1))
 		       arms))
 		   (rivers etap)))))))
 
