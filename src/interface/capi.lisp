@@ -1619,54 +1619,55 @@ not 0."
 		      :scale-thickness nil)
 	      :when (or (member :characters clues)
 			(member :character-boxes clues))
-		:do (mapc (lambda (item
-				   &aux (ix (+ lx
-					       (x item)
-					       (funcall elt-x-shift item)))
-					(iy (+ ly
-					       (funcall elt-y-shift item))))
-			    (cond ((typep (object item)
-					  'tfm:character-metrics)
-				   (when (member :character-boxes clues)
-				     (gp:draw-rectangle view
-					 ix
-					 (- iy (height item))
-					 (width item)
-					 (+ (height item) (depth item))
-				       :scale-thickness nil))
-				   (when (member :characters clues)
-				     (gp:draw-character view
-					 (svref *lm-ec*
+		:do (map nil
+			 (lambda (item
+				  &aux (ix (+ lx
+					      (x item)
+					      (funcall elt-x-shift item)))
+				       (iy (+ ly
+					      (funcall elt-y-shift item))))
+			   (cond ((typep (object item)
+					 'tfm:character-metrics)
+				  (when (member :character-boxes clues)
+				    (gp:draw-rectangle view
+					ix
+					(- iy (height item))
+					(width item)
+					(+ (height item) (depth item))
+				      :scale-thickness nil))
+				  (when (member :characters clues)
+				    (gp:draw-character view
+					(svref *lm-ec*
 					       (tfm:code (object item)))
-					 ix iy)))
-				  ((and (cluep (object item))
-					(hyphenation-point-p
-					 (helt (object item)))
-					(or (member :hyphenation-points clues)
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
-				   (draw-clue view ix iy (helt (object item))))
-				  ((and (cluep (object item))
-					(gluep (helt (object item)))
-					(or (member :ends-of-line clues)
-					    (find-penalty-adjustment-dialog
-					     (helt (object item))
-					     etap)))
-				   (draw-clue view ix iy (helt (object item))
-				     (find-penalty-adjustment-dialog
-				      (helt (object item))
-				      etap)))
-				  ((and (whitespacep item)
-					(or (member :whitespaces clues)
-					    (find-penalty-adjustment-dialog
-					     (object item)
-					     etap)))
-				   (draw-whitespace-clue
-				    view lx ly elt-x-shift elt-y-shift item
+					ix iy)))
+				 ((and (cluep (object item))
+				       (hyphenation-point-p
+					(helt (object item)))
+				       (or (member :hyphenation-points clues)
+					   (find-penalty-adjustment-dialog
+					    (helt (object item))
+					    etap)))
+				  (draw-clue view ix iy (helt (object item))))
+				 ((and (cluep (object item))
+				       (gluep (helt (object item)))
+				       (or (member :ends-of-line clues)
+					   (find-penalty-adjustment-dialog
+					    (helt (object item))
+					    etap)))
+				  (draw-clue view ix iy (helt (object item))
 				    (find-penalty-adjustment-dialog
-				     (object item) etap)))))
-		      (items line)))
+				     (helt (object item))
+				     etap)))
+				 ((and (whitespacep item)
+				       (or (member :whitespaces clues)
+					   (find-penalty-adjustment-dialog
+					    (object item)
+					    etap)))
+				  (draw-whitespace-clue
+				   view lx ly elt-x-shift elt-y-shift item
+				   (find-penalty-adjustment-dialog
+				    (object item) etap)))))
+			 (items line)))
 	(when (getf (widget-value (inspector-box etap)) :activate)
 	  (multiple-value-bind (object line)
 	      (let* ((pointer (capi-object-property view :pointer))
@@ -1707,6 +1708,7 @@ not 0."
 				    (y (board source))
 				    (funcall line-y-shift (board source))
 				    (y source)
+				    (- (/ (height source) 2))
 				    (funcall elt-y-shift source))
 				 (+ (x (board mouth))
 				    (funcall line-x-shift (board mouth))
@@ -1717,6 +1719,7 @@ not 0."
 				    (y (board mouth))
 				    (funcall line-y-shift (board mouth))
 				    (y mouth)
+				    (- (/ (height mouth) 2))
 				    (funcall elt-y-shift mouth))
 			       :foreground :red :thickness 1))
 		       arms))
