@@ -158,25 +158,43 @@
         (layout (unless (zerop layout-#) (get-layout (1- layout-#) (breakup etap))))
         (end (+ (height layout)     (depth layout)))) ;calcul end
     
-    (maphash #’(lambda (key val); parcour la hasmap
-      ( 
-        (if(= val end) 
-          (setf val 0)
-          (+ val (+ (rain-densite rain) (random (- (rain-densite rain) 3))))))) rain-hash rain)
-    ) 
-  )
+    (maphash (lambda (key val)
+               (if (>= val end)
+                 (setf (gethash key (rain-hash rain)) 0)
+                 (setf (gethash key (rain-hash rain)) 
+                       (+ val (rain-speed rain)))))
+             (rain-hash rain))))
+
+  
+
+  (defun populate (rain-hash layout densite)
+    (loop :for line :in (lines layout)
+          :for i :from 0
+          :while (< i 3)
+          :do (map nil
+               (lambda (item)
+                 (when (typep (object item) 'tfm:character-metrics)
+                    (when (= 0 (random (max 1 densite))) ; une chance sur densite -10 de prendre la lettre
+                      (setf (gethash item rain-hash) 0 ))))
+               (items line))))
 
 
 
   ; Installation
-  (defmethod living-text-install-animation ((animation (eql :rain)) view)
-    (let ((rain-y (capi-object-property view :rain-y)))
-      (unless rain-y
-        (setq rain-y (make-rain 
-                      :densite   (caliber-default *rain-densite*)
-                      :speed  (caliber-default *rain-speed*)
-                      :hash (caliber_default *rain-hash*)))
-        (setf (capi-object-property view :rain-y) rain-y)))
-
-      (setf (capi-object-property view :living-text-step) ; step  
-            (lambda () (rain-step rain-y view)))) 
+(defmethod living-text-install-animation ((animation (eql :rain)) view)
+  (let ((rain (capi-object-property view :rain)))
+    (unless rain
+      (setq rain (make-rain
+                   :densite (caliber-default *rain-densite*)
+                   :speed   (caliber-default *rain-speed*)
+                   :hash    (make-hash-table)))
+      (setf (capi-object-property view :rain) rain))
+    (let* ((etap (top-level-interface view))
+           (layout-# (layout etap))
+           (layout (unless (zerop layout-#) (get-layout (1- layout-#) (breakup etap)))))
+      (when layout
+        (populate (rain-hash rain) layout (rain-densite rain))))
+    (setf (capi-object-property view :elt-y-shift)
+          (lambda (elt) (or (rain-shift elt (rain-hash rain)) 0)))
+    (setf (capi-object-property view :living-text-step)
+          (lambda () (rain-step rain view)))))

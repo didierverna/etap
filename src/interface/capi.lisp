@@ -592,6 +592,7 @@ Switch the animation:
   "Function called when the living text DIALOG is destroyed.
 Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :living-text-animation) nil)
+  (setf (capi-object-property view :rain) nil)
   (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
   (setf (capi-object-property view :line-x-shift) nil)
@@ -630,7 +631,7 @@ Stop animation if running, uninstall the living text, and redraw."
    (animation-tabs tab-layout
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings)) ;; lines + char
+     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting)) ;; lines + char + rain
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
