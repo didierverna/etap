@@ -527,6 +527,44 @@ Update CURSOR's title and propagate the new value where appropriate."
   (redraw etap))
 
 
+;; ----------------------
+;;      Rain Callback
+;; ----------------------
+
+ (defun rain-cursor-callback
+    (cursor value gesture
+     &aux (dialog (top-level-interface cursor))
+	  (etap (etap dialog))
+	  (view (view-area etap)))
+  "Function called when a Rain animation CURSOR is dragged.
+Update CURSOR's title and propagate the new value to the rain struct."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (let ((rain (capi-object-property view :rain)))
+      (when rain
+	(ecase (property cursor)
+	  (:rain-densite (setf (rain-densite rain) (widget-value cursor)))
+	  (:rain-speed   (setf (rain-speed   rain) (widget-value cursor)))))
+      (unless (capi-object-property view :living-text-animation)
+	(redraw etap)))))
+
+
+(defun rain-repopulate-callback
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Function called when the Rain repopulate button is pushed."
+  (declare (ignore data))
+  (let ((rain (capi-object-property view :rain)))
+    (when rain
+      (setf (rain-densite rain)
+	    (widget-value (find-widget :rain-densite dialog)))
+      (setf (rain-speed rain)
+	    (widget-value (find-widget :rain-speed dialog)))
+      (setf (capi-object-property view :rain) nil)))
+  (living-text-install-animation :rain view)
+  (redraw etap))
+ 
+
 
 ;; ----------------------
 ;; Living Text Interface
@@ -595,6 +633,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :rain) nil)
   (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
+  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
   (setf (capi-object-property view :line-x-shift) nil)
   (setf (capi-object-property view :line-y-shift) nil)
   (setf (capi-object-property view :elt-x-shift) nil)
@@ -608,6 +647,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :living-text-animation) nil)
   (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
+  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
   (living-text-install-animation (first item) view))
 
 
@@ -620,6 +660,9 @@ Stop animation if running, uninstall the living text, and redraw."
 
 (defun cwaves-play-callback (dialog)
   (living-text-play-callback dialog #'cwaves-duration-cursor))
+
+(defun rain-play-callback (dialog)
+  (living-text-play-callback dialog #'rain-duration-cursor))
 
 ;;-----------------
 ;;    Interface
@@ -757,7 +800,41 @@ Stop animation if running, uninstall the living text, and redraw."
      :callback 'living-text-start/stop-callback
      :reader cwaves-start/stop-button)
 
-    )
+
+
+    ;; Rain panes
+ 
+    (rain-densite cursor
+     :prefix :densite
+     :property :rain-densite
+     :caliber *rain-densite*
+     :callback 'rain-cursor-callback)
+    (rain-speed cursor
+     :prefix :speed
+     :property :rain-speed
+     :caliber *rain-speed*
+     :callback 'rain-cursor-callback)
+    (rain-repopulate push-button
+     :text "Repopulate"
+     :data :repopulate
+     :callback-type '(:data :interface)
+     :callback 'rain-repopulate-callback)
+    (rain-duration cursor
+     :prefix :duration :property :rain-duration
+     :caliber *rain-duration*
+     :callback 'duration-cursor-callback
+     :reader rain-duration-cursor)
+    (rain-play push-button
+     :text "Play"
+     :callback-type '(:interface)
+     :callback 'rain-play-callback)
+    (rain-start/stop push-button
+     :data :run-animation
+     :print-function 'title-capitalize
+     :callback-type '(:item :interface)
+     :callback 'living-text-start/stop-callback
+     :reader rain-start/stop-button))
+
 
     
 
@@ -781,7 +858,14 @@ Stop animation if running, uninstall the living text, and redraw."
    (cwaves-horizontal column-layout '(cxamp cxond cxprop cxphase) ;; CHAR ADD 
      :title "Horizontal" :title-position :frame :adjust :center)
    (cwaves-vertical column-layout '(cyamp cyond cyprop cyphase) ;; CHAR ADD 
-     :title "Vertical" :title-position :frame :adjust :center))
+     :title "Vertical" :title-position :frame :adjust :center)
+
+    ;; Rain
+    (rain-setting column-layout
+     '(rain-params rain-repopulate rain-duration rain-play rain-start/stop)
+     :adjust :center)
+   (rain-params column-layout '(rain-densite rain-speed)
+     :title "Parameters" :title-position :frame :adjust :center))
 
   (:default-initargs
    :title "Living Text"
