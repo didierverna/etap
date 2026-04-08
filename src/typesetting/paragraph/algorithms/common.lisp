@@ -560,7 +560,7 @@ specific global properties."))
 		:for y := 0 :then (+ y baseline-skip)
 		:for line :in lines
 		:do (render-line line)
-		:collect (make-pin line layout :x (funcall x line) :y y))))
+		:collect (make-pin line nil :x (funcall x line) :y y))))
   layout)
 
 ;; #### NOTE: nothing prevents an algorithm from sharing an object
