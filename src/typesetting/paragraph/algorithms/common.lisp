@@ -472,8 +472,8 @@ Optionally preset ASAR and ESAR."
 ;; Rendering
 ;; ---------
 
-(defun render-line (line &aux (esar (esar line)) items)
-  "Pin LINE's items and return LINE."
+(defun render-line (pin &aux (line (object pin)) (esar (esar line)) items)
+  "Pin the items in PINned line to PIN."
   ;; #### NOTE: infinite ESAR means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
@@ -491,9 +491,9 @@ Optionally preset ASAR and ESAR."
 	      :for item ; technically, clues are not helts so let's say "item"
 		:in (flatten-harray harray (bol-idx line) (eol-idx line))
 	      :if (cluep item)
-		:collect (make-pin item line :x x)
+		:collect (make-pin item pin :x x)
 	      :else :if (typep item 'tfm:character-metrics)
-		:collect (make-pin item line :x x)
+		:collect (make-pin item pin :x x)
 		:and :do (incf x (width item))
 		:and :do (setq h (tfm:ex (tfm:font item)))
 	      :else :if (kernp item)
@@ -505,11 +505,10 @@ Optionally preset ASAR and ESAR."
 				  (* esar (stretch item))
 				  (* esar (shrink item))))
 		  :end
-		:and :collect (make-pin (make-hcast w h item) line :x x)
+		:and :collect (make-pin (make-hcast w h item) pin :x x)
 		:and :do (incf x w)))
   (setf (slot-value line 'items)
-	(make-array (length items) :initial-contents items))
-  line)
+	(make-array (length items) :initial-contents items)))
 
 
 
@@ -559,9 +558,10 @@ specific global properties."))
 			      (lambda (line) (- par-width (width line)))))
 		:for y := 0 :then (+ y baseline-skip)
 		:for line :in lines
-		:do (render-line line)
 		;; #### NOTE: lines are currently at the toplevel, so no board.
-		:collect (make-pin line nil :x (funcall x line) :y y))))
+		:for pin := (make-pin line nil :x (funcall x line) :y y)
+		:do (render-line pin)
+		:collect pin)))
   layout)
 
 ;; #### NOTE: nothing prevents an algorithm from sharing an object
