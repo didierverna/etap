@@ -560,6 +560,7 @@ specific global properties."))
 		:for y := 0 :then (+ y baseline-skip)
 		:for line :in lines
 		:do (render-line line)
+		;; #### NOTE: lines are currently at the toplevel, so no board.
 		:collect (make-pin line nil :x (funcall x line) :y y))))
   layout)
 
