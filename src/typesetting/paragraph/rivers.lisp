@@ -84,7 +84,8 @@ mouth whitespaces in LINE: the closest to SOURCE's left, one directly below
 it, and the closest to SOURCE's right, all of these X-wise."
   (mapcar (lambda (mouth) (make-arm source mouth))
     (loop :with left :with below
-	  :for ws :across (remove-if-not #'whitespacep (items line))
+	  :for ws :across (remove-if-not #'hcastp (items (object line))
+			    :key #'object)
 	  :for ws-x := (+ (x (board ws)) (x ws) (/ (width ws) 2))
 	  :if (< ws-x source-x) :do (setq left (list ws))
 	  :else :if (= ws-x source-x) :do (setq below (list ws))
@@ -97,7 +98,8 @@ it, and the closest to SOURCE's right, all of these X-wise."
 The return value is a hash table mapping source whitespaces to a list of arms."
   (loop :for line1 :in lines
 	:for line2 :in (cdr lines)
-	:for sources := (remove-if-not #'whitespacep (items line1))
+	:for sources := (remove-if-not #'hcastp (items (object line1))
+			  :key #'object)
 	:when  sources
 	  :do (map nil
 		   (lambda (source &aux (arms (arms source line2)))
