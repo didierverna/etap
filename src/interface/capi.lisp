@@ -889,6 +889,13 @@ This function returns the corresponding line's pin as a second value."
 		       (items (object pin)))
 	      pin))))
 
+;; #### TODO: for 0-width hcasts (such as the one at the end of the paragraph
+;; in the Knuth-Plass, it is practically (completely?) impossible to click at
+;; the right position, even with a large inequality as below. Perhaps this is
+;; for the best however, since this one had better not be modified. But this
+;; raises the question of customizability of programmatic elements... indeed,
+;; some elements might be adjustable while some others (of the same kind) are
+;; part of the algorithmic implementation.
 (defun hcast-under (x y pins)
   "Return the horizontal cast from line PINS which is under (X, Y).
 If no such cast is found, return NIL.
@@ -1092,7 +1099,10 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
       (gp:draw-ellipse view
 	(+ x (/ (width hcast) 2))
 	(- y h/2)
-	(/ (width hcast) 2)
+	;; #### NOTE: it's possible to get 0-width hcasts (e.g. because of the
+	;; final glue in the Knuth-Plass). We want to make sure that we still
+	;; see a spot however.
+	(max 1 (/ (width hcast) 2))
 	h/2
 	:filled t
 	:foreground (color:make-hsv (clue-hue glue) 1s0 .7s0)))))
