@@ -17,6 +17,11 @@
   (:documentation "The PIN class.
 This class is used to pin objects at some position on a board."))
 
+(defmethod print-object ((pin pin) stream)
+  "Also print the class of the pinned object."
+  (print-unreadable-object (pin stream :type t :identity t)
+    (format stream "(~A)" (class-name (class-of (object pin))))))
+
 (defun make-pin (object board &rest keys &key x y)
   "Make a new pin for OBJECT at position (X, Y) on BOARD.
 The default position is BOARD's origin."
