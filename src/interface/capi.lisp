@@ -871,24 +871,20 @@ Each point is of the form (X . Y)."
 (defun clue-under-pin (x y pins)
   "Find a clue from line PINS under (X, Y). Return its pin or NIL.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
-its visual representation (the small triangle beneath it).
-This function returns the corresponding line's pin as a second value."
+its visual representation (the small triangle beneath it)."
   (when-let (pin (find-if (lambda (pin &aux (ly (y pin))) (<= ly y (+ ly 5)))
 			  pins))
     (let ((p (cons x y))
 	  (lx (x pin))
 	  (ly (y pin)))
-      (values (find-if (lambda (item &aux (ix (+ lx (x item))))
-			 (and (cluep (object item))
-			      (triangle-under-p
-			       p
-			       (cons ix ly)
-			       (cons (+ ix -3) (+ ly 5))
-			       (cons (+ ix +3) (+ ly 5)))))
-		       (items (object pin)))
-	      ;; #### FIXME: this is probably obsolete now that boards are
-	      ;; pins.
-	      pin))))
+      (find-if (lambda (item &aux (ix (+ lx (x item))))
+		 (and (cluep (object item))
+		      (triangle-under-p
+		       p
+		       (cons ix ly)
+		       (cons (+ ix -3) (+ ly 5))
+		       (cons (+ ix +3) (+ ly 5)))))
+	       (items (object pin))))))
 
 ;; #### TODO: for 0-width hcasts (such as the one at the end of the paragraph
 ;; in the Knuth-Plass, it is practically (completely?) impossible to click at
@@ -898,16 +894,13 @@ This function returns the corresponding line's pin as a second value."
 ;; some elements might be adjustable while some others (of the same kind) are
 ;; part of the algorithmic implementation.
 (defun hcast-under-pin (x y pins)
-  "Find an hcast from line PINS under (X, Y). Return its pin, or NIL.
-This function returns the corresponding line's pin as a second value."
+  "Find an hcast from line PINS under (X, Y). Return its pin, or NIL."
   (when-let (pin (line-under-y-pin y pins))
-    (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
-		       (and (hcastp (object item))
-			    (<= ix x (+ ix (width item)))
-			    (<= (- ly (height item)) y ly)))
-		     (items (object pin)))
-	    ;; #### FIXME: this is probably obsolete now that boards are pins.
-	    pin)))
+    (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
+	       (and (hcastp (object item))
+		    (<= ix x (+ ix (width item)))
+		    (<= (- ly (height item)) y ly)))
+	     (items (object pin)))))
 
 (defun object-under-pin (x y pins)
   "Find an object from line PINS under (X, Y). Return its pin, or NIL.
@@ -915,11 +908,7 @@ Considered objects currently include clues and hcasts.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
-  ;; No-can-do with OR. Need second values.
-  (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y pins)
-    (if clue-pin
-      (values clue-pin line-pin)
-      (hcast-under-pin x y pins))))
+  (or (clue-under-pin x y pins) (hcast-under-pin x y pins)))
 
 
 
@@ -1273,18 +1262,19 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 				     object etap)))))
 			 items))
 	(when (getf (widget-value (inspector-box etap)) :activate)
-	  (multiple-value-bind (object-pin line-pin)
-	      (let* ((pointer (capi-object-property view :pointer))
-		     (x (car pointer))
-		     (y (cdr pointer)))
-		(to-layout-coordinates x y layout zoom)
-		(object-under-pin x y (lines layout)))
+	  (let* ((pointer (capi-object-property view :pointer))
+		 (x (car pointer))
+		 (y (cdr pointer))
+		 object-pin)
+	    (to-layout-coordinates x y layout zoom)
+	    (setq object-pin (object-under-pin x y (lines layout)))
 	    ;; #### WARNING: we may end up drawing a clue for the second
 	    ;; time here, but this is probably not such a big deal.
 	    (when object-pin
-	      (let ((ix (+ (x line-pin) (x object-pin)))
-		    (ly (+ par-y (y line-pin)))
-		    (object (object object-pin)))
+	      (let* ((line-pin (board object-pin))
+		     (ix (+ (x line-pin) (x object-pin)))
+		     (ly (+ par-y (y line-pin)))
+		     (object (object object-pin)))
 		(cond ((cluep object)
 		       (draw-helt-clue view ix ly (helt object) :force))
 		      ((hcastp object)
