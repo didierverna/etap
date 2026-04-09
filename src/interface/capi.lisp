@@ -1111,9 +1111,8 @@ Each point is of the form (X . Y)."
     (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
   "Find a potentially shifted clue from line PINS under (X, Y).
 Return its pin, or NIL.
-Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
-its visual representation (the small triangle beneath it).
-This function returns the corresponding line's pin as a second value."
+Technically, (X, Y) is not over the clue (which is a 0-sized object),
+but over its visual representation (the small triangle beneath it)."
   (when-let (pin (find-if (lambda (pin
 				   &aux (ly (+ (y pin)
 					       (funcall line-y-shift pin))))
@@ -1122,21 +1121,18 @@ This function returns the corresponding line's pin as a second value."
     (let ((p (cons x y))
 	  (lx (+ (x pin) (funcall line-x-shift pin)))
 	  (ly (+ (y pin) (funcall line-y-shift pin))))
-      (values (find-if (lambda (item
-				&aux (ix (+ lx
-					    (x item)
-					    (funcall elt-x-shift item)))
-				      (iy (+ ly (funcall elt-y-shift item))))
-			 (and (cluep (object item))
-			      (triangle-under-p
-			       p
-			       (cons ix iy)
-			       (cons (+ ix -3) (+ iy 5))
-			       (cons (+ ix +3) (+ iy 5)))))
-		       (items (object pin)))
-	      ;; #### FIXME: this has become obsolete since it's the item's
-	      ;; board.
-	      pin))))
+      (find-if (lambda (item
+			&aux (ix (+ lx
+				    (x item)
+				    (funcall elt-x-shift item)))
+			     (iy (+ ly (funcall elt-y-shift item))))
+		 (and (cluep (object item))
+		      (triangle-under-p
+		       p
+		       (cons ix iy)
+		       (cons (+ ix -3) (+ iy 5))
+		       (cons (+ ix +3) (+ iy 5)))))
+	       (items (object pin))))))
 
 ;; #### TODO: for 0-width hcasts (such as the one at the end of the paragraph
 ;; in the Knuth-Plass, it is practically (completely?) impossible to click at
@@ -1145,23 +1141,20 @@ This function returns the corresponding line's pin as a second value."
 ;; raises the question of customizability of programmatic elements... indeed,
 ;; some elements might be adjustable while some others (of the same kind) are
 ;; part of the algorithmic implementation.
-(defun hcast-under (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
+(defun hcast-under-pin
+    (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
   "Find a potentially shifted hcast from line PINS under (X, Y).
-Return its pin, or NIL.
-This function returns the corresponding line's pin as a second value."
+Return its pin, or NIL."
   (when-let (pin (line-under-y-pin y pins line-y-shift))
-    (values (find-if (lambda (item
-			      &aux (ix (+ (x pin) (funcall line-x-shift pin)
-					  (x item) (funcall elt-x-shift item)))
-				   (iy (+ (y pin) (funcall line-y-shift pin)
-					  (funcall elt-y-shift item))))
-		       (and (hcastp (object item))
-			    (<= ix x (+ ix (width item)))
-			    (<= (- iy (height item)) y iy)))
-		     (items (object pin)))
-	    ;; #### FIXME: this has become obsolete since it's the item's
-	    ;; board.
-	    pin)))
+    (find-if (lambda (item
+		      &aux (ix (+ (x pin) (funcall line-x-shift pin)
+				  (x item) (funcall elt-x-shift item)))
+			   (iy (+ (y pin) (funcall line-y-shift pin)
+				  (funcall elt-y-shift item))))
+	       (and (hcastp (object item))
+		    (<= ix x (+ ix (width item)))
+		    (<= (- iy (height item)) y iy)))
+	     (items (object pin)))))
 
 (defun object-under-pin
   (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
@@ -1169,16 +1162,11 @@ This function returns the corresponding line's pin as a second value."
 Return its pin, or NIL.
 Considered objects currently include clues and hcasts.
 For clues, (X, Y) is not technically over it, but over the corresponding
-visual representation (the small triangle beneath it).
-This function returns the corresponding line's pin as a second value."
-  ;; No-can-do with OR. Need second values.
-  (multiple-value-bind (clue-pin line-pin)
-      (clue-under-pin x y pins
+visual representation (the small triangle beneath it)."
+  (or (clue-under-pin x y pins
 	line-x-shift line-y-shift elt-x-shift elt-y-shift)
-    (if clue-pin
-      (values clue-pin line-pin)
-      (hcast-under x y pins
-	line-x-shift line-y-shift elt-x-shift elt-y-shift))))
+      (hcast-under-pin x y pins
+	line-x-shift line-y-shift elt-x-shift elt-y-shift)))
 
 
 
@@ -1572,22 +1560,24 @@ Unless FORCE, draw only if HCAST's (soft) glue has been customized."
 				     object etap)))))
 			 items))
 	(when (getf (widget-value (inspector-box etap)) :activate)
-	  (multiple-value-bind (object-pin line-pin)
-	      (let* ((pointer (capi-object-property view :pointer))
-		     (x (car pointer))
-		     (y (cdr pointer)))
-		(to-layout-coordinates x y layout zoom)
-		(object-under-pin x y (lines layout)
-		  line-x-shift line-y-shift elt-x-shift elt-y-shift))
-	    ;; #### WARNING: we may end up drawing a clue for the second
-	    ;; time here, but this is probably not such a big deal.
+	  (let* ((pointer (capi-object-property view :pointer))
+		 (x (car pointer))
+		 (y (cdr pointer))
+		 object-pin)
+	    (to-layout-coordinates x y layout zoom)
+	    (setq object-pin
+		  (object-under-pin x y (lines layout)
+		    line-x-shift line-y-shift elt-x-shift elt-y-shift))
+	    ;; #### WARNING: we may end up drawing a clue for the second time
+	    ;; here, but this is probably not such a big deal.
 	    (when object-pin
-	      (let ((ix (+ (x line-pin) (funcall line-x-shift line-pin)
-			   (x object-pin) (funcall elt-x-shift object-pin)))
-		    (iy (+ par-y
-			   (y line-pin) (funcall line-y-shift line-pin)
-			   (y object-pin) (funcall elt-y-shift object-pin)))
-		    (object (object object-pin)))
+	      (let* ((line-pin (board object-pin))
+		     (ix (+ (x line-pin) (funcall line-x-shift line-pin)
+			    (x object-pin) (funcall elt-x-shift object-pin)))
+		     (iy (+ par-y
+			    (y line-pin) (funcall line-y-shift line-pin)
+			    (y object-pin) (funcall elt-y-shift object-pin)))
+		     (object (object object-pin)))
 		(cond ((cluep object)
 		       (draw-helt-clue view ix iy (helt object) :force))
 		      ((hcastp object)
