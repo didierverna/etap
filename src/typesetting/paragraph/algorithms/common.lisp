@@ -559,8 +559,11 @@ specific global properties."))
 		:for y := 0 :then (+ y baseline-skip)
 		:for line :in lines
 		;; #### NOTE: lines are currently at the toplevel, so no board.
-		:for pin := (make-pin line nil :x (funcall x line) :y y)
+		:for pin := (make-pin line nil :y y)
 		:do (render-line pin)
+		;; #### NOTE: need to wait for the line to be rendered, in
+		;; case we need its width.
+		:do (setf (slot-value pin 'x) (funcall x line) )
 		:collect pin)))
   layout)
 
