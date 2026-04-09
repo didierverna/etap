@@ -906,8 +906,7 @@ its visual representation (the small triangle beneath it)."
   "Find an object from line PINS under (X, Y). Return its pin, or NIL.
 Considered objects currently include clues and hcasts.
 For clues, (X, Y) is not technically over it, but over the corresponding
-visual representation (the small triangle beneath it).
-This function returns the corresponding line's pin as a second value."
+visual representation (the small triangle beneath it)."
   (or (clue-under-pin x y pins) (hcast-under-pin x y pins)))
 
 
