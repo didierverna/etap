@@ -14,7 +14,7 @@
    :item :layout)
   (:export
     ;; From font/font.lisp:
-    :*font-file* :*font*
+    :*fonts* :*font*
     ;; From language/hyphenation.lisp:
     :*lefthyphenmin* :*righthyphenmin*
     ;; From language/language.lisp:

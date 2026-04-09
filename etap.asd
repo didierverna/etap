@@ -18,7 +18,8 @@
       :components
       ((:file "misc")
        (:file "arith")
-       (:file "caliber")))
+       (:file "caliber")
+       (:file "protocols")))
      (:module "font"
       :serial t
       :components
@@ -35,14 +36,16 @@
 	:components
 		((:file "rules")
 		 (:file "load")
-		 (:file "hyphenate")))
+		 (:file "points")))
        (:file "language")
-       (:file "text")
-       (:file "nlstring")))
+       (:file "text")))
+     (:module "syntax"
+      :serial t
+      :components ((:file "convert")))
      (:module "typesetting"
       :serial t
       :components
-      ((:file "common")
+      ((:file "pin")
        (:module "paragraph"
 	:serial t
 	:components

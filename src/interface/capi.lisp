@@ -293,6 +293,36 @@ The calibrated value is displayed with 3 digits."
 
 
 ;; ==========================================================================
+;; Retrievers
+;; ==========================================================================
+
+(defun global-value (caliber etap)
+  "Return CALIBER property's global value as set in ETAP, or NIL.
+The property is supposed to a slider-adjustable algorithm parameter
+(otherwise, NIL is returned). The returned value is uncalibrated (it is just
+the slider position)."
+  (let ((widget (find-widget
+		 (caliber-property caliber)
+		 (slot-value etap
+			     (second
+			      (choice-selected-item (algorithm-tabs etap)))))))
+    (when widget (range-slug-start widget))))
+
+(defun customizedp (helt etap)
+  "Return T if HELT has been customized in ETAP.
+HELT must be a soft break point, and its penalty must be different from
+the corresponding property's global (UI) value, or 0 if the property is not
+customizable."
+  (and (typep helt 'penalty-mixin)
+       ($/= (penalty helt)
+	    (or (when-let (value (global-value (caliber helt) etap))
+		  (calibrated-value value (caliber helt)))
+		0))))
+
+
+
+
+;; ==========================================================================
 ;; Updaters
 ;; ==========================================================================
 
@@ -394,9 +424,8 @@ Display LAYOUT number (1 by default)."
   (remake-with-lineup
    etap
    (%make-lineup
-    (make-nlstring
-     :text (editor-pane-text (text etap))
-     :language (language-specification etap))
+    (editor-pane-text (text etap))
+    (language-specification etap)
     (capi-object-property etap :font)
     (widget-value (features-box etap))
     (disposition-specification etap)
@@ -638,7 +667,6 @@ Install the Line Waves functions and data structures, and redraw."
 ;; River Detection Dialog
 ;; ==========================================================================
 
-
 ;; ---------
 ;; Callbacks
 ;; ---------
@@ -790,15 +818,11 @@ Install the Line Waves functions and data structures, and redraw."
 	  :data (caliber-default caliber)
 	  :visible-max-width nil)
 	reset-buttons)
-  (let ((widget (find-widget
-		 (caliber-property caliber)
-		 (slot-value
-		  etap
-		  (second (choice-selected-item (algorithm-tabs etap)))))))
-    (when widget
+  (let ((value (global-value caliber etap)))
+    (when value
       (push (make-instance 'push-button
 	      :text "Reset to Global"
-	      :data (range-slug-start widget)
+	      :data value
 	      :visible-max-width nil)
 	    reset-buttons)))
   (push (make-instance 'push-button
@@ -844,7 +868,8 @@ new dialog and display it."
   "The width of the border around the paragraph.")
 
 (defparameter *clues*
-  '(:characters :hyphenation-points :whitespaces :ends-of-line
+  '(:characters
+    :hyphenation-points :discretionaries :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
     :paragraph-box :line-boxes :character-boxes :baselines)
@@ -1006,16 +1031,19 @@ Otherwise, reselect the previously selected one."
 
 ;; Source text menu
 
-(defun text-menu-callback (item etap &aux nlstring)
+(defun text-menu-callback (item etap)
   "Function called when the ITEM source text menu button is clicked in ETAP."
-  (setq nlstring (case item
-		   (:reset-to-original
-		    (capi-object-property etap :original-nlstring))
-		   (:reset-to-default
-		    (make-nlstring :text *text* :language *language*))))
-  (setf (editor-pane-text (text etap)) (text nlstring))
-  (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language nlstring))
+  (case item
+    (:reset-to-original
+     (setf (editor-pane-text (text etap))
+	   (capi-object-property etap :original-buffer)
+	   (choice-selected-item (first (menu-items (language-menu etap))))
+	   (capi-object-property etap :original-language)))
+    (:reset-to-default
+     (setf (editor-pane-text (text etap))
+	   *text*
+	   (choice-selected-item (first (menu-items (language-menu etap))))
+	   *language*)))
   (remake etap))
 
 
@@ -1045,14 +1073,16 @@ Otherwise, reselect the previously selected one."
 
 ;; CLIM-like object under mouse utilities
 
-;; #### NOTE: this function is *not* a `line-under' function. It only checks
-;; for a vertical match since it is also used to advertise a line's properties
-;; when the mouse is in the left margin.
-(defun line-under-y (y lines line-y-shift)
-  "Return the line from LINES which is under Y coordinate, or NIL."
-  (find-if (lambda (line &aux (ly (+ (y line) (funcall line-y-shift line))))
+;; #### NOTE: this function is *not* a `line-under-pin' function. It only
+;; checks for a vertical match since it is also used to advertise a line's
+;; properties when the mouse is in the left margin.
+(defun line-under-y-pin (y pins line-y-shift)
+  "Find a potentially shifted line from line PINS under Y coordinate.
+Return its pin, or NIL."
+  (find-if (lambda (pin &aux (ly (+ (y pin) (funcall line-y-shift pin)))
+			     (line (object pin)))
 	     (<= (- ly (height line)) y (+ ly (depth line))))
-	   lines))
+	   pins))
 
 (defun vector-product (p1 p2 p3)
   "Return the vector product of P1P2 - P1P3.
@@ -1077,69 +1107,78 @@ Each point is of the form (X . Y)."
 ;; #### TODO: triangular clues are not completely factored out. The triangle
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
-(defun clue-under (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
-  "Return the shifted clue from LINES which is under (X, Y), or nil.
-In the case of a discretionary clue, it is returned only if it corresponds to
-an hyphenation point (as opposed to a general discretionary). The object
-returned is in fact the pin containing the clue.
+(defun clue-under-pin
+    (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
+  "Find a potentially shifted clue from line PINS under (X, Y).
+Return its pin, or NIL.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
-This function returns the corresponding line as a second value."
-  (when-let (line (find-if (lambda (line
-				    &aux (ly (+ (y line)
-						(funcall line-y-shift line))))
-			     (<= ly y (+ ly 5)))
-			   lines))
+This function returns the corresponding line's pin as a second value."
+  (when-let (pin (find-if (lambda (pin
+				   &aux (ly (+ (y pin)
+					       (funcall line-y-shift pin))))
+			    (<= ly y (+ ly 5)))
+			  pins))
     (let ((p (cons x y))
-	  (lx (+ (x line) (funcall line-x-shift line)))
-	  (ly (+ (y line) (funcall line-y-shift line))))
+	  (lx (+ (x pin) (funcall line-x-shift pin)))
+	  (ly (+ (y pin) (funcall line-y-shift pin))))
       (values (find-if (lambda (item
 				&aux (ix (+ lx
 					    (x item)
 					    (funcall elt-x-shift item)))
-				     (iy (+ ly (funcall elt-y-shift item))))
+				      (iy (+ ly (funcall elt-y-shift item))))
 			 (and (cluep (object item))
-			      (or (not (discretionaryp (helt (object item))))
-				  (hyphenation-point-p (helt (object item))))
 			      (triangle-under-p
 			       p
-			       (cons ix iy)
-			       (cons (+ ix -3) (+ iy 5))
-			       (cons (+ ix +3) (+ iy 5)))))
-		       (items line))
-	      line))))
+			       (cons ix ly)
+			       (cons (+ ix -3) (+ ly 5))
+			       (cons (+ ix +3) (+ ly 5)))))
+		       (items (object pin)))
+	      ;; #### FIXME: this has become obsolete since it's the item's
+	      ;; board.
+	      pin))))
 
-(defun whitespace-under
-    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
-  "Return the shifted whitespace from LINES which is under (X, Y), or nil.
-This function returns the corresponding line as a second value."
-  (when-let (line (line-under-y y lines line-y-shift))
+;; #### TODO: for 0-width hcasts (such as the one at the end of the paragraph
+;; in the Knuth-Plass, it is practically (completely?) impossible to click at
+;; the right position, even with a large inequality as below. Perhaps this is
+;; for the best however, since this one had better not be modified. But this
+;; raises the question of customizability of programmatic elements... indeed,
+;; some elements might be adjustable while some others (of the same kind) are
+;; part of the algorithmic implementation.
+(defun hcast-under (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
+  "Find a potentially shifted hcast from line PINS under (X, Y).
+Return its pin, or NIL.
+This function returns the corresponding line's pin as a second value."
+  (when-let (pin (line-under-y-pin y pins line-y-shift))
     (values (find-if (lambda (item
-			      &aux (ix (+ (x line) (funcall line-x-shift line)
+			      &aux (ix (+ (x pin) (funcall line-x-shift pin)
 					  (x item) (funcall elt-x-shift item)))
-				   (iy (+ (y line) (funcall line-y-shift line)
+				   (iy (+ (y pin) (funcall line-y-shift pin)
 					  (funcall elt-y-shift item))))
-		       (and (whitespacep item)
+		       (and (hcastp (object item))
 			    (<= ix x (+ ix (width item)))
 			    (<= (- iy (height item)) y iy)))
-		     (items line))
-	    line)))
+		     (items (object pin)))
+	    ;; #### FIXME: this has become obsolete since it's the item's
+	    ;; board.
+	    pin)))
 
-(defun object-under
-    (x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
-  "Return the object from LINES which is under (X, Y), or nil.
-This currently includes whitespaces and pinned clues.
+(defun object-under-pin
+  (x y pins line-x-shift line-y-shift elt-x-shift elt-y-shift)
+  "Find a potentially shifted object from line PINS under (X, Y).
+Return its pin, or NIL.
+Considered objects currently include clues and hcasts.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it).
-This function returns the corresponding line as a second value."
+This function returns the corresponding line's pin as a second value."
   ;; No-can-do with OR. Need second values.
-  (multiple-value-bind (object line)
-      (clue-under
-       x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift)
-    (if object
-      (values object line)
-      (whitespace-under
-       x y lines line-x-shift line-y-shift elt-x-shift elt-y-shift))))
+  (multiple-value-bind (clue-pin line-pin)
+      (clue-under-pin x y pins
+	line-x-shift line-y-shift elt-x-shift elt-y-shift)
+    (if clue-pin
+      (values clue-pin line-pin)
+      (hcast-under x y pins
+	line-x-shift line-y-shift elt-x-shift elt-y-shift))))
 
 
 
@@ -1168,7 +1207,7 @@ X and Y must be variable names (not evaluated). They are modified in-place."
 
 ;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
 ;; will extend beyond the paragraph's right (resp. bottom) side. In order to
-;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
+;; handle those and still optimize a bit, we only call OBJECT-UNDER-PIN if the
 ;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
 ;; and bottom sides.
 
@@ -1183,8 +1222,8 @@ X and Y must be variable names (not evaluated). They are modified in-place."
   hyphenation point)."
   (setf (capi-object-property view :pointer) (cons x y))
   (when (getf inspect :activate)
-    ;; We have the view directly here, so no need to go through REDRAW. ####
-    ;; TODO: this could be optimized in order to avoid redrawing at every
+    ;; We have the view directly here, so no need to go through REDRAW.
+    ;; #### TODO: this could be optimized in order to avoid redrawing at every
     ;; single move. We could remember the previous move state and see if
     ;; something has changed.
     (gp:invalidate-rectangle view)
@@ -1196,7 +1235,7 @@ X and Y must be variable names (not evaluated). They are modified in-place."
 	(to-layout-coordinates x y layout (zoom-value etap))
 	(cond ((and (< y (- (height layout))) (<= x par-width))
 	       (display-tooltip view
-	       :text (properties breakup :layout-# layout-#)))
+		 :text (properties breakup :layout-# layout-#)))
 	      (layout
 	       (let ((line-x-shift
 		       (or (capi-object-property view :line-x-shift)
@@ -1211,21 +1250,21 @@ X and Y must be variable names (not evaluated). They are modified in-place."
 		       (or (capi-object-property view :elt-y-shift)
 			   (lambda (elt) (declare (ignore elt)) 0))))
 		 (cond ((and (< x 0) (<= y (depth layout)))
-			(if-let (line (line-under-y y (lines layout)
-					line-y-shift))
-			  (display-tooltip view :text (properties line))
+			(if-let (pin (line-under-y-pin y (lines layout)
+				       line-y-shift))
+			  (display-tooltip view :text (properties pin))
 			  (display-tooltip view)))
 		       ((and (<= 0 x (+ par-width *border-width*))
 			     (<= (- (height layout))
 				 y
 				 (+ (depth layout) *border-width*)))
-			(if-let (object (object-under x y (lines layout)
-				  line-x-shift line-y-shift
-				  elt-x-shift elt-y-shift))
-			  (display-tooltip view :text (properties object))
-			  (display-tooltip view))))))
-	      (t
-	       (display-tooltip view)))))))
+			(if-let (pin (object-under-pin x y (lines layout)
+				       line-x-shift line-y-shift
+				       elt-x-shift elt-y-shift))
+			  (display-tooltip view :text (properties pin))
+			  (display-tooltip view)))
+		       (t
+			(display-tooltip view))))))))))
 
 
 
@@ -1233,9 +1272,9 @@ X and Y must be variable names (not evaluated). They are modified in-place."
 
 ;; #### NOTE: the visual clues occurring at an end of line (resp. last line)
 ;; will extend beyond the paragraph's right (resp. bottom) side. In order to
-;; handle those and still optimize a bit, we only call OBJECT-UNDER if the
-;; pointer is above the paragraph, but *BORDER-WIDTH* included on the right
-;; and bottom sides.
+;; handle those and still optimize a bit, we only call OBJECT-UNDER-PIN if
+;; the pointer is above the paragraph, but *BORDER-WIDTH* included on the
+;; right and bottom sides.
 
 ;; #### TODO: when this gets enriched, we will eventually end up with the same
 ;; logic as in MOTION-CALLBACK in order to figure out what's under the mouse,
@@ -1258,23 +1297,17 @@ displays a penalty adjustment dialog when appropriate."
 	   (elt-x-shift (or (capi-object-property view :elt-x-shift)
 			    (lambda (elt) (declare (ignore elt)) 0)))
 	   (elt-y-shift (or (capi-object-property view :elt-y-shift)
-			    (lambda (elt) (declare (ignore elt)) 0)))
-	   (object (and (<= 0 x (+ (paragraph-width breakup) *border-width*))
-			(<= (- (height layout))
-			    y
-			    (+ (depth layout) *border-width*))
-			(object-under x y (lines layout)
-			  line-x-shift line-y-shift
-			  elt-x-shift elt-y-shift))))
-      (when object
-	(setq object
-	      (etypecase (object object)
-		(clue (helt (object object)))
-		(glue (object object))))
-	;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-	;; complexity of handling null calibers below.
-	(when (caliber object)
-	  (make-penalty-adjustment-dialog object etap))))))
+			    (lambda (elt) (declare (ignore elt)) 0))))
+      (when-let (pin (and (<= 0 x (+ (paragraph-width breakup) *border-width*))
+			  (<= (- (height layout))
+			      y
+			      (+ (depth layout) *border-width*))
+			  (object-under-pin x y (lines layout)
+			    line-x-shift line-y-shift
+			    elt-x-shift elt-y-shift)))
+	(let ((helt (helt (object pin))))
+	  (when (typep helt 'penalty-mixin)
+	    (make-penalty-adjustment-dialog helt etap)))))))
 
 
 
@@ -1282,69 +1315,86 @@ displays a penalty adjustment dialog when appropriate."
 ;; Paragraph View Rendering
 ;; ------------------------
 
-(defun penalty-hue (break-point &aux (caliber (caliber break-point)))
-  "Return BREAK-POINT's penalty HUE in HSV model.
+;; Clues
+;; -----
+
+;; #### NOTE: the general policy for deciding whether a clue should be visible
+;; is as follows.
+;; First of all, the simple cases.
+;; - A penalty adjustment dialog exists (soft break points).
+;; - The inspector is active and the mouse is over it.
+;; Otherwise, it's more complicated. The specific clue option must be active,
+;; but that is not enough.
+;; - First of all, only clues for objects which are not directly visible are
+;;   displayed. For instance, horizontal casts are obviously visible but not
+;;   discretionaries (granted, some are, like explicit hyphenation points, but
+;;   we will still show the clue in case one day we have unbreakable hyphens
+;;   outside discretionaries). However, horizontal cast clues will be
+;;   displayed if the corresponding (soft) glue's penalty has been customized,
+;;   that is, if its value is different from the global UI one, or (for non
+;;   customizable values), the caliber's default one.
+;; - And then, there's another special case, which is that of the ends of
+;;   lines. There, all breaks are obviously visible because that's the end of
+;;   a line. So as above, the clues would only be displayed if the
+;;   corresponding (soft) break point's penalty has been customized.
+
+(defgeneric clue-hue (break-point)
+  (:documentation "Return BREAK-POINT's clue HUE in HSV model.")
+  (:method (break-point)
+    "Return 2 (for green). This is the default method."
+    2s0)
+  (:method ((break-point penalty-mixin) &aux (caliber (caliber break-point)))
+    "Return soft BREAK-POINT's clue HUE based on its penalty.
 Colors are interpolated from  blue (min) through green (0), to red (max).
 Min and max values depend on BREAK-POINT's penalty and caliber."
-  ;; #### FIXME: see comment on top of BREAK-POINT. This entails the
-  ;; complexity of handling null calibers below.
-  (if caliber
     (- 4s0 (* 4s0 (/ (- (decalibrated-value (penalty break-point) caliber)
 			(float (caliber-min caliber)))
-		     (- (caliber-max caliber) (caliber-min caliber)))))
-    2s0))
+		     (- (caliber-max caliber) (caliber-min caliber)))))))
 
-;; #### TODO: see comment atop CLUE-UNDER.
+;; #### TODO: see comment atop CLUE-UNDER-PIN.
 (defun draw-triangle (view x y &rest args)
   "Draw a triangular clue in VIEW at (X,Y).
 ARGS are subsequently passed to the drawing function."
   (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
 	 args))
 
-(defun draw-penalty-clue (view x y break-point &optional (filled t))
+(defun draw-break-point-clue (view x y break-point &optional (filled t))
   "Draw a triangle clue in VIEW at (X,Y) for BREAK-POINT.
 The triangle may be FILLED (T by default), and its color is computed based on
   BREAK-POINT's penalty."
   (draw-triangle view x y
       :filled filled
-      :foreground (color:make-hsv (penalty-hue break-point) 1s0 .7s0)))
+      :foreground (color:make-hsv (clue-hue break-point) 1s0 .7s0)))
 
-(defgeneric draw-clue (view x y helt &optional force)
-  (:documentation "Draw a clue in VIEW at (X,Y) for HELT.")
-  (:method (view x y (hyphenation-point hyphenation-point) &optional force)
-    "Draw clue in VIEW at (X,Y) for HYPHENATION-POINT.
-The clue is outlined or filled, depending on whether HYPHENATION-POINT is
-explicit or computed."
-    (declare (ignore force))
-    (draw-penalty-clue view x y hyphenation-point
-      (not (explicitp hyphenation-point))))
-  (:method (view x y (glue glue) &optional force)
-    "Draw clue in VIEW at (X,Y) for end of line GLUE.
-Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
-not 0."
-  (when (or force
-	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (draw-penalty-clue view x y glue))))
+(defun draw-helt-clue (view x y helt &optional force)
+  "Draw an HELT clue in VIEW at (X,Y).
+Unless FORCE, draw only if (soft) HELT's penalty has been customized.
+The clue is normally filled, but only outlined for explicit hyphenation
+points."
+  (when (or force (customizedp helt (top-level-interface view)))
+    (draw-break-point-clue view x y helt
+      (or (not (hyphenation-point-p helt)) (not (explicitp helt))))))
 
-(defun draw-whitespace-clue
-    (view x y elt-x-shift elt-y-shift whitespace
-     &optional force
-     &aux (glue (object whitespace)))
-  "Draw a whitespace clue in VIEW relatively to (X,Y) for WHITESPACE.
-(X,Y) is the point which WHITESPACE is positioned relatively to.
-Unless FORCE, the clue is drawn only if the corresponding glue's penalty is
-not 0."
-  (when (or force
-	    (not (zerop (decalibrated-value (penalty glue) (caliber glue)))))
-    (let ((h/2 (/ (+ (height whitespace) (depth whitespace)) 2)))
-      (gp:draw-circle view
-	(+ x (x whitespace) (funcall elt-x-shift whitespace)
-	   (/ (width whitespace) 2))
-	(- (+ y (funcall elt-y-shift whitespace)) h/2)
+(defun draw-hcast-clue (view x y hcast &optional force &aux (glue (glue hcast)))
+  "Draw an hcast clue in VIEW at (X,Y).
+Unless FORCE, draw only if HCAST's (soft) glue has been customized."
+  (when (or force (customizedp glue (top-level-interface view)))
+    (let ((h/2 (/ (+ (height hcast) (depth hcast)) 2)))
+      (gp:draw-ellipse view
+	(+ x (/ (width hcast) 2))
+	(- y h/2)
+	;; #### NOTE: it's possible to get 0-width hcasts (e.g. because of the
+	;; final glue in the Knuth-Plass). We want to make sure that we still
+	;; see a spot however.
+	(max 1 (/ (width hcast) 2))
 	h/2
-	:filled t ;; (not (explicitp discretionary))
-	:foreground (color:make-hsv (penalty-hue glue) 1s0 .7s0)))))
+	:filled t
+	:foreground (color:make-hsv (clue-hue glue) 1s0 .7s0)))))
 
+
+
+;; Paragraph
+;; ---------
 (defun display-callback
     (view x y width height
      &aux (etap (top-level-interface view))
@@ -1377,16 +1427,20 @@ not 0."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	(loop :with full-x
-		:= (+ (loop :for line :in (lines layout)
-			    :maximize (+ (x line)
-					 (funcall line-x-shift line)
-					 (width line)))
-				 5)
+	(loop :with fonts := (capi-object-property view :fonts)
+	      :with full-x ; for positioning *ful boxes
+		:= (+ (loop :for pin :in (lines layout)
+			    :maximize (+ (x pin)
+					 (funcall line-x-shift pin)
+					 (width (object pin))))
+		      5)
 	      :for rest :on (lines layout)
-	      :for line := (car rest)
-	      :for lx := (+ (x line) (funcall line-x-shift line))
-	      :for ly := (+ par-y (y line) (funcall line-y-shift line))
+	      :for pin := (car rest)
+	      :for lx := (+ (x pin) (funcall line-x-shift pin))
+	      :for ly := (+ par-y (y pin) (funcall line-y-shift pin))
+	      :for line := (object pin)
+	      :for items := (items line)
+	      :for last-item := (svref items (1- (length items)))
 	      :when (member :line-boxes clues)
 		:do (gp:draw-rectangle view
 			lx
@@ -1460,13 +1514,13 @@ not 0."
 			(member :character-boxes clues))
 		:do (map nil
 			 (lambda (item
-				  &aux (ix (+ lx
+				  &aux (object (object item))
+				       (ix (+ lx
 					      (x item)
 					      (funcall elt-x-shift item)))
 				       (iy (+ ly
 					      (funcall elt-y-shift item))))
-			   (cond ((typep (object item)
-					 'tfm:character-metrics)
+			   (cond ((typep object 'tfm:character-metrics)
 				  (when (member :character-boxes clues)
 				    (gp:draw-rectangle view
 					ix
@@ -1476,61 +1530,68 @@ not 0."
 				      :scale-thickness nil))
 				  (when (member :characters clues)
 				    (gp:draw-character view
-					(svref *lm-ec*
-					       (tfm:code (object item)))
-					ix iy)))
-				 ((and (cluep (object item))
-				       (hyphenation-point-p
-					(helt (object item)))
+					(svref *lm-ec* (tfm:code object))
+					ix iy
+					:font (cdr (find (tfm:font object)
+						       fonts
+						     :key #'car)))))
+				 ((and (cluep object)
+				       (discretionaryp (helt object))
+				       (not (hyphenation-point-p
+					     (helt object)))
+				       (or (member :discretionaries clues)
+					   (find-penalty-adjustment-dialog
+					    (helt object) etap)))
+				  (draw-helt-clue view ix iy (helt object)
+				    (or (find-penalty-adjustment-dialog
+					 (helt object) etap)
+					(not (eq item last-item)))))
+				 ((and (cluep object)
+				       (hyphenation-point-p (helt object))
 				       (or (member :hyphenation-points clues)
 					   (find-penalty-adjustment-dialog
-					    (helt (object item))
-					    etap)))
-				  (draw-clue view ix iy (helt (object item))))
-				 ((and (cluep (object item))
-				       (gluep (helt (object item)))
+					    (helt object) etap)))
+				  (draw-helt-clue view ix iy (helt object)
+				    (or (find-penalty-adjustment-dialog
+					 (helt object) etap)
+					(not (eq item last-item)))))
+				 ((and (cluep object)
+				       (gluep (helt object))
 				       (or (member :ends-of-line clues)
 					   (find-penalty-adjustment-dialog
-					    (helt (object item))
-					    etap)))
-				  (draw-clue view ix iy (helt (object item))
+					    (helt object) etap)))
+				  (draw-helt-clue view ix iy (helt object)
 				    (find-penalty-adjustment-dialog
-				     (helt (object item))
-				     etap)))
-				 ((and (whitespacep item)
+				     (helt object) etap)))
+				 ((and (hcastp object)
 				       (or (member :whitespaces clues)
 					   (find-penalty-adjustment-dialog
-					    (object item)
-					    etap)))
-				  (draw-whitespace-clue
-				   view lx ly elt-x-shift elt-y-shift item
-				   (find-penalty-adjustment-dialog
-				    (object item) etap)))))
-			 (items line)))
+					    object etap)))
+				  (draw-hcast-clue view ix iy object
+				    (find-penalty-adjustment-dialog
+				     object etap)))))
+			 items))
 	(when (getf (widget-value (inspector-box etap)) :activate)
-	  (multiple-value-bind (object line)
+	  (multiple-value-bind (object-pin line-pin)
 	      (let* ((pointer (capi-object-property view :pointer))
 		     (x (car pointer))
 		     (y (cdr pointer)))
 		(to-layout-coordinates x y layout zoom)
-		(object-under x y (lines layout)
+		(object-under-pin x y (lines layout)
 		  line-x-shift line-y-shift elt-x-shift elt-y-shift))
-	    ;; #### WARNING: we may end up drawing a clue for the second time
-	    ;; here, but this is probably not such a big deal.
-	    (when object
-	      (let* ((lx (+ (x line) (funcall line-x-shift line)))
-		     (ly (+ par-y (y line) (funcall line-y-shift line)))
-		     (ix (+ lx (x object) (funcall elt-x-shift object)))
-		     (iy (+ ly (funcall elt-y-shift object))))
-		(cond ((and (cluep (object object))
-			    (discretionaryp (helt (object object))))
-		       (draw-clue view ix iy (helt (object object))))
-		      ((and (cluep (object object))
-			    (gluep (helt (object object))))
-		       (draw-clue view ix iy (helt (object object)) :force))
-		      ((whitespacep object)
-		       (draw-whitespace-clue view lx ly
-			 elt-x-shift elt-y-shift object 'force)))))))
+	    ;; #### WARNING: we may end up drawing a clue for the second
+	    ;; time here, but this is probably not such a big deal.
+	    (when object-pin
+	      (let ((ix (+ (x line-pin) (funcall line-x-shift line-pin)
+			   (x object-pin) (funcall elt-x-shift object-pin)))
+		    (iy (+ par-y
+			   (y line-pin) (funcall line-y-shift line-pin)
+			   (y object-pin) (funcall elt-y-shift object-pin)))
+		    (object (object object-pin)))
+		(cond ((cluep object)
+		       (draw-helt-clue view ix iy (helt object) :force))
+		      ((hcastp object)
+		       (draw-hcast-clue view ix iy object :force)))))))
 	;; #### NOTE: Rivers are currently *not* recomputed in living text.
 	;; They just follow the text movement. In theory, rivers could be
 	;; different at each step of the ondulation though.
@@ -1876,8 +1937,8 @@ that the breakup does not contain any layout."
      :reader text)
    (view output-pane
      :title "Layout" :title-position :frame
-     :font (gp:make-font-description :family "Latin Modern Roman"
-	     :weight :normal :slant :roman :size 10)
+     :font (apply #'gp:make-font-description
+	     (rest (find *font* *fonts* :key #'first)))
      :visible-min-height 300
      :horizontal-scroll t
      :vertical-scroll t
@@ -1973,6 +2034,13 @@ that the breakup does not contain any layout."
 This currently involves setting ETAP to the required state and fixating the
 geometry of option panes so that resizing the interface is done sensibly."
   (funcall (capi-object-property etap :initialization-function))
+  (let ((view (view-area etap)))
+    (setf (capi-object-property view :fonts)
+	  (mapcar (lambda (font)
+		    (cons (first font)
+			  (gp:find-best-font view
+			    (apply #'gp:make-font-description (rest font)))))
+	    *fonts*)))
   (let* ((layout (slot-value etap 'settings-1))
 	 (size (multiple-value-list (simple-pane-visible-size layout))))
     (set-hint-table layout
@@ -2012,10 +2080,23 @@ those which may affect the lineup."
 ;; State
 
 (defun set-state
-    (etap nlstring font features disposition algorithm width
+    (etap buffer language font features disposition algorithm width
      clues inspector zoom)
   "Set ETAP interface's widgets state."
-  (setf (capi-object-property etap :original-nlstring) nlstring)
+  (setf (capi-object-property etap :original-buffer) buffer)
+  (setf (capi-object-property etap :original-language) language)
+  (setf (choice-selected-item (first (menu-items (language-menu etap))))
+	language)
+  ;; #### WARNING: this callback mess is needed because programmatically
+  ;; changing the editor pane's text triggers its change callback. This
+  ;; entails two problems:
+  ;; 1. it doesn't work when the interface is initialized (the call to
+  ;;    top-level-interface returns nil),
+  ;; 2. when calling this function from outside the interface, the application
+  ;; logic (remake) would be executed twice.
+  (setf (editor-pane-change-callback (text etap)) nil)
+  (setf (editor-pane-text (text etap)) buffer)
+  (setf (editor-pane-change-callback (text etap)) 'text-change-callback)
   (setf (capi-object-property etap :font) font)
   (setf (widget-value (features-box etap)) features)
   (setf (widget-value (disposition-type-box etap))
@@ -2053,42 +2134,32 @@ those which may affect the lineup."
   (setf (widget-value (clues-box etap)) clues)
   (setf (widget-value (inspector-box etap)) inspector)
   (enable-inspector (inspector-box etap))
-  (setf (widget-value (zoom-cursor etap)) zoom)
-  (setf (choice-selected-item (first (menu-items (language-menu etap))))
-	(language nlstring))
-  ;; #### WARNING: this callback mess is needed because programmatically
-  ;; changing the editor pane's text triggers its change callback. This
-  ;; entails two problems:
-  ;; 1. it doesn't work when the interface is initialized (the call to
-  ;;    top-level-interface returns nil),
-  ;; 2. when calling this function from outside the interface, the application
-  ;; logic (remake) would be executed twice.
-  (setf (editor-pane-change-callback (text etap)) nil)
-  (setf (editor-pane-text (text etap)) (text nlstring))
-  (setf (editor-pane-change-callback (text etap)) 'text-change-callback))
+  (setf (widget-value (zoom-cursor etap)) zoom))
 
+#i(set-state-from-lineup 1)
 (defun set-state-from-lineup (etap lineup width clues inspector zoom)
   "Set ETAP interface's widgets state using LINEUP."
   (set-state etap
-    (nlstring lineup) (font lineup)
-    (features lineup) (disposition lineup)
-    (algorithm lineup) width
+    (buffer lineup) (language lineup) (font lineup)
+    (features lineup) (disposition lineup) (algorithm lineup) width
     clues inspector zoom))
 
+#i(set-state-from-breakup 1)
 (defun set-state-from-breakup (etap breakup clues inspector zoom)
   "Set ETAP interface's widgets state using BREAKUP."
   (set-state-from-lineup etap
     (lineup breakup) (paragraph-width breakup)
     clues inspector zoom))
 
+#i(set-state-and-remake 1)
 (defun set-state-and-remake
     (etap
-     breakup lineup nlstring font features disposition algorithm width
+     breakup lineup buffer language font features disposition algorithm width
      layout clues inspector zoom)
   "Set ETAP interface's widgets state and remake as needed."
   (cond ((and (null lineup) (null breakup))
 	 (set-state etap
-	   nlstring font features disposition algorithm width
+	   buffer language font features disposition algorithm width
 	   clues inspector zoom)
 	 (remake etap))
 	(lineup
@@ -2115,13 +2186,13 @@ those which may affect the lineup."
 See also `interface-breakup'."
   (values
    (make-context
+    :buffer (editor-pane-text (text interface))
+    :language (language-specification interface)
     :font (capi-object-property interface :font)
-    :algorithm (algorithm-specification interface)
-    :disposition (disposition-specification interface)
     :features (widget-value (features-box interface))
-    :paragraph-width (widget-value (paragraph-width-cursor interface))
-    :text (editor-pane-text (text interface))
-    :language (language-specification interface))
+    :disposition (disposition-specification interface)
+    :algorithm (algorithm-specification interface)
+    :paragraph-width (widget-value (paragraph-width-cursor interface)))
    (list
     :clues (widget-value (clues-box interface))
     :inspector (widget-value (inspector-box interface))
@@ -2138,16 +2209,8 @@ See also `interface-state'."
 (defun visualize
     (&key (interface *interface*)
 	  (context *context*)
-	  (text
-	   (if (and context (nlstring context))
-	     (text (nlstring context))
-	     *text*)
-	   textp)
-	  (language
-	   (if (and context (nlstring context))
-	     (language (nlstring context))
-	     *language*)
-	   languagep)
+	  (buffer (if context (buffer context) *text*) bufferp)
+	  (language (if context (language context) *language*) languagep)
 	  (font (if context (font context) *font*) fontp)
 	  (features (when context (features context)) featuresp)
 	  (kerning (getf features :kerning) kerningp)
@@ -2165,10 +2228,7 @@ See also `interface-state'."
 	  (clues '(:characters t))
 	  inspector
 	  (zoom 100)
-     &aux (nlstring (if (or textp languagep (null context))
-		      (make-nlstring :text text :language language)
-		      (nlstring context)))
-	  reuse)
+     &aux reuse)
   "Run a typesetting visualization with the specified parameters.
 INTERFACE defaults to *INTERFACE*, which is initially null.
 If INTERFACE is null, create a new interface. Otherwise, reuse the provided
@@ -2205,8 +2265,7 @@ See also `interface-state' and `interface-breakup'."
   (setq features (list :kerning kerning
 		       :ligatures ligatures
 		       :hyphenation hyphenation))
-  (when (or textp languagep
-	    fontp
+  (when (or bufferp languagep fontp
 	    featuresp kerningp ligaturesp hyphenationp
 	    dispositionp
 	    algorithmp)
@@ -2218,7 +2277,7 @@ See also `interface-state' and `interface-breakup'."
 	   #'set-state-and-remake
 	   interface
 	   breakup lineup
-	   nlstring font features disposition algorithm width
+	   buffer language font features disposition algorithm width
 	   layout clues inspector zoom))
 	(t
 	 ;; See comment atop INTERFACE-DISPLAY about this.
@@ -2227,7 +2286,7 @@ See also `interface-state' and `interface-breakup'."
 		 (set-state-and-remake
 		  interface
 		  breakup lineup
-		  nlstring font features disposition algorithm width
+		  buffer language font features disposition algorithm width
 		  layout clues inspector zoom)))
 	 (display interface)))
   interface)

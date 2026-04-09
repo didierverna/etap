@@ -177,29 +177,29 @@ See `define-caliber' for more information."
 ;; HList
 ;; ==========================================================================
 
-(defmethod post-process-hlist
+(defmethod process-hlist
     (hlist disposition (algorithm (eql :fit))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
-  "Finish setting up hyphenation points.
-This means defaulting their penalties and initializing the corresponding
+  "Glue HLIST and convert all break points to soft ones.
 caliber.
 Return HLIST."
   (calibrate-fit hyphen-penalty)
   (calibrate-fit explicit-hyphen-penalty)
-  (mapc (lambda (item)
-	  (typecase item
+  (setq hlist (glue-hlist hlist))
+  (mapc (lambda (helt)
+	  (typecase helt
 	    (hyphenation-point
-	     (cond ((explicitp item)
-		    (setf (penalty item) *explicit-hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *fit-explicit-hyphen-penalty*))
+	     (cond ((explicitp helt)
+		    (change-class helt 'soft-hyphenation-point
+		      :penalty *explicit-hyphen-penalty*
+		      :caliber *fit-explicit-hyphen-penalty*))
 		   (t
-		    (setf (penalty item) *hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *fit-hyphen-penalty*))))
+		    (change-class helt 'soft-hyphenation-point
+		      :penalty *hyphen-penalty*
+		      :caliber *fit-hyphen-penalty*))))
 	    (glue
-	     (setf (slot-value item 'caliber) *fit-glue-penalty*))))
+	     (change-class helt 'soft-glue :caliber *fit-glue-penalty*))))
     hlist)
   hlist)
 

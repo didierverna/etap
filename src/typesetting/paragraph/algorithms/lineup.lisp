@@ -3,17 +3,19 @@
 ;; equivalent of an hlist, in array form).
 
 ;; In addition to the harray, the lineup also stores the computation of the
-;; break points and theoretical solutions numbers. We associate those numbers
-;; with the lineup's harray rather than with the original hlist because some
-;; algorithms have control over the availability of break points (e.g. by
-;; putting an infinite penalty on hyphenation points).
+;; potential break points and theoretical solutions numbers. We associate
+;; those numbers with the lineup's harray rather than with the original hlist
+;; in order to let algorithms prepare the harray in any way they see fit (this
+;; might affect the number of break points). Note that the computed number of
+;; break-points is theoretical. In particular it doesn't reflect dynamically
+;; adjusted penalties.
 
 (in-package :etap)
 (in-readtable :etap)
 
 
 ;; ==========================================================================
-;; Algorithm HList Post-Processing
+;; Algorithm HList Processing
 ;; ==========================================================================
 
 ;; #### WARNING: the DISPOSITION argument is currently unused, but will be
@@ -23,14 +25,14 @@
 ;; knowing in advance whether they're going to be used or not, so we need to
 ;; relax keyword argument checking.
 
-(defgeneric post-process-hlist
+(defgeneric process-hlist
     (hlist disposition algorithm &key &allow-other-keys)
   (:documentation
-   "Post-process HLIST for DISPOSITION in an ALGORITHM-specific way.
+   "Process HLIST for DISPOSITION in an ALGORITHM-specific way.
 All primary methods must return a (possibly modified) HLIST.")
   (:method (hlist disposition algorithm &key)
-    "Return HLIST as-is. This is the default method."
-    hlist))
+    "Return a new hard glued HLIST. This is the default method."
+    (glue-hlist hlist)))
 
 
 
@@ -39,20 +41,19 @@ All primary methods must return a (possibly modified) HLIST.")
 ;; Lineups
 ;; ==========================================================================
 
-(defparameter *lineup-features*
-  '(:kerning :ligatures :hyphenation)
-  "The lineup features, as advertised by the interface.")
-
 ;; #### NOTE: contrary to breakups, there is currently no need for
 ;; algorithm-specific lineup subclasses, even though it would make the
 ;; specification (and the generic dispatch) of BREAK-LINEUP much cleaner.
 
 (defclass lineup ()
-  ((nlstring
-    :documentation "The lineup's original nlstring."
-    :initarg :nlstring :reader nlstring)
+  ((buffer
+    :documentation "The lineup's buffer."
+    :initarg :buffer :reader buffer)
+   (language
+    :documentation "The lineup's default language."
+    :initarg :language :reader language)
    (font
-    :documentation "The lineup's font."
+    :documentation "The lineup's default font."
     :initarg :font :reader font)
    (features
     :documentation "The lineup's features."
@@ -67,7 +68,7 @@ All primary methods must return a (possibly modified) HLIST.")
     :documentation "The lineup's harray."
     :reader harray)
    (break-points-#
-    :documentation "The number of break points."
+    :documentation "The number of theoretical break points."
     :initform 0 :reader break-points-#)
    (theoretical-solutions-#
     :documentation "The number of theoretical solutions (2^n)."
@@ -75,20 +76,37 @@ All primary methods must return a (possibly modified) HLIST.")
   (:documentation "The LINEUP class."))
 
 (defmethod initialize-instance :after
-    ((lineup lineup) &key &aux (algorithm (algorithm lineup)) hlist)
+    ((lineup lineup)
+     &key
+     &aux (features (features lineup))
+	  (algorithm (algorithm lineup)))
   "Finalize LINEUP.
 This currently involves:
 - creating the harray and initializing the break point indexes,
 - computing the total number of (usable) break points, and theoretical
   solutions."
-  (setq hlist (%make-hlist (nlstring lineup) (font lineup) (features lineup)))
-  (when hlist
-    (setq hlist (apply #'post-process-hlist hlist
-		       (disposition lineup)
-		       (algorithm-type algorithm)
-		       (algorithm-options algorithm))))
+  (let ((*language* (language lineup))
+	(*font* (font lineup))
+	(*kerning* (getf features :kerning))
+	(*ligaturing* (getf features :ligatures))
+	(*hyphenation* (getf features :hyphenation)))
+    (load-buffer (buffer lineup))
+    ;; #### NOTE: I'm doing this here instead of in MAKE-HLIST in prevision
+    ;; for this function being called recursively.
+    (when (eq (first *hlist*) :blank) (setq *hlist* (rest *hlist*)))
+    (when (eq (first (last *hlist*)) :blank) (setq *hlist* (nbutlast *hlist*)))
+    (when *hlist*
+      ;; #### NOTE: the order is important: Hyphenation, ligaturing, and
+      ;; finally kerning.
+      (when *hyphenation* (setq *hlist* (hyphenate-hlist *hlist*)))
+      (when *ligaturing* (setq *hlist* (ligature-hlist *hlist*)))
+      (when *kerning* (setq *hlist* (kern-hlist *hlist*)))
+      (setq *hlist* (apply #'process-hlist *hlist*
+			   (disposition lineup)
+			   (algorithm-type algorithm)
+			   (algorithm-options algorithm)))))
   (with-slots (harray) lineup
-    (setq harray (make-array (length hlist) :initial-contents hlist))
+    (setq harray (make-array (length *hlist*) :initial-contents *hlist*))
     ;; #### NOTE: for clarity, we want to make a distinction between and empty
     ;; paragraph and a non-empty one with no break points. In the former case,
     ;; we state that we have 0 solutions, while in the later case we have one.
@@ -97,9 +115,8 @@ This currently involves:
 	    :for item :across harray
 	    :for i :from 0
 	    :when (break-point-p item)
-	      :do (progn
-		    (setf (slot-value item 'idx) i)
-		    (when ($< (penalty item) +∞) (incf break-points-#)))
+	      :do (setf (slot-value item 'idx) i)
+	      :and :do (incf break-points-#)
 	    :finally (setf (slot-value lineup 'break-points-#)
 			   break-points-#
 			   (slot-value lineup 'theoretical-solutions-#)
@@ -120,8 +137,8 @@ breaking solutions."
 ;; Entry Point
 ;; ==========================================================================
 
-(defun %make-lineup (nlstring font features disposition algorithm)
+(defun %make-lineup (buffer language font features disposition algorithm)
   "Make a new lineup. See `context' for an explanation of the arguments."
   (make-instance 'lineup
-    :nlstring nlstring :font font :features features
-    :disposition disposition :algorithm algorithm))
+    :buffer buffer :language language :font font
+    :features features :disposition disposition :algorithm algorithm))

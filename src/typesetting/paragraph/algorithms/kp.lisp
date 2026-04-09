@@ -84,7 +84,7 @@ See `define-caliber' for more information."
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
 ;; the same here.
 
-(defmethod post-process-hlist
+(defmethod process-hlist
     (hlist disposition (algorithm (eql :knuth-plass))
      &key ((:hyphen-penalty *hyphen-penalty*))
 	  ((:explicit-hyphen-penalty *explicit-hyphen-penalty*)))
@@ -95,21 +95,77 @@ caliber.
 Return HLIST."
   (calibrate-kp hyphen-penalty)
   (calibrate-kp explicit-hyphen-penalty)
-  (mapc (lambda (item)
-	  (typecase item
-	    (discretionary
-	     (cond ((pre-break item)
-		    (setf (penalty item) *hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kp-hyphen-penalty*))
-		   (t
-		    (setf (penalty item) *explicit-hyphen-penalty*)
-		    (setf (slot-value item 'caliber)
-			  *kp-explicit-hyphen-penalty*))))
-	    (glue
-	     (setf (slot-value item 'caliber) *kp-glue-penalty*))))
-    hlist)
-  (endpush (make-glue :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*) hlist)
+  (case (disposition-type disposition)
+    (:flush-left
+     (setq hlist
+	   (loop :with previous-helt
+		 :for helt :in hlist
+		 :if (eq helt :blank)
+		   :collect
+		 ;; #### TODO: should look into previous discretionary.
+		   (let* ((font (or (when (typep previous-helt
+						 'tfm:character-metrics)
+				      (tfm:font previous-helt))
+				    *font*)))
+		     (make-soft-discretionary
+		      :pre-break (list (make-glue
+					:stretch (* 2 (tfm:em font))))
+		      :no-break (list (make-glue
+				       :width (tfm:interword-space font)))
+		      :caliber *kp-glue-penalty*))
+		 :else
+		   :do (when (discretionaryp helt)
+			 ;; #### TODO: should look into previous discretionary.
+			 (let* ((font (or (when (typep previous-helt
+						       'tfm:character-metrics)
+					    (tfm:font previous-helt))
+					  *font*)))
+			   (endpush (make-glue :stretch (* 2 (tfm:em font)))
+				    (pre-break helt)))
+			 (cond ((pre-break helt)
+				(change-class helt
+				    (if (hyphenation-point-p helt)
+				      'soft-hyphenation-point
+				      'soft-discretionary)
+				  :penalty *hyphen-penalty*
+				  :caliber *kp-hyphen-penalty*))
+			       (t
+				(change-class helt
+				    (if (hyphenation-point-p helt)
+				      'soft-hyphenation-point
+				      'soft-discretionary)
+				  :penalty *explicit-hyphen-penalty*
+				  :caliber *kp-explicit-hyphen-penalty*))))
+		   :and :do (setq previous-helt helt)
+		   :and :collect helt))
+     (endpush (make-soft-glue
+	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+	      hlist))
+    (t
+     (setq hlist (glue-hlist hlist))
+     (mapc (lambda (helt)
+	     (typecase helt
+	       (discretionary
+		(cond ((pre-break helt)
+		       (change-class helt
+			   (if (hyphenation-point-p helt)
+			     'soft-hyphenation-point
+			     'soft-discretionary)
+			 :penalty *hyphen-penalty*
+			 :caliber *kp-hyphen-penalty*))
+		      (t
+		       (change-class helt
+			   (if (hyphenation-point-p helt)
+			     'soft-hyphenation-point
+			     'soft-discretionary)
+			 :penalty  *explicit-hyphen-penalty*
+			 :caliber *kp-explicit-hyphen-penalty*))))
+	       (glue
+		(change-class helt 'soft-glue :caliber *kp-glue-penalty*))))
+       hlist)
+     (endpush (make-soft-glue
+	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
+	      hlist)))
   hlist)
 
 
@@ -253,14 +309,6 @@ instantiated instead."
       :asar asar :esar esar :demerits demerits
       keys)))
 
-;; #### NOTE: there's no need for a KP-PINNED-NODE because when pinning lines,
-;; we don't care about the previous one anymore. Thus, we can safely
-;; CHANGE-CLASS a KP-NODE into a KP-PINNED-LINE, thereby dropping the PREVIOUS
-;; slot.
-(defclass kp-pinned-line (kp-line pin)
-  ()
-  (:documentation "The Knuth-Plass Pinned Line class."))
-
 
 ;; -------
 ;; Layouts
@@ -268,8 +316,7 @@ instantiated instead."
 
 ;; #### NOTE: the layout's demerits is in fact the demerits of the last line.
 (defclass kp-layout (layout)
-  ((pinned-line-class :initform 'kp-pinned-line) ; slot override
-   (demerits
+  ((demerits
     :documentation "This layout's total demerits."
     :initarg :demerits :reader demerits)
    (size
@@ -391,7 +438,7 @@ This is the Knuth-Plass version for the graph variant.
 	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
 	  (make-line
 	   (case disposition-type
-	     (:justified
+	     ((:justified :flush-left)
 	      (lambda (harray bol boundary demerits)
 		(kp-make-justified-line harray bol boundary
 		  stretch-tolerance overshrink demerits)))
@@ -711,7 +758,7 @@ or, in case of equality, a lesser amount of demerits."
 	  (nodes (make-hash-table :test #'equal))
 	  (make-node
 	   (case disposition-type
-	     (:justified
+	     ((:justified :flush-left)
 	      (lambda (harray bol boundary demerits previous)
 		(kp-make-justified-line harray bol boundary
 		  stretch-tolerance overshrink demerits :previous previous)))

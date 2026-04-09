@@ -171,11 +171,6 @@ If the helt at that position is a discretionary, return the appropriate
 pre/no/post break part. This function also injects discretionary and EOL
 clues in the returned value when appropriate."
   (cond ((discretionaryp helt)
-	 ;; #### WARNING: after all the pre-processing done on the hlist,
-	 ;; including ligatures / kerning management in the presence of
-	 ;; hyphenation points, we may end up with harrays beginning or ending
-	 ;; with discretionaries (or even consecutive discretionaries for that
-	 ;; matter).
 	 (cond ((= i start)
 		(post-break helt))
 	       ((= i (1- stop))
@@ -183,6 +178,10 @@ clues in the returned value when appropriate."
 	       (t
 		(cons (make-clue helt) (no-break helt)))))
 	((and (= i (1- stop)) (not (= stop (length harray))))
+	 ;; #### NOTE: if the break point is a discretionary, it would be
+	 ;; included in the line for its pre-break element so we would have
+	 ;; caught it above. This means that if we get here, the next break
+	 ;; point has to be a glue.
 	 (assert (gluep (svref harray stop)))
 	 (list helt (make-clue (svref harray stop))))
 	(t
@@ -217,23 +216,41 @@ If BREAK-POINT is an EOP one, return NIL."
 ;; Geometry
 ;; --------
 
+(defun list-dimensions (list &aux (width 0) (stretch 0) (shrink 0))
+  "Compute the total width, stretch, and shrink amounts of helts in LIST.
+Return those as three values.
+LIST may contain any kind of helt except for discretionary *-breaks (so no
+sub-list)."
+  (mapc (lambda (helt)
+	  (incf width (width helt))
+	  (when (gluep helt)
+	    (setq stretch ($+ stretch (stretch helt)))
+	    (incf shrink (shrink helt))))
+    list)
+  (values width stretch shrink))
+
 (defun harray-width (harray start stop)
   "Compute HARRAY's width between START and STOP.
 Return five values: the natural, maximum, and minimum width, followed by the
 stretch and shrink amounts."
-  (loop :with width := 0
-	:with stretch := 0
-	:with shrink := 0
+  (loop :with width := 0 :with stretch := 0 :with shrink := 0
 	:for i :from start :upto (1- stop)
-	;; #### FIXME: this works for now, but it is not quite right in the
-	;; general case. When ELEMENT is a list (typically the contents of a
-	;; discretionary, there could be anything inside, including, e.g.,
-	;; glues. See also the long comment above the KERNING function.
-	:for element := (haref harray i start stop)
-	:do (incf width (width element))
-	:when (gluep element)
-	  :do (setq stretch ($+ stretch (stretch element))
-		    shrink (+ shrink (shrink element)))
+	:for helt := (haref harray i start stop)
+	:do (typecase helt
+	      (glue
+	       (incf width (width helt))
+	       (setq stretch ($+ stretch (stretch helt)))
+	       (incf shrink (shrink helt)))
+	      ;; From a discretionary *-break, and / or something with clues
+	      ;; added by HAREF.
+	      (list
+	       (multiple-value-bind (lwidth lstretch lshrink)
+		   (list-dimensions helt)
+		 (incf width lwidth)
+		 (setq stretch ($+ stretch lstretch))
+		 (incf shrink lshrink)))
+	      (t
+	       (incf width (width helt))))
 	:finally (return (values width ($+ width stretch) (- width shrink)
 				 stretch shrink))))
 
@@ -302,41 +319,45 @@ for that)."))
 ;; Lines
 ;; ==========================================================================
 
-;; -----------
-;; Whitespaces
-;; -----------
-
-;; #### WARNING: do not confuse whitespaces (pinned glues) with glues, or
-;; blank characters. In fact, newlines are considered blank characters, but
-;; they do not produce whitespaces.
+;; ----------------
+;; Horizontal Casts
+;; ----------------
 
 ;; #### NOTE: glues are currently the only items that cannot be pinned
-;; directly, hence the class below. The reason is that the width of a pinned
-;; glue is different from the glue's width in general (it depends on the
-;; line's SAR).
-(defclass whitespace (pinned)
+;; directly because the width of the resulting white space is in general
+;; different from the glue's width (it depends on the line's SAR).
+
+(defclass hcast ()
   ((width
-    :documentation "The whitespace's width."
+    :documentation "The hcast's width."
     :initarg :width :reader width)
    (height
-    :documentation "The whitespace's height."
-    :initarg :height :reader height))
-  (:documentation "The WHITESPACE class.
-This class represents pinned glues and stores their width after scaling.
-A whitespace's height is set to the ex of the preceding character."))
+    :documentation "The hcast's height."
+    :initarg :height :reader height)
+   (depth
+    :documentation "The hcast's depth (always 0)."
+    :allocation :class :initform 0 :reader depth)
+   (glue
+    :documentation "The hcast's original glue."
+    ;; The HELT reader helps harmonizing the behavior with that of clues.
+    :initarg :glue :reader glue :reader helt))
+  (:documentation "The HCAST class.
+This class represents a glue frozen to a specific width in a line.
+An hcast's height depends on what surrounds it."))
 
-(defmethod properties strnlcat ((whitespace whitespace) &key)
-  "Advertise WHITESPACE's actual width."
-  (format nil "Width: ~Apt." (float (width whitespace))))
+(defun hcastp (object)
+  "Return T if OBJECT is a horizontal cast."
+  (typep object 'hcast))
 
-(defun whitespacep (item)
-  "Return T if ITEM is a whitespace."
-  (typep item 'whitespace))
+(defmethod properties strnlcat ((hcast hcast) &key)
+  "Advertise HCAST's width and the original glue's properties."
+  (format nil "Width: ~Apt.~%~A"
+    (float (width hcast))
+    (properties (glue hcast))))
 
-(defun pin-glue (glue width height board x)
-  "Pin GLUE of scaled WIDTH and HEIGHT on BOARD at (X, 0)."
-  (make-instance 'whitespace
-    :width width :height height :object glue :board board :x x))
+(defun make-hcast (width height glue)
+  "Make a horizontal cast of WIDTH and HEIGHT out of GLUE."
+  (make-instance 'hcast :width width :height height :glue glue))
 
 
 
@@ -372,9 +393,10 @@ Overshrink disposition options)."
     :initarg :esar :reader esar)
    (items
     :documentation "The array of items in the line.
-Currently, those are characters, whitespaces, and clues.
+Currently, those are pinned characters, hcasts, and clues.
 These items are positioned relatively to the line's origin (which may be
-different from the paragraph's origin."
+different from the paragraph's origin.
+This slot is unbound until the line is rendered."
     :reader items))
   (:documentation "The LINE class.
 A line represents one step in a layout, that is, a particular path from the
@@ -450,44 +472,43 @@ Optionally preset ASAR and ESAR."
 ;; Rendering
 ;; ---------
 
-(defun render-line (line &aux (esar (esar line)) items)
-  "Pin LINE's items and return LINE."
+(defun render-line (pin &aux (line (object pin)) (esar (esar line)) items)
+  "Pin the items in PINned line to PIN."
   ;; #### NOTE: infinite ESAR means that we do not have any elasticity.
   ;; Leaving things as they are, we would end up doing (* +/-∞ 0) below, which
   ;; is not good. However, the intended value of (* +/-∞ 0) is 0 here (again,
   ;; no elasticity) so we can get the same behavior by resetting ESAR to 0.
   (unless (numberp esar) (setq esar 0))
-  (setq items (loop :with x := 0 :with w
-		    :with harray := (harray line)
-		    ;; Somewhat arbitrary but small initial value. The idea is
-		    ;; to make whitespaces of the same height as the preceding
-		    ;; character's ex (in the future, the preceding box's
-		    ;; height), while remaining on the safe side if there's no
-		    ;; previous height to get (for instance if a line ever
-		    ;; begins with a whitespace).
-		    :with h := 3
-		    :for object
-		      :in (flatten-harray harray (bol-idx line) (eol-idx line))
-		    :if (cluep object)
-		      :collect (pin-object object line x)
-		    :else :if (typep object 'tfm:character-metrics)
-			    :collect (pin-object object line x)
-			    :and :do (incf x (width object))
-			    :and :do (setq h (tfm:ex (tfm:font object)))
-		    :else :if (kernp object)
-			    :do (incf x (width object))
-		    :else :if (gluep object)
-			    :do (setq w (width object))
-			    :and :unless (zerop esar)
-				   :do (incf w (if (> esar 0)
-						 (* esar (stretch object))
-						 (* esar (shrink object))))
-				 :end
-			    :and :collect (pin-glue object w h line x)
-			    :and :do (incf x w)))
+  (setq items
+	(loop :with x := 0 :with w
+	      :with harray := (harray line)
+	      ;; Somewhat arbitrary but small initial value. The idea is to
+	      ;; make hcasts of the same height as the preceding character's
+	      ;; ex (in the future, the preceding box's height), while
+	      ;; remaining on the safe side if there's no previous height to
+	      ;; get (for instance if a line ever begins with an hcast).
+	      :with h := 3
+	      :for item ; technically, clues are not helts so let's say "item"
+		:in (flatten-harray harray (bol-idx line) (eol-idx line))
+	      :if (cluep item)
+		:collect (make-pin item pin :x x)
+	      :else :if (typep item 'tfm:character-metrics)
+		:collect (make-pin item pin :x x)
+		:and :do (incf x (width item))
+		:and :do (setq h (tfm:ex (tfm:font item)))
+	      :else :if (kernp item)
+		:do (incf x (width item))
+	      :else :if (gluep item)
+		:do (setq w (width item))
+		:and :unless (zerop esar)
+		  :do (incf w (if (> esar 0)
+				  (* esar (stretch item))
+				  (* esar (shrink item))))
+		  :end
+		:and :collect (make-pin (make-hcast w h item) pin :x x)
+		:and :do (incf x w)))
   (setf (slot-value line 'items)
-	(make-array (length items) :initial-contents items))
-  line)
+	(make-array (length items) :initial-contents items)))
 
 
 
@@ -500,11 +521,11 @@ Optionally preset ASAR and ESAR."
   ((breakup
     :documentation "The breakup this layout belongs to."
     :initarg :breakup :reader breakup)
-   (pinned-line-class
-    :documentation "The class to use when pinning lines."
-    :allocation :class :initform 'pinned-line :reader pinned-line-class)
    (lines
-    :documentation "This layout's list of lines."
+    :documentation "This layout's list of lines.
+Before rendering, these are effectively objects if some possibly
+algorithm-dependent line class. After rendering, this slot is updated to
+contain pinned lines instead."
     :initform nil :initarg :lines :reader lines))
   (:documentation "The LAYOUT class.
 A layout represents one specific path from the beginning to the end of the
@@ -517,10 +538,8 @@ specific global properties."))
 ;; Rendering
 ;; ---------
 
-(defclass pinned-line (line pin)
-  ()
-  (:documentation "The LINNED-LINE class."))
-
+;; #### FIXME: this function should disappear now that we have flush
+;; dispositions processed differently.
 (defun render-layout
     (layout
      &aux (lines (lines layout))
@@ -528,20 +547,21 @@ specific global properties."))
 	  (par-width (paragraph-width breakup)))
   "Render LAYOUT's lines and pin them. Return LAYOUT."
   (when lines
-    (loop :with class := (pinned-line-class layout)
-	  :with baseline-skip := (baseline-skip (harray breakup))
-	  :with x := (ecase (disposition-type (disposition breakup))
-		       ((:flush-left :justified)
-			(lambda (line) (declare (ignore line)) 0))
-		       (:centered
-			(lambda (line) (/ (- par-width (width line)) 2)))
-		       (:flush-right
-			(lambda (line) (- par-width (width line)))))
-	  :for y := 0 :then (+ y baseline-skip)
-	  :for line :in lines
-	  :do (render-line line)
-	  :do (change-class line class
-		:board layout :x (funcall x line) :y y)))
+    (setf (slot-value layout 'lines)
+	  (loop :with baseline-skip := (baseline-skip (harray breakup))
+		:with x := (ecase (disposition-type (disposition breakup))
+			     ((:flush-left :justified)
+			      (lambda (line) (declare (ignore line)) 0))
+			     (:centered
+			      (lambda (line) (/ (- par-width (width line)) 2)))
+			     (:flush-right
+			      (lambda (line) (- par-width (width line)))))
+		:for y := 0 :then (+ y baseline-skip)
+		:for line :in lines
+		;; #### NOTE: lines are currently at the toplevel, so no board.
+		:for pin := (make-pin line nil :x (funcall x line) :y y)
+		:do (render-line pin)
+		:collect pin)))
   layout)
 
 ;; #### NOTE: nothing prevents an algorithm from sharing an object
@@ -549,9 +569,9 @@ specific global properties."))
 ;; programming implementation of the Knuth-Plass does exactly that. As a
 ;; consequence, we need to check that /all/ layout lines have been rendered
 ;; below. Not just, say, the first one.
-(defun renderedp (layout &aux (class (pinned-line-class layout)))
-  "Return T if LAYOUT is rendered."
-  (every (lambda (line) (typep line class)) (lines layout)))
+(defun renderedp (layout)
+  "Return T if LAYOUT is fully rendered."
+  (every (lambda (line) (typep line 'pin)) (lines layout)))
 
 
 (defun lines-# (layout)
