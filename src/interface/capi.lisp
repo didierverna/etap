@@ -1130,9 +1130,9 @@ This function returns the corresponding line's pin as a second value."
 			 (and (cluep (object item))
 			      (triangle-under-p
 			       p
-			       (cons ix ly)
-			       (cons (+ ix -3) (+ ly 5))
-			       (cons (+ ix +3) (+ ly 5)))))
+			       (cons ix iy)
+			       (cons (+ ix -3) (+ iy 5))
+			       (cons (+ ix +3) (+ iy 5)))))
 		       (items (object pin)))
 	      ;; #### FIXME: this has become obsolete since it's the item's
 	      ;; board.
@@ -1218,8 +1218,8 @@ X and Y must be variable names (not evaluated). They are modified in-place."
   "Function called when the mouse is moved in the paragraph VIEW.
 - Display the paragraph properties when the mouse is above the first line.
 - Display the line properties when the mouse is in the left margin of a line.
-- Otherwise, display the properties of the object under mouse (currently, a
-  hyphenation point)."
+- Otherwise, display the properties of the object under mouse (currently,
+  clues and hcasts)."
   (setf (capi-object-property view :pointer) (cons x y))
   (when (getf inspect :activate)
     ;; We have the view directly here, so no need to go through REDRAW.
@@ -1290,14 +1290,14 @@ This does nothing if the inspector is not active. Otherwise, it currently
 displays a penalty adjustment dialog when appropriate."
   (when (and (getf (widget-value (inspector-box etap)) :activate) layout)
     (to-layout-coordinates x y layout (zoom-value etap))
-    (let* ((line-x-shift (or (capi-object-property view :line-x-shift)
-			     (lambda (line) (declare (ignore line)) 0)))
-	   (line-y-shift (or (capi-object-property view :line-y-shift)
-			     (lambda (line) (declare (ignore line)) 0)))
-	   (elt-x-shift (or (capi-object-property view :elt-x-shift)
-			    (lambda (elt) (declare (ignore elt)) 0)))
-	   (elt-y-shift (or (capi-object-property view :elt-y-shift)
-			    (lambda (elt) (declare (ignore elt)) 0))))
+    (let ((line-x-shift (or (capi-object-property view :line-x-shift)
+			    (lambda (line) (declare (ignore line)) 0)))
+	  (line-y-shift (or (capi-object-property view :line-y-shift)
+			    (lambda (line) (declare (ignore line)) 0)))
+	  (elt-x-shift (or (capi-object-property view :elt-x-shift)
+			   (lambda (elt) (declare (ignore elt)) 0)))
+	  (elt-y-shift (or (capi-object-property view :elt-y-shift)
+			   (lambda (elt) (declare (ignore elt)) 0))))
       (when-let (pin (and (<= 0 x (+ (paragraph-width breakup) *border-width*))
 			  (<= (- (height layout))
 			      y
