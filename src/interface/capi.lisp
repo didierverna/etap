@@ -869,8 +869,7 @@ Each point is of the form (X . Y)."
 ;; coordinates (involving +/-3 on X and +5 on Y) are hardwired here and also
 ;; in DRAW-TRIANGLE.
 (defun clue-under-pin (x y pins)
-  "Find a clue from line PINS which is under (X, Y). Return its pin.
-If no such clue is found, return NIL.
+  "Find a clue from line PINS under (X, Y). Return its pin or NIL.
 Technically, (X, Y) is not over the clue (which is a 0-sized object), but over
 its visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
@@ -887,6 +886,8 @@ This function returns the corresponding line's pin as a second value."
 			       (cons (+ ix -3) (+ ly 5))
 			       (cons (+ ix +3) (+ ly 5)))))
 		       (items (object pin)))
+	      ;; #### FIXME: this is probably obsolete now that boards are
+	      ;; pins.
 	      pin))))
 
 ;; #### TODO: for 0-width hcasts (such as the one at the end of the paragraph
@@ -896,9 +897,8 @@ This function returns the corresponding line's pin as a second value."
 ;; raises the question of customizability of programmatic elements... indeed,
 ;; some elements might be adjustable while some others (of the same kind) are
 ;; part of the algorithmic implementation.
-(defun hcast-under (x y pins)
-  "Return the horizontal cast from line PINS which is under (X, Y).
-If no such cast is found, return NIL.
+(defun hcast-under-pin (x y pins)
+  "Find an hcast from line PINS under (X, Y). Return its pin, or NIL.
 This function returns the corresponding line's pin as a second value."
   (when-let (pin (line-under-y-pin y pins))
     (values (find-if (lambda (item &aux (ix (+ (x pin) (x item))) (ly (y pin)))
@@ -906,12 +906,12 @@ This function returns the corresponding line's pin as a second value."
 			    (<= ix x (+ ix (width item)))
 			    (<= (- ly (height item)) y ly)))
 		     (items (object pin)))
+	    ;; #### FIXME: this is probably obsolete now that boards are pins.
 	    pin)))
 
 (defun object-under-pin (x y pins)
-  "Find the object from line PINS which is under (X, Y). Return its pin.
-If no such object is found, return NIL.
-Considered objects currently include clues and horizontal casts.
+  "Find an object from line PINS under (X, Y). Return its pin, or NIL.
+Considered objects currently include clues and hcasts.
 For clues, (X, Y) is not technically over it, but over the corresponding
 visual representation (the small triangle beneath it).
 This function returns the corresponding line's pin as a second value."
@@ -919,7 +919,7 @@ This function returns the corresponding line's pin as a second value."
   (multiple-value-bind (clue-pin line-pin) (clue-under-pin x y pins)
     (if clue-pin
       (values clue-pin line-pin)
-      (hcast-under x y pins))))
+      (hcast-under-pin x y pins))))
 
 
 
