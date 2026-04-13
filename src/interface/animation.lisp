@@ -137,8 +137,8 @@
   (declare (ignore infinity bounded))
   `(define-caliber rain ,name ,min ,default ,max ,@keys))
 
-(define-rain-caliber densite   0 0  10  :bounded t)
-(define-rain-caliber speed  0 2  20 :bounded t)
+(define-rain-caliber densite 0 2 10 :bounded t)
+(define-rain-caliber speed  0 1  10 :bounded t)
 (define-rain-caliber duration 1 3  100 :bounded t)
 
 
@@ -148,37 +148,41 @@
 
 (defun rain-shift (elt hash)
 "recupere la position y d'une lettre dans la hashmap et la renvoi "
-  (gethash elt hash)
+  (let ((val (gethash elt hash)))
+    (when val (car val)))
 )
 
 (defun rain-step (rain view)
   "avance chaque character a la vitesse du speed. Quand il touche le bas il se reste"
   (let* ((etap (top-level-interface view))
-          (layout-# (layout etap))
-          (layout (unless (zerop layout-#)
-                    (get-layout (1- layout-#) (breakup etap)))))
+         (layout-# (layout etap))
+         (layout (unless (zerop layout-#)
+                   (get-layout (1- layout-#) (breakup etap)))))
     (when layout
       (let ((end (+ (height layout) (depth layout))))
         (maphash (lambda (key val)
-                    (setf (gethash key (rain-hash rain))
-                          (if (>= val end) 0 (+ val (rain-speed rain)))))
-                  (rain-hash rain))))))
+                   (let ((y (car val))
+                         (speed (cdr val)))
+                     (setf (gethash key (rain-hash rain))
+                           (cons (if (>= y end) 0 (+ y speed))
+                                 speed))))
+                 (rain-hash rain))))))
 
 
-
-(defun populate (rain-hash layout densite)
-  "Select des character de facon random et populate ma hashmap"
+(defun populate (rain-hash layout densite speed)
   (clrhash rain-hash)
-  (loop :for line :in (lines layout)
-        :for i :from 0
-        :while (< i 3)
-        :do (map nil
-                  (lambda (item)
-                    (when (typep (object item) 'tfm:character-metrics)
-                      (when (zerop (random (max 1 densite)))
-                        (setf (gethash item rain-hash) 0))))
-                  (items line))))
-
+  (let ((end (+ (height layout) (depth layout))))
+    (loop :for line :in (lines layout)
+          :for i :from 0
+          :while (< i 3)
+          :do (map nil
+                    (lambda (item)
+                      (when (typep (object item) 'tfm:character-metrics)
+                        (when (< (random 10) densite)
+                          (setf (gethash item rain-hash)
+                                (cons (- (y line) (random (floor end))) ; départ décalé aléatoirement AVANT la ligne
+                                      (+ 1 (random (max 1 (floor speed)))))))))
+                    (items line)))))
 
 
 ; Installation
@@ -195,7 +199,7 @@
             (layout (unless (zerop layout-#)
                       (get-layout (1- layout-#) (breakup etap)))))
       (when layout
-        (populate (rain-hash rain) layout (rain-densite rain))))
+        (populate (rain-hash rain) layout (rain-densite rain) (rain-speed rain))))
     (setf (capi-object-property view :elt-y-shift)
           (lambda (elt) (or (rain-shift elt (rain-hash rain)) 0)))
     (setf (capi-object-property view :living-text-step)

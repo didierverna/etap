@@ -554,17 +554,20 @@ Update CURSOR's title and propagate the new value to the rain struct."
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the Rain repopulate button is pushed."
   (declare (ignore data))
-  (let ((rain (capi-object-property view :rain)))
-    (when rain
-      (setf (rain-densite rain)
-	    (widget-value (find-widget :rain-densite dialog)))
-      (setf (rain-speed rain)
-	    (widget-value (find-widget :rain-speed dialog)))
-      (setf (capi-object-property view :rain) nil)))
-  (living-text-install-animation :rain view)
+  (let ((densite (widget-value (find-widget :rain-densite dialog)))
+        (speed   (widget-value (find-widget :rain-speed dialog))))
+    (setf (capi-object-property view :rain) nil)
+    (living-text-install-animation :rain view)
+    (let ((rain (capi-object-property view :rain)))
+      (when rain
+        (setf (rain-densite rain) densite)
+        (setf (rain-speed rain) speed)
+        (let* ((layout-# (layout etap))
+               (layout (unless (zerop layout-#)
+                         (get-layout (1- layout-#) (breakup etap)))))
+          (when layout
+            (populate (rain-hash rain) layout densite speed))))))
   (redraw etap))
- 
-
 
 ;; ----------------------
 ;; Living Text Interface
@@ -650,6 +653,20 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (item-data (rain-start/stop-button dialog)) :run-animation)
   (living-text-install-animation (first item) view))
 
+
+(defun living-text-reset-callback
+    (dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  ;; Stopper l'animation d'abord
+  (setf (capi-object-property view :living-text-animation) nil)
+  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
+  ;; Remettre toutes les lettres à leur position typographique (shift=0)
+  (let ((rain (capi-object-property view :rain)))
+    (when rain
+      (maphash (lambda (key val)
+                 (setf (gethash key (rain-hash rain))
+                       (cons 0 (cdr val))))  ; y=0, garder la vitesse
+               (rain-hash rain))))
+  (redraw etap))
 
 ;;-----------------
 ;;    Play / StartStop
@@ -862,8 +879,8 @@ Stop animation if running, uninstall the living text, and redraw."
 
     ;; Rain
     (rain-setting column-layout
-     '(rain-params rain-repopulate rain-duration rain-play rain-start/stop)
-     :adjust :center)
+  '(rain-params rain-repopulate rain-duration rain-play rain-start/stop)
+  :adjust :center)
    (rain-params column-layout '(rain-densite rain-speed)
      :title "Parameters" :title-position :frame :adjust :center))
 
