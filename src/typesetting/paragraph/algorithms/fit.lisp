@@ -210,24 +210,17 @@ Return HLIST."
 ;; Boundaries
 ;; ==========================================================================
 
-;; #### TODO: the min and max widths here (in fact, the width one as well) are
-;; "natural" widths. Nothing prevents an algorithm to stretch a line more than
-;; it's max width (in fact the Knuth-Plass does so with its tolerance
-;; setting). So perhaps the design is not very nice for algorithms with more
-;; flexibility, and those values should in fact represent the algorithm's
-;; tolerance instead.
-
-;; #### TODO: as for the TSAR property, it represents the amount required to
-;; reach a target width, /not/ an algorithm's final choice. Also, this really
-;; makes sense for justification, much less for ragged dispositions. But on
-;; the other hand, we don't currently have any sensible ragged formatting.
+;; #### TODO: the TSAR property represents the amount required to reach a
+;; target width, /not/ an algorithm's final choice. Also, this really makes
+;; sense for justification, much less for ragged dispositions. But on the
+;; other hand, we don't currently have any sensible ragged formatting.
 
 (defclass fit-boundary (fixed-boundary)
   ((min-width
-    :documentation "This boundary's theoretical minimum line width."
+    :documentation "This boundary's minimum tolerable line width."
     :initarg :min-width :reader min-width)
    (max-width
-    :documentation "This boundary's theoretical maximum line width."
+    :documentation "This boundary's maximum tolerable line width."
     :initarg :max-width :reader max-width)
    (tsar
     :documentation "This boundary's Theoretical Spacing Adjustment Ratio."
@@ -236,8 +229,9 @@ Return HLIST."
 
 (defmethod initialize-instance :after
     ((boundary fit-boundary)
-     ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
-     ;; EXTRA stretch here.
+     ;; #### NOTE: the KP's emergency-stretch amount is passed as EXTRA
+     ;; stretch here. See also the comment atop the Fixed boundary class
+     ;; definition.
      &key width stretch shrink extra target)
   "Initialize BOUNDARY's TSAR."
   (when extra (setq stretch ($+ stretch extra)))
@@ -248,10 +242,10 @@ Return HLIST."
 	(sar width target stretch shrink)))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
-  "Return a string advertising Fit BOUNDARY's natural dimensions.
-This includes the minimum, natural, and maximum theoretical line widths,
+  "Return a string advertising Fit BOUNDARY's dimensions.
+This includes the minimum and maximum tolerable line widths,
 plus the theoretical SAR required to reach the target width."
-  (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical SAR: ~A."
+  (format nil "Tolerable widths: ~Apt — ~Apt.~%Theoretical SAR: ~A."
     (float (min-width boundary))
     ($float (max-width boundary))
     ($float (tsar boundary))))

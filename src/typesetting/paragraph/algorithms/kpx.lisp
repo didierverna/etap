@@ -464,7 +464,9 @@ one-before-last."))
 ;; ---------------
 
 (defun kpx-try-break
-    (break-point nodes harray width make-node threshold final emergency-stretch
+    (break-point nodes harray width make-node
+     threshold  stretch-tolerance shrink-tolerance
+     final emergency-stretch
      &aux (bol-items (harray-bol-items harray break-point))
 	  (eol-items (harray-eol-items harray break-point))
 	  last-deactivation new-nodes)
@@ -474,6 +476,8 @@ one-before-last."))
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kpx-boundary
 			     :harray harray :bol bol :break-point break-point
+			     :shrink-tolerance shrink-tolerance
+			     :stretch-tolerance stretch-tolerance
 			     :target width :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
@@ -551,6 +555,8 @@ one-before-last."))
 		       :harray harray
 		       :bol bol
 		       :break-point break-point
+		       :shrink-tolerance shrink-tolerance
+		       :stretch-tolerance stretch-tolerance
 		       :target width
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
@@ -571,6 +577,8 @@ one-before-last."))
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
+;; #### FIXME: why no shrink-tolerance below ? I think this is wrong if the
+;; tolerance is below 100.
 (defun kpx-make-justified-node
     (harray bol boundary stretch-tolerance overshrink demerits previous
      eol-items bol-items
@@ -599,6 +607,7 @@ one-before-last."))
 	  ;; #### NOTE: no emergency stretch counted here. See comment on top
 	  ;; of KP-MAKE-JUSTIFIED-LINE.
 	  (stretch-tolerance (stretch-tolerance threshold))
+	  (shrink-tolerance (shrink-tolerance threshold))
 	  (hyphenate (> pass 1))
 	  (final (case pass
 		   (1 nil)
@@ -635,7 +644,8 @@ one-before-last."))
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
 	  :do (kpx-try-break break-point nodes harray width make-node
-			    threshold final emergency-stretch))
+			     threshold stretch-tolerance shrink-tolerance
+			     final emergency-stretch))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 

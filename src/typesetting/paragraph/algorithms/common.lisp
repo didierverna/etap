@@ -229,10 +229,20 @@ sub-list)."
     list)
   (values width stretch shrink))
 
-(defun harray-width (harray start stop)
-  "Compute HARRAY's width between START and STOP.
-Return five values: the natural, maximum, and minimum width, followed by the
-stretch and shrink amounts."
+(defun harray-width
+    (harray start stop &key (stretch-tolerance 1) (shrink-tolerance -1))
+  "Compute HARRAY's width between START and STOP indexes.
+STRETCH-TOLERANCE and SHRINK-TOLERANCE are the amounts of tolerable stretching
+and shrinking expressed as a ratios of the available elasticity.
+STRETCH-TOLERANCE must be a possibly infinite positive number.
+SHRINK-TOLERANCE must be a negative number. They default to 1 and -1
+respectively.
+
+In addition to computing the HARRAY chunk's natural width, this function
+returns four other values: the chunk's maximum and minimum tolerable widths,
+followed by the available stretching and shrinking amounts."
+  (assert ($>= stretch-tolerance 0))
+  (assert (<= shrink-tolerance 0))
   (loop :with width := 0 :with stretch := 0 :with shrink := 0
 	:for i :from start :upto (1- stop)
 	:for helt := (haref harray i start stop)
@@ -251,7 +261,17 @@ stretch and shrink amounts."
 		 (incf shrink lshrink)))
 	      (t
 	       (incf width (width helt))))
-	:finally (return (values width ($+ width stretch) (- width shrink)
+	:finally (return (values width
+				 ($+ width
+				     (cond ((and (eq stretch-tolerance +∞)
+						 (zerop stretch))
+					    0)
+					   ((and (zerop stretch-tolerance)
+						 (eq stretch +∞))
+					    +∞)
+					   (t
+					    ($* stretch-tolerance stretch))))
+				 (+ width (* shrink-tolerance shrink))
 				 stretch shrink))))
 
 (defun harray-sar (harray start stop target &optional extra)

@@ -178,13 +178,27 @@ Return HLIST."
 ;; #### WARNING: the logic in SARS is to establish SAR tolerances, whereas TeX
 ;; uses badness tolerances. Hence I need to convert it back (from a float to a
 ;; ratio), which is not very nice.
+
+;; #### NOTE: we don't get a negative pre-tolerance here because pass 1 would
+;; be skipped. So we only need to handle the $>= 0 case.
+
 (defun stretch-tolerance (badness-tolerance)
-  "Return the stretch tolerance corresponding to BADNESS-TOLERANCE."
-  ;; #### NOTE: we don't get a negative pre-tolerance here because pass 1
-  ;; would be skipped. So we only need to handle the $>= 0 case.
+  "Return the stretch tolerance corresponding to BADNESS-TOLERANCE.
+The stretching tolerance is expressed as a possibly infinite positive ratio of
+the available stretching amount."
   (if ($= badness-tolerance +∞)
     +∞
     (rationalize (expt (/ badness-tolerance 100) 1/3))))
+
+(defun shrink-tolerance (badness-tolerance)
+  "Return the shrink tolerance corresponding to BADNESS-TOLERANCE.
+The shrinking tolerance is expressed as a negative ratio of the available
+shrinking amount. Note that since we don't allow lines to shrink more than the
+natural maximum, the shrinking tolerance is always greater than -1."
+  (- (if ($>= badness-tolerance 100)
+       1
+       (rationalize (expt (/ badness-tolerance 100) 1/3)))))
+
 
 ;; #### NOTE: we don't use the same numerical values as in the real
 ;; Knuth-Plass here. The point being that having a decent fitness class of 0
@@ -290,6 +304,8 @@ that is, of an emergency stretch ."
 ;; done by setting the overstretch parameter to T and not counting emergency
 ;; stretch in the stretch tolerance below.
 
+;; #### FIXME: why no shrink-tolerance below ? I think this is wrong if the
+;; tolerance is below 100.
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance overshrink demerits
      &rest keys &key previous
@@ -381,10 +397,12 @@ This class is mixed in both the graph and dynamic breakup classes."))
 ;; -----------------
 
 (defun kp-get-boundaries
-    (harray bol width threshold &optional hyphenate final emergency-stretch)
+    (harray bol width threshold stretch-tolerance shrink-tolerance
+     &optional hyphenate final emergency-stretch)
   "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
 This is the Knuth-Plass version for the graph variant.
 - THRESHOLD is the pre-tolerance or tolerance, depending on the pass.
+- STRETCH- and SHRINK-TOLERANCE are based on THRESHOLD.
 - HYPHENATE means consider hyphenation points as potential breaks. It is NIL
   for pass 1 (the default), and T for passes 2 and 3.
 - FINAL means this is the final pass, in which case this function is required
@@ -399,6 +417,8 @@ This is the Knuth-Plass version for the graph variant.
 		   (or hyphenate (not (hyphenation-point-p eol))))
 	  :do (let ((boundary (make-instance 'kp-boundary
 				:harray harray :bol bol :break-point eol
+				:stretch-tolerance stretch-tolerance
+				:shrink-tolerance shrink-tolerance
 				:target width
 				:extra emergency-stretch)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
@@ -530,7 +550,9 @@ or, in case of equality, a lesser amount of demerits."
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
 				  (kp-get-boundaries
-				   harray bol width *pre-tolerance*))))
+				   harray bol width *pre-tolerance*
+				   (stretch-tolerance *pre-tolerance*)
+				   (shrink-tolerance *pre-tolerance*)))))
 	(when (gethash *bop* graph)
 	  (setq layouts (sort (make-graph-layouts graph breakup make-layout)
 			    #'< :key #'demerits))
@@ -544,7 +566,10 @@ or, in case of equality, a lesser amount of demerits."
 	  (setq graph (make-graph harray width
 				  (lambda (harray bol width)
 				    (kp-get-boundaries
-				     harray bol width *tolerance* t final))))
+				     harray bol width *tolerance*
+				     (stretch-tolerance *tolerance*)
+				     (shrink-tolerance *tolerance*)
+				     t final))))
 	  (when (gethash *bop* graph)
 	    (cond (final
 		   (setq layouts
@@ -566,6 +591,8 @@ or, in case of equality, a lesser amount of demerits."
 				(lambda (harray bol width)
 				  (kp-get-boundaries
 				   harray bol width *tolerance*
+				   (stretch-tolerance *tolerance*)
+				   (shrink-tolerance *tolerance*)
 				   t t *emergency-stretch*))))
 	(setq layouts
 	      (sort (make-graph-layouts graph breakup make-layout)
@@ -607,7 +634,9 @@ or, in case of equality, a lesser amount of demerits."
 ;; ---------------
 
 (defun kp-try-break
-    (break-point nodes harray width make-node threshold final emergency-stretch
+    (break-point nodes harray width make-node
+     threshold stretch-tolerance shrink-tolerance
+     final emergency-stretch
      &aux last-deactivation new-nodes)
   "Examine BREAK-POINT and update active NODES accordingly."
   (maphash
@@ -615,6 +644,8 @@ or, in case of equality, a lesser amount of demerits."
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kp-boundary
 			     :harray harray :bol bol :break-point break-point
+			     :stretch-tolerance stretch-tolerance
+			     :shrink-tolerance shrink-tolerance
 			     :target width :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
@@ -677,6 +708,8 @@ or, in case of equality, a lesser amount of demerits."
 		       :harray harray
 		       :bol bol
 		       :break-point break-point
+		       :stretch-tolerance stretch-tolerance
+		       :shrink-tolerance shrink-tolerance
 		       :target width
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
@@ -749,6 +782,7 @@ or, in case of equality, a lesser amount of demerits."
 	  ;; #### NOTE: no emergency stretch counted here. See comment on top
 	  ;; of KP-MAKE-JUSTIFIED-LINE.
 	  (stretch-tolerance (stretch-tolerance threshold))
+	  (shrink-tolerance (shrink-tolerance threshold))
 	  (hyphenate (> pass 1))
 	  (final (case pass
 		   (1 nil)
@@ -775,7 +809,8 @@ or, in case of equality, a lesser amount of demerits."
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
 	  :do (kp-try-break break-point nodes harray width make-node
-			    threshold final emergency-stretch))
+			    threshold stretch-tolerance shrink-tolerance
+			    final emergency-stretch))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 
