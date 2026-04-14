@@ -228,13 +228,8 @@ Return HLIST."
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary)
-     ;; #### NOTE: the KP's emergency-stretch amount is passed as EXTRA
-     ;; stretch here. See also the comment atop the Fixed boundary class
-     ;; definition.
-     &key width stretch shrink extra target)
+    ((boundary fit-boundary) &key width target stretch shrink)
   "Initialize BOUNDARY's TSAR."
-  (when extra (setq stretch ($+ stretch extra)))
   (setf (slot-value boundary 'tsar)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call by

@@ -243,11 +243,9 @@ This is an integer ranging from -1 (tight) to 2 (very loose)."
   (:documentation "The KP-boundary class."))
 
 (defmethod initialize-instance :after
-    ((boundary kp-boundary) &key width stretch shrink extra target)
+    ((boundary kp-boundary) &key width target stretch shrink extra)
   "Initialize Knuth-Plass BOUNDARY's properties.
-This includes its fitness class, badness, and local demerits.
-Possibly also restore BOUNDARY's TSAR to the real value in case of EXTRA,
-that is, of an emergency stretch ."
+This includes its fitness class, badness, and local demerits."
   ;; #### WARNING: it is possible to get a rigid line here (TSAR = +/-∞), not
   ;; only an overfull one. For example, we could have collected an hyphenated
   ;; beginning of word thanks to an infinite tolerance, and this would result
@@ -256,21 +254,17 @@ that is, of an emergency stretch ."
   ;; define a sensible fitness class in such a case. So we consider those
   ;; lines to be very tight (as overfulls) even if they are actually
   ;; underfull.
-  (setf
-   (slot-value boundary 'fitness-class) (sar-fitness-class (tsar boundary))
-   (slot-value boundary 'badness)       (sar-badness (tsar boundary)))
+  (let ((sar (if (and extra (not (zerop extra))) ; handle emergency stretch
+	       (sar width target ($+ stretch extra) shrink)
+	       (tsar boundary))))
+    (setf (slot-value boundary 'fitness-class) (sar-fitness-class sar)
+	  (slot-value boundary 'badness) (sar-badness sar)))
   (setf (slot-value boundary 'demerits)
 	;; #### NOTE: see TeX's use of the artificial_demerits flag in this
 	;; situation (#854, #855).
 	(if (numberp (badness boundary))
 	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
-	  0))
-  (when (and extra (not (zerop extra)))
-    (setf (slot-value boundary 'tsar)
-	  ;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
-	  ;; already initialized by now, but we're still saving a reader call
-	  ;; by using the propagated NATURAL-WIDTH keyword argument.
-	  (sar width target stretch shrink))))
+	  0)))
 
 (defmethod properties strnlcat ((boundary kp-boundary) &key)
   "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
@@ -416,9 +410,9 @@ This is the Knuth-Plass version for the graph variant.
 		   (or hyphenate (not (hyphenation-point-p eol))))
 	  :do (let ((boundary (make-instance 'kp-boundary
 				:harray harray :bol bol :break-point eol
+				:target width
 				:stretch-tolerance stretch-tolerance
 				:shrink-tolerance shrink-tolerance
-				:target width
 				:extra emergency-stretch)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
@@ -647,9 +641,10 @@ or, in case of equality, a lesser amount of demerits."
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kp-boundary
 			     :harray harray :bol bol :break-point break-point
+			     :target width
 			     :stretch-tolerance stretch-tolerance
 			     :shrink-tolerance shrink-tolerance
-			     :target width :extra emergency-stretch)))
+			     :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
@@ -711,9 +706,9 @@ or, in case of equality, a lesser amount of demerits."
 		       :harray harray
 		       :bol bol
 		       :break-point break-point
+		       :target width
 		       :stretch-tolerance stretch-tolerance
 		       :shrink-tolerance shrink-tolerance
-		       :target width
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
       ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY

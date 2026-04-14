@@ -480,9 +480,10 @@ one-before-last."))
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kpx-boundary
 			     :harray harray :bol bol :break-point break-point
+			     :target width
 			     :stretch-tolerance stretch-tolerance
 			     :shrink-tolerance shrink-tolerance
-			     :target width :extra emergency-stretch)))
+			     :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
@@ -556,12 +557,10 @@ one-before-last."))
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
     (let* ((bol (key-break-point (car last-deactivation)))
 	   (boundary (make-instance 'kpx-boundary
-		       :harray harray
-		       :bol bol
-		       :break-point break-point
+		       :harray harray :bol bol :break-point break-point
+		       :target width
 		       :stretch-tolerance stretch-tolerance
 		       :shrink-tolerance shrink-tolerance
-		       :target width
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
       ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY
