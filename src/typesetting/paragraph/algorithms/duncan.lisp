@@ -151,9 +151,9 @@ order (from last to first)."
   (multiple-value-bind (asar esar)
       (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
-	(sars tsar :overshrink overshrink :stretch-tolerance 0)
+	(sars tsar :stretch-tolerance 0 :overshrink overshrink)
 	;; Justified regular line: make it fit.
-	(sars tsar :overshrink overshrink :overstretch overstretch))
+	(sars tsar :overstretch overstretch :overshrink overshrink))
     (make-instance 'duncan-line
       :harray harray :bol bol :boundary boundary
       :asar asar :esar esar :weight weight)))

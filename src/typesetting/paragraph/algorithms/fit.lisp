@@ -517,12 +517,11 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	  (:best
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	   ;; normal spacing.
-	   (sars (tsar boundary) :overshrink overshrink :stretch-tolerance 0))
+	   (sars (tsar boundary) :stretch-tolerance 0 :overshrink overshrink))
 	  (:last
 	   ;; Shrink as much as possible.
 	   (sars -1 :overshrink overshrink)))
-	(sars (tsar boundary)
-	  :overshrink overshrink :overstretch overstretch))
+	(sars (tsar boundary) :overstretch overstretch :overshrink overshrink))
     (make-line harray bol boundary :asar asar :esar esar)))
 
 

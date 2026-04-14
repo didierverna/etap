@@ -99,12 +99,10 @@ This is the Barnett algorithm version."
   (multiple-value-bind (asar esar)
       (if (eopp boundary)
 	;; Justified last line: maybe shrink it but don't stretch it.
-	(sars (tsar boundary)
-	  :overshrink overshrink :stretch-tolerance 0)
+	(sars (tsar boundary) :stretch-tolerance 0 :overshrink overshrink)
 	;; Justified regular line: always stretch as needed, and maybe
 	;; overshrink.
-	(sars (tsar boundary)
-	  :overshrink overshrink :stretch-tolerance +∞))
+	(sars (tsar boundary) :stretch-tolerance +∞ :overshrink overshrink))
     (make-line harray bol boundary :asar asar :esar esar)))
 
 

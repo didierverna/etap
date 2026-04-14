@@ -116,16 +116,16 @@ See `define-caliber' for more information."
 ;; Boundaries
 ;; ==========================================================================
 
-;; #### NOTE: the MIN-WIDTH and MAX-WIDTH accessors below are here because the
+;; #### NOTE: the MAX-WIDTH and MIN-WIDTH accessors below are here because the
 ;; FIXED-FALLBACK-BOUNDARY function calls them. It makes little sense for
 ;; fixed boundaries, but this function may actually be passed fit boundaries
-;; from the Fit algorithm in justified disposition, in which case the min,
-;; max, and natural widths are indeed going to be be different.
+;; from the Fit algorithm in justified disposition, in which case the natural,
+;; max, and min widths are indeed going to be be different.
 (defclass fixed-boundary (boundary)
   ((width :documentation "This boundary's natural line width."
-	  :initarg :width :reader width :reader min-width :reader max-width))
-  ;; This is a bit ugly, but it's required for :shrink- and
-  ;; :stretch-tolerance.
+	  :initarg :width :reader width :reader max-width :reader min-width))
+  ;; This is a bit ugly, but it's required for :stretch- and
+  ;; :shrink-tolerance.
   (:default-initargs :allow-other-keys t)
   (:documentation "The FIXED-BOUNDARY class."))
 
@@ -140,11 +140,11 @@ See `define-caliber' for more information."
   "Compute and propagate BOUNDARY's line properties to subsequent methods."
   (multiple-value-bind (width max min stretch shrink)
       (apply #'harray-width harray (bol-idx bol) (eol-idx break-point)
-	     (select-keys keys :shrink-tolerance :stretch-tolerance))
+	     (select-keys keys :stretch-tolerance :shrink-tolerance))
     (apply #'call-next-method boundary
 	   :width width :max-width max :min-width min
 	   :stretch stretch :shrink shrink
-	   (remove-keys keys :shrink-tolerance :stretch-tolerance))))
+	   (remove-keys keys :stretch-tolerance :shrink-tolerance))))
 
 (defmethod properties strnlcat ((boundary fixed-boundary) &key)
   "Return a string advertising Fixed BOUNDARY's natural width."
@@ -217,7 +217,7 @@ This is the Fixed algorithm version."
 	:for boundary := (make-instance 'fixed-boundary
 			   :harray harray :bol bol :break-point eol
 			   ;; for consistency, but technically not needed
-			   :shrink-tolerance 0 :stretch-tolerance 0)
+			   :stretch-tolerance 0 :shrink-tolerance 0)
 	:do (cond ((< (width boundary) width) (setq underfull boundary))
 		  ((= (width boundary) width) (setq fit boundary))
 		  (t (setq overfull boundary)))
@@ -244,7 +244,7 @@ This is the Fixed algorithm version."
 	:for boundary := (make-instance 'fixed-boundary
 			   :harray harray :bol bol :break-point eol
 			   ;; for consistency, but technically not needed
-			   :shrink-tolerance 0 :stretch-tolerance 0)
+			   :stretch-tolerance 0 :shrink-tolerance 0)
 	:do (cond ((< (width boundary) width)
 		   ;; Track the last underfulls because they're the closest to
 		   ;; WIDTH.

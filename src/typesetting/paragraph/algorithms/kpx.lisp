@@ -367,7 +367,7 @@ one-before-last."))
 		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
 		(lambda (harray bol boundary demerits)
 		  (kp-make-justified-line harray bol boundary
-		    shrink-tolerance stretch-tolerance overshrink demerits))))
+		    stretch-tolerance shrink-tolerance overshrink demerits))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -480,8 +480,8 @@ one-before-last."))
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kpx-boundary
 			     :harray harray :bol bol :break-point break-point
-			     :shrink-tolerance shrink-tolerance
 			     :stretch-tolerance stretch-tolerance
+			     :shrink-tolerance shrink-tolerance
 			     :target width :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
@@ -559,8 +559,8 @@ one-before-last."))
 		       :harray harray
 		       :bol bol
 		       :break-point break-point
-		       :shrink-tolerance shrink-tolerance
 		       :stretch-tolerance stretch-tolerance
+		       :shrink-tolerance shrink-tolerance
 		       :target width
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
@@ -582,14 +582,14 @@ one-before-last."))
     new-nodes))
 
 (defun kpx-make-justified-node
-    (harray bol boundary shrink-tolerance stretch-tolerance overshrink demerits
+    (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
      previous eol-items bol-items
      &aux (tsar (tsar boundary)))
   "KPX dynamic version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (sars tsar
-	:shrink-tolerance shrink-tolerance
 	:stretch-tolerance stretch-tolerance
+	:shrink-tolerance shrink-tolerance
 	:overshrink overshrink
 	:overstretch t)
     (make-instance 'kpx-node
@@ -624,7 +624,7 @@ one-before-last."))
 	      (lambda
 		  (harray bol boundary demerits previous eol-items bol-items)
 		(kpx-make-justified-node harray bol boundary
-		  shrink-tolerance stretch-tolerance overshrink demerits
+		  stretch-tolerance shrink-tolerance overshrink demerits
 		  previous eol-items bol-items)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda

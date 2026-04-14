@@ -305,7 +305,7 @@ that is, of an emergency stretch ."
 ;; stretch in the stretch tolerance below.
 
 (defun kp-make-justified-line
-    (harray bol boundary shrink-tolerance stretch-tolerance overshrink demerits
+    (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
      &rest keys &key previous
      &aux (tsar (tsar boundary)))
   "KP version of `make-line' for justified lines.
@@ -314,10 +314,10 @@ however call this function with a PREVIOUS node, in which case a KP-NODE is
 instantiated instead."
   (multiple-value-bind (asar esar)
       (sars tsar
-	:shrink-tolerance shrink-tolerance
 	:stretch-tolerance stretch-tolerance
-	:overshrink overshrink
-	:overstretch t)
+	:shrink-tolerance shrink-tolerance
+	:overstretch t
+	:overshrink overshrink)
     (apply #'make-instance
       (if previous 'kp-node 'kp-line) ; kp-node forward reference
       :harray harray :bol bol :boundary boundary
@@ -464,7 +464,7 @@ This is the Knuth-Plass version for the graph variant.
 		       (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
 		(lambda (harray bol boundary demerits)
 		  (kp-make-justified-line harray bol boundary
-		    shrink-tolerance stretch-tolerance overshrink demerits))))
+		    stretch-tolerance shrink-tolerance overshrink demerits))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -798,7 +798,7 @@ or, in case of equality, a lesser amount of demerits."
 	     ((:justified :flush-left)
 	      (lambda (harray bol boundary demerits previous)
 		(kp-make-justified-line harray bol boundary
-		  shrink-tolerance stretch-tolerance overshrink demerits
+		  stretch-tolerance shrink-tolerance overshrink demerits
 		  :previous previous)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits previous)
