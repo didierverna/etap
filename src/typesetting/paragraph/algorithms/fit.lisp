@@ -467,17 +467,17 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	    0
 	    ;; On the other hand, do not destretch any other line so much that
 	    ;; another chunk would fit in.
-	    (let ((sar (harray-sar
-			harray
-			(bol-idx bol)
-			(eol-idx
-			 (next-break-point harray (break-point boundary)))
-			width)))
-	      ;; A positive next SAR means that another chunk would fit in,
+	    (let ((tsar (harray-sar
+			 harray
+			 (bol-idx bol)
+			 (eol-idx
+			  (next-break-point harray (break-point boundary)))
+			 width)))
+	      ;; A positive next TSAR means that another chunk would fit in,
 	      ;; and still be underfull (possibly not even elastic), so we can
 	      ;; destretch only up to that (infinity falling back to 0).
 	      ;; Otherwise, we can destretch completely.
-	      (if ($> sar 0) sar 0)))))
+	      (if ($> tsar 0) tsar 0)))))
   (make-line harray bol boundary :asar asar))
 
 ;; By default, lines are shrunk as much as possible.

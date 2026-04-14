@@ -11,13 +11,11 @@
 ;; -----------------------------
 
 (defun sar (width target stretch shrink)
-  "Return the Spacing Adjustment Ratio (SAR) required to reach TARGET width.
-The SAR is 0 if WIDTH = TARGET. Otherwise, it's a stretching (positive) or
-shrinking (negative) ratio relative to the elasticity provided by STRETCH and
-SHRINK.
-
-If no elasticity is available to reach TARGET from WIDTH,
-the value is +∞ or -∞, depending on the scaling direction."
+  "Return the Spacing Adjustment Ratio required to reach TARGET from WIDTH.
+It is 0 if WIDTH = TARGET. Otherwise, it's a stretching (positive) or
+shrinking (negative) ratio relative to the elasticity provided by STRETCH or
+SHRINK. If no elasticity is available in the required direction, the value is
++∞ or -∞."
   (cond ((= width target) 0)
 	((< width target) ($/ (- target width) stretch))
 	((< target width) ($/ (- target width) shrink))))
