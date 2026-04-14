@@ -1439,7 +1439,8 @@ that the breakup does not contain any layout."
      :items *fixed-options*
      :help-keys *fixed-options-help-keys*
      :callback-type :interface
-     :selection-callback 'remake)
+     :selection-callback 'remake
+     :retract-callback 'remake)
    (fixed-width-offset pt-cursor
      :property :width-offset
      :caliber *fixed-width-offset*
@@ -1467,6 +1468,7 @@ that the breakup does not contain any layout."
      :items *fit-options*
      :callback-type :interface
      :selection-callback 'remake
+     :retract-callback 'remake
      :help-keys *fit-options-help-keys*)
    (fit-line-penalty cursor
      :property :line-penalty
