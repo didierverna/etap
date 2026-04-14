@@ -22,20 +22,20 @@ the value is +∞ or -∞, depending on the scaling direction."
 	((< width target) ($/ (- target width) stretch))
 	((< target width) ($/ (- target width) shrink))))
 
-(defun sars (sar &key (shrink-tolerance -1) (stretch-tolerance 1)
+(defun sars (tsar &key (shrink-tolerance -1) (stretch-tolerance 1)
 		      (overshrink nil) (overstretch nil))
-  "Return the Algorithmic and Effective SARs based on SAR.
+  "Return the Algorithmic and Effective SARs based on TSAR.
 This function returns two values.
 - The Algorithmic SAR (ASAR), which depends on the algorithm's SHRINK and
   STRETCH-TOLERANCE (-1 / 1 by default).
 - The Effective SAR (ESAR), used to pin the line's items, which further
   depends on the OVERSHRINK and  OVERSTRETCH disposition options (nil by
   default)."
-  (let ((asar sar) (esar sar))
-    (cond (($< sar 0)
+  (let ((asar tsar) (esar tsar))
+    (cond (($< tsar 0)
 	   (setq asar ($max asar shrink-tolerance))
 	   (unless overshrink (setq esar asar)))
-	  (($> sar 0)
+	  (($> tsar 0)
 	   (setq asar ($min asar stretch-tolerance))
 	   (unless overstretch (setq esar asar))))
     (values asar esar)))

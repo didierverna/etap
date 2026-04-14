@@ -352,18 +352,22 @@ one-before-last."))
      &aux (harray (harray breakup))
 	  (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
-	  (overshrink (getf (disposition-options disposition) :overshrink))
-	  ;; #### NOTE: no emergency stretch counted here. See comment on top
-	  ;; of KP-MAKE-JUSTIFIED-LINE.
-	  (stretch-tolerance
-	   (stretch-tolerance
-	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
 	  (make-line
 	   (case disposition-type
 	     (:justified
-	      (lambda (harray bol boundary demerits)
-		(kp-make-justified-line harray bol boundary
-		  stretch-tolerance overshrink demerits)))
+	      (let((overshrink
+		     (getf (disposition-options disposition) :overshrink))
+		   ;; #### NOTE: no emergency stretch counted here. See
+		   ;; comment on top of KP-MAKE-JUSTIFIED-LINE.
+		   (stretch-tolerance
+		     (stretch-tolerance
+		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
+		   (shrink-tolerance
+		     (shrink-tolerance
+		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
+		(lambda (harray bol boundary demerits)
+		  (kp-make-justified-line harray bol boundary
+		    shrink-tolerance stretch-tolerance overshrink demerits))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -465,7 +469,7 @@ one-before-last."))
 
 (defun kpx-try-break
     (break-point nodes harray width make-node
-     threshold  stretch-tolerance shrink-tolerance
+     threshold stretch-tolerance shrink-tolerance
      final emergency-stretch
      &aux (bol-items (harray-bol-items harray break-point))
 	  (eol-items (harray-eol-items harray break-point))
@@ -577,15 +581,14 @@ one-before-last."))
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
-;; #### FIXME: why no shrink-tolerance below ? I think this is wrong if the
-;; tolerance is below 100.
 (defun kpx-make-justified-node
-    (harray bol boundary stretch-tolerance overshrink demerits previous
-     eol-items bol-items
+    (harray bol boundary shrink-tolerance stretch-tolerance overshrink demerits
+     previous eol-items bol-items
      &aux (tsar (tsar boundary)))
   "KPX dynamic version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (sars tsar
+	:shrink-tolerance shrink-tolerance
 	:stretch-tolerance stretch-tolerance
 	:overshrink overshrink
 	:overstretch t)
@@ -621,8 +624,8 @@ one-before-last."))
 	      (lambda
 		  (harray bol boundary demerits previous eol-items bol-items)
 		(kpx-make-justified-node harray bol boundary
-		  stretch-tolerance overshrink demerits previous
-		  eol-items bol-items)))
+		  shrink-tolerance stretch-tolerance overshrink demerits
+		  previous eol-items bol-items)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda
 		  (harray bol boundary demerits previous eol-items bol-items)
