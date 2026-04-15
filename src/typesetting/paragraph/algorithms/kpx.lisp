@@ -369,13 +369,24 @@ This is the KPX version for the graph variant.
 				:stretch-tolerance stretch-tolerance
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
+		(when (eopp boundary)
+		  (setf (slot-value boundary 'max-width)
+			(harray-max-width
+			 harray (bol-idx bol) (1- (eol-idx eol))
+			 stretch-tolerance)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
-		      (($<= (badness boundary) threshold)
-		       (push boundary boundaries))
+		      (($> (badness boundary) threshold)
+		       (setq emergency-boundary boundary))
+		      ((and (eopp boundary)
+			    (< (min-width boundary)
+			       (* (/ *runt-threshold* 100) width))
+			    ($< (max-width boundary)
+				(* (/ *runt-threshold* 100) width)))
+		       (setq emergency-boundary boundary))
 		      (t
-		       (setq emergency-boundary boundary))))
+		       (push boundary boundaries))))
 	:finally (return (or boundaries
 			     (when final
 			       (list (or overfull emergency-boundary)))))))

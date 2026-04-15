@@ -272,6 +272,7 @@ followed by the available stretching and shrinking amounts."
 				 (+ width (* shrink-tolerance shrink))
 				 stretch shrink))))
 
+;; Used only in the Fit algorithm for relaxing look ahead.
 (defun harray-sar (harray start stop target &optional extra)
   "Return the SAR for HARRAY chunk between START and STOP.
 This is the value required to reach TARGET width, possibly with EXTRA stretch.
@@ -281,6 +282,39 @@ See `sar' for more information."
     (declare (ignore max min))
     (when extra (setq stretch ($+ stretch extra)))
     (sar width target stretch shrink)))
+
+;; Used only in the KPX algorithm to re-establish the proper value in the
+;; final boundary.
+(defun harray-max-width (harray start stop stretch-tolerance)
+  "Compute HARRAY's max width between START and STOP indexes.
+STRETCH-TOLERANCE is the amount of tolerable stretching expressed as a ratio
+of the available elasticity. It must be a possibly infinite positive number."
+  (assert ($>= stretch-tolerance 0))
+  (loop :with width := 0 :with stretch := 0
+	:for i :from start :upto (1- stop)
+	:for helt := (haref harray i start stop)
+	:do (typecase helt
+	      (glue
+	       (incf width (width helt))
+	       (setq stretch ($+ stretch (stretch helt))))
+	      ;; From a discretionary *-break, and / or something with clues
+	      ;; added by HAREF.
+	      (list
+	       (multiple-value-bind (lwidth lstretch lshrink)
+		   (list-dimensions helt)
+		 (incf width lwidth)
+		 (setq stretch ($+ stretch lstretch))))
+	      (t
+	       (incf width (width helt))))
+	:finally (return ($+ width
+			     (cond ((and (eq stretch-tolerance +∞)
+					 (zerop stretch))
+				    0)
+				   ((and (zerop stretch-tolerance)
+					 (eq stretch +∞))
+				    +∞)
+				   (t
+				    ($* stretch-tolerance stretch)))))))
 
 ;; #### TODO: this is gross but it works for now (we use a single font). 1.2
 ;; (expressed in ratio to avoid going all floats) is what TeX uses with the
