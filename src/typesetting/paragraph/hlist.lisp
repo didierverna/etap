@@ -323,6 +323,7 @@ This is the default method."
   "Return NIL."
   nil)
 
+;; #### FIXME: yes, but why not -∞ ? See also the comment in KP-TRY-BREAK.
 ;; #### NOTE: this avoid the need for creating soft EOP break points.
 (defmethod penalty ((eop eop))
   "Return 0."
