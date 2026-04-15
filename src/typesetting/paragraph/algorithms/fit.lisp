@@ -234,7 +234,9 @@ Return HLIST."
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call by
 	;; using the propagated WIDTH keyword argument.
-	(sar width target stretch shrink)))
+	(if (and (eopp boundary) (< width target))
+	  0
+	  (sar width target stretch shrink))))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
   "Return a string advertising Fit BOUNDARY's dimensions.
