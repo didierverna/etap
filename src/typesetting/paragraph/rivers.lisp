@@ -54,7 +54,7 @@ that is, vector (0, 1)."
 ;; ==========================================================================
 
 (defclass arm ()
-  ((mouth :documentation "This river arm's mouth (the whitespace it leads to)."
+  ((mouth :documentation "This river arm's mouth (the hcast pin it leads to)."
 	  :initarg :mouth :reader mouth)
    (orientation :documentation "This river arm's orientation."
 		:reader orientation))
@@ -64,7 +64,7 @@ River arms are relative a source whitespace."))
 (defmethod initialize-instance :after
     ((arm arm) &key source &aux (mouth (mouth arm)))
   "Compute ARM's orientation relative to the downward vertical direction.
-ARM goes from SOURCE to its mouth."
+ARM goes from SOURCE to its mouth (hcast pins)."
   (setf (slot-value arm 'orientation)
 	(vector-orientation (- (+ (x (board mouth))  (x mouth))
 			       (+ (x (board source)) (x source)))
@@ -72,16 +72,17 @@ ARM goes from SOURCE to its mouth."
 			       (+ (y (board source)) (y source))))))
 
 (defun make-arm (source mouth)
-  "Mkae a river arm from SOURCE to MOUTH."
+  "Mkae a river arm from SOURCE to MOUTH (hcast pins)."
   (make-instance 'arm :source source :mouth mouth))
 
 (defun arms
     (source line
      &aux (source-x (+ (x (board source)) (x source) (/ (width source) 2))))
-  "Return a list of at most three river arms from SOURCE whitespace to the
-next LINE. Arms are only considered from SOURCE whitespace to three possible
-mouth whitespaces in LINE: the closest to SOURCE's left, one directly below
-it, and the closest to SOURCE's right, all of these X-wise."
+  "Return a list of at most three river arms from SOURCE to the next LINE.
+Source is an hcast pin and LINE is a line pin.
+Arms are only considered from SOURCE to three possible mouths in LINE: the
+closest to SOURCE's left, one directly below it, and the closest to SOURCE's
+right, all of these X-wise."
   (mapcar (lambda (mouth) (make-arm source mouth))
     (loop :with left :with below
 	  :for ws :across (remove-if-not #'hcastp (items (object line))
