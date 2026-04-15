@@ -51,13 +51,15 @@ See `define-caliber' for more information."
 (define-kpx-caliber tolerance 0 200 10000 :infinity :max :bounded :min)
 (define-kpx-caliber emergency-stretch 0 0 20 :bounded :min)
 (define-kpx-caliber looseness -10 0 10)
+(define-kpx-caliber runt-threshold 0 0 50 :bounded t)
 
 
 (define-global-variables variant fitness line-penalty
   hyphen-penalty explicit-hyphen-penalty
   adjacent-demerits double-hyphen-demerits final-hyphen-demerits
   similar-demerits
-  pre-tolerance tolerance emergency-stretch looseness)
+  pre-tolerance tolerance emergency-stretch looseness
+  runt-threshold)
 
 
 (defmacro calibrate-kpx (name)
@@ -734,7 +736,8 @@ This is the KPX version for the graph variant.
 	  ((:pre-tolerance *pre-tolerance*))
 	  ((:tolerance *tolerance*))
 	  ((:emergency-stretch *emergency-stretch*))
-	  ((:looseness *looseness*)))
+	  ((:looseness *looseness*))
+	  ((:runt-threshold *runt-threshold*)))
   "Break LINEUP for paragraph WIDTH with the KPX algorithm."
   (default-kpx variant)
   (default-kpx fitness :es)
@@ -747,6 +750,7 @@ This is the KPX version for the graph variant.
   (calibrate-kpx tolerance)
   (calibrate-kpx emergency-stretch)
   (calibrate-kpx looseness)
+  (calibrate-kpx runt-threshold)
   (ecase *variant*
     (:graph
      (kp-graph-break-lineup lineup width

@@ -1594,6 +1594,10 @@ that the breakup does not contain any layout."
      :property :looseness
      :caliber *kpx-looseness*
      :callback 'algorithm-cursor-callback)
+   (kpx-runt-threshold %-cursor
+     :property :runt-threshold
+     :caliber *kpx-runt-threshold*
+     :callback 'algorithm-cursor-callback)
    (text-button popup-menu-button
      :text "Source text" :menu text-menu)
    (language-button popup-menu-button
@@ -1658,7 +1662,8 @@ that the breakup does not contain any layout."
      '(kpx-line-penalty            kpx-adjacent-demerits      kpx-pre-tolerance
        kpx-hyphen-penalty          kpx-double-hyphen-demerits kpx-tolerance
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
-       nil                         kpx-similar-demerits       kpx-looseness)
+       nil                         kpx-similar-demerits       kpx-looseness
+       nil                         nil                        kpx-runt-threshold)
      :columns 3))
   (:menus
    (etap-menu "ETAP" (:select-font :river-detection)
