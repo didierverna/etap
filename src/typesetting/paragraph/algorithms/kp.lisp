@@ -533,7 +533,8 @@ or, in case of equality, a lesser amount of demerits."
 ;; got that wrong for quite some time...
 (defun kp-graph-break-lineup
     (lineup width
-     &optional (make-layout #'kp-graph-make-layout)
+     &optional (get-boundaries #'kp-get-boundaries)
+	       (make-layout #'kp-graph-make-layout)
      &aux (harray (harray lineup)) breakup)
   "Break LINEUP for paragraph WIDTH with the unoptimized Knuth-Plass algorithm."
   (setq breakup (make-instance 'kp-graph-breakup
@@ -546,10 +547,10 @@ or, in case of equality, a lesser amount of demerits."
 	(setf (slot-value breakup 'pass) 1)
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
-				  (kp-get-boundaries
-				   harray bol width *pre-tolerance*
-				   (stretch-tolerance *pre-tolerance*)
-				   (shrink-tolerance *pre-tolerance*)))))
+				  (funcall get-boundaries
+				    harray bol width *pre-tolerance*
+				    (stretch-tolerance *pre-tolerance*)
+				    (shrink-tolerance *pre-tolerance*)))))
 	(when (gethash *bop* graph)
 	  (setq layouts (sort (make-graph-layouts graph breakup make-layout)
 			    #'< :key #'demerits))
@@ -562,11 +563,11 @@ or, in case of equality, a lesser amount of demerits."
 	  (setf (slot-value breakup 'pass) 2)
 	  (setq graph (make-graph harray width
 				  (lambda (harray bol width)
-				    (kp-get-boundaries
-				     harray bol width *tolerance*
-				     (stretch-tolerance *tolerance*)
-				     (shrink-tolerance *tolerance*)
-				     t final))))
+				    (funcall get-boundaries
+				      harray bol width *tolerance*
+				      (stretch-tolerance *tolerance*)
+				      (shrink-tolerance *tolerance*)
+				      t final))))
 	  (when (gethash *bop* graph)
 	    (cond (final
 		   (setq layouts
@@ -586,11 +587,11 @@ or, in case of equality, a lesser amount of demerits."
 	(incf (slot-value breakup 'pass))
 	(setq graph (make-graph harray width
 				(lambda (harray bol width)
-				  (kp-get-boundaries
-				   harray bol width *tolerance*
-				   (stretch-tolerance *tolerance*)
-				   (shrink-tolerance *tolerance*)
-				   t t *emergency-stretch*))))
+				  (funcall get-boundaries
+				    harray bol width *tolerance*
+				    (stretch-tolerance *tolerance*)
+				    (shrink-tolerance *tolerance*)
+				    t t *emergency-stretch*))))
 	(setq layouts
 	      (sort (make-graph-layouts graph breakup make-layout)
 		  #'kp-graph-layout-<))

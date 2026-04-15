@@ -338,6 +338,48 @@ one-before-last."))
     (fitness-class-name (fitness-class ledge))))
 
 
+;; -----------------
+;; Boundaries lookup
+;; -----------------
+
+(defun kpx-get-boundaries
+    (harray bol width threshold stretch-tolerance shrink-tolerance
+     &optional hyphenate final emergency-stretch)
+  "Get boundaries for an HARRAY line of WIDTH beginning at BOL.
+This is the KPX version for the graph variant.
+- THRESHOLD is the pre-tolerance or tolerance, depending on the pass.
+- STRETCH- and SHRINK-TOLERANCE are based on THRESHOLD.
+- HYPHENATE means consider hyphenation points as potential breaks. It is NIL
+  for pass 1 (the default), and T for passes 2 and 3.
+- FINAL means this is the final pass, in which case this function is required
+  to return a boundary, albeit unfit.
+- EMERGENCY-STRETCH may be available during a final third pass."
+  (loop :with boundaries :with overfull :with emergency-boundary
+	:with continue := t
+	:for eol := (next-break-point harray bol)
+	  :then (next-break-point harray eol)
+	:while (and eol continue)
+	:when (and ($< (penalty eol) +∞)
+		   (or hyphenate (not (hyphenation-point-p eol))))
+	  :do (let ((boundary (make-instance 'kp-boundary
+				:harray harray :bol bol :break-point eol
+				:target width
+				:stretch-tolerance stretch-tolerance
+				:shrink-tolerance shrink-tolerance
+				:extra emergency-stretch)))
+		(when (eq (penalty eol) -∞) (setq continue nil))
+		(cond ((> (min-width boundary) width)
+		       (setq overfull boundary continue nil))
+		      (($<= (badness boundary) threshold)
+		       (push boundary boundaries))
+		      (t
+		       (setq emergency-boundary boundary))))
+	:finally (return (or boundaries
+			     (when final
+			       (list (or overfull emergency-boundary)))))))
+
+
+
 ;; -------
 ;; Layouts
 ;; -------
@@ -707,6 +749,7 @@ one-before-last."))
   (calibrate-kpx looseness)
   (ecase *variant*
     (:graph
-     (kp-graph-break-lineup lineup width #'kpx-graph-make-layout))
+     (kp-graph-break-lineup lineup width
+       #'kpx-get-boundaries #'kpx-graph-make-layout))
     (:dynamic
      (kp-dynamic-break-lineup lineup width #'kpx-create-nodes))))
