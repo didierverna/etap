@@ -264,7 +264,7 @@ followed by the available stretching and shrinking amounts."
 				     (cond ((and (eq stretch-tolerance +∞)
 						 (zerop stretch))
 					    0)
-					   ((and (zerop stretch-tolerance)
+					   ((and (eq stretch-tolerance 0)
 						 (eq stretch +∞))
 					    +∞)
 					   (t
