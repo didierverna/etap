@@ -589,6 +589,7 @@ Update CURSOR's title and propagate the new value to the rain struct."
     (unless (capi-object-property view :living-text-animation)
       (redraw etap))))
 
+      
 (defun curtains-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the curtains reset button is pushed."
@@ -599,12 +600,16 @@ Update CURSOR's title and propagate the new value to the rain struct."
   (curtains-reset view)
   (redraw etap))
 
+
 (defun curtains-direction-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
-  "Switch curtains direction between :open and :close."
   (let ((curtains (capi-object-property view :curtains)))
     (when curtains
-      (setf (curtains-direction curtains) data)))
+      (setf (curtains-direction curtains) data)
+      (when (and (eq data :close)
+                 (zerop (curtains-offset curtains)))
+        (setf (curtains-offset curtains)
+              (/ (paragraph-width (breakup etap)) 2)))))
   (redraw etap))
 
 

@@ -222,8 +222,17 @@
 
 
 ;Calcul
+(defun curtains-shift (elt par-width curtains)
+  (let* ((center (/ par-width 2))
+         (elt-x (x elt))
+         (offset (curtains-offset curtains)))
+    (if (< elt-x center)
+        (- (min offset elt-x))
+        (min offset (- par-width elt-x)))))
+
+
+
 (defun curtains-step (curtains par-width)
-  "Advance curtains by one step. Returns :stop when done."
   (ecase (curtains-direction curtains)
     (:open
      (if (>= (curtains-offset curtains) (/ par-width 2))
@@ -239,16 +248,6 @@
            (when (< (curtains-offset curtains) 0)
              (setf (curtains-offset curtains) 0))
            nil)))))
-
-
-
-(defun curtains-step (curtains par-width)
-  "Advance curtains by one step. Returns :stop when done."
-  (if (>= (curtains-offset curtains) (/ par-width 2))
-      :stop
-      (progn
-        (incf (curtains-offset curtains) (curtains-speed curtains))
-        nil)))
 
 
 (defun curtains-reset (view)
