@@ -421,7 +421,6 @@ Display LAYOUT number (1 by default)."
     (update-cursor-title cursor)))
 
 
-
 ;; -----------------------
 ;;      Line Callback
 ;; -----------------------
@@ -569,6 +568,46 @@ Update CURSOR's title and propagate the new value to the rain struct."
             (populate (rain-hash rain) layout densite speed))))))
   (redraw etap))
 
+
+;; -----------------------
+;;      Curtains Callback
+;; -----------------------
+
+(defun curtains-cursor-callback
+    (cursor value gesture
+     &aux (dialog (top-level-interface cursor))
+          (etap (etap dialog))
+          (view (view-area etap)))
+  "Function called when a Curtains animation CURSOR is dragged."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (let ((curtains (capi-object-property view :curtains)))
+      (when curtains
+        (ecase (property cursor)
+          (:curtains-speed (setf (curtains-speed curtains) (widget-value cursor))))))
+    (unless (capi-object-property view :living-text-animation)
+      (redraw etap))))
+
+(defun curtains-reset-callback
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Function called when the curtains reset button is pushed."
+  (declare (ignore data))
+  (setf (capi-object-property view :living-text-animation) nil)
+  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
+  (setf (capi-object-property view :living-text-active-button) nil)
+  (curtains-reset view)
+  (redraw etap))
+
+(defun curtains-direction-callback
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Switch curtains direction between :open and :close."
+  (let ((curtains (capi-object-property view :curtains)))
+    (when curtains
+      (setf (curtains-direction curtains) data)))
+  (redraw etap))
+
+
 ;; ----------------------
 ;; Living Text Interface
 ;; ----------------------
@@ -576,16 +615,23 @@ Update CURSOR's title and propagate the new value to the rain struct."
 
 (defun living-text-timer (view)
   (cond ((capi-object-property view :living-text-animation)
-         (let ((remaining (capi-object-property view :living-text-remaining)))
-           (cond ((null remaining)        ; mode start/stop infini
-                  (funcall (capi-object-property view :living-text-step))
+         (let* ((remaining (capi-object-property view :living-text-remaining))
+                (step-result (funcall (capi-object-property view :living-text-step))))
+           (cond ((eq step-result :stop)   ;; animation terminée naturellement
+                  (setf (capi-object-property view :living-text-animation) nil)
+                  (let ((btn (capi-object-property view :living-text-active-button)))
+                    (when btn
+                      (setf (item-data btn) :run-animation)
+                      (setf (capi-object-property view :living-text-active-button) nil)))
+                  (redisplay-element view)
+                  :stop)
+                 ((null remaining)
                   (redisplay-element view))
-                 ((> remaining 0)         ; mode play, frames restantes
+                 ((> remaining 0)
                   (setf (capi-object-property view :living-text-remaining)
                         (1- remaining))
-                  (funcall (capi-object-property view :living-text-step))
                   (redisplay-element view))
-                 (t                       ; mode play, terminé
+                 (t
                   (setf (capi-object-property view :living-text-animation) nil)
                   (let ((btn (capi-object-property view :living-text-active-button)))
                     (when btn
@@ -641,6 +687,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :line-y-shift) nil)
   (setf (capi-object-property view :elt-x-shift) nil)
   (setf (capi-object-property view :elt-y-shift) nil)
+  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
   (redraw etap))
 
 
@@ -651,6 +698,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (rain-start/stop-button dialog)) :run-animation)
+  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
   (living-text-install-animation (first item) view))
 
 
@@ -681,6 +729,7 @@ Stop animation if running, uninstall the living text, and redraw."
 (defun rain-play-callback (dialog)
   (living-text-play-callback dialog #'rain-duration-cursor))
 
+
 ;;-----------------
 ;;    Interface
 ;;-----------------
@@ -691,7 +740,7 @@ Stop animation if running, uninstall the living text, and redraw."
    (animation-tabs tab-layout
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting)) ;; lines + char + rain
+     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting) (:curtains curtains-setting)) ;; lines + char + rain
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
@@ -699,7 +748,6 @@ Stop animation if running, uninstall the living text, and redraw."
      :reader animation-tabs)
    
    ;; Lines waves panes
-
    (xamp pt-cursor
      :prefix :amplitude
      :property :xamp
@@ -738,7 +786,6 @@ Stop animation if running, uninstall the living text, and redraw."
      :text "Reset Phase"
      :data :ly
      :callback 'lwaves-phase-reset-callback)
-    
     (lwaves-duration cursor ; duration
       :prefix :duration :property :lwaves-duration
       :caliber *lwaves-duration*
@@ -757,8 +804,6 @@ Stop animation if running, uninstall the living text, and redraw."
 
 
    ;; Char waves panes
-
-    ; XPhase
    (cxamp pt-cursor
      :prefix :amplitude
      :property :cxamp
@@ -792,15 +837,12 @@ Stop animation if running, uninstall the living text, and redraw."
    (cyprop cursor
      :prefix :propagation
      :property :cyprop
-
-     
      :caliber *cwaves-propagation*
      :callback 'cwaves-cursor-callback)
    (cyphase push-button
      :text "Reset Phase"
      :data :cy
      :callback 'cwaves-phase-reset-callback)
-    
     (cwaves-duration cursor ; duration
       :prefix :duration :property :cwaves-duration
       :caliber *cwaves-duration*
@@ -820,7 +862,6 @@ Stop animation if running, uninstall the living text, and redraw."
 
 
     ;; Rain panes
- 
     (rain-densite cursor
      :prefix :densite
      :property :rain-densite
@@ -850,7 +891,31 @@ Stop animation if running, uninstall the living text, and redraw."
      :print-function 'title-capitalize
      :callback-type '(:item :interface)
      :callback 'living-text-start/stop-callback
-     :reader rain-start/stop-button))
+     :reader rain-start/stop-button)
+
+
+     ;; Curtains Panes
+    (curtains-speed cursor
+      :prefix :speed
+      :property :curtains-speed
+      :caliber *curtains-speed*
+      :callback 'curtains-cursor-callback)
+    (curtains-direction radio-button-panel
+      :items '(:open :close)
+      :print-function 'title-capitalize
+      :callback-type '(:data :interface)
+      :selection-callback 'curtains-direction-callback)
+    (curtains-reset push-button
+      :text "Reset"
+      :data :reset
+      :callback-type '(:data :interface)
+      :callback 'curtains-reset-callback)
+    (curtains-start/stop push-button
+      :data :run-animation
+      :print-function 'title-capitalize
+      :callback-type '(:item :interface)
+      :callback 'living-text-start/stop-callback
+      :reader curtains-start/stop-button))
 
 
     
@@ -882,7 +947,15 @@ Stop animation if running, uninstall the living text, and redraw."
   '(rain-params rain-repopulate rain-duration rain-play rain-start/stop)
   :adjust :center)
    (rain-params column-layout '(rain-densite rain-speed)
-     :title "Parameters" :title-position :frame :adjust :center))
+     :title "Parameters" :title-position :frame :adjust :center)
+
+    ;; Curtains
+    (curtains-setting column-layout
+  '(curtains-params curtains-direction curtains-reset curtains-start/stop)
+      :adjust :center)
+    (curtains-params column-layout '(curtains-speed)
+      :title "Parameters" :title-position :frame :adjust :center))
+    
 
   (:default-initargs
    :title "Living Text"

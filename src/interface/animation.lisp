@@ -5,6 +5,8 @@
 
 (defstruct rain densite speed hash)
 
+(defstruct curtains speed offset direction)
+
 
 ;; ----------------------------------------
 ;;              Line Waves
@@ -144,8 +146,6 @@
 
 
 ; Calcul
-; -------- A faire ----------
-
 (defun rain-shift (elt hash)
 "recupere la position y d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
@@ -204,3 +204,76 @@
           (lambda (elt) (or (rain-shift elt (rain-hash rain)) 0)))
     (setf (capi-object-property view :living-text-step)
           (lambda () (rain-step rain view)))))
+
+
+;; ----------------------------------------
+;;              Curtains
+;; ----------------------------------------
+
+
+; Macro
+(defmacro define-curtains-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd curtains caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber curtains ,name ,min ,default ,max ,@keys))
+
+(define-curtains-caliber speed   0 2  20  :bounded t)
+
+
+;Calcul
+(defun curtains-step (curtains par-width)
+  "Advance curtains by one step. Returns :stop when done."
+  (ecase (curtains-direction curtains)
+    (:open
+     (if (>= (curtains-offset curtains) (/ par-width 2))
+         :stop
+         (progn
+           (incf (curtains-offset curtains) (curtains-speed curtains))
+           nil)))
+    (:close
+     (if (<= (curtains-offset curtains) 0)
+         :stop
+         (progn
+           (decf (curtains-offset curtains) (curtains-speed curtains))
+           (when (< (curtains-offset curtains) 0)
+             (setf (curtains-offset curtains) 0))
+           nil)))))
+
+
+
+(defun curtains-step (curtains par-width)
+  "Advance curtains by one step. Returns :stop when done."
+  (if (>= (curtains-offset curtains) (/ par-width 2))
+      :stop
+      (progn
+        (incf (curtains-offset curtains) (curtains-speed curtains))
+        nil)))
+
+
+(defun curtains-reset (view)
+  "Reset the curtains animation to its initial state."
+  (let ((curtains (capi-object-property view :curtains)))
+    (when curtains
+      (setf (curtains-offset curtains) 0))))
+
+  
+; Installation
+(defmethod living-text-install-animation ((animation (eql :curtains)) view)
+  (let* ((curtains (capi-object-property view :curtains))
+         (etap     (top-level-interface view))
+         (layout-# (layout etap))
+         (layout   (unless (zerop layout-#)
+                     (get-layout (1- layout-#) (breakup etap)))))
+    (unless curtains
+      (setq curtains (make-curtains
+                       :speed     (caliber-default *curtains-speed*)
+                       :offset    0
+                       :direction :open))
+      (setf (capi-object-property view :curtains) curtains))
+    (when layout
+      (let ((par-width (paragraph-width (breakup etap))))
+        (setf (capi-object-property view :elt-x-shift)
+              (lambda (elt) (curtains-shift elt par-width curtains)))
+        (setf (capi-object-property view :living-text-step)
+              (lambda () (curtains-step curtains par-width)))))))
