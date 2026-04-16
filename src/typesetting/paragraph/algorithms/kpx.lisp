@@ -77,7 +77,9 @@ See `define-caliber' for more information."
 
 ;; #### WARNING: although we have a specific hierarchy for hyphenation points,
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
-;; the same here.
+;; the same here. Note also that our data structures (specifically, the
+;; end-of-paragraph boundaries) allow us to process the final line without
+;; needing an infinitely stretchable final glue.
 
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :kpx))
