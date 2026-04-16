@@ -375,9 +375,9 @@ one-before-last."))
 		    :demerits (demerits (first path))
 		    :bads (if (numberp (badness (first path))) 0  1))))
   "Create a KPX layout for BREAKUP from graph PATH."
-  ;; See warning in KP-CREATE-NODES about that.
   (unless (typep (first path) 'kpx-boundary)
     (change-class (first path) 'kpx-boundary))
+  ;; See warning in KP-CREATE-NODES about that.
   (incf (slot-value layout 'demerits)
 	(if (eq *fitness* :knuth-plass)
 	  (kp-fitness-demerits
