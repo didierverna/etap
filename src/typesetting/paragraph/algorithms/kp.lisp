@@ -82,7 +82,9 @@ See `define-caliber' for more information."
 
 ;; #### WARNING: although we have a specific hierarchy for hyphenation points,
 ;; the Knuth-Plass applies hyphen penalties to all discretionaries, so we do
-;; the same here.
+;; the same here. Note also that our data structures (specifically, the
+;; end-of-paragraph boundaries) allow us to process the final line without
+;; needing an infinitely stretchable final glue.
 
 (defmethod process-hlist
     (hlist disposition (algorithm (eql :knuth-plass))
@@ -137,10 +139,7 @@ Return HLIST."
 				  :penalty *explicit-hyphen-penalty*
 				  :caliber *kp-explicit-hyphen-penalty*))))
 		   :and :do (setq previous-helt helt)
-		   :and :collect helt))
-     (endpush (make-soft-glue
-	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
-	      hlist))
+		   :and :collect helt)))
     (t
      (setq hlist (glue-hlist hlist))
      (mapc (lambda (helt)
@@ -162,10 +161,7 @@ Return HLIST."
 			 :caliber *kp-explicit-hyphen-penalty*))))
 	       (glue
 		(change-class helt 'soft-glue :caliber *kp-glue-penalty*))))
-       hlist)
-     (endpush (make-soft-glue
-	       :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
-	      hlist)))
+       hlist)))
   hlist)
 
 
@@ -291,12 +287,13 @@ This includes its fitness class, badness, and local demerits."
   (format nil "Cumulative demerits: ~A." (float (demerits line))))
 
 ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
-;; underfulls (in case of an impossible layout, it falls back to overfull
-;; boxes). This means that the overstretch option has no effect, but it allows
-;; for a nice trick: we can indicate lines exceeding the tolerance thanks to
-;; an emergency stretch as overstretched, regardless of the option. This is
-;; done by setting the overstretch parameter to T and not counting emergency
-;; stretch in the stretch tolerance below.
+;; underfulls: in case of an impossible layout, it falls back to overfulls,
+;; and if a breakpoint is forced, it produces overstretched lines. This means
+;; that the overstretch option has no effect, but it allows for a nice trick:
+;; we can indicate lines exceeding the tolerance thanks to an emergency
+;; stretch, or forced short lines as overstretched, regardless of the option.
+;; This is done by setting the overstretch parameter to T and not counting
+;; emergency stretch in the stretch tolerance below.
 
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
@@ -401,7 +398,7 @@ This is the Knuth-Plass version for the graph variant.
 - FINAL means this is the final pass, in which case this function is required
   to return a boundary, albeit unfit.
 - EMERGENCY-STRETCH may be available during a final third pass."
-  (loop :with boundaries :with overfull :with emergency-boundary
+  (loop :with boundaries :with overfull :with emergency
 	:with continue := t
 	:for eol := (next-break-point harray bol)
 	  :then (next-break-point harray eol)
@@ -415,15 +412,15 @@ This is the Knuth-Plass version for the graph variant.
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
-		(cond ((> (min-width boundary) width)
-		       (setq overfull boundary continue nil))
-		      (($<= (badness boundary) threshold)
+		(cond (($<= (badness boundary) threshold)
 		       (push boundary boundaries))
+		      ((> (min-width boundary) width)
+		       (setq overfull boundary continue nil))
 		      (t
-		       (setq emergency-boundary boundary))))
+		       (setq emergency boundary))))
 	:finally (return (or boundaries
 			     (when final
-			       (list (or overfull emergency-boundary)))))))
+			       (list (or overfull emergency)))))))
 
 
 ;; -------
@@ -654,7 +651,9 @@ or, in case of equality, a lesser amount of demerits."
 	       (eopp boundary))
        (setq last-deactivation (cons key node))
        (remhash key nodes))
-     (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
+     ;; #### NOTE: even with infinite tolerance, we still don't want to shrink
+     ;; more than an SAR of -1, so we must check that explicitly.
+     (when (and ($>= (tsar boundary) -1) ($<= (badness boundary) threshold))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on
