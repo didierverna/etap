@@ -412,12 +412,12 @@ This is the Knuth-Plass version for the graph variant.
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
 		(when (eq (penalty eol) -∞) (setq continue nil))
-		(cond (($<= (badness boundary) threshold)
-		       (push boundary boundaries))
-		      ((> (min-width boundary) width)
+		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
+		      (($> (badness boundary) threshold)
+		       (setq emergency boundary))
 		      (t
-		       (setq emergency boundary))))
+		       (push boundary boundaries))))
 	:finally (return (or boundaries
 			     (when final
 			       (list (or overfull emergency)))))))
