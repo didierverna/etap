@@ -229,7 +229,10 @@ Return HLIST."
 
 (defmethod initialize-instance :after
     ((boundary fit-boundary) &key width target stretch shrink)
-  "Initialize BOUNDARY's TSAR."
+  "Initialize BOUNDARY's TSAR.
+If BOUNDARY is at the end of the paragraph, record only the need for shrinking
+(that is, leave the line at its natural width instead of stretching to
+TARGET)."
   (setf (slot-value boundary 'tsar)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call by
