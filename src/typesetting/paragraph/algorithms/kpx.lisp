@@ -113,9 +113,6 @@ Return HLIST."
 	    (glue
 	     (change-class helt 'soft-glue :caliber *kp-glue-penalty*))))
     hlist)
-  (endpush (make-soft-glue
-	    :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
-	   hlist)
   hlist)
 
 
@@ -548,6 +545,8 @@ This is the KPX version for the graph variant.
 	       (eopp boundary))
        (setq last-deactivation (cons key node))
        (remhash key nodes))
+     ;; #### NOTE: even with infinite tolerance, we still don't want to shrink
+     ;; more than an SAR of -1, so we must check that explicitly.
      (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
@@ -644,8 +643,8 @@ This is the KPX version for the graph variant.
       (sars tsar
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
-	:overshrink overshrink
-	:overstretch t)
+	:overstretch t ; see comment atop `kp-make-justified-line'
+	:overshrink overshrink)
     (make-instance 'kpx-node
       :harray harray :bol bol :boundary boundary
       :asar asar :esar esar

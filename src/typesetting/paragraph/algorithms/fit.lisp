@@ -229,12 +229,17 @@ Return HLIST."
 
 (defmethod initialize-instance :after
     ((boundary fit-boundary) &key width target stretch shrink)
-  "Initialize BOUNDARY's TSAR."
+  "Initialize BOUNDARY's TSAR.
+If BOUNDARY is at the end of the paragraph, record only the need for shrinking
+(that is, leave the line at its natural width instead of stretching to
+TARGET)."
   (setf (slot-value boundary 'tsar)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call by
 	;; using the propagated WIDTH keyword argument.
-	(sar width target stretch shrink)))
+	(if (and (eopp boundary) (< width target))
+	  0
+	  (sar width target stretch shrink))))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
   "Return a string advertising Fit BOUNDARY's dimensions.
@@ -496,7 +501,7 @@ fit, natural width for the best fit, and min width for thew last fit)."
   (make-line harray bol boundary :asar asar))
 
 (defun fit-make-justified-line
-    (harray bol boundary overstretch overshrink)
+    (harray bol boundary width overstretch overshrink)
   "Fit version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (if (eopp boundary)
@@ -504,15 +509,21 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	;; treatment. Without paragraph-wide considerations, we want its
 	;; scaling to be close to the general effect of the selected variant.
 	(ecase *variant*
-	  ;; #### FIXME: I think this is all wrong! Review.
 	  (:first
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	   ;; much as possible, without overstretching.
-	   (sars (tsar boundary) :overshrink overshrink))
+	   (let ((sar (tsar boundary)))
+	     (when (zerop sar)
+	       (setq sar
+		     (if (< (max-width boundary) width)
+		       1
+		       (harray-sar
+			harray (bol-idx bol) (eol-idx boundary) width))))
+	     (sars sar :overshrink overshrink)))
 	  (:best
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	   ;; normal spacing.
-	   (sars (tsar boundary) :stretch-tolerance 0 :overshrink overshrink))
+	   (sars (tsar boundary) :overshrink overshrink))
 	  (:last
 	   ;; Shrink as much as possible.
 	   (sars -1 :overshrink overshrink)))
@@ -566,7 +577,7 @@ fit, natural width for the best fit, and min width for thew last fit)."
 		   (overshrink  (getf disposition-options :overshrink)))
 	       (lambda (harray bol boundary)
 		 (fit-make-justified-line
-		  harray bol boundary overstretch overshrink))))
+		  harray bol boundary width overstretch overshrink))))
 	    (t
 	     (ecase *variant*
 	       (:first

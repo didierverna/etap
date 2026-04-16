@@ -69,19 +69,18 @@ The weight is computed according to the discriminating function."
      ;; now, but we're still saving some reader calls by using the propagated
      ;; keyword arguments.
      &key width min-width max-width target
-     &aux (eopp (eopp boundary))
-	  (fitness ;; #### NOTE: an underfull last line is actually a fit.
-	   (cond (($< max-width target) (if eopp :fit :underfull))
-		 ((>  min-width target) :overfull)
-		 (t :fit))))
+     &aux (tsar (tsar boundary))
+	  (fitness (cond (($> tsar 1) :underfull)
+			 (($< tsar -1) :overfull)
+			 (t :fit))))
   "Initialize BOUNDARY's fitness and weight."
   (setf (slot-value boundary 'fitness) fitness)
-  ;; #### NOTE: a fit last line (which, in fact, can be underfull as mentioned
-  ;; above) needs a special treatment here. We won't consider its weight at
-  ;; all because it's not justified. On the other hand, if the last line is
-  ;; overfull, then it's bad and we need to take its weight into account.
+  ;; #### NOTE: a fit last line (either perfect or underfull) needs a special
+  ;; treatment here. We won't consider its weight at all because it's not
+  ;; justified. On the other hand, if the last line is overfull, then it's bad
+  ;; and we need to take its weight into account.
   (setf (slot-value boundary 'weight)
-	(if (and eopp (eq fitness :fit))
+	(if (and (eopp boundary) (eq fitness :fit))
 	  0
 	  (ecase *discriminating-function*
 	    (:minimize-distance (abs (- target width)))
@@ -112,14 +111,10 @@ order (from last to first)."
 	:for boundary := (make-instance 'duncan-boundary
 			   :harray harray :bol bol :break-point eol
 			   :target width)
-	:do (cond (($< (max-width boundary) width)
-		   (if (eopp eol) ; last line underfull is a actually a fit
-		     (push boundary fits)
-		     (setq underfull boundary)))
-		  ((> (min-width boundary) width)
-		   (setq overfull boundary))
-		  (t ;; note the reverse order
-		   (push boundary fits)))
+	:do (ecase (fitness boundary)
+	      (:underfull (setq underfull boundary))
+	      (:overfull (setq overfull boundary))
+	      (:fit (push boundary fits))) ;; note the reverse order
 	:finally
 	   (return (or fits
 		       (append (when overfull (list overfull))
@@ -149,10 +144,8 @@ order (from last to first)."
      &aux (tsar (tsar boundary)))
   "Duncan version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
-      (if (eopp boundary)
-	;; Justified last line: maybe shrink it but don't stretch it.
-	(sars tsar :stretch-tolerance 0 :overshrink overshrink)
-	;; Justified regular line: make it fit.
+      (if (eopp boundary) ; no overstretch
+	(sars tsar :overshrink overshrink)
 	(sars tsar :overstretch overstretch :overshrink overshrink))
     (make-instance 'duncan-line
       :harray harray :bol bol :boundary boundary
