@@ -235,35 +235,35 @@ This class represents weighted hyphenation point discretionaries."))
   ((width
     :documentation "The glues's natural width."
     :initform 0 :initarg :width :reader width)
-   (shrink
-    :documentation "The glue's shrinkability."
-    :initform 0 :initarg :shrink :reader shrink)
    (stretch
     :documentation "The glue's stretchability."
-    :initform 0 :initarg :stretch :reader stretch))
+    :initform 0 :initarg :stretch :reader stretch)
+   (shrink
+    :documentation "The glue's shrinkability."
+    :initform 0 :initarg :shrink :reader shrink))
   (:documentation "The GLUE class.
 Glues represent breakable, elastic space."))
 
 (defmethod initialize-instance :after ((glue glue) &key)
   "Validate GLUE's dimensions.
-- WIDTH and SHRINK must be non-negative integers,
-- STRETCH must be a non-negative integer, or +∞."
+- WIDTH, STRETCH, and SHRINK must be non-negative integers.
+STRETCH may also be +∞."
   (assert (and (rationalp (width glue)) (>= (width glue) 0)))
   (assert (and (rationalp (shrink glue)) (>= (shrink glue) 0)))
   (assert (or (and (rationalp (stretch glue)) (>= (stretch glue) 0))
 	      ($= (stretch glue) +∞))))
 
-(defun make-glue (&rest keys &key width shrink stretch)
-  "Make a new hard glue out of WIDTH, SHRINK, STRETCH."
-  (declare (ignore width shrink stretch))
+(defun make-glue (&rest keys &key width stretch shrink)
+  "Make a new hard glue out of WIDTH, STRETCH, and SHRINK."
+  (declare (ignore width stretch shrink))
   (apply #'make-instance 'glue keys))
 
 (defun make-interword-glue (&key (font *font*))
   "Make a hard interword glue.
 Use FONT (*FONT* by default) to set up the spacing."
   (make-glue :width (tfm:interword-space font)
-	     :shrink (tfm:interword-shrink font)
-	     :stretch (tfm:interword-stretch font)))
+	     :stretch (tfm:interword-stretch font)
+	     :shrink (tfm:interword-shrink font)))
 
 (defmethod properties strnlcat ((glue glue) &key)
   "Advertise GLUE's properties."
@@ -282,9 +282,9 @@ Use FONT (*FONT* by default) to set up the spacing."
   (:documentation "The SOFT-GLUE class.
 This class represents weighted glues."))
 
-(defun make-soft-glue (&rest keys &key width shrink stretch penalty caliber)
+(defun make-soft-glue (&rest keys &key width stretch shrink penalty caliber)
   "Make a new soft glue."
-  (declare (ignore width shrink stretch penalty caliber))
+  (declare (ignore width stretch shrink penalty caliber))
   (apply #'make-instance 'soft-glue keys))
 
 
@@ -323,6 +323,7 @@ This is the default method."
   "Return NIL."
   nil)
 
+;; #### FIXME: yes, but why not -∞ ? See also the comment in KP-TRY-BREAK.
 ;; #### NOTE: this avoid the need for creating soft EOP break points.
 (defmethod penalty ((eop eop))
   "Return 0."

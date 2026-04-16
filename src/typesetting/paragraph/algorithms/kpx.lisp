@@ -111,9 +111,6 @@ Return HLIST."
 	    (glue
 	     (change-class helt 'soft-glue :caliber *kp-glue-penalty*))))
     hlist)
-  (endpush (make-soft-glue
-	    :stretch +∞ :penalty +∞ :caliber *kp-glue-penalty*)
-	   hlist)
   hlist)
 
 
@@ -352,18 +349,22 @@ one-before-last."))
      &aux (harray (harray breakup))
 	  (disposition (disposition breakup))
 	  (disposition-type (disposition-type disposition))
-	  (overshrink (getf (disposition-options disposition) :overshrink))
-	  ;; #### NOTE: no emergency stretch counted here. See comment on top
-	  ;; of KP-MAKE-JUSTIFIED-LINE.
-	  (stretch-tolerance
-	   (stretch-tolerance
-	    (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
 	  (make-line
 	   (case disposition-type
 	     (:justified
-	      (lambda (harray bol boundary demerits)
-		(kp-make-justified-line harray bol boundary
-		  stretch-tolerance overshrink demerits)))
+	      (let((overshrink
+		     (getf (disposition-options disposition) :overshrink))
+		   ;; #### NOTE: no emergency stretch counted here. See
+		   ;; comment on top of KP-MAKE-JUSTIFIED-LINE.
+		   (stretch-tolerance
+		     (stretch-tolerance
+		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
+		   (shrink-tolerance
+		     (shrink-tolerance
+		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
+		(lambda (harray bol boundary demerits)
+		  (kp-make-justified-line harray bol boundary
+		    stretch-tolerance shrink-tolerance overshrink demerits))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -464,7 +465,9 @@ one-before-last."))
 ;; ---------------
 
 (defun kpx-try-break
-    (break-point nodes harray width make-node threshold final emergency-stretch
+    (break-point nodes harray width make-node
+     threshold stretch-tolerance shrink-tolerance
+     final emergency-stretch
      &aux (bol-items (harray-bol-items harray break-point))
 	  (eol-items (harray-eol-items harray break-point))
 	  last-deactivation new-nodes)
@@ -474,7 +477,10 @@ one-before-last."))
 	    &aux (bol (key-break-point key)) ; also available in the node
 		 (boundary (make-instance 'kpx-boundary
 			     :harray harray :bol bol :break-point break-point
-			     :target width :extra emergency-stretch)))
+			     :target width
+			     :stretch-tolerance stretch-tolerance
+			     :shrink-tolerance shrink-tolerance
+			     :extra emergency-stretch)))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
@@ -484,6 +490,8 @@ one-before-last."))
 	       (eopp boundary))
        (setq last-deactivation (cons key node))
        (remhash key nodes))
+     ;; #### NOTE: even with infinite tolerance, we still don't want to shrink
+     ;; more than an SAR of -1, so we must check that explicitly.
      (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
@@ -548,10 +556,10 @@ one-before-last."))
   (when (and final (zerop (hash-table-count nodes)) (null new-nodes))
     (let* ((bol (key-break-point (car last-deactivation)))
 	   (boundary (make-instance 'kpx-boundary
-		       :harray harray
-		       :bol bol
-		       :break-point break-point
+		       :harray harray :bol bol :break-point break-point
 		       :target width
+		       :stretch-tolerance stretch-tolerance
+		       :shrink-tolerance shrink-tolerance
 		       :extra emergency-stretch)))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
       ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY
@@ -572,15 +580,16 @@ one-before-last."))
     new-nodes))
 
 (defun kpx-make-justified-node
-    (harray bol boundary stretch-tolerance overshrink demerits previous
-     eol-items bol-items
+    (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
+     previous eol-items bol-items
      &aux (tsar (tsar boundary)))
   "KPX dynamic version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (sars tsar
 	:stretch-tolerance stretch-tolerance
-	:overshrink overshrink
-	:overstretch t)
+	:shrink-tolerance shrink-tolerance
+	:overstretch t ; see comment atop `kp-make-justified-line'
+	:overshrink overshrink)
     (make-instance 'kpx-node
       :harray harray :bol bol :boundary boundary
       :asar asar :esar esar
@@ -599,6 +608,7 @@ one-before-last."))
 	  ;; #### NOTE: no emergency stretch counted here. See comment on top
 	  ;; of KP-MAKE-JUSTIFIED-LINE.
 	  (stretch-tolerance (stretch-tolerance threshold))
+	  (shrink-tolerance (shrink-tolerance threshold))
 	  (hyphenate (> pass 1))
 	  (final (case pass
 		   (1 nil)
@@ -612,8 +622,8 @@ one-before-last."))
 	      (lambda
 		  (harray bol boundary demerits previous eol-items bol-items)
 		(kpx-make-justified-node harray bol boundary
-		  stretch-tolerance overshrink demerits previous
-		  eol-items bol-items)))
+		  stretch-tolerance shrink-tolerance overshrink demerits
+		  previous eol-items bol-items)))
 	     (t ;; just switch back to normal spacing.
 	      (lambda
 		  (harray bol boundary demerits previous eol-items bol-items)
@@ -635,7 +645,8 @@ one-before-last."))
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
 	  :do (kpx-try-break break-point nodes harray width make-node
-			    threshold final emergency-stretch))
+			     threshold stretch-tolerance shrink-tolerance
+			     final emergency-stretch))
   (unless (zerop (hash-table-count nodes)) nodes))
 
 

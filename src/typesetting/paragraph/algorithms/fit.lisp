@@ -210,24 +210,17 @@ Return HLIST."
 ;; Boundaries
 ;; ==========================================================================
 
-;; #### TODO: the min and max widths here (in fact, the width one as well) are
-;; "natural" widths. Nothing prevents an algorithm to stretch a line more than
-;; it's max width (in fact the Knuth-Plass does so with its tolerance
-;; setting). So perhaps the design is not very nice for algorithms with more
-;; flexibility, and those values should in fact represent the algorithm's
-;; tolerance instead.
-
-;; #### TODO: as for the TSAR property, it represents the amount required to
-;; reach a target width, /not/ an algorithm's final choice. Also, this really
-;; makes sense for justification, much less for ragged dispositions. But on
-;; the other hand, we don't currently have any sensible ragged formatting.
+;; #### TODO: the TSAR property represents the amount required to reach a
+;; target width, /not/ an algorithm's final choice. Also, this really makes
+;; sense for justification, much less for ragged dispositions. But on the
+;; other hand, we don't currently have any sensible ragged formatting.
 
 (defclass fit-boundary (fixed-boundary)
   ((min-width
-    :documentation "This boundary's theoretical minimum line width."
+    :documentation "This boundary's minimum tolerable line width."
     :initarg :min-width :reader min-width)
    (max-width
-    :documentation "This boundary's theoretical maximum line width."
+    :documentation "This boundary's maximum tolerable line width."
     :initarg :max-width :reader max-width)
    (tsar
     :documentation "This boundary's Theoretical Spacing Adjustment Ratio."
@@ -235,23 +228,24 @@ Return HLIST."
   (:documentation "The FIT-BOUNDARY class."))
 
 (defmethod initialize-instance :after
-    ((boundary fit-boundary)
-     ;; #### NOTE: the Knuth-Plass' emergency-stretch amount is passed as
-     ;; EXTRA stretch here.
-     &key width stretch shrink extra target)
-  "Initialize BOUNDARY's TSAR."
-  (when extra (setq stretch ($+ stretch extra)))
+    ((boundary fit-boundary) &key width target stretch shrink)
+  "Initialize BOUNDARY's TSAR.
+If BOUNDARY is at the end of the paragraph, record only the need for shrinking
+(that is, leave the line at its natural width instead of stretching to
+TARGET)."
   (setf (slot-value boundary 'tsar)
 	;; #### NOTE: the WIDTH slot from the FIXED-BOUNDARY superclass is
 	;; already initialized by now, but we're still saving a reader call by
 	;; using the propagated WIDTH keyword argument.
-	(sar width target stretch shrink)))
+	(if (and (eopp boundary) (< width target))
+	  0
+	  (sar width target stretch shrink))))
 
 (defmethod properties strnlcat ((boundary fit-boundary) &key)
-  "Return a string advertising Fit BOUNDARY's natural dimensions.
-This includes the minimum, natural, and maximum theoretical line widths,
+  "Return a string advertising Fit BOUNDARY's dimensions.
+This includes the minimum and maximum tolerable line widths,
 plus the theoretical SAR required to reach the target width."
-  (format nil "Min: ~Apt; Max: ~Apt.~%Theoretical SAR: ~A."
+  (format nil "Tolerable widths: ~Apt — ~Apt.~%Theoretical SAR: ~A."
     (float (min-width boundary))
     ($float (max-width boundary))
     ($float (tsar boundary))))
@@ -473,17 +467,17 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	    0
 	    ;; On the other hand, do not destretch any other line so much that
 	    ;; another chunk would fit in.
-	    (let ((sar (harray-sar
-			harray
-			(bol-idx bol)
-			(eol-idx
-			 (next-break-point harray (break-point boundary)))
-			width)))
-	      ;; A positive next SAR means that another chunk would fit in,
+	    (let ((tsar (harray-sar
+			 harray
+			 (bol-idx bol)
+			 (eol-idx
+			  (next-break-point harray (break-point boundary)))
+			 width)))
+	      ;; A positive next TSAR means that another chunk would fit in,
 	      ;; and still be underfull (possibly not even elastic), so we can
 	      ;; destretch only up to that (infinity falling back to 0).
 	      ;; Otherwise, we can destretch completely.
-	      (if ($> sar 0) sar 0)))))
+	      (if ($> tsar 0) tsar 0)))))
   (make-line harray bol boundary :asar asar))
 
 ;; By default, lines are shrunk as much as possible.
@@ -507,7 +501,7 @@ fit, natural width for the best fit, and min width for thew last fit)."
   (make-line harray bol boundary :asar asar))
 
 (defun fit-make-justified-line
-    (harray bol boundary overstretch overshrink)
+    (harray bol boundary width overstretch overshrink)
   "Fit version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (if (eopp boundary)
@@ -515,20 +509,25 @@ fit, natural width for the best fit, and min width for thew last fit)."
 	;; treatment. Without paragraph-wide considerations, we want its
 	;; scaling to be close to the general effect of the selected variant.
 	(ecase *variant*
-	  ;; #### FIXME: I think this is all wrong! Review.
 	  (:first
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, stretch as
 	   ;; much as possible, without overstretching.
-	   (sars (tsar boundary) :overshrink overshrink))
+	   (let ((sar (tsar boundary)))
+	     (when (zerop sar)
+	       (setq sar
+		     (if (< (max-width boundary) width)
+		       1
+		       (harray-sar
+			harray (bol-idx bol) (eol-idx boundary) width))))
+	     (sars sar :overshrink overshrink)))
 	  (:best
 	   ;; If the line needs to be shrunk, shrink it. Otherwise, keep the
 	   ;; normal spacing.
-	   (sars (tsar boundary) :overshrink overshrink :stretch-tolerance 0))
+	   (sars (tsar boundary) :overshrink overshrink))
 	  (:last
 	   ;; Shrink as much as possible.
 	   (sars -1 :overshrink overshrink)))
-	(sars (tsar boundary)
-	  :overshrink overshrink :overstretch overstretch))
+	(sars (tsar boundary) :overstretch overstretch :overshrink overshrink))
     (make-line harray bol boundary :asar asar :esar esar)))
 
 
@@ -578,7 +577,7 @@ fit, natural width for the best fit, and min width for thew last fit)."
 		   (overshrink  (getf disposition-options :overshrink)))
 	       (lambda (harray bol boundary)
 		 (fit-make-justified-line
-		  harray bol boundary overstretch overshrink))))
+		  harray bol boundary width overstretch overshrink))))
 	    (t
 	     (ecase *variant*
 	       (:first

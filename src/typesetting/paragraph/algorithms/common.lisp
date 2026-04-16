@@ -11,33 +11,31 @@
 ;; -----------------------------
 
 (defun sar (width target stretch shrink)
-  "Return the Spacing Adjustment Ratio (SAR) required to reach TARGET width.
-The SAR is 0 if WIDTH = TARGET. Otherwise, it's a stretching (positive) or
-shrinking (negative) ratio relative to the elasticity provided by STRETCH and
-SHRINK.
-
-If no elasticity is available to reach TARGET from WIDTH,
-the value is +∞ or -∞, depending on the scaling direction."
+  "Return the Spacing Adjustment Ratio required to reach TARGET from WIDTH.
+It is 0 if WIDTH = TARGET. Otherwise, it's a stretching (positive) or
+shrinking (negative) ratio relative to the elasticity provided by STRETCH or
+SHRINK. If no elasticity is available in the required direction, the value is
++∞ or -∞."
   (cond ((= width target) 0)
 	((< width target) ($/ (- target width) stretch))
 	((< target width) ($/ (- target width) shrink))))
 
-(defun sars (sar &key (shrink-tolerance -1) (stretch-tolerance 1)
-		      (overshrink nil) (overstretch nil))
-  "Return the Algorithmic and Effective SARs based on SAR.
+(defun sars (tsar &key (stretch-tolerance 1) (shrink-tolerance -1)
+		       overstretch overshrink)
+  "Return the Algorithmic and Effective SARs based on TSAR.
 This function returns two values.
-- The Algorithmic SAR (ASAR), which depends on the algorithm's SHRINK and
-  STRETCH-TOLERANCE (-1 / 1 by default).
+- The Algorithmic SAR (ASAR), which depends on the algorithm's STRETCH- and
+  SHRINK-TOLERANCE (1 / -1 by default).
 - The Effective SAR (ESAR), used to pin the line's items, which further
-  depends on the OVERSHRINK and  OVERSTRETCH disposition options (nil by
+  depends on the OVERSTRETCH and OVERSHRINK disposition options (nil by
   default)."
-  (let ((asar sar) (esar sar))
-    (cond (($< sar 0)
-	   (setq asar ($max asar shrink-tolerance))
-	   (unless overshrink (setq esar asar)))
-	  (($> sar 0)
+  (let ((asar tsar) (esar tsar))
+    (cond (($> tsar 0)
 	   (setq asar ($min asar stretch-tolerance))
-	   (unless overstretch (setq esar asar))))
+	   (unless overstretch (setq esar asar)))
+	  (($< tsar 0)
+	   (setq asar ($max asar shrink-tolerance))
+	   (unless overshrink (setq esar asar))))
     (values asar esar)))
 
 
@@ -229,10 +227,20 @@ sub-list)."
     list)
   (values width stretch shrink))
 
-(defun harray-width (harray start stop)
-  "Compute HARRAY's width between START and STOP.
-Return five values: the natural, maximum, and minimum width, followed by the
-stretch and shrink amounts."
+(defun harray-width
+    (harray start stop &key (stretch-tolerance 1) (shrink-tolerance -1))
+  "Compute HARRAY's width between START and STOP indexes.
+STRETCH-TOLERANCE and SHRINK-TOLERANCE are the amounts of tolerable stretching
+and shrinking expressed as a ratios of the available elasticity.
+STRETCH-TOLERANCE must be a possibly infinite positive number.
+SHRINK-TOLERANCE must be a negative number. They default to 1 and -1
+respectively.
+
+In addition to computing the HARRAY chunk's natural width, this function
+returns four other values: the chunk's maximum and minimum tolerable widths,
+followed by the available stretching and shrinking amounts."
+  (assert ($>= stretch-tolerance 0))
+  (assert (<= shrink-tolerance 0))
   (loop :with width := 0 :with stretch := 0 :with shrink := 0
 	:for i :from start :upto (1- stop)
 	:for helt := (haref harray i start stop)
@@ -251,7 +259,17 @@ stretch and shrink amounts."
 		 (incf shrink lshrink)))
 	      (t
 	       (incf width (width helt))))
-	:finally (return (values width ($+ width stretch) (- width shrink)
+	:finally (return (values width
+				 ($+ width
+				     (cond ((and (eq stretch-tolerance +∞)
+						 (zerop stretch))
+					    0)
+					   ((and (eq stretch-tolerance 0)
+						 (eq stretch +∞))
+					    +∞)
+					   (t
+					    ($* stretch-tolerance stretch))))
+				 (+ width (* shrink-tolerance shrink))
 				 stretch shrink))))
 
 (defun harray-sar (harray start stop target &optional extra)
