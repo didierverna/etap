@@ -355,7 +355,7 @@ This is the KPX version for the graph variant.
 - FINAL means this is the final pass, in which case this function is required
   to return a boundary, albeit unfit.
 - EMERGENCY-STRETCH may be available during a final third pass."
-  (loop :with boundaries :with overfull :with emergency-boundary
+  (loop :with boundaries :with overfull :with emergency
 	:with continue := t
 	:for eol := (next-break-point harray bol)
 	  :then (next-break-point harray eol)
@@ -368,27 +368,34 @@ This is the KPX version for the graph variant.
 				:stretch-tolerance stretch-tolerance
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
+		;; Runt line. Act as if we the justification target width was
+		;; the runt width: recompute the TSAR and fitness class
+		;; accordingly. Then, set the badness to +∞ and the local
+		;; demerits to 0, as for any other unfit line (not that this
+		;; normally happens only for overfull lines).
 		(when (eopp boundary)
-		  (setf (slot-value boundary 'max-width)
-			(harray-max-width
-			 harray (bol-idx bol) (1- (eol-idx eol))
-			 stretch-tolerance)))
+		  (let ((runt (* (/ *runt-threshold* 100) width)))
+		    (when (and (< (min-width boundary) runt)
+			       ($< (max-width boundary) runt))
+		      (setf (slot-value boundary 'tsar)
+			    (harray-sar
+			     harray (bol-idx bol) (eol-idx eol) runt)
+			    (slot-value boundary 'fitness-class)
+			    (sar-fitness-class (tsar boundary))
+			    (slot-value boundary 'badness)
+			    +∞
+			    (slot-value boundary 'demerits)
+			    0))))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
 		      (($> (badness boundary) threshold)
-		       (setq emergency-boundary boundary))
-		      ((and (eopp boundary)
-			    (< (min-width boundary)
-			       (* (/ *runt-threshold* 100) width))
-			    ($< (max-width boundary)
-				(* (/ *runt-threshold* 100) width)))
-		       (setq emergency-boundary boundary))
+		       (setq emergency boundary))
 		      (t
 		       (push boundary boundaries))))
 	:finally (return (or boundaries
 			     (when final
-			       (list (or overfull emergency-boundary)))))))
+			       (list (or overfull emergency)))))))
 
 
 
