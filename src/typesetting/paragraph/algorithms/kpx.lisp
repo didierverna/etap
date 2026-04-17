@@ -361,26 +361,29 @@ This is the KPX version for the graph variant.
 				:stretch-tolerance stretch-tolerance
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
-		;; Runt line. Act as if we the justification target width was
-		;; the runt width: recompute the TSAR and (extended) fitness
-		;; class accordingly. Then, set the badness to +∞ and the
-		;; local demerits to 0, as for any other unfit line (not that
-		;; this normally happens only for overfull lines).
 		(when (eopp boundary)
-		  (let ((runt (* (/ *runt-threshold* 100) width)))
-		    (when (and (< (min-width boundary) runt)
-			       ($< (max-width boundary) runt))
-		      (setf (slot-value boundary 'tsar)
-			    (harray-sar
-			     harray (bol-idx bol) (eol-idx eol) runt)
-			    (slot-value boundary 'fitness-class)
-			    (sar-fitness-class (tsar boundary))
-			    (slot-value boundary 'extended-fitness-class)
-			    (kpx-sar-fitness-class (tsar boundary))
-			    (slot-value boundary 'badness)
-			    +∞
-			    (slot-value boundary 'demerits)
-			    0))))
+		  (let ((runt (* (/ *runt-threshold* 100) width))
+			(full-out (- width
+				     (* (/ *full-out-threshold* 100) width))))
+		    (cond ((and (< (min-width boundary) runt)
+				($< (max-width boundary) runt))
+			   ;; Runt line. Act as if we the justification target
+			   ;; width was the runt width: recompute the TSAR and
+			   ;; (extended) fitness class accordingly. Then, set
+			   ;; the badness to +∞ and the local demerits to 0,
+			   ;; as for any other unfit line (not that this
+			   ;; normally happens only for overfull lines).
+			   (setf (slot-value boundary 'tsar)
+				 (harray-sar
+				  harray (bol-idx bol) (eol-idx eol) runt)
+				 (slot-value boundary 'fitness-class)
+				 (sar-fitness-class (tsar boundary))
+				 (slot-value boundary 'extended-fitness-class)
+				 (kpx-sar-fitness-class (tsar boundary))
+				 (slot-value boundary 'badness)
+				 +∞
+				 (slot-value boundary 'demerits)
+				 0)))))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
