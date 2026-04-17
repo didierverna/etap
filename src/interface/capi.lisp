@@ -1056,17 +1056,19 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 		     (- (caliber-max caliber) (caliber-min caliber)))))))
 
 ;; #### TODO: see comment atop CLUE-UNDER-PIN.
-(defun draw-triangle (view x y &rest args)
+(defun draw-triangle (view x y dx dy &rest args)
   "Draw a triangular clue in VIEW at (X,Y).
-ARGS are subsequently passed to the drawing function."
-  (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5))
+(X,Y) is the tip of the triangle. Its height is DY (the triangle is drawn
+upside-down if DY is negative), and its base is 2DX wide (DX should be
+positive). ARGS are subsequently passed to the drawing function."
+  (apply #'gp:draw-polygon view (list x y (- x dx) (+ y dy) (+ x dx) (+ y dy))
 	 :closed t args))
 
 (defun draw-break-point-clue (view x y break-point &optional (filled t))
   "Draw a triangle clue in VIEW at (X,Y) for BREAK-POINT.
 The triangle may be FILLED (T by default), and its color is computed based on
   BREAK-POINT's penalty."
-  (draw-triangle view x y
+  (draw-triangle view x y 3 5
       :filled filled
       :foreground (color:make-hsv (clue-hue break-point) 1s0 .7s0)))
 
@@ -1161,45 +1163,29 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 			:scale-thickness nil :filled nil)
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if ($< (esar line) (asar line))
-		  :do (gp:draw-polygon view
-			  (list (+ full-x 5)
-				(- ly (height line))
-				(+ full-x 11)
-				(- ly (height line))
-				(+ full-x 8)
-				(+ ly (depth line)))
+		  :do (draw-triangle view
+			  (+ full-x 8) (+ ly (depth line))
+			  3 (- (+ (height line) (depth line)))
 			:foreground :blue
-			:scale-thickness nil :filled t :closed t)
+			:scale-thickness nil :filled t)
 		:else :if ($< (asar line) -1)
-		  :do (gp:draw-polygon view
-			  (list (+ full-x 5)
-				(- ly (height line))
-				(+ full-x 11)
-				(- ly (height line))
-				(+ full-x 8)
-				(+ ly (depth line)))
+		  :do (draw-triangle view
+			  (+ full-x 8) (+ ly (depth line))
+			  3 (- (+ (height line) (depth line)))
 			:foreground :blue
-			:scale-thickness nil :filled nil :closed t)
+			:scale-thickness nil :filled nil)
 		:else :if ($> (esar line) (asar line))
-		  :do (gp:draw-polygon view
-			  (list (+ full-x 5)
-				(+ ly (depth line))
-				(+ full-x 11)
-				(+ ly (depth line))
-				(+ full-x 8)
-				(- ly (height line)))
+		  :do (draw-triangle view
+			  (+ full-x 8) (- ly (height line))
+			  3 (+ (height line) (depth line))
 			:foreground :blue
-			:scale-thickness nil :filled t :closed t)
+			:scale-thickness nil :filled t)
 		:else :if ($> (asar line) 1)
-		  :do (gp:draw-polygon view
-			  (list (+ full-x 5)
-				(+ ly (depth line))
-				(+ full-x 11)
-				(+ ly (depth line))
-				(+ full-x 8)
-				(- ly (height line)))
+		  :do (draw-triangle view
+			  (+ full-x 8) (- ly (height line))
+			  3 (+ (height line) (depth line))
 			:foreground :blue
-			:scale-thickness nil :filled nil :closed t)
+			:scale-thickness nil :filled nil)
 	      :when (member :baselines clues)
 		:do (gp:draw-line view lx ly (+ lx (width line)) ly
 		      :foreground :purple
