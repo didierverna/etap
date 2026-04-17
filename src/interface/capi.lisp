@@ -1059,8 +1059,8 @@ Min and max values depend on BREAK-POINT's penalty and caliber."
 (defun draw-triangle (view x y &rest args)
   "Draw a triangular clue in VIEW at (X,Y).
 ARGS are subsequently passed to the drawing function."
-  (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5) x y)
-	 args))
+  (apply #'gp:draw-polygon view (list x y (- x 3) (+ y 5) (+ x 3) (+ y 5))
+	 :closed t args))
 
 (defun draw-break-point-clue (view x y break-point &optional (filled t))
   "Draw a triangle clue in VIEW at (X,Y) for BREAK-POINT.
