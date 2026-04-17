@@ -256,14 +256,6 @@ point, in reverse order."
     (extended-fitness-class boundary)))
 
 
-;; This is for the calls to CHANGE-CLASS in the graph version.
-(defmethod update-instance-for-different-class :after
-    ((from kp-boundary) (to kpx-boundary) &key)
-  "Initialize KPX BOUNDARY's extended fitness class."
-  (setf (slot-value to 'extended-fitness-class)
-	(kpx-sar-fitness-class (tsar to))))
-
-
 
 
 ;; ==========================================================================
@@ -363,17 +355,17 @@ This is the KPX version for the graph variant.
 	:while (and eol continue)
 	:when (and ($< (penalty eol) +∞)
 		   (or hyphenate (not (hyphenation-point-p eol))))
-	  :do (let ((boundary (make-instance 'kp-boundary
+	  :do (let ((boundary (make-instance 'kpx-boundary
 				:harray harray :bol bol :break-point eol
 				:target width
 				:stretch-tolerance stretch-tolerance
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
 		;; Runt line. Act as if we the justification target width was
-		;; the runt width: recompute the TSAR and fitness class
-		;; accordingly. Then, set the badness to +∞ and the local
-		;; demerits to 0, as for any other unfit line (not that this
-		;; normally happens only for overfull lines).
+		;; the runt width: recompute the TSAR and (extended) fitness
+		;; class accordingly. Then, set the badness to +∞ and the
+		;; local demerits to 0, as for any other unfit line (not that
+		;; this normally happens only for overfull lines).
 		(when (eopp boundary)
 		  (let ((runt (* (/ *runt-threshold* 100) width)))
 		    (when (and (< (min-width boundary) runt)
@@ -383,6 +375,8 @@ This is the KPX version for the graph variant.
 			     harray (bol-idx bol) (eol-idx eol) runt)
 			    (slot-value boundary 'fitness-class)
 			    (sar-fitness-class (tsar boundary))
+			    (slot-value boundary 'extended-fitness-class)
+			    (kpx-sar-fitness-class (tsar boundary))
 			    (slot-value boundary 'badness)
 			    +∞
 			    (slot-value boundary 'demerits)
@@ -404,11 +398,6 @@ This is the KPX version for the graph variant.
 ;; Layouts
 ;; -------
 
-;; #### NOTE: this is a bit kludgy, but in the function below we change the
-;; boundaries class on the fly in order to make the extended fitness class
-;; available. This avoids too much generalization in the KP infrastructure and
-;; let us reuse KP-GRAPH-BREAK-HARRAY, but this works only because we don't
-;; need KPX boundaries in order to construct the graphs.
 (defun kpx-graph-make-layout
     (breakup path
      &aux (harray (harray breakup))
@@ -440,8 +429,6 @@ This is the KPX version for the graph variant.
 		    :demerits (demerits (first path))
 		    :bads (if (numberp (badness (first path))) 0  1))))
   "Create a KPX layout for BREAKUP from graph PATH."
-  (unless (typep (first path) 'kpx-boundary)
-    (change-class (first path) 'kpx-boundary))
   ;; See warning in KP-CREATE-NODES about that.
   (incf (slot-value layout 'demerits)
 	(if (eq *fitness* :knuth-plass)
@@ -464,8 +451,6 @@ This is the KPX version for the graph variant.
 			:for eol2
 			  := (harray-eol-items harray (break-point boundary2))
 			:for finalp := (eopp boundary2)
-			:unless (typep boundary2 'kpx-boundary)
-			  :do (change-class boundary2 'kpx-boundary)
 			:do (incf size)
 			:unless (numberp (badness boundary2)) :do (incf bads)
 			  :do (incf demerits (demerits boundary2))
