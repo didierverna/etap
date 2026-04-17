@@ -1598,6 +1598,10 @@ that the breakup does not contain any layout."
      :property :runt-threshold
      :caliber *kpx-runt-threshold*
      :callback 'algorithm-cursor-callback)
+   (kpx-full-out-threshold %-cursor
+     :property :full-out-threshold
+     :caliber *kpx-full-out-threshold*
+     :callback 'algorithm-cursor-callback)
    (text-button popup-menu-button
      :text "Source text" :menu text-menu)
    (language-button popup-menu-button
@@ -1663,7 +1667,8 @@ that the breakup does not contain any layout."
        kpx-hyphen-penalty          kpx-double-hyphen-demerits kpx-tolerance
        kpx-explicit-hyphen-penalty kpx-final-hyphen-demerits  kpx-emergency-stretch
        nil                         kpx-similar-demerits       kpx-looseness
-       nil                         nil                        kpx-runt-threshold)
+       nil                         nil                        kpx-runt-threshold
+       nil                         nil                        kpx-full-out-threshold)
      :columns 3))
   (:menus
    (etap-menu "ETAP" (:select-font :river-detection)
