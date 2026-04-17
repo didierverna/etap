@@ -1147,20 +1147,20 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
 		:if (> (width line) par-width)
-		  :do (gp:draw-rectangle view
-			  full-x  (- ly (height line))
-			  5  (+ (height line) (depth line))
+		  :do (draw-triangle view
+			  (+ full-x 8) (- ly (height line))
+			  3 (+ (height line) (depth line))
 			:foreground :orange
 			:scale-thickness nil :filled t)
 		:else :if (and (cdr rest) ;; not the last one
 			       (eq (disposition-type (disposition breakup))
 				   :justified)
 			       (< (width line) par-width))
-		  :do (gp:draw-rectangle view
-			  full-x (- ly (height line))
-			  5 (+ (height line) (depth line))
+		  :do (draw-triangle view
+			  (+ full-x 8) (+ ly (depth line))
+			  3 (- (+ (height line) (depth line)))
 			:foreground :orange
-			:scale-thickness nil :filled nil)
+			:scale-thickness nil :filled t)
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if ($< (esar line) (asar line))
 		  :do (draw-triangle view
