@@ -240,8 +240,11 @@ point, in reverse order."
 ;; ----------
 
 (defclass kpx-boundary (kp-boundary)
-  ((extended-fitness-class
+  ((tsar :initarg :tsar) ; slot override for reinitialization
+   (fitness-class :initarg :fitness-class) ; slot override for reinitialization
+   (extended-fitness-class
     :documentation "This boundary's extended fitness class."
+    :initarg :extended-fitness-class ; for reinitialization
     :reader extended-fitness-class))
   (:documentation "The KPX Boundary class."))
 
@@ -254,6 +257,15 @@ point, in reverse order."
   "Advertise KPX BOUNDARY's extended fitness class."
   (format nil "Extended fitness class: ~A."
     (extended-fitness-class boundary)))
+
+
+(defmethod reinitialize-instance :around
+    ((boundary kpx-boundary) &rest keys &key tsar)
+  "Reinitialize KPX BOUNDARY with a new TSAR."
+  (apply #'call-next-method boundary
+	 :fitness-class (sar-fitness-class tsar)
+	 :extended-fitness-class (kpx-sar-fitness-class tsar)
+	 keys))
 
 
 
@@ -373,17 +385,11 @@ This is the KPX version for the graph variant.
 			   ;; the badness to +∞ and the local demerits to 0,
 			   ;; as for any other unfit line (not that this
 			   ;; normally happens only for overfull lines).
-			   (setf (slot-value boundary 'tsar)
-				 (harray-sar
-				  harray (bol-idx bol) (eol-idx eol) runt)
-				 (slot-value boundary 'fitness-class)
-				 (sar-fitness-class (tsar boundary))
-				 (slot-value boundary 'extended-fitness-class)
-				 (kpx-sar-fitness-class (tsar boundary))
-				 (slot-value boundary 'badness)
-				 +∞
-				 (slot-value boundary 'demerits)
-				 0)))))
+			   (reinitialize-instance boundary
+			     :tsar (harray-sar
+				    harray (bol-idx bol) (eol-idx eol) runt))
+			   (setf (slot-value boundary 'badness) +∞
+				 (slot-value boundary 'demerits) 0)))))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
