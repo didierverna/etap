@@ -235,9 +235,9 @@ point, in reverse order."
 ;; Variant-Independent Data Structures
 ;; ==========================================================================
 
-;; ----------
-;; Boundaries
-;; ----------
+;; ------------------
+;; Regular Boundaries
+;; ------------------
 
 (defclass kpx-boundary (kp-boundary)
   ((tsar :initarg :tsar) ; slot override for reinitialization
@@ -258,13 +258,51 @@ point, in reverse order."
   (format nil "Extended fitness class: ~A."
     (extended-fitness-class boundary)))
 
-
+;; This is used for runt lines.
 (defmethod reinitialize-instance :around
     ((boundary kpx-boundary) &rest keys &key tsar)
   "Reinitialize KPX BOUNDARY with a new TSAR."
   (apply #'call-next-method boundary
 	 :fitness-class (sar-fitness-class tsar)
 	 :extended-fitness-class (kpx-sar-fitness-class tsar)
+	 keys))
+
+
+
+;; -------------------
+;; Full Out Boundaries
+;; -------------------
+
+(defclass kpx-full-out-boundary (kpx-boundary)
+  ((jsar
+    :documentation "This boundary's SAR for justification."
+    :initarg :jsar :reader jsar)
+   (jsar-fitness-class
+    :documentation "This boundary's fitness class for justification."
+    :initarg :jsar-fitness-class
+    :reader jsar-fitness-class)
+   (jsar-extended-fitness-class
+    :documentation "This boundary's extended fitness class for justification."
+    :initarg :jsar-extended-fitness-class
+    :reader jsar-extended-fitness-class))
+  (:documentation "The KPX Full Out Boundary class."))
+
+(defmethod properties strnlcat ((boundary kpx-full-out-boundary) &key)
+  "Advertise KPX full out BOUNDARY's justification SAR and fitness classes."
+  (format nil "JSAR: ~A; Fitness class: ~A; Extended: ~A."
+    ($float (jsar boundary))
+    (fitness-class-name (jsar-fitness-class boundary))
+    (jsar-extended-fitness-class boundary)))
+
+;; This is used for full out lines.
+(defmethod update-instance-for-different-class :around
+    ((old kpx-boundary) (new kpx-full-out-boundary) &rest keys &key tsar jsar)
+  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and JSAR."
+  (apply #'call-next-method old new
+	 :fitness-class (sar-fitness-class tsar)
+	 :extended-fitness-class (kpx-sar-fitness-class tsar)
+	 :jsar-fitness-class (sar-fitness-class jsar)
+	 :jsar-extended-fitness-class (kpx-sar-fitness-class jsar)
 	 keys))
 
 
@@ -388,6 +426,22 @@ This is the KPX version for the graph variant.
 			   (reinitialize-instance boundary
 			     :tsar (harray-sar
 				    harray (bol-idx bol) (eol-idx eol) runt))
+			   (setf (slot-value boundary 'badness) +∞
+				 (slot-value boundary 'demerits) 0))
+			  ((and (> (min-width boundary) full-out)
+				($< (max-width boundary) width))
+			   ;; Full out line. Record the two failed
+			   ;; justification targets SARs (full out and normal
+			   ;; target widths) and compute their respective
+			   ;; fitness classes. Then, set the badness to +∞ and
+			   ;; the local demerits to 0, as for any other unfit
+			   ;; line (not that this normally happens only for
+			   ;; overfull lines).
+			   (change-class boundary 'kpx-full-out-boundary
+			     :tsar (harray-sar
+				    harray (bol-idx bol) (eol-idx eol) full-out)
+			     :jsar (harray-sar
+				    harray (bol-idx bol) (eol-idx eol) width))
 			   (setf (slot-value boundary 'badness) +∞
 				 (slot-value boundary 'demerits) 0)))))
 		(when (eq (penalty eol) -∞) (setq continue nil))
