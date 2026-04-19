@@ -286,6 +286,15 @@ This includes its fitness class, badness, and local demerits."
   "Return a string advertising Knuth-Plass LINE's cumulative demerits."
   (format nil "Cumulative demerits: ~A." (float (demerits line))))
 
+;; #### FIXME: this is really a kludge. It's only for the KPX algorithm, and
+;; on top of that, it's only needed because the actual polymorphism is on the
+;; boundary, not the line.
+(defmethod overlinep ((line kp-line))
+  "Return T if LINE is full out."
+  (if (eq (type-of (boundary line)) 'kpx-full-out-boundary)
+    t
+    (call-next-method)))
+
 ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
 ;; underfulls: in case of an impossible layout, it falls back to overfulls,
 ;; and if a breakpoint is forced, it produces overstretched lines. This means

@@ -1158,19 +1158,21 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					  (< (width line) par-width))
 				     :underfull))
 			      (overlinep line))))
-		      (case overlinep
-			(:overfull
-			 (draw-triangle view
-			     (+ full-x 8) (- ly (height line))
-			     3 (+ (height line) (depth line))
-			   :foreground :orange
-			   :scale-thickness nil :filled t))
-			(:underfull
-			 (draw-triangle view
-			     (+ full-x 8) (+ ly (depth line))
-			     3 (- (+ (height line) (depth line)))
-			   :foreground :orange
-			   :scale-thickness nil :filled t))))
+		      ;; #### NOTE: KPX full out lines are considered both
+		      ;; under and overfull, so the checks below are mutually
+		      ;; inclusive.
+		      (when (member overlinep '(:overfull t))
+			(draw-triangle view
+			    (+ full-x 8) (- ly (height line))
+			    3 (+ (height line) (depth line))
+			  :foreground :orange
+			  :scale-thickness nil :filled t))
+		      (when (member overlinep '(:underfull t))
+			(draw-triangle view
+			    (+ full-x 8) (+ ly (depth line))
+			    3 (- (+ (height line) (depth line)))
+			  :foreground :orange
+			  :scale-thickness nil :filled t)))
 	      :when (and (member :overshrunk/stretched-boxes clues)
 			 (not (eq (type-of (boundary line)) 'fixed-boundary)))
 		:do (cond ((and ($< (asar line) 0)
