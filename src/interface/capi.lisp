@@ -1174,25 +1174,25 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	      :when (member :overshrunk/stretched-boxes clues)
 		:if ($< (esar line) (asar line))
 		  :do (draw-triangle view
-			  (+ full-x 8) (+ ly (depth line))
+			  (+ full-x 16) (+ ly (depth line))
 			  3 (- (+ (height line) (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled t)
 		:else :if ($< (asar line) -1)
 		  :do (draw-triangle view
-			  (+ full-x 8) (+ ly (depth line))
+			  (+ full-x 16) (+ ly (depth line))
 			  3 (- (+ (height line) (depth line)))
 			:foreground :blue
 			:scale-thickness nil :filled nil)
 		:else :if ($> (esar line) (asar line))
 		  :do (draw-triangle view
-			  (+ full-x 8) (- ly (height line))
+			  (+ full-x 16) (- ly (height line))
 			  3 (+ (height line) (depth line))
 			:foreground :blue
 			:scale-thickness nil :filled t)
 		:else :if ($> (asar line) 1)
 		  :do (draw-triangle view
-			  (+ full-x 8) (- ly (height line))
+			  (+ full-x 16) (- ly (height line))
 			  3 (+ (height line) (depth line))
 			:foreground :blue
 			:scale-thickness nil :filled nil)
