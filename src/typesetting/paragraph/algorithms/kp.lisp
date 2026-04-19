@@ -295,6 +295,10 @@ This includes its fitness class, badness, and local demerits."
 ;; This is done by setting the overstretch parameter to T and not counting
 ;; emergency stretch in the stretch tolerance below.
 
+;; #### WARNING: the KPX algorithm, on the other hand, can produce elastic
+;; underfull lines in one case: runt (final) lines. Consequently, we must not
+;; use this trick on the final line.
+
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
      &rest keys &key previous
@@ -307,7 +311,7 @@ instantiated instead."
       (sars tsar
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
-	:overstretch t
+	:overstretch (not (eopp boundary))
 	:overshrink overshrink)
     (apply #'make-instance
       (if previous 'kp-node 'kp-line) ; kp-node forward reference

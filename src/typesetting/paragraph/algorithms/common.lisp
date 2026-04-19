@@ -469,6 +469,10 @@ Optionally preset ASAR and ESAR."
 	 :harray harray :bol bol :boundary boundary keys))
 
 
+(defmethod eopp ((line line))
+  "Return T if LINE is the last."
+  (eopp (boundary line)))
+
 (defmethod bol-idx ((line line))
   "Return LINE's BOL index."
   (bol-idx (bol line)))
@@ -476,6 +480,20 @@ Optionally preset ASAR and ESAR."
 (defmethod eol-idx ((line line))
   "Return LINE's EOL index."
   (eol-idx (boundary line)))
+
+;; #### WARNING: this function assumes at least a Fit boundary. There's a
+;; check in the GUI code for that. It's a kludge, but it should go away when
+;; we get rid of the fixed algorithm for good.
+(defgeneric overlinep (line)
+  (:documentation "Return LINE's over/underfull status.
+Possible values are NIL (a fit line), :overfull, :underfull, or T, meaning
+both (this is the case of the KPX full-out lines).")
+  (:method (line &aux (boundary (boundary line)))
+    "Default method for basic elastic lines."
+    (cond ((and ($> (tsar boundary) 0) ($< (asar line) (tsar boundary)))
+	   :underfull)
+	  ((and ($< (tsar boundary) 0) ($> (asar line) (tsar boundary)))
+	   :overfull))))
 
 
 ;; #### WARNING: the three methods below require the line to be rendered
