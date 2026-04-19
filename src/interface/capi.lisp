@@ -1171,31 +1171,38 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 			     3 (- (+ (height line) (depth line)))
 			   :foreground :orange
 			   :scale-thickness nil :filled t))))
-	      :when (member :overshrunk/stretched-boxes clues)
-		:if ($< (esar line) (asar line))
-		  :do (draw-triangle view
-			  (+ full-x 16) (+ ly (depth line))
-			  3 (- (+ (height line) (depth line)))
-			:foreground :blue
-			:scale-thickness nil :filled t)
-		:else :if ($< (asar line) -1)
-		  :do (draw-triangle view
-			  (+ full-x 16) (+ ly (depth line))
-			  3 (- (+ (height line) (depth line)))
-			:foreground :blue
-			:scale-thickness nil :filled nil)
-		:else :if ($> (esar line) (asar line))
-		  :do (draw-triangle view
-			  (+ full-x 16) (- ly (height line))
-			  3 (+ (height line) (depth line))
-			:foreground :blue
-			:scale-thickness nil :filled t)
-		:else :if ($> (asar line) 1)
-		  :do (draw-triangle view
-			  (+ full-x 16) (- ly (height line))
-			  3 (+ (height line) (depth line))
-			:foreground :blue
-			:scale-thickness nil :filled nil)
+	      :when (and (member :overshrunk/stretched-boxes clues)
+			 (not (eq (type-of (boundary line)) 'fixed-boundary)))
+		:do (cond ((and ($< (asar line) 0)
+				(< (min-width (boundary line))
+				   (width (boundary line))))
+			   (cond (($< (esar line) (asar line))
+				  (draw-triangle view
+				      (+ full-x 16) (+ ly (depth line))
+				      3 (- (+ (height line) (depth line)))
+				    :foreground :blue
+				    :scale-thickness nil :filled t))
+				 (($< (asar line) -1)
+				  (draw-triangle view
+				      (+ full-x 16) (+ ly (depth line))
+				      3 (- (+ (height line) (depth line)))
+				    :foreground :blue
+				    :scale-thickness nil :filled nil))))
+			  ((and ($> (asar line) 0)
+				($> (max-width (boundary line))
+				    (width (boundary line))))
+			   (cond (($> (esar line) (asar line))
+				  (draw-triangle view
+				      (+ full-x 16) (- ly (height line))
+				      3 (+ (height line) (depth line))
+				    :foreground :blue
+				    :scale-thickness nil :filled t))
+				 (($> (asar line) 1)
+				  (draw-triangle view
+				      (+ full-x 16) (- ly (height line))
+				      3 (+ (height line) (depth line))
+				    :foreground :blue
+				    :scale-thickness nil :filled nil)))))
 	      :when (member :baselines clues)
 		:do (gp:draw-line view lx ly (+ lx (width line)) ly
 		      :foreground :purple
