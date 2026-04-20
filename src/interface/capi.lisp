@@ -644,7 +644,8 @@ new dialog and display it."
     :hyphenation-points :discretionaries :whitespaces :ends-of-line
     :over/underfull-boxes :overshrunk/stretched-boxes
     :rivers
-    :paragraph-box :line-boxes :character-boxes :baselines)
+    :paragraph-box :line-boxes :character-boxes :baselines
+    :kpx-thresholds)
   "The visual clues available for conditional display.")
 
 (defparameter *inspector-options*
@@ -1125,6 +1126,30 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
+	;; #### TODO: this is a kludge. We should have algorithm-specific
+	;; clues handled in a more general way.
+	(when (and (member :kpx-thresholds clues)
+		   (eq (first (choice-selected-item (algorithm-tabs etap)))
+		       :kpx))
+	  (let* ((algorithm (algorithm-specification etap))
+		 (pin (car (last (lines layout))))
+		 (ly (+ par-y (y pin)))
+		 (runt (/ (* (getf (rest algorithm) :runt-threshold) par-width)
+			  100))
+		 (full-out (- par-width
+			      (/ (* (getf (rest algorithm) :full-out-threshold)
+				    par-width)
+				 100))))
+	    (unless (zerop runt)
+	      (gp:draw-line view
+		  runt (- ly (height pin) 2) runt (+ ly (depth pin)  2)
+		:foreground :red
+		:thickness 1))
+	    (unless (= full-out par-width)
+	      (gp:draw-line view
+		  full-out (- ly (height pin) 2) full-out (+ ly (depth pin) 2)
+		:foreground :red
+		:thickness 1))))
 	(loop :with fonts := (capi-object-property view :fonts)
 	      :with full-x ; for positioning *ful boxes
 		:= (+ (loop :for pin :in (lines layout)
