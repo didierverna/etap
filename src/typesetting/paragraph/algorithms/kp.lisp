@@ -256,11 +256,7 @@ This includes its fitness class, badness, and local demerits."
     (setf (slot-value boundary 'fitness-class) (sar-fitness-class sar)
 	  (slot-value boundary 'badness) (sar-badness sar)))
   (setf (slot-value boundary 'demerits)
-	;; #### NOTE: see TeX's use of the artificial_demerits flag in this
-	;; situation (#854, #855).
-	(if (numberp (badness boundary))
-	  (local-demerits (badness boundary) (penalty boundary) *line-penalty*)
-	  0)))
+	(local-demerits (badness boundary) (penalty boundary) *line-penalty*)))
 
 (defmethod properties strnlcat ((boundary kp-boundary) &key)
   "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."

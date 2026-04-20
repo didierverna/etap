@@ -103,12 +103,16 @@ This function returns two values.
 Local demerits are computed from the line's BADNESS, end-of-line PENALTY, and
 LINE-PENALTY. They do not account for multi-line / contextual typographical
 traits such as adjacency problems or hyphenation ladders."
-  (cond ((and (numberp penalty) (<= 0 penalty))
-	 ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
-	((and (numberp penalty) (< penalty 0))
-	 ($+ ($^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
-	(t ;; -∞
-	 ($^ ($+ line-penalty badness) 2))))
+  ;; #### NOTE: see TeX's use of the artificial_demerits flag in this
+  ;; situation (#854, #855).
+  (if (numberp badness)
+    (cond ((and (numberp penalty) (<= 0 penalty))
+	   ($+ ($^ ($+ line-penalty badness) 2) (expt penalty 2)))
+	  ((and (numberp penalty) (< penalty 0))
+	   ($+ ($^ ($+ line-penalty badness) 2) (- (expt penalty 2))))
+	  (t ;; -∞
+	   ($^ ($+ line-penalty badness) 2)))
+    0))
 
 
 

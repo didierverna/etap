@@ -334,11 +334,9 @@ This is the  Best Fit algorithm version."
     (cond ((and fits (null (cdr fits)))
 	   (first fits))
 	  (fits
-	   ;; #### NOTE: since we're only working with fits here, the badness
-	   ;; can only be numerical (not infinite). Also, there is at most one
-	   ;; boundary with a penalty of -∞ (because of the way we collect
-	   ;; boundaries). This means that we can end up with at most one
-	   ;; infinitely negative weight below.
+	   ;; #### NOTE: there is at most one boundary with a penalty of -∞
+	   ;; (because of the way we collect boundaries). This means that we
+	   ;; can end up with at most one infinitely negative weight below.
 	   (let ((possibilities (length fits)))
 	     (mapc (lambda (fit)
 		     (change-class fit 'fit-weighted-boundary
