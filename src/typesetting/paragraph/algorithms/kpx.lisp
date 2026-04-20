@@ -386,6 +386,37 @@ one-before-last."))
 ;; Boundaries lookup
 ;; -----------------
 
+(defun kpx-adjust-eop-boundary
+    (boundary harray bol width &aux (eol (break-point boundary)))
+  "Adjust the flexibility of the EOP boundary vis-a-vis paragraph WIDTH."
+  (let ((runt (* (/ *runt-threshold* 100) width))
+	(full-out (- width (* (/ *full-out-threshold* 100) width))))
+    (cond ((and (< (min-width boundary) runt)
+		($< (max-width boundary) runt))
+	   ;; Runt line. Act as if we the justification target width was the
+	   ;; runt width: recompute the TSAR and (extended) fitness class
+	   ;; accordingly. Then, set the badness to +∞ and the local demerits
+	   ;; to 0, as for any other unfit line (not that this normally
+	   ;; happens only for overfull lines).
+	   (reinitialize-instance boundary
+	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) runt))
+	   (setf (slot-value boundary 'badness) +∞
+		 (slot-value boundary 'demerits) 0))
+	  ((and (> (min-width boundary) full-out)
+		($< (max-width boundary) width))
+	   ;; Full out line. Record the two failed justification targets SARs
+	   ;; (full out and normal target widths) and compute their respective
+	   ;; fitness classes. Then, set the badness to +∞ and the local
+	   ;; demerits to 0, as for any other unfit line (not that this
+	   ;; normally happens only for overfull lines). The TSAR is used for
+	   ;; the threshold, and the other one is used for the justification
+	   ;; target (Justification SAR a.k.a. JSAR).
+	   (change-class boundary 'kpx-full-out-boundary
+	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
+	     :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width))
+	   (setf (slot-value boundary 'badness) +∞
+		 (slot-value boundary 'demerits) 0)))))
+
 (defun kpx-get-boundaries
     (harray bol width threshold stretch-tolerance shrink-tolerance
      &optional hyphenate final emergency-stretch)
@@ -412,38 +443,7 @@ This is the KPX version for the graph variant.
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
 		(when (eopp boundary)
-		  (let ((runt (* (/ *runt-threshold* 100) width))
-			(full-out (- width
-				     (* (/ *full-out-threshold* 100) width))))
-		    (cond ((and (< (min-width boundary) runt)
-				($< (max-width boundary) runt))
-			   ;; Runt line. Act as if we the justification target
-			   ;; width was the runt width: recompute the TSAR and
-			   ;; (extended) fitness class accordingly. Then, set
-			   ;; the badness to +∞ and the local demerits to 0,
-			   ;; as for any other unfit line (not that this
-			   ;; normally happens only for overfull lines).
-			   (reinitialize-instance boundary
-			     :tsar (harray-sar
-				    harray (bol-idx bol) (eol-idx eol) runt))
-			   (setf (slot-value boundary 'badness) +∞
-				 (slot-value boundary 'demerits) 0))
-			  ((and (> (min-width boundary) full-out)
-				($< (max-width boundary) width))
-			   ;; Full out line. Record the two failed
-			   ;; justification targets SARs (full out and normal
-			   ;; target widths) and compute their respective
-			   ;; fitness classes. Then, set the badness to +∞ and
-			   ;; the local demerits to 0, as for any other unfit
-			   ;; line (not that this normally happens only for
-			   ;; overfull lines).
-			   (change-class boundary 'kpx-full-out-boundary
-			     :tsar (harray-sar
-				    harray (bol-idx bol) (eol-idx eol) full-out)
-			     :jsar (harray-sar
-				    harray (bol-idx bol) (eol-idx eol) width))
-			   (setf (slot-value boundary 'badness) +∞
-				 (slot-value boundary 'demerits) 0)))))
+		  (kpx-adjust-eop-boundary boundary harray bol width))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
