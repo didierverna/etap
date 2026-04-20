@@ -240,11 +240,9 @@ point, in reverse order."
 ;; ------------------
 
 (defclass kpx-boundary (kp-boundary)
-  ((tsar :initarg :tsar) ; slot override for reinitialization
-   (fitness-class :initarg :fitness-class) ; slot override for reinitialization
+  ((tsar :initarg :tsar) ; slot override for reinitialization and upgrade
    (extended-fitness-class
     :documentation "This boundary's extended fitness class."
-    :initarg :extended-fitness-class ; for reinitialization
     :reader extended-fitness-class))
   (:documentation "The KPX Boundary class."))
 
@@ -259,13 +257,12 @@ point, in reverse order."
     (extended-fitness-class boundary)))
 
 ;; This is used for runt lines.
-(defmethod reinitialize-instance :around
+(defmethod reinitialize-instance :after
     ((boundary kpx-boundary) &rest keys &key tsar)
   "Reinitialize KPX BOUNDARY with a new TSAR."
-  (apply #'call-next-method boundary
-	 :fitness-class (sar-fitness-class tsar)
-	 :extended-fitness-class (kpx-sar-fitness-class tsar)
-	 keys))
+  (kp-initialize-boundary boundary)
+  (setf (slot-value boundary 'extended-fitness-class)
+	(kpx-sar-fitness-class tsar)))
 
 
 
@@ -273,37 +270,38 @@ point, in reverse order."
 ;; Full Out Boundaries
 ;; -------------------
 
+;; #### NOTE: no need to record FSAR badness and demerits. They're not used by
+;; the algorithm, and besides, it represents an overfull line, so the badness
+;; would be infinite and local demerits 0.
 (defclass kpx-full-out-boundary (kpx-boundary)
-  ((jsar
-    :documentation "This boundary's SAR for justification."
-    :initarg :jsar :reader jsar)
-   (jsar-fitness-class
-    :documentation "This boundary's fitness class for justification."
-    :initarg :jsar-fitness-class
-    :reader jsar-fitness-class)
-   (jsar-extended-fitness-class
-    :documentation "This boundary's extended fitness class for justification."
-    :initarg :jsar-extended-fitness-class
-    :reader jsar-extended-fitness-class))
+  ((fsar
+    :documentation "This boundary's SAR for full out justification."
+    :initarg :fsar :reader fsar)
+   (fsar-fitness-class
+    :documentation "This boundary's FSAR fitness class."
+    :reader fsar-fitness-class)
+   (fsar-extended-fitness-class
+    :documentation "This boundary's FSAR extended fitness class."
+    :reader fsar-extended-fitness-class))
   (:documentation "The KPX Full Out Boundary class."))
 
 (defmethod properties strnlcat ((boundary kpx-full-out-boundary) &key)
   "Advertise KPX full out BOUNDARY's justification SAR and fitness classes."
-  (format nil "JSAR: ~A; Fitness class: ~A; Extended: ~A."
-    ($float (jsar boundary))
-    (fitness-class-name (jsar-fitness-class boundary))
-    (jsar-extended-fitness-class boundary)))
+  (format nil "FSAR: ~A; Fitness class: ~A; Extended: ~A."
+    ($float (fsar boundary))
+    (fitness-class-name (fsar-fitness-class boundary))
+    (fsar-extended-fitness-class boundary)))
 
 ;; This is used for full out lines.
-(defmethod update-instance-for-different-class :around
-    ((old kpx-boundary) (new kpx-full-out-boundary) &rest keys &key tsar jsar)
-  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and JSAR."
-  (apply #'call-next-method old new
-	 :fitness-class (sar-fitness-class tsar)
-	 :extended-fitness-class (kpx-sar-fitness-class tsar)
-	 :jsar-fitness-class (sar-fitness-class jsar)
-	 :jsar-extended-fitness-class (kpx-sar-fitness-class jsar)
-	 keys))
+(defmethod update-instance-for-different-class :after
+    ((old kpx-boundary) (new kpx-full-out-boundary) &rest keys &key tsar fsar)
+  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and FSAR."
+  (kp-initialize-boundary new)
+  (setf (slot-value new 'extended-fitness-class)
+	(kpx-sar-fitness-class tsar))
+  (with-slots (fsar-fitness-class fsar-extended-fitness-class) new
+    (setq fsar-fitness-class (sar-fitness-class fsar)
+	  fsar-extended-fitness-class (kpx-sar-fitness-class fsar))))
 
 
 
@@ -393,29 +391,20 @@ one-before-last."))
 	(full-out (- width (* (/ *full-out-threshold* 100) width))))
     (cond ((and (< (min-width boundary) runt)
 		($< (max-width boundary) runt))
-	   ;; Runt line. Act as if we the justification target width was the
-	   ;; runt width: recompute the TSAR and (extended) fitness class
-	   ;; accordingly. Then, set the badness to +∞ and the local demerits
-	   ;; to 0, as for any other unfit line (not that this normally
-	   ;; happens only for overfull lines).
+	   ;; Runt line. Update the boundary as if the justification target
+	   ;; width was the runt width. This will make this boundary behave as
+	   ;; an underfull.
 	   (reinitialize-instance boundary
-	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) runt))
-	   (setf (slot-value boundary 'badness) +∞
-		 (slot-value boundary 'demerits) 0))
+	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) runt)))
 	  ((and (> (min-width boundary) full-out)
 		($< (max-width boundary) width))
-	   ;; Full out line. Record the two failed justification targets SARs
-	   ;; (full out and normal target widths) and compute their respective
-	   ;; fitness classes. Then, set the badness to +∞ and the local
-	   ;; demerits to 0, as for any other unfit line (not that this
-	   ;; normally happens only for overfull lines). The TSAR is used for
-	   ;; the threshold, and the other one is used for the justification
-	   ;; target (Justification SAR a.k.a. JSAR).
+	   ;; Full out line. Update the boundary as if the justification
+	   ;; target width was the paragraph width. This will make this
+	   ;; boundary behave as an underfull. Also record it as an overfull
+	   ;; for the full out target width.
 	   (change-class boundary 'kpx-full-out-boundary
-	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
-	     :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width))
-	   (setf (slot-value boundary 'badness) +∞
-		 (slot-value boundary 'demerits) 0)))))
+	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)
+	     :fsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out))))))
 
 (defun kpx-get-boundaries
     (harray bol width threshold stretch-tolerance shrink-tolerance
