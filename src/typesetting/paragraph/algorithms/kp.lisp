@@ -196,6 +196,16 @@ natural maximum, the shrinking tolerance is always greater than -1."
        (rationalize (expt (/ badness-tolerance 100) 1/3)))))
 
 
+;; #### FIXME: there was this comment but I don't understand it anymore, and
+;; it is probably obsolete.
+;; #### WARNING: it is possible to get a rigid line here (TSAR = +/-∞), not
+;; only an overfull one. For example, we could have collected an hyphenated
+;; beginning of word thanks to an infinite tolerance, and this would result in
+;; a rigid underfull. This probably doesn't happen in TeX with its dynamic
+;; programming implementation. But the problem is that we can't define a
+;; sensible fitness class in such a case. So we consider those lines to be
+;; very tight (as overfulls) even if they are actually underfull.
+
 ;; #### NOTE: we don't use the same numerical values as in the real
 ;; Knuth-Plass here. The point being that having a decent fitness class of 0
 ;; makes our life simpler for handling extended fitness classes in KPX.
@@ -235,37 +245,44 @@ This is an integer ranging from -1 (tight) to 2 (very loose)."
     :reader badness)
    (demerits
     :documentation "This boundary's local demerits."
-    :reader demerits))
+    :reader demerits)
+   (osar
+    :documentation "This boundary's Original TSAR.
+The TSAR takes emergency stretch into account, with the OSAR does not."
+    :reader osar))
   (:documentation "The KP-boundary class."))
+
+(defun kp-initialize-boundary (boundary)
+  "Initialize BOUNDARY's fitness class, badness, and local demerits."
+  (with-slots (fitness-class badness demerits tsar) boundary
+    (setq fitness-class (sar-fitness-class tsar)
+	  badness (sar-badness tsar)
+	  demerits (local-demerits badness (penalty boundary) *line-penalty*))))
 
 (defmethod initialize-instance :after
     ((boundary kp-boundary) &key width target stretch shrink extra)
-  "Initialize Knuth-Plass BOUNDARY's properties.
-This includes its fitness class, badness, and local demerits."
-  ;; #### WARNING: it is possible to get a rigid line here (TSAR = +/-∞), not
-  ;; only an overfull one. For example, we could have collected an hyphenated
-  ;; beginning of word thanks to an infinite tolerance, and this would result
-  ;; in a rigid underfull. This probably doesn't happen in TeX with its
-  ;; dynamic programming implementation. But the problem is that we can't
-  ;; define a sensible fitness class in such a case. So we consider those
-  ;; lines to be very tight (as overfulls) even if they are actually
-  ;; underfull.
-  (let ((sar (if (and extra (not (zerop extra))) ; handle emergency stretch
-	       (sar width target ($+ stretch extra) shrink)
-	       (tsar boundary))))
-    (setf (slot-value boundary 'fitness-class) (sar-fitness-class sar)
-	  (slot-value boundary 'badness) (sar-badness sar)))
-  (setf (slot-value boundary 'demerits)
-	(local-demerits (badness boundary) (penalty boundary) *line-penalty*)))
+  "Initialize Knuth-Plass BOUNDARY's properties based on its TSAR.
+This includes the fitness class, badness, and local demerits.
+Also record the Original TSAR (OSAR) in case EXTRA (emergency) stretch was
+used."
+  (kp-initialize-boundary boundary)
+  (setf (slot-value boundary 'osar)
+	(if (and extra (not (zerop extra)) (not (eopp boundary)))
+	  (sar width target ($- stretch extra) shrink)
+	  (tsar boundary))))
 
 (defmethod properties strnlcat ((boundary kp-boundary) &key)
   "Advertise Knuth-Plass BOUNDARY's fitness class, badness, and demerits."
-  (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line)."
+  (format nil "Fitness class: ~A; Badness: ~A; Demerits: ~A (line).~
+	       ~:[~;~%Original TSAR (no emergency stretch): ~A.~]"
     (fitness-class-name (fitness-class boundary))
     ($float (badness boundary))
-    (float (demerits boundary))))
+    (float (demerits boundary))
+    ($/= (osar boundary) (tsar boundary))
+    ($float (osar boundary))))
 
 
+
 ;; -----
 ;; Lines
 ;; -----
@@ -297,8 +314,8 @@ This includes its fitness class, badness, and local demerits."
 ;; that the overstretch option has no effect, but it allows for a nice trick:
 ;; we can indicate lines exceeding the tolerance thanks to an emergency
 ;; stretch, or forced short lines as overstretched, regardless of the option.
-;; This is done by setting the overstretch parameter to T and not counting
-;; emergency stretch in the stretch tolerance below.
+;; This is done by setting the overstretch parameter to T and using the OSAR
+;; instead of the TSAR for reference.
 
 ;; #### WARNING: the KPX algorithm, on the other hand, can produce elastic
 ;; underfull lines in one case: runt (final) lines. Consequently, we must not
@@ -306,14 +323,13 @@ This includes its fitness class, badness, and local demerits."
 
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
-     &rest keys &key previous
-     &aux (tsar (tsar boundary)))
+     &rest keys &key previous)
   "KP version of `make-line' for justified lines.
 By default, this function instantiates a KP-LINE. The dynamic version will
 however call this function with a PREVIOUS node, in which case a KP-NODE is
 instantiated instead."
   (multiple-value-bind (asar esar)
-      (sars tsar
+      (sars (osar boundary) ; see comment above
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
 	:overstretch (not (eopp boundary))

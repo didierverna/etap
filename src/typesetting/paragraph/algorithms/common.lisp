@@ -232,8 +232,10 @@ sub-list)."
   (values width stretch shrink))
 
 (defun harray-width
-    (harray start stop &key (stretch-tolerance 1) (shrink-tolerance -1))
+    (harray start stop
+     &key extra (stretch-tolerance 1) (shrink-tolerance -1))
   "Compute HARRAY's width between START and STOP indexes.
+EXTRA is some amount of emergency stretch. It defaults to 0.
 STRETCH-TOLERANCE and SHRINK-TOLERANCE are the amounts of tolerable stretching
 and shrinking expressed as a ratios of the available elasticity.
 STRETCH-TOLERANCE must be a possibly infinite positive number.
@@ -245,7 +247,7 @@ returns four other values: the chunk's maximum and minimum tolerable widths,
 followed by the available stretching and shrinking amounts."
   (assert ($>= stretch-tolerance 0))
   (assert (<= shrink-tolerance 0))
-  (loop :with width := 0 :with stretch := 0 :with shrink := 0
+  (loop :with width := 0 :with stretch := (or extra 0) :with shrink := 0
 	:for i :from start :upto (1- stop)
 	:for helt := (haref harray i start stop)
 	:do (typecase helt
@@ -276,15 +278,15 @@ followed by the available stretching and shrinking amounts."
 				 (+ width (* shrink-tolerance shrink))
 				 stretch shrink))))
 
-;; Used only in the Fit algorithm for relaxing look ahead.
-(defun harray-sar (harray start stop target &optional extra)
+;; Used only in the Fit algorithm for relaxing look ahead, and in the KPX one
+;; to adjust the final line.
+(defun harray-sar (harray start stop target)
   "Return the SAR for HARRAY chunk between START and STOP.
-This is the value required to reach TARGET width, possibly with EXTRA stretch.
+This is the value required to reach TARGET width.
 See `sar' for more information."
   (multiple-value-bind (width max min stretch shrink)
       (harray-width harray start stop)
     (declare (ignore max min))
-    (when extra (setq stretch ($+ stretch extra)))
     (sar width target stretch shrink)))
 
 ;; Used only in the KPX algorithm to re-establish the proper value in the
@@ -306,6 +308,7 @@ of the available elasticity. It must be a possibly infinite positive number."
 	      (list
 	       (multiple-value-bind (lwidth lstretch lshrink)
 		   (list-dimensions helt)
+		 (declare (ignore lshrink))
 		 (incf width lwidth)
 		 (setq stretch ($+ stretch lstretch))))
 	      (t

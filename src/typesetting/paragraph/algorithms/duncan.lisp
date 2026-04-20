@@ -68,7 +68,7 @@ The weight is computed according to the discriminating function."
      ;; #### NOTE: the slots from the superclasses are already initialized by
      ;; now, but we're still saving some reader calls by using the propagated
      ;; keyword arguments.
-     &key width min-width max-width target
+     &key width target
      &aux (tsar (tsar boundary))
 	  (fitness (cond (($> tsar 1) :underfull)
 			 (($< tsar -1) :overfull)

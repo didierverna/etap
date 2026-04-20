@@ -124,23 +124,21 @@ See `define-caliber' for more information."
 (defclass fixed-boundary (boundary)
   ((width :documentation "This boundary's natural line width."
 	  :initarg :width :reader width :reader max-width :reader min-width))
-  ;; This is a bit ugly, but it's required for :stretch- and
+  ;; This is a bit ugly, but it's required for :extra, :stretch- and
   ;; :shrink-tolerance.
   (:default-initargs :allow-other-keys t)
   (:documentation "The FIXED-BOUNDARY class."))
 
 ;; #### NOTE: since HARRAY-WIDTH computes the whole line properties, we might
 ;; just as well remember those values for other boundary classes. Note also
-;; that the KP's emergency stretch value (that would be the EXTRA keyword
-;; argument) is not taken into account in the computations below. It is used
-;; only to scale down the badness of a line, so we don't want it to have any
-;; effect on the advertised line dimensions.
+;; that the computation of the tolerable dimensions below includes a potential
+;; KP[X]'s emergency stretch passed as an :extra keyword argument.
 (defmethod initialize-instance :around
     ((boundary fixed-boundary) &rest keys &key harray bol break-point)
   "Compute and propagate BOUNDARY's line properties to subsequent methods."
   (multiple-value-bind (width max min stretch shrink)
       (apply #'harray-width harray (bol-idx bol) (eol-idx break-point)
-	     (select-keys keys :stretch-tolerance :shrink-tolerance))
+	     (select-keys keys :extra :stretch-tolerance :shrink-tolerance))
     (apply #'call-next-method boundary
 	   :width width :max-width max :min-width min
 	   :stretch stretch :shrink shrink
