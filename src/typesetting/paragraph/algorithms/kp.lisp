@@ -302,7 +302,7 @@ used."
 ;; #### FIXME: this is really a kludge. It's only for the KPX algorithm, and
 ;; on top of that, it's only needed because the actual polymorphism is on the
 ;; boundary, not the line.
-(defmethod overlinep ((line kp-line) &aux (boundary (boundary line)))
+(defmethod fullp ((line kp-line) &aux (boundary (boundary line)))
   "Return T if LINE is full out."
   (if (eq (type-of boundary) 'kpx-full-out-boundary)
     ;; A full out boundary is either ok, or both over and underfull. So it's

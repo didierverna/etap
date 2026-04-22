@@ -491,7 +491,7 @@ Optionally preset ASAR and ESAR."
 ;; #### WARNING: this function assumes at least a Fit boundary. There's a
 ;; check in the GUI code for that. It's a kludge, but it should go away when
 ;; we get rid of the fixed algorithm for good.
-(defgeneric overlinep (line)
+(defgeneric fullp (line)
   (:documentation "Return LINE's over/underfull status.
 Possible values are NIL (a fit line), :overfull, :underfull, or T, meaning
 both (this is the case of the KPX full-out lines).")

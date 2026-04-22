@@ -1171,7 +1171,7 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 		      :foreground :blue
 		      :scale-thickness nil)
 	      :when (member :over/underfull-boxes clues)
-		:do (let ((overlinep
+		:do (let ((fullp
 			    ;; #### FIXME: kludge.
 			    (if (eq (type-of (boundary line)) 'fixed-boundary)
 			      (cond ((> (width line) par-width)
@@ -1182,17 +1182,17 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 					      :justified)
 					  (< (width line) par-width))
 				     :underfull))
-			      (overlinep line))))
+			      (fullp line))))
 		      ;; #### NOTE: KPX full out lines are considered both
 		      ;; under and overfull, so the checks below are mutually
 		      ;; inclusive.
-		      (when (member overlinep '(:overfull t))
+		      (when (member fullp '(:overfull t))
 			(draw-triangle view
 			    (+ full-x 8) (- ly (height line))
 			    3 (+ (height line) (depth line))
 			  :foreground :orange
 			  :scale-thickness nil :filled t))
-		      (when (member overlinep '(:underfull t))
+		      (when (member fullp '(:underfull t))
 			(draw-triangle view
 			    (+ full-x 8) (+ ly (depth line))
 			    3 (- (+ (height line) (depth line)))
