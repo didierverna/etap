@@ -256,13 +256,53 @@ point, in reverse order."
   (format nil "Extended fitness class: ~A."
     (extended-fitness-class boundary)))
 
-;; This is used for runt lines.
-(defmethod reinitialize-instance :after
-    ((boundary kpx-boundary) &rest keys &key tsar)
-  "Reinitialize KPX BOUNDARY with a new TSAR."
+(defun kpx-initialize-boundary (boundary)
+  "Initialize BOUNDARY's (extended) fitness class, badness, and local demerits."
   (kp-initialize-boundary boundary)
   (setf (slot-value boundary 'extended-fitness-class)
-	(kpx-sar-fitness-class tsar)))
+	(kpx-sar-fitness-class (tsar boundary))))
+
+;; This is used to update EOP boundaries to a single possible target width.
+(defmethod reinitialize-instance :after ((boundary kpx-boundary) &key)
+  "Reinitialize KPX BOUNDARY with a new TSAR."
+  (kpx-initialize-boundary boundary))
+
+
+
+;; ------------------
+;; Quantic Boundaries
+;; ------------------
+
+(defclass kpx-quantic-boundary (kpx-boundary)
+  ((min-sar :documentation "This boundary's minimum tolerable SAR."
+	    :initarg min-sar :reader min-sar)
+   (max-sar :documentation "This boundary's maximum tolerable SAR."
+	    :initarg max-sar :reader max-sar)
+   (jsar :documentation "This boundary's SAR for full justification, or NIL."
+	 :initform nil :initarg :jsar :reader jsar))
+  (:documentation "The KPX Quantic Boundary class.
+This is the class of EOP boundaries with undecided target width."))
+
+(defmethod properties strnlcat ((boundary kpx-quantic-boundary) &key)
+  "Advertise KPX quantic BOUNDARY's minimum and maximum tolerable SARs."
+  (format nil "Tolerable SARs: ~A -- ~A~@[ + ~A~]."
+    (float (min-sar boundary))
+    (float (max-sar boundary))
+    (when (jsar boundary) (float (jsar boundary)))))
+
+;; This is used to update EOP boundaries to quantic ones.
+(defmethod update-instance-for-different-class :after
+    ((old kpx-boundary) (new kpx-quantic-boundary)
+     &key min-sar max-sar jsar &aux new-tsar)
+  "Make sure the current TSAR is within the range of acceptable ones."
+  (cond ((< (tsar new) min-sar) (setq new-tsar min-sar))
+	((and jsar (> (tsar new) jsar)) (setq new-tsar jsar))
+	((> (tsar new) max-sar) (setq new-tsar max-sar)))
+  (when new-tsar
+    ;; #### WARNING: not sure if I could use REINITIALIZE-INSTANCE here, but
+    ;; I'd rather not take the risk.
+    (setf (slot-value new 'tsar) new-tsar)
+    (kpx-initialize-boundary new)))
 
 
 
@@ -270,38 +310,47 @@ point, in reverse order."
 ;; Full Out Boundaries
 ;; -------------------
 
-;; #### NOTE: no need to record FSAR badness and demerits. They're not used by
-;; the algorithm, and besides, it represents an overfull line, so the badness
-;; would be infinite and local demerits 0.
 (defclass kpx-full-out-boundary (kpx-boundary)
-  ((fsar
-    :documentation "This boundary's SAR for full out justification."
-    :initarg :fsar :reader fsar)
-   (fsar-fitness-class
-    :documentation "This boundary's FSAR fitness class."
+  ((jsar
+    :documentation "This boundary's SAR for justification."
+    :initarg :jsar :reader jsar)
+   (jsar-fitness-class
+    :documentation "This boundary's JSAR fitness class."
     :reader fsar-fitness-class)
-   (fsar-extended-fitness-class
-    :documentation "This boundary's FSAR extended fitness class."
-    :reader fsar-extended-fitness-class))
+   (jsar-extended-fitness-class
+    :documentation "This boundary's JSAR extended fitness class."
+    :reader fsar-extended-fitness-class)
+   (jsar-badness
+    :documentation "This boundary's JSAR badness."
+    :reader jsar-badness)
+   (jsar-demerits
+    :documentation "This boundary's JSAR local demerits."
+    :reader jsar-demerits))
   (:documentation "The KPX Full Out Boundary class."))
 
 (defmethod properties strnlcat ((boundary kpx-full-out-boundary) &key)
   "Advertise KPX full out BOUNDARY's justification SAR and fitness classes."
-  (format nil "FSAR: ~A; Fitness class: ~A; Extended: ~A."
-    ($float (fsar boundary))
-    (fitness-class-name (fsar-fitness-class boundary))
-    (fsar-extended-fitness-class boundary)))
+  (format nil "JSAR: ~A; Fitness class: ~A; Extended fitness class: ~A;~
+	       Badness: ~A; Demerits: ~A (line)."
+    ($float (jsar boundary))
+    (fitness-class-name (jsar-fitness-class boundary))
+    (jsar-extended-fitness-class boundary)
+    ($float (jsar-badness boundary))
+    (float (jsar-demerits boundary))))
 
-;; This is used for full out lines.
+;; This is used to update EOP boundaries to full out ones.
 (defmethod update-instance-for-different-class :after
-    ((old kpx-boundary) (new kpx-full-out-boundary) &rest keys &key tsar fsar)
-  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and FSAR."
-  (kp-initialize-boundary new)
-  (setf (slot-value new 'extended-fitness-class)
-	(kpx-sar-fitness-class tsar))
-  (with-slots (fsar-fitness-class fsar-extended-fitness-class) new
-    (setq fsar-fitness-class (sar-fitness-class fsar)
-	  fsar-extended-fitness-class (kpx-sar-fitness-class fsar))))
+    ((old kpx-boundary) (new kpx-full-out-boundary) &key jsar)
+  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and JSAR."
+  (kpx-initialize-boundary new)
+  (with-slots (jsar-fitness-class jsar-extended-fitness-class
+	       jsar-badness jsar-demerits)
+      new
+    (setq jsar-fitness-class (sar-fitness-class jsar)
+	  jsar-extended-fitness-class (kpx-sar-fitness-class jsar)
+	  jsar-badness (sar-badness jsar)
+	  jsar-demerits (local-demerits jsar-badness (penalty new)
+					*line-penalty*))))
 
 
 
@@ -389,22 +438,98 @@ one-before-last."))
   "Adjust the flexibility of the EOP boundary vis-a-vis paragraph WIDTH."
   (let ((runt (* (/ *runt-threshold* 100) width))
 	(full-out (- width (* (/ *full-out-threshold* 100) width))))
-    (cond ((and (< (min-width boundary) runt)
-		($< (max-width boundary) runt))
-	   ;; Runt line. Update the boundary as if the justification target
-	   ;; width was the runt width. This will make this boundary behave as
-	   ;; an underfull.
-	   (reinitialize-instance boundary
-	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) runt)))
-	  ((and (> (min-width boundary) full-out)
-		($< (max-width boundary) width))
-	   ;; Full out line. Update the boundary as if the justification
-	   ;; target width was the paragraph width. This will make this
-	   ;; boundary behave as an underfull. Also record it as an overfull
-	   ;; for the full out target width.
-	   (change-class boundary 'kpx-full-out-boundary
-	     :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)
-	     :fsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out))))))
+    ;; We have no less than 32 individual cases to consider, although several
+    ;; are semantically identical, or need the same treatment. The numbering
+    ;; corresponds to the figure in my TUG 2026 publication. The logic below
+    ;; consists in treating the situations by increasing order of complexity.
+    (cond
+      ;; The justification target must be set to runt in cases 1, 2, 3, and 9,
+      ;;  to indicate that the line should be stretched to the minimum
+      ;;  tolerable width. The treatment is the same, but the outcome is
+      ;;  different though. In cases 1 and 2, this leads to an underfull line.
+      ;;  In case 3, this leads to the only acceptable solution. In case 9,
+      ;;  it's already done so we can save up one reinitialization. Those
+      ;;  cases are captured by max width < runt.
+      ((<= (max-width boundary) runt)
+       (unless (= (min-width boundary) (max-width boundary) runt)
+	 (reinitialize-instance boundary
+	   :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) runt))))
+
+      ;; The justification target must be set to full out in cases 21 and 22,
+      ;; to indicate that the line should be shrunk to the maximum tolerable
+      ;; width. The treatment is the same, but the outcome is different
+      ;; though. In case 21, it's already done so we can save up one
+      ;; reinitialization. In case 22, this leads to the only acceptable
+      ;; solution. Those cases are captured by min width = full out and max
+      ;; width < paragraph width.
+      ((and (= (min-width boundary) full-out) (< (max-width boundary) width))
+       (unless (= (min-width boundary) (max-width boundary))
+	 (reinitialize-instance boundary
+	   :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out))))
+
+      ;; The justification target must be set to paragraph with in cases 27,
+      ;; 28, 29, 30, 31, and 32, to indicate that the line should be
+      ;; completely justified. The treatment is the same, but the outcome is
+      ;; different though. In cases 27, 28, and 30, this leads to the only
+      ;; acceptable solution. In cases 31 and 32, this leads to an overfull
+      ;; line. In case 29, it's already done so we can save up one
+      ;; reinitialization.Those cases are captured by min width > full out and
+      ;; max width >= paragraph width.
+      ((and (> (min-width boundary) full-out) (>= (max-width boundary) width))
+       (unless (= (min-width boundary) (max-width boundary) width)
+	 (reinitialize-instance boundary
+	   :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) width))))
+
+      ;; Now we have more complicated cases...
+
+      ;; Cases 4, 5, 6, 10, 11, 12, 16, 17, and 18 result in a range of
+      ;; acceptable solutions within max(min width, runt) and min(max width,
+      ;; full out). Those cases are captured by min width < full out, max
+      ;; width < paragraph width, and min width < max width (to avoid case 15,
+      ;; and case 9, which has already been captured BTW).
+      ((and (< (min-width boundary) full-out)
+	    (< (max-width boundary) width)
+	    (< (min-width boundary) (max-width boundary)))
+       (let ((min-width (max (min-width boundary) runt))
+	     (max-width (min (max-width boundary) full-out)))
+	 (change-class boundary 'kpx-quantic-boundary
+	   :min-sar (harray-sar harray (bol-idx bol) (eol-idx eol) min-width)
+	   :max-sar (harray-sar harray (bol-idx bol) (eol-idx eol) max-width))))
+
+      ;; Cases 7, 8, 13, 14, 19, and 20 are similar to the previous ones, but
+      ;; full justification is also acceptable. Those cases are captured by
+      ;; min width < full out and max width >= paragraph width.
+      ((and (< (min-width boundary) full-out)
+	    (>= (max-width boundary) width))
+       (let ((min-width (max (min-width boundary) runt))
+	     (max-width (min (max-width boundary) full-out)))
+	 (change-class boundary 'kpx-quantic-boundary
+	   :min-sar (harray-sar harray (bol-idx bol) (eol-idx eol) min-width)
+	   :max-sar (harray-sar harray (bol-idx bol) (eol-idx eol) max-width)
+	   :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width))))
+
+      ;; Cases 23 and 24 have two distinct solutions: a full out or a
+      ;; paragraph width. We record both. Those cases are captured by min
+      ;; width = full out and max width >= width.
+      ((and (= (min-width boundary) full-out) (>= (max-width boundary) width))
+       (change-class boundary 'kpx-full-out-boundary
+	 :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
+	 :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
+
+      ;; Cases 25 and 26 are untolerable full out lines. We record them as
+      ;; above, knowing that the SARs won't be tolerable. Those cases are
+      ;; captured by min width > full out and max width < width.
+      ((and (> (min-width boundary) full-out) (< (max-width boundary) width))
+       (change-class boundary 'kpx-full-out-boundary
+	 :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
+	 :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
+
+      ;; If our logic is correct, we're left with case 15, for which there's
+      ;; nothing to do.
+      (t
+       (assert (and (> (min-width boundary) runt)
+		    (< (min-width boundary) full-out)
+		    (= (min-width boundary) (max-width boundary))))))))
 
 (defun kpx-get-boundaries
     (harray bol width threshold stretch-tolerance shrink-tolerance
