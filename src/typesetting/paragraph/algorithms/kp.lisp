@@ -302,10 +302,14 @@ used."
 ;; #### FIXME: this is really a kludge. It's only for the KPX algorithm, and
 ;; on top of that, it's only needed because the actual polymorphism is on the
 ;; boundary, not the line.
-(defmethod overlinep ((line kp-line))
+(defmethod overlinep ((line kp-line) &aux (boundary (boundary line)))
   "Return T if LINE is full out."
-  (if (eq (type-of (boundary line)) 'kpx-full-out-boundary)
-    t
+  (if (eq (type-of boundary) 'kpx-full-out-boundary)
+    ;; A full out boundary is either ok, or both over and underfull. So it's
+    ;; enough to check only one of the two SARS. On top of that, we know that
+    ;; the line naturally extends between the full out and paragraph width, so
+    ;; the TSAR is positive.
+    (when ($< (asar line) (tsar boundary)) t)
     (call-next-method)))
 
 ;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
