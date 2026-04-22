@@ -248,7 +248,7 @@ This is an integer ranging from -1 (tight) to 2 (very loose)."
     :reader demerits)
    (osar
     :documentation "This boundary's Original TSAR.
-The TSAR takes emergency stretch into account, with the OSAR does not."
+The TSAR takes emergency stretch into account, while the OSAR does not."
     :reader osar))
   (:documentation "The KP-boundary class."))
 
