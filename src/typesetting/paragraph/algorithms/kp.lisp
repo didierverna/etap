@@ -312,28 +312,27 @@ used."
     (when ($< (asar line) (tsar boundary)) t)
     (call-next-method)))
 
-;; #### NOTE: I think that the Knuth-Plass algorithm cannot produce elastic
-;; underfulls: in case of an impossible layout, it falls back to overfulls,
-;; and if a breakpoint is forced, it produces overstretched lines. This means
-;; that the overstretch option has no effect, but it allows for a nice trick:
-;; we can indicate lines exceeding the tolerance thanks to an emergency
-;; stretch, or forced short lines as overstretched, regardless of the option.
-;; This is done by setting the overstretch parameter to T and using the OSAR
-;; instead of the TSAR for reference.
+;; #### NOTE: the Knuth-Plass algorithm cannot produce elastic underfulls: in
+;; case of an impossible layout, it falls back to overfulls, and if a
+;; breakpoint is forced, it produces overstretched lines. This means that the
+;; overstretch option has no effect, but it allows for a nice trick: we can
+;; indicate lines exceeding the tolerance thanks to an emergency stretch and
+;; forced short lines with the overstretched clue. This is done by setting the
+;; overstretch parameter to T and using the OSAR instead of the TSAR for
+;; reference.
 
-;; #### WARNING: the KPX algorithm, on the other hand, can produce elastic
-;; underfull lines in one case: runt (final) lines. Consequently, we must not
-;; use this trick on the final line.
+;; #### FIXME: this, of course, doesn't make any sense for final lines. I
+;; still need to rethink what to do on them.
 
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
-     &rest keys &key previous)
+     &rest keys &key previous sar)
   "KP version of `make-line' for justified lines.
 By default, this function instantiates a KP-LINE. The dynamic version will
 however call this function with a PREVIOUS node, in which case a KP-NODE is
 instantiated instead."
   (multiple-value-bind (asar esar)
-      (sars (osar boundary) ; see comment above
+      (sars (or sar (if (eopp boundary) (tsar boundary) (osar boundary)))
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
 	:overstretch (not (eopp boundary))
