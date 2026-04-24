@@ -399,6 +399,12 @@ This is the class of EOP boundaries with a range of undecided target widths."))
 ;; Boundaries lookup
 ;; -----------------
 
+;; #### TODO: the boundary hierarchy and initialization protocols are broken
+;; by design (already known and mentioned elsewhere). We should be able to
+;; directly create EOP boundaries instead of reinitializing them or changing
+;; their class (which means overriding previous computation). What probably
+;; needs to be done is only avoid initializing a TSAR and doing it in custom
+;; constructors instead.
 (defun kpx-prepare-eop-boundary
     (boundary harray bol width &aux (eol (break-point boundary)))
   "Prepare EOP boundary depending on the runt and full out thresholds."
