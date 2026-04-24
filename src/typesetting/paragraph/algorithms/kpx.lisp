@@ -561,6 +561,11 @@ This is the KPX version for the graph variant.
 	  (kpx-fitness-demerits
 	   (extended-fitness-class (first path)) 0)))
   (setf (slot-value layout 'lines)
+	;; #### NOTE: even if the first line is also the last, we don't have
+	;; anything to do wrt EOP boundaries. Their initial TSARs are
+	;; chosen in a way that makes them appropriate when there's no
+	;; previous line, and since we won't touch them, we don't need to
+	;; clone them.
 	(cons (funcall make-line harray *bop* (first path) (demerits layout))
 	      (when (cdr path)
 		(with-slots (demerits bads size) layout
