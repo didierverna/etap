@@ -847,29 +847,6 @@ This is the KPX version for the graph variant.
 
 
 
-;; -----------------
-;; Lines computation
-;; -----------------
-
-#+()(defclass kpx-last-dynamic-line (kp-dynamic-line)
-  ((original-scale :documentation "The last line's original scale."
-		   :initarg :original-scale
-		   :reader original-scale)
-   (original-fitness-class
-    :documentation "The last line's original fitness class."
-    :initarg :original-fitness-class
-    :reader original-fitness-class))
-  (:documentation "The KPX Last Dynamic Line class."))
-
-#+()(defmethod properties strnlcat ((line kpx-last-dynamic-line) &key)
-  "Advertise KPX last dynamic LINE's original scale and fitness class."
-  (format nil "Original scale: ~A.~@
-	       Original fitness class: ~A."
-    ($float (original-scale line))
-    (fitness-class-name (original-fitness-class line))))
-
-
-
 
 ;; ==========================================================================
 ;; Variant Dispatch
