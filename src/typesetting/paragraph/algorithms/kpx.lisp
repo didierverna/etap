@@ -538,20 +538,19 @@ This is the KPX version for the graph variant.
 	  (make-line
 	   (case disposition-type
 	     (:justified
-	      (let((overshrink
-		     (getf (disposition-options disposition) :overshrink))
-		   ;; #### NOTE: no emergency stretch counted here. See
-		   ;; comment on top of KP-MAKE-JUSTIFIED-LINE.
-		   (stretch-tolerance
-		     (stretch-tolerance
-		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
-		   (shrink-tolerance
-		     (shrink-tolerance
-		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
-		(lambda (harray bol boundary demerits &optional sar)
+	      (let ((overshrink
+		      (getf (disposition-options disposition) :overshrink))
+		    ;; #### NOTE: no emergency stretch counted here. See
+		    ;; comment on top of KP-MAKE-JUSTIFIED-LINE.
+		    (stretch-tolerance
+		      (stretch-tolerance
+		       (if (> (pass breakup) 1) *tolerance* *pre-tolerance*)))
+		    (shrink-tolerance
+		      (shrink-tolerance
+		       (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
+		(lambda (harray bol boundary demerits)
 		  (kp-make-justified-line harray bol boundary
-		    stretch-tolerance shrink-tolerance overshrink demerits
-		    :sar sar))))
+		    stretch-tolerance shrink-tolerance overshrink demerits))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line

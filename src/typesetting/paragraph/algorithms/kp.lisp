@@ -326,13 +326,13 @@ used."
 
 (defun kp-make-justified-line
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
-     &rest keys &key previous sar)
+     &rest keys &key previous)
   "KP version of `make-line' for justified lines.
 By default, this function instantiates a KP-LINE. The dynamic version will
 however call this function with a PREVIOUS node, in which case a KP-NODE is
 instantiated instead."
   (multiple-value-bind (asar esar)
-      (sars (or sar (if (eopp boundary) (tsar boundary) (osar boundary)))
+      (sars (if (eopp boundary) (tsar boundary) (osar boundary))
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
 	:overstretch (not (eopp boundary))
