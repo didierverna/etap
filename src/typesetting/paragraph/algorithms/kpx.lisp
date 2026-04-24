@@ -775,16 +775,17 @@ This is the KPX version for the graph variant.
 	  (setf (gethash (car new-node) nodes) (cdr new-node)))
     new-nodes))
 
+;; See comment atop `kp-make-justified-line' about the overstretch trick.
 (defun kpx-make-justified-node
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
      previous eol-items bol-items
      &aux (tsar (tsar boundary)))
   "KPX dynamic version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
-      (sars tsar
+      (sars (if (eopp boundary) (tsar boundary) (osar boundary))
 	:stretch-tolerance stretch-tolerance
 	:shrink-tolerance shrink-tolerance
-	:overstretch t ; see comment atop `kp-make-justified-line'
+	:overstretch (not (eopp boundary))
 	:overshrink overshrink)
     (make-instance 'kpx-node
       :harray harray :bol bol :boundary boundary
