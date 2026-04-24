@@ -375,9 +375,9 @@ This is the class of EOP boundaries with a range of undecided target widths."))
 ;; Boundaries lookup
 ;; -----------------
 
-(defun kpx-adjust-eop-boundary
+(defun kpx-prepare-eop-boundary
     (boundary harray bol width &aux (eol (break-point boundary)))
-  "Adjust EOP boundary depending on the runt and full out thresholds."
+  "Prepare EOP boundary depending on the runt and full out thresholds."
   (let ((runt (* (/ *runt-threshold* 100) width))
 	(full-out (- width (* (/ *full-out-threshold* 100) width))))
     ;; We have no less than 32 individual cases to consider, but several of
@@ -492,7 +492,7 @@ This is the KPX version for the graph variant.
 				:shrink-tolerance shrink-tolerance
 				:extra emergency-stretch)))
 		(when (eopp boundary)
-		  (kpx-adjust-eop-boundary boundary harray bol width))
+		  (kpx-prepare-eop-boundary boundary harray bol width))
 		(when (eq (penalty eol) -∞) (setq continue nil))
 		(cond ((> (min-width boundary) width)
 		       (setq overfull boundary continue nil))
