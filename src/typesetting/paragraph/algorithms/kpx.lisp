@@ -651,10 +651,6 @@ This is the KPX version for the graph variant.
     :initarg :bol-items :reader bol-items))
    (:documentation "The KPX Node class."))
 
-#+()(defstruct (kpx-last-node (:constructor kpx-make-last-node)
-			  (:include kpx-node))
-  original-scale original-fitness-class)
-
 
 ;; ---------------
 ;; Boundary lookup
