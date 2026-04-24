@@ -273,61 +273,43 @@ point, in reverse order."
 ;; Full Out Boundaries
 ;; -------------------
 
-;; #### NOTE: there are two possible ways to implement full out boundaries:
-;; use the already existing TSAR for justification and add another one for
-;; full out width, or the other way around. We choose the first solution
-;; because it will make intolerable boundaries act as in the case of runt
-;; ones: the TSAR will represent an underfull line, and so the badness will be
-;; large, but not necessarily infinite. The FSAR will on the other hand
-;; represent an overfull line with infinite badness.
-
 (defclass kpx-full-out-boundary (kpx-boundary)
   ((fsar
     :documentation "This boundary's SAR for full out justification."
     :initarg :fsar :reader fsar)
-   (fsar-fitness-class
-    :documentation "This boundary's FSAR fitness class."
-    :reader fsar-fitness-class)
-   (fsar-extended-fitness-class
-    :documentation "This boundary's FSAR extended fitness class."
-    :reader fsar-extended-fitness-class)
-   (fsar-badness
-    :documentation "This boundary's FSAR badness."
-    :reader fsar-badness)
-   (fsar-demerits
-    :documentation "This boundary's FSAR local demerits."
-    :reader fsar-demerits))
+   (jsar
+    :documentation "This boundary's SAR for justification."
+    :initarg :jsar :reader jsar))
   (:documentation "The KPX Full Out Boundary class.
 This is the class of EOP boundaries with two undecided target widths."))
 
 (defmethod properties strnlcat ((boundary kpx-full-out-boundary) &key)
-  "Advertise KPX full out BOUNDARY's justification SAR and fitness classes."
-  (format nil "FSAR: ~A; Fitness class: ~A; Extended fitness class: ~A;~
-	       Badness: ~A; Demerits: ~A (line)."
+  "Advertise KPX full out BOUNDARY's possible SARs."
+  (format nil "FSAR: ~A; JSAR: ~A."
     ($float (fsar boundary))
-    (fitness-class-name (fsar-fitness-class boundary))
-    (fsar-extended-fitness-class boundary)
-    ($float (fsar-badness boundary))
-    (float (fsar-demerits boundary))))
+    ($float (jsar boundary))))
 
-;; This is used to update EOP boundaries to full out ones.
+;; This is used to upgrade EOP boundaries to full out ones.
 (defmethod update-instance-for-different-class :after
-    ((old kpx-boundary) (new kpx-full-out-boundary) &key fsar)
-  "Upgrade OLD KPX boundary to NEW full out one with new TSAR and FSAR."
-  (kpx-initialize-boundary new)
-  (with-slots (fsar-fitness-class fsar-extended-fitness-class
-	       fsar-badness fsar-demerits)
-      new
-    (setq fsar-fitness-class (sar-fitness-class fsar)
-	  fsar-extended-fitness-class (kpx-sar-fitness-class fsar)
-	  fsar-badness (sar-badness fsar)
-	  fsar-demerits (local-demerits fsar-badness (penalty new)
-					*line-penalty*))))
+    ((old kpx-boundary) (new kpx-full-out-boundary) &key fsar jsar fullp)
+  "Choose an appropriate initial TSAR."
+  ;; #### NOTE: if the boundary is bad (meaning both SARs are intolerable), we
+  ;; set the current TSAR to JSAR rather than FSAR to denote the line as
+  ;; underfull rather than overfull. With some elasticity, this gets us a
+  ;; large but numerical badness instead of a directly infinite one.
+  ;; Otherwise, we minimize the distortion.
+  (setf (slot-value new 'tsar)
+	(if (or fullp ($< ($abs jsar) ($abs fsar))) jsar fsar))
+  (kpx-initialize-boundary new))
+
 
 
 ;; ------------------
 ;; Range Boundaries
 ;; ------------------
+
+;; #### NOTE: range boundaries are always feasible so we can remain numerical
+;; in the functions below.
 
 (defclass kpx-range-boundary (kpx-boundary)
   ((min-sar :documentation "This boundary's minimum tolerable SAR."
@@ -355,8 +337,6 @@ This is the class of EOP boundaries with a range of undecided target widths."))
 	((and jsar (> (tsar new) jsar)) (setq new-tsar jsar))
 	((> (tsar new) max-sar) (setq new-tsar max-sar)))
   (when new-tsar
-    ;; #### WARNING: not sure if I could use REINITIALIZE-INSTANCE here, but
-    ;; I'd rather not take the risk.
     (setf (slot-value new 'tsar) new-tsar)
     (kpx-initialize-boundary new)))
 
@@ -364,11 +344,11 @@ This is the class of EOP boundaries with a range of undecided target widths."))
 (defgeneric kpx-eop-sar (booundary previous-sar)
   (:documentation "Return EOP BOUNDARY's TSAR based on PREVIOUS-SAR.")
   (:method ((boundary kpx-full-out-boundary) previous-sar)
-    "Decide on whether to use BOUNDARY's original TSAR, of FSAR."
-    (if ($<= ($abs ($- (tsar boundary) previous-sar))
-	     ($abs ($- (fsar boundary) previous-sar)))
-      (tsar boundary)
-      (fsar boundary)))
+    "Decide on whether to use BOUNDARY's FSAR, of JSAR."
+    (if ($<= ($abs ($- (fsar boundary) previous-sar))
+	     ($abs ($- (jsar boundary) previous-sar)))
+      (fsar boundary)
+      (jsar boundary)))
   (:method ((boundary kpx-range-boundary) previous-sar)
     "Find a BOUNDARY TSAR closest to PREVIOUS-SAR."
     (cond ((and ($>= previous-sar (min-sar boundary))
@@ -463,7 +443,7 @@ This is the class of EOP boundaries with a range of undecided target widths."))
       ((and (= (min-width boundary) full-out) (>= (max-width boundary) width))
        (change-class boundary 'kpx-full-out-boundary
 	 :fsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
-	 :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
+	 :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
 
       ;; Cases 25 and 26. Both are intolerable full out lines. We record them
       ;; as above, which will lead to boundaries being both under and
@@ -471,8 +451,9 @@ This is the class of EOP boundaries with a range of undecided target widths."))
       ;; width < paragraph width.
       ((and (> (min-width boundary) full-out) (< (max-width boundary) width))
        (change-class boundary 'kpx-full-out-boundary
+	 :fullp t
 	 :fsar (harray-sar harray (bol-idx bol) (eol-idx eol) full-out)
-	 :tsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
+	 :jsar (harray-sar harray (bol-idx bol) (eol-idx eol) width)))
 
       ;; III. Finally, we treat the cases where a whole range of target widths
       ;; are available (possible along with full justification).
@@ -782,8 +763,7 @@ This is the KPX version for the graph variant.
 ;; See comment atop `kp-make-justified-line' about the overstretch trick.
 (defun kpx-make-justified-node
     (harray bol boundary stretch-tolerance shrink-tolerance overshrink demerits
-     previous eol-items bol-items
-     &aux (tsar (tsar boundary)))
+     previous eol-items bol-items)
   "KPX dynamic version of `make-line' for justified lines."
   (multiple-value-bind (asar esar)
       (sars (if (eopp boundary) (tsar boundary) (osar boundary))
