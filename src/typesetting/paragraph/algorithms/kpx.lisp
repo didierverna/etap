@@ -673,6 +673,8 @@ This is the KPX version for the graph variant.
 			     :stretch-tolerance stretch-tolerance
 			     :shrink-tolerance shrink-tolerance
 			     :extra emergency-stretch)))
+     (when (eopp boundary)
+       (kpx-prepare-eop-boundary boundary harray bol width))
      ;; #### WARNING: we must deactivate all nodes when we reach the
      ;; paragraph's end. TeX does this by adding a forced break at the end but
      ;; this is a "dangling" penalty, whereas ours are properties of break
