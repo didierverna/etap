@@ -182,3 +182,18 @@ Before concatenation, STRINGS is rid of null elements or empty strings."
 
 (declare-valid-superclass abstract-class standard-class)
 (declare-valid-superclass standard-class abstract-class)
+
+
+
+;; ----------------
+;; Instance cloning
+;; ----------------
+
+(defun clone-instance (object)
+  "Clone OBJECT into a new object and return it."
+  (let* ((class (class-of object))
+	 (clone (allocate-instance class)))
+    (dolist (slot (mapcar #'slot-definition-name (class-slots class)))
+      (when (slot-boundp object slot)
+	(setf (slot-value clone slot) (slot-value object slot))))
+    clone))

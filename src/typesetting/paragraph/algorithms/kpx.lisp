@@ -341,6 +341,15 @@ This is the class of EOP boundaries with a range of undecided target widths."))
     (kpx-initialize-boundary new)))
 
 
+
+;; ---------------------------
+;; Quantic boundary management
+;; ---------------------------
+
+(defun kpx-quantic-boundary-p (boundary)
+  "Return T if BOUNDARY is quantic (i.e., a full out or range one)."
+  (member (type-of boundary) '(kpx-full-out-boundary kpx-range-boundary)))
+
 (defgeneric kpx-eop-sar (booundary previous-sar)
   (:documentation "Return EOP BOUNDARY's TSAR based on PREVIOUS-SAR.")
   (:method ((boundary kpx-full-out-boundary) previous-sar)
@@ -580,12 +589,19 @@ This is the KPX version for the graph variant.
 			:for eol2
 			  := (harray-eol-items harray (break-point boundary2))
 			:for finalp := (eopp boundary2)
+			:when (and (eq disposition-type :justified)
+				   (kpx-quantic-boundary-p boundary2))
+			  :do (setq boundary2 (clone-instance boundary2))
+			  :and :do (reinitialize-instance boundary2
+				     :tsar (kpx-eop-sar
+					    boundary2 (tsar boundary1)))
 			:do (incf size)
-			:unless (numberp (badness boundary2)) :do (incf bads)
-			  :do (incf demerits (demerits boundary2))
-			      ;; See comment in dynamic version. Do not
-			      ;; consider the very rare case where the
-			      ;; paragraph ends with an explicit hyphen.
+			:unless (numberp (badness boundary2))
+			  :do (incf bads)
+			:do (incf demerits (demerits boundary2))
+			    ;; See comment in dynamic version. Do not consider
+			    ;; the very rare case where the paragraph ends
+			    ;; with an explicit hyphen.
 			:when (and (not finalp)
 				   (hyphenated boundary1)
 				   (hyphenated boundary2))
@@ -609,19 +625,10 @@ This is the KPX version for the graph variant.
 			  :do (incf demerits *similar-demerits*)
 			:when (>= (compare eol1 eol2) 2)
 			  :do (incf demerits *similar-demerits*)
-			:collect
-			(if (and (eq disposition-type :justified)
-				 (eopp boundary2)
-				 (not (eq (type-of boundary2) 'kpx-boundary)))
-			  (funcall make-line
-			    harray
-			    (break-point boundary1) boundary2
-			    demerits
-			    (kpx-eop-sar boundary2 (tsar boundary1)))
-			  (funcall make-line
-			    harray
-			    (break-point boundary1) boundary2
-			    demerits)))))))
+			:collect (funcall make-line
+				   harray
+				   (break-point boundary1) boundary2
+				   demerits))))))
   layout)
 
 

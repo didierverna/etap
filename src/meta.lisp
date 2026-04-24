@@ -5,7 +5,8 @@
   #+lispworks (:add-use-defaults t)
   (:use #+lispworks :capi #-lispworks :cl :etap.setup)
   #+sbcl
-  (:import-from :sb-mop :validate-superclass)
+  (:import-from :sb-mop
+    :validate-superclass :class-slots :slot-definition-name)
   #+lispworks
   (:shadow
    ;; From the Lispworks package:
