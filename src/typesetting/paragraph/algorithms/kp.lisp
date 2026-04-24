@@ -341,7 +341,7 @@ instantiated instead."
       (if previous 'kp-node 'kp-line) ; kp-node forward reference
       :harray harray :bol bol :boundary boundary
       :asar asar :esar esar :demerits demerits
-      keys)))
+      (remove-keys keys :sar))))
 
 
 ;; -------

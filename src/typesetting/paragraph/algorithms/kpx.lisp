@@ -361,6 +361,30 @@ This is the class of EOP boundaries with a range of undecided target widths."))
     (kpx-initialize-boundary new)))
 
 
+(defgeneric kpx-eop-sar (booundary previous-sar)
+  (:documentation "Return EOP BOUNDARY's TSAR based on PREVIOUS-SAR.")
+  (:method ((boundary kpx-full-out-boundary) previous-sar)
+    "Decide on whether to use BOUNDARY's original TSAR, of FSAR."
+    (if ($<= ($abs ($- (tsar boundary) previous-sar))
+	     ($abs ($- (fsar boundary) previous-sar)))
+      (tsar boundary)
+      (fsar boundary)))
+  (:method ((boundary kpx-range-boundary) previous-sar)
+    "Find a BOUNDARY TSAR closest to PREVIOUS-SAR."
+    (cond ((and ($>= previous-sar (min-sar boundary))
+		($<= previous-sar (max-sar boundary)))
+	   previous-sar)
+	  (($<= previous-sar (min-sar boundary))
+	   (min-sar boundary))
+	  ((jsar boundary)
+	   (if ($<= ($abs ($- (jsar boundary) previous-sar))
+		    ($abs ($- (max-sar boundary) previous-sar)))
+	     (jsar boundary)
+	     (max-sar boundary)))
+	  (t
+	   (max-sar boundary)))))
+
+
 
 
 ;; ==========================================================================
@@ -528,9 +552,10 @@ This is the KPX version for the graph variant.
 		   (shrink-tolerance
 		     (shrink-tolerance
 		      (if (> (pass breakup) 1) *tolerance* *pre-tolerance*))))
-		(lambda (harray bol boundary demerits)
+		(lambda (harray bol boundary demerits &optional sar)
 		  (kp-make-justified-line harray bol boundary
-		    stretch-tolerance shrink-tolerance overshrink demerits))))
+		    stretch-tolerance shrink-tolerance overshrink demerits
+		    :sar sar))))
 	     (t ;; just switch back to normal spacing.
 	      (lambda (harray bol boundary demerits)
 		(make-instance 'kp-line
@@ -592,10 +617,19 @@ This is the KPX version for the graph variant.
 			  :do (incf demerits *similar-demerits*)
 			:when (>= (compare eol1 eol2) 2)
 			  :do (incf demerits *similar-demerits*)
-			:collect (funcall make-line
-				   harray
-				   (break-point boundary1) boundary2
-				   demerits))))))
+			:collect
+			(if (and (eq disposition-type :justified)
+				 (eopp boundary2)
+				 (not (eq (type-of boundary2) 'kpx-boundary)))
+			  (funcall make-line
+			    harray
+			    (break-point boundary1) boundary2
+			    demerits
+			    (kpx-eop-sar boundary2 (tsar boundary1)))
+			  (funcall make-line
+			    harray
+			    (break-point boundary1) boundary2
+			    demerits)))))))
   layout)
 
 
