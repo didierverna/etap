@@ -614,6 +614,56 @@ Update CURSOR's title and propagate the new value to the rain struct."
 
 
 ;; ----------------------
+;;      Heart Callback
+;; ----------------------
+
+(defun heart-cursor-callback
+    (cursor value gesture
+     &aux (dialog (top-level-interface cursor))
+          (etap (etap dialog))
+          (view (view-area etap)))
+  "Function called when a Heart animation CURSOR is dragged."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (let ((heart (capi-object-property view :heart)))
+      (when heart
+        (ecase (property cursor)
+          (:heart-wait (setf (heart-wait heart) (widget-value cursor)))
+          (:heart-speed
+           (setf (heart-speed heart) (widget-value cursor)))
+          (:heart-size
+           (setf (heart-size heart) (widget-value cursor))
+           ;; Recalculer les cibles avec la nouvelle taille
+           (let* ((layout-# (layout etap))
+                  (layout   (unless (zerop layout-#)
+                              (get-layout (1- layout-#) (breakup etap))))
+                  (par-width (paragraph-width (breakup etap))))
+             (when layout
+               (heart-populate heart layout par-width)))))))
+    (unless (capi-object-property view :living-text-animation)
+      (redraw etap))))
+
+(defun heart-reset-callback
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  "Remet les caracteres a leur position typographique d'origine."
+  (declare (ignore data))
+  (setf (capi-object-property view :living-text-animation) nil)
+  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
+  (setf (capi-object-property view :living-text-active-button) nil)
+  (let ((heart (capi-object-property view :heart)))
+    (when heart
+      (maphash (lambda (key val)
+                 (setf (gethash key (heart-hash heart))
+                       (list 0.0 0.0 (third val) (fourth val))))
+               (heart-hash heart))))
+  (redraw etap))
+
+(defun heart-play-callback (dialog)
+  (living-text-play-callback dialog #'heart-duration-cursor))
+
+
+;; ----------------------
 ;; Living Text Interface
 ;; ----------------------
 
@@ -693,6 +743,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :elt-x-shift) nil)
   (setf (capi-object-property view :elt-y-shift) nil)
   (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
+  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
   (redraw etap))
 
 
@@ -704,6 +755,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
   (setf (item-data (rain-start/stop-button dialog)) :run-animation)
   (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
+  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
   (living-text-install-animation (first item) view))
 
 
@@ -734,6 +786,9 @@ Stop animation if running, uninstall the living text, and redraw."
 (defun rain-play-callback (dialog)
   (living-text-play-callback dialog #'rain-duration-cursor))
 
+(defun heart-play-callback (dialog)
+  (living-text-play-callback dialog #'heart-duration-cursor))
+
 
 ;;-----------------
 ;;    Interface
@@ -745,7 +800,7 @@ Stop animation if running, uninstall the living text, and redraw."
    (animation-tabs tab-layout
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting) (:curtains curtains-setting)) ;; lines + char + rain
+     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting) (:curtains curtains-setting) (:heart heart-setting)) ;; lines + char + rain
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
@@ -920,7 +975,33 @@ Stop animation if running, uninstall the living text, and redraw."
       :print-function 'title-capitalize
       :callback-type '(:item :interface)
       :callback 'living-text-start/stop-callback
-      :reader curtains-start/stop-button))
+      :reader curtains-start/stop-button)
+      
+      
+    ;; Heart panes
+    (heart-speed cursor
+      :prefix :speed :property :heart-speed
+      :caliber *heart-speed* :callback 'heart-cursor-callback)
+    (heart-wait cursor
+      :prefix :wait :property :heart-wait
+      :caliber *heart-wait* :callback 'heart-cursor-callback)
+    (heart-size cursor
+      :prefix :size :property :heart-size
+      :caliber *heart-size* :callback 'heart-cursor-callback)
+    (heart-reset push-button
+      :text "Reset" :data :reset
+      :callback-type '(:data :interface) :callback 'heart-reset-callback)
+    (heart-duration cursor
+      :prefix :duration :property :heart-duration
+      :caliber *heart-duration* :callback 'duration-cursor-callback
+      :reader heart-duration-cursor)
+    (heart-play push-button
+      :text "Play" :callback-type '(:interface) :callback 'heart-play-callback)
+    (heart-start/stop push-button
+      :data :run-animation :print-function 'title-capitalize
+      :callback-type '(:item :interface)
+      :callback 'living-text-start/stop-callback
+      :reader heart-start/stop-button))
 
 
     
@@ -959,6 +1040,14 @@ Stop animation if running, uninstall the living text, and redraw."
   '(curtains-params curtains-direction curtains-reset curtains-start/stop)
       :adjust :center)
     (curtains-params column-layout '(curtains-speed)
+      :title "Parameters" :title-position :frame :adjust :center)
+
+
+    ;; Heart
+    (heart-setting column-layout
+      '(heart-params heart-reset heart-duration heart-play heart-start/stop)
+      :adjust :center)
+    (heart-params column-layout '(heart-speed heart-size heart-wait)
       :title "Parameters" :title-position :frame :adjust :center))
     
 

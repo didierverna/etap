@@ -7,6 +7,8 @@
 
 (defstruct curtains speed offset direction)
 
+(defstruct heart speed size wait hash phase counter)
+
 
 ;; ----------------------------------------
 ;;              Line Waves
@@ -276,3 +278,137 @@
               (lambda (elt) (curtains-shift elt par-width curtains)))
         (setf (capi-object-property view :living-text-step)
               (lambda () (curtains-step curtains par-width)))))))
+
+
+
+
+;; ----------------------------------------
+;;               Heart
+;; ----------------------------------------
+
+(defmacro define-heart-caliber
+    (name min default max &rest keys &key infinity bounded)
+  "Define a NAMEd heart caliber with MIN, DEFAULT, and MAX values."
+  (declare (ignore infinity bounded))
+  `(define-caliber heart ,name ,min ,default ,max ,@keys))
+
+(define-heart-caliber speed 1 3 20 :bounded t)
+(define-heart-caliber size 1 5 20 :bounded t)
+(define-heart-caliber wait 1 5 20 :bounded t)
+(define-heart-caliber duration 1 3 100 :bounded t)
+
+
+; Calcul
+(defun heart-point (t-param scale center-x center-y)
+  "Retourne (x . y) sur la courbe cardiaque pour le parametre T-PARAM."
+  (let* ((s  (sin t-param))
+         (c  (cos t-param))
+         (mx (* scale 16 s s s))
+         (my (- (* 13 c)
+                (* 5 (cos (* 2 t-param)))
+                (* 2 (cos (* 3 t-param)))
+                       (cos (* 4 t-param)))))
+    (cons (+ center-x mx)
+          (- center-y (* scale my)))))
+
+(defun heart-populate (heart layout par-width)
+  "Calcule la position cible sur le coeur pour chaque caractere.
+Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
+  (clrhash (heart-hash heart))
+  (let* ((par-y (height layout))
+         (par-h+d (+ par-y (depth layout)))
+         (center-x (/ par-width 2))
+         (center-y (/ par-h+d 2))
+         (scale (heart-size heart))
+         (pairs (let ((acc '()))
+                     (dolist (line (lines layout) (nreverse acc))
+                       (map nil
+                            (lambda (item)
+                              (when (typep (object item) 'tfm:character-metrics)
+                                (push (cons item line) acc)))
+                            (items line)))))
+         (n (length pairs)))
+    (loop :for (item . line) :in pairs
+          :for i :from 0
+          :for t-param := (/ (* 2 pi i) (max 1 n))
+          :for target  := (heart-point t-param scale center-x center-y)
+          :do (setf (gethash item (heart-hash heart))
+                    (list 0.0 0.0
+                          (- (car target) (+ (x line) (x item)))
+                          (- (cdr target) (+ par-y (y line))))))))
+
+
+(defun heart-reset-positions (heart)
+  "Remet cur-dx et cur-dy a 0 pour chaque caractere."
+  (maphash (lambda (key val)
+             (setf (gethash key (heart-hash heart))
+                   (list 0.0 0.0 (third val) (fourth val))))
+           (heart-hash heart)))
+
+
+
+(defun heart-step (heart)
+  "Avance chaque caractere vers sa cible. Retourne :STOP quand tous sont arrives."
+  (let ((speed (heart-speed heart))
+        (donep t))
+    (maphash
+     (lambda (key val)
+       (let* ((cur-dx (first  val))
+              (cur-dy (second val))
+              (tgt-dx (third  val))
+              (tgt-dy (fourth val))
+              (ddx    (- tgt-dx cur-dx))
+              (ddy    (- tgt-dy cur-dy))
+              (dist   (sqrt (+ (* ddx ddx) (* ddy ddy)))))
+         (if (<= dist speed)
+             (setf (gethash key (heart-hash heart))
+                   (list tgt-dx tgt-dy tgt-dx tgt-dy))
+             (progn
+               (setq donep nil)
+               (setf (gethash key (heart-hash heart))
+                     (list (+ cur-dx (* speed (/ ddx dist)))
+                           (+ cur-dy (* speed (/ ddy dist)))
+                           tgt-dx tgt-dy))))))
+     (heart-hash heart))
+    (when donep
+    (cond ((= (heart-counter heart) -1)
+          ;; Premier passage : demarrer l'attente
+          (setf (heart-counter heart) (* (heart-wait heart) 33))
+          nil)
+          ((> (heart-counter heart) 0)
+          ;; Attente en cours
+          (decf (heart-counter heart))
+          nil)
+          (t
+          ;; Attente terminee : reset et stop
+          (heart-reset-positions heart)
+          :stop)))))
+
+
+
+; Installation
+(defmethod living-text-install-animation ((animation (eql :heart)) view)
+  (let* ((etap      (top-level-interface view))
+         (layout-#  (layout etap))
+         (layout    (unless (zerop layout-#)
+                      (get-layout (1- layout-#) (breakup etap))))
+         (par-width (paragraph-width (breakup etap)))
+         (heart (make-heart :speed   (caliber-default *heart-speed*)
+                   :size    (caliber-default *heart-size*)
+                   :wait    (caliber-default *heart-wait*)
+                   :hash    (make-hash-table)
+                   :phase   nil
+                   :counter -1)))
+    (setf (capi-object-property view :heart) heart)
+    (when layout
+      (heart-populate heart layout par-width))
+    (setf (capi-object-property view :elt-x-shift)
+          (lambda (elt)
+            (let ((val (gethash elt (heart-hash heart))))
+              (if val (first val) 0))))
+    (setf (capi-object-property view :elt-y-shift)
+          (lambda (elt)
+            (let ((val (gethash elt (heart-hash heart))))
+              (if val (second val) 0))))
+    (setf (capi-object-property view :living-text-step)
+          (lambda () (heart-step heart)))))
