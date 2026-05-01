@@ -659,8 +659,6 @@ Update CURSOR's title and propagate the new value to the rain struct."
                (heart-hash heart))))
   (redraw etap))
 
-(defun heart-play-callback (dialog)
-  (living-text-play-callback dialog #'heart-duration-cursor))
 
 
 ;; ----------------------
@@ -786,8 +784,6 @@ Stop animation if running, uninstall the living text, and redraw."
 (defun rain-play-callback (dialog)
   (living-text-play-callback dialog #'rain-duration-cursor))
 
-(defun heart-play-callback (dialog)
-  (living-text-play-callback dialog #'heart-duration-cursor))
 
 
 ;;-----------------
@@ -991,12 +987,6 @@ Stop animation if running, uninstall the living text, and redraw."
     (heart-reset push-button
       :text "Reset" :data :reset
       :callback-type '(:data :interface) :callback 'heart-reset-callback)
-    (heart-duration cursor
-      :prefix :duration :property :heart-duration
-      :caliber *heart-duration* :callback 'duration-cursor-callback
-      :reader heart-duration-cursor)
-    (heart-play push-button
-      :text "Play" :callback-type '(:interface) :callback 'heart-play-callback)
     (heart-start/stop push-button
       :data :run-animation :print-function 'title-capitalize
       :callback-type '(:item :interface)
@@ -1045,7 +1035,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
     ;; Heart
     (heart-setting column-layout
-      '(heart-params heart-reset heart-duration heart-play heart-start/stop)
+      '(heart-params heart-reset heart-start/stop)
       :adjust :center)
     (heart-params column-layout '(heart-speed heart-size heart-wait)
       :title "Parameters" :title-position :frame :adjust :center))

@@ -295,7 +295,6 @@
 (define-heart-caliber speed 1 3 20 :bounded t)
 (define-heart-caliber size 1 5 20 :bounded t)
 (define-heart-caliber wait 1 5 20 :bounded t)
-(define-heart-caliber duration 1 3 100 :bounded t)
 
 
 ; Calcul
@@ -343,7 +342,8 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
   (maphash (lambda (key val)
              (setf (gethash key (heart-hash heart))
                    (list 0.0 0.0 (third val) (fourth val))))
-           (heart-hash heart)))
+           (heart-hash heart))
+  (setf (heart-counter heart) -1))
 
 
 
