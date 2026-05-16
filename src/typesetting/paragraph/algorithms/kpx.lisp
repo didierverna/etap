@@ -655,7 +655,8 @@ This is the KPX version for the graph variant.
 ;; ---------------
 
 (defun kpx-try-break
-    (break-point nodes harray width make-node
+    (disposition-type ;; gross hack for LLA
+     break-point nodes harray width make-node
      threshold stretch-tolerance shrink-tolerance
      final emergency-stretch
      &aux (bol-items (harray-bol-items harray break-point))
@@ -685,6 +686,13 @@ This is the KPX version for the graph variant.
      ;; #### NOTE: even with infinite tolerance, we still don't want to shrink
      ;; more than an SAR of -1, so we must check that explicitly.
      (when (and ($<= -1 (tsar boundary)) ($<= (badness boundary) threshold))
+       (when (and (not (eq bol *bop*))
+		  (eq disposition-type :justified)
+		  (kpx-quantic-boundary-p boundary))
+	 ;; #### NOTE: contrary to the graph version, there's no need for
+	 ;; cloning here since the boundary has just been created.
+	 (reinitialize-instance boundary
+	   :tsar (kpx-eop-sar boundary (tsar (boundary node)))))
        (let ((demerits (+ (demerits node) (demerits boundary))))
 	 ;; #### WARNING: we must use the key's fitness class rather than the
 	 ;; node's one below, as accessing the node's one would break on the
@@ -720,12 +728,21 @@ This is the KPX version for the graph variant.
 	   (incf demerits *similar-demerits*))
 	 (when (>= (compare (bol-items node) bol-items) 2)
 	   (incf demerits *similar-demerits*))
+	 ;; #### WARNING: we need to keep all EOP nodes made out of quantic
+	 ;; boundaries here because the adjusted TSAR depends on the previous
+	 ;; node (in other words, the previous line). In order to do that, we
+	 ;; extend their hash table key with the node in question. This also
+	 ;; means that there cannot be a PREVIOUS one below.
 	 (let* ((new-key (make-key break-point
 				   (1+ (key-line-number key))
 				   (if (eq *fitness* :knuth-plass)
 				     (fitness-class boundary)
-				     (extended-fitness-class boundary))))
-		(previous (find new-key new-nodes :test #'equal :key #'car))
+				     (extended-fitness-class boundary))
+				   (when (kpx-quantic-boundary-p boundary)
+				     node)))
+		(previous
+		  (unless (kpx-quantic-boundary-p boundary)
+		    (find new-key new-nodes :test #'equal :key #'car)))
 		(new-node
 		  (when (or (not previous)
 			    ;; #### NOTE: the inclusive inequality below is
@@ -753,6 +770,18 @@ This is the KPX version for the graph variant.
 		       :stretch-tolerance stretch-tolerance
 		       :shrink-tolerance shrink-tolerance
 		       :extra emergency-stretch)))
+      ;; #### NOTE: since we're in an emergency situation anyway, I'm not sure
+      ;; all this mess is really useful, but...
+      (when (eopp boundary)
+	(kpx-prepare-eop-boundary boundary harray bol width))
+      (when (and (not (eq bol *bop*))
+		 (eq disposition-type :justified)
+		 (kpx-quantic-boundary-p boundary))
+	;; #### NOTE: contrary to the graph version, there's no need for
+	;; cloning here since the boundary has just been created.
+	(reinitialize-instance boundary
+	  :tsar (kpx-eop-sar boundary
+			     (tsar (boundary (cdr last-deactivation))))))
       ;; #### NOTE: in this situation, TeX sets the local demerits to 0 by
       ;; checking the artificial_demerits flag (#854, #855). The KP-BOUNDARY
       ;; initialization protocol takes care of this. In any case, we can also
@@ -763,7 +792,9 @@ This is the KPX version for the graph variant.
 			     (1+ (key-line-number (car last-deactivation)))
 			     (if (eq *fitness* :knuth-plass)
 			       (fitness-class boundary)
-			       (extended-fitness-class boundary)))
+			       (extended-fitness-class boundary))
+			     (when (kpx-quantic-boundary-p boundary)
+			       node))
 		   (funcall make-node
 		     harray bol boundary (demerits (cdr last-deactivation))
 		     (cdr last-deactivation) eol-items bol-items))))))
@@ -836,7 +867,8 @@ This is the KPX version for the graph variant.
 	:while break-point
 	:when (and ($< (penalty break-point) +∞)
 		   (or hyphenate (not (hyphenation-point-p break-point))))
-	  :do (kpx-try-break break-point nodes harray width make-node
+	  :do (kpx-try-break disposition-type
+			     break-point nodes harray width make-node
 			     threshold stretch-tolerance shrink-tolerance
 			     final emergency-stretch))
   (unless (zerop (hash-table-count nodes)) nodes))

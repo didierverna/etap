@@ -645,8 +645,9 @@ or, in case of equality, a lesser amount of demerits."
 
 ;; The active nodes hash table is accessed by
 ;; key = (break-point line-number fitness-class)
-(defun make-key (break-point line-number fitness-class)
-  (list break-point line-number fitness-class))
+;; PREVIOUS-NODE is for the KPX's LLA.
+(defun make-key (break-point line-number fitness-class &optional previous-node)
+  (list* break-point line-number fitness-class previous-node))
 (defun key-break-point (key) (first key))
 (defun key-line-number (key) (second key))
 (defun key-fitness-class (key) (third key))
