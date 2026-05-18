@@ -368,26 +368,31 @@ Display LAYOUT number (1 by default)."
   "Return ETAP interface's current language specification."
   (item-data (choice-selected-item (first (menu-items (language-menu etap))))))
 
-(defun algorithm-specification
-    (etap &aux (item (choice-selected-item (algorithm-tabs etap))))
-  "Return ETAP interface's current algorithm specification."
-  (cons (first item)
-	(let ((options))
-	  (map-pane-descendant-children
-	   (slot-value etap (second item))
-	   (lambda (child)
-	     (typecase child
-	       (check-box
-		;; #### WARNING: this special case is because check boxes in
-		;; algorithms currently only represent additional options for
-		;; which the widget's property is meaningless (typically
-		;; :options). We do not have anything working like the clues
-		;; check box in algorithms right now, but if that changes, we
-		;; will have a problem here.
-		(setq options (append options (widget-value child))))
-	       (widget
-		(setq options (append options (widget-specification child)))))))
-	  options)))
+(defun algorithm-specification (etap &optional algorithm)
+  "Return ETAP interface's current ALGORITHM specification.
+ALGORITHM defaults to the current one in ETAP."
+  (let ((item (if algorithm
+		(find algorithm (collection-items (algorithm-tabs etap))
+		  :key #'first)
+		(choice-selected-item (algorithm-tabs etap)))))
+    (cons
+     (first item)
+     (let ((options))
+       (map-pane-descendant-children
+	(slot-value etap (second item))
+	(lambda (child)
+	  (typecase child
+	    (check-box
+	     ;; #### WARNING: this special case is because check boxes in
+	     ;; algorithms currently only represent additional options for
+	     ;; which the widget's property is meaningless (typically
+	     ;; :options). We do not have anything working like the clues
+	     ;; check box in algorithms right now, but if that changes, we
+	     ;; will have a problem here.
+	     (setq options (append options (widget-value child))))
+	    (widget
+	     (setq options (append options (widget-specification child)))))))
+       options))))
 
 (defun remake (etap)
   "Remake ETAP interface's breakup, and redraw."
@@ -1126,20 +1131,27 @@ Unless FORCE, draw only if WHITESPACE's (soft) glue has been customized."
 	  :foreground :red
 	  :scale-thickness nil))
       (when layout
-	;; #### TODO: this is a kludge. We should have algorithm-specific
-	;; clues handled in a more general way.
-	(when (and (member :kpx-thresholds clues)
-		   (eq (first (choice-selected-item (algorithm-tabs etap)))
-		       :kpx))
-	  (let* ((algorithm (algorithm-specification etap))
+	(when (member :kpx-thresholds clues)
+	  ;; #### NOTE: we display those clues in any algorithm, not just the
+	  ;; KPX one. This is convenient for comparison. Warning however: if
+	  ;; the KPX algorithm has never been selected before, it seems that
+	  ;; the widgets are not realized (old X11 terminology) so
+	  ;; MAP-DESCENDANT-CHILDREN doesn't work, and the algorithm
+	  ;; specification will just be (:KPX). Hence the checks below.
+	  (let* ((algorithm (algorithm-specification etap :kpx))
 		 (pin (car (last (lines layout))))
 		 (ly (+ par-y (y pin)))
-		 (runt (/ (* (getf (rest algorithm) :runt-threshold) par-width)
-			  100))
-		 (full-out (- par-width
-			      (/ (* (getf (rest algorithm) :full-out-threshold)
-				    par-width)
-				 100))))
+		 (runt
+		   (/ (* (or (getf (rest algorithm) :runt-threshold)
+			     (caliber-default *kpx-runt-threshold*))
+			 par-width)
+		      100))
+		 (full-out
+		   (- par-width
+		      (/ (* (or (getf (rest algorithm) :full-out-threshold)
+				(caliber-default *kpx-full-out-threshold*))
+			    par-width)
+			 100))))
 	    (unless (zerop runt)
 	      (gp:draw-line view
 		  runt (- ly (height pin) 2) runt (+ ly (depth pin)  2)
