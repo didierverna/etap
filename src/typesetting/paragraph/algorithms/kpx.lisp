@@ -797,7 +797,7 @@ This is the KPX version for the graph variant.
 			       (fitness-class boundary)
 			       (extended-fitness-class boundary))
 			     (when (kpx-quantic-boundary-p boundary)
-			       node))
+			       (cdr last-deactivation)))
 		   (funcall make-node
 		     harray bol boundary (demerits (cdr last-deactivation))
 		     (cdr last-deactivation) eol-items bol-items))))))
