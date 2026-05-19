@@ -341,14 +341,16 @@ This is the class of EOP boundaries with a range of undecided target widths."))
     (kpx-initialize-boundary new)))
 
 
-
-;; ---------------------------
-;; Quantic boundary management
-;; ---------------------------
-
 (defun kpx-quantic-boundary-p (boundary)
   "Return T if BOUNDARY is quantic (i.e., a full out or range one)."
   (member (type-of boundary) '(kpx-full-out-boundary kpx-range-boundary)))
+
+
+
+
+;; ==========================================================================
+;; Last Line Adjustments
+;; ==========================================================================
 
 (defgeneric kpx-eop-sar (booundary previous-sar)
   (:documentation "Return EOP BOUNDARY's TSAR based on PREVIOUS-SAR.")
@@ -373,20 +375,6 @@ This is the class of EOP boundaries with a range of undecided target widths."))
 	  (t
 	   (max-sar boundary)))))
 
-
-
-
-;; ==========================================================================
-;; Graph Variant
-;; ==========================================================================
-
-;; The KPX graph variant does not need any specific data structures, because
-;; similarity processing is done when creating the layouts, and we don't even
-;; need to remember the BOL and EOL items outside of the path loop.
-
-;; -----------------
-;; Boundaries lookup
-;; -----------------
 
 ;; #### TODO: the boundary hierarchy and initialization protocols are broken
 ;; by design (already known and mentioned elsewhere). We should be able to
@@ -485,6 +473,21 @@ This is the class of EOP boundaries with a range of undecided target widths."))
       (t
        (assert (and (> (width boundary) runt)
 		    (< (width boundary) full-out)))))))
+
+
+
+
+;; ==========================================================================
+;; Graph Variant
+;; ==========================================================================
+
+;; The KPX graph variant does not need any specific data structures, because
+;; similarity processing is done when creating the layouts, and we don't even
+;; need to remember the BOL and EOL items outside of the path loop.
+
+;; -----------------
+;; Boundaries lookup
+;; -----------------
 
 (defun kpx-get-boundaries
     (harray bol width threshold stretch-tolerance shrink-tolerance
