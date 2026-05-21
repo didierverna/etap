@@ -60,8 +60,9 @@
                     :ondulation  (caliber-default *lwaves-ondulation*)
                     :propagation (caliber-default *lwaves-propagation*)))
       (setf (capi-object-property view :lwave-y) lwave-y))
+
     (setf (capi-object-property view :line-x-shift)
-          (lambda (line) (lwaves-shift (x line) lwave-x)))
+          (lambda (line) (lwaves-shift (y line) lwave-x)))
     (setf (capi-object-property view :line-y-shift)
           (lambda (line) (lwaves-shift (y line) lwave-y)))
     (setf (capi-object-property view :living-text-step)
