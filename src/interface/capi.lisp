@@ -805,20 +805,31 @@ Otherwise, reselect the previously selected one."
 
 ;; Source text menu
 
-(defun text-menu-callback (item etap)
-  "Function called when the ITEM source text menu button is clicked in ETAP."
-  (case item
-    (:reset-to-original
-     (setf (editor-pane-text (text etap))
-	   (capi-object-property etap :original-buffer)
-	   (choice-selected-item (first (menu-items (language-menu etap))))
-	   (capi-object-property etap :original-language)))
-    (:reset-to-default
-     (setf (editor-pane-text (text etap))
-	   *text*
-	   (choice-selected-item (first (menu-items (language-menu etap))))
-	   *language*)))
-  (remake etap))
+(let ((mbl (length *moby-dick-paragraphs*)))
+  (defun text-menu-callback (item etap)
+    "Function called when the ITEM source text menu button is clicked in ETAP."
+    (case item
+      (:moby-dick
+       (let ((nth (prompt-for-integer
+		   (format nil "Paragraph number (0 -- ~S):" (1- mbl))
+		   :min 0 :max mbl)))
+	 (when nth
+	   (setf (editor-pane-text (text etap))
+		 (nth nth *moby-dick-paragraphs*)
+		 (choice-selected-item
+		  (first (menu-items (language-menu etap))))
+		 :english))))
+      (:reset-to-original
+       (setf (editor-pane-text (text etap))
+	     (capi-object-property etap :original-buffer)
+	     (choice-selected-item (first (menu-items (language-menu etap))))
+	     (capi-object-property etap :original-language)))
+      (:reset-to-default
+       (setf (editor-pane-text (text etap))
+	     *text*
+	     (choice-selected-item (first (menu-items (language-menu etap))))
+	     *language*)))
+    (remake etap)))
 
 
 
@@ -1716,7 +1727,8 @@ that the breakup does not contain any layout."
    (etap-menu "ETAP" (:select-font :river-detection)
      :print-function 'title-capitalize
      :callback 'menu-callback)
-   (text-menu nil #| no title |# (:reset-to-original :reset-to-default)
+   (text-menu nil ; no title
+    (:moby-dick :reset-to-original :reset-to-default)
     :print-function 'title-capitalize
     :callback 'text-menu-callback)
    (language-menu nil #| no title |# (language-menu-component)

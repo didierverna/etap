@@ -1,6 +1,17 @@
 (in-package :etap)
 (in-readtable :etap)
 
+(defparameter *moby-dick-paragraphs*
+  (with-open-file (input (asdf:system-relative-pathname
+			  :etap "share/text/moby-dick"
+			  :type "txt"))
+    (loop :for par := (read input nil input)
+	  :until (eql par input)
+	  :collect par))
+  "The Moby Dick paragraphs (a list of strings).
+This list is read read from share/text/moby-dick.txt in the distribution.")
+
+
 (defvar *text*
   "In olden times when wishing still helped one, there lived a king whose
 daughters were all beautiful; and the youngest was so beautiful that the sun
