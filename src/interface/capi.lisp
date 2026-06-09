@@ -524,7 +524,7 @@ Update CURSOR's title and propagate the new value where appropriate."
 ;;      Rain Callback
 ;; ----------------------
 
- (defun rain-cursor-callback
+(defun rain-cursor-callback
     (cursor value gesture
      &aux (dialog (top-level-interface cursor))
 	  (etap (etap dialog))
@@ -538,7 +538,8 @@ Update CURSOR's title and propagate the new value to the rain struct."
       (when rain
 	(ecase (property cursor)
 	  (:rain-densite (setf (rain-densite rain) (widget-value cursor)))
-	  (:rain-speed   (setf (rain-speed   rain) (widget-value cursor)))))
+	  (:rain-max-speed (setf (rain-max-speed rain) (widget-value cursor)))
+    (:rain-wind (setf (rain-wind rain) (widget-value cursor)))))
       (unless (capi-object-property view :living-text-animation)
 	(redraw etap)))))
 
@@ -548,18 +549,20 @@ Update CURSOR's title and propagate the new value to the rain struct."
   "Function called when the Rain repopulate button is pushed."
   (declare (ignore data))
   (let ((densite (widget-value (find-widget :rain-densite dialog)))
-        (speed   (widget-value (find-widget :rain-speed dialog))))
+        (max-speed (widget-value (find-widget :rain-max-speed dialog)))
+        (wind (widget-value (find-widget :rain-wind dialog))))
     (setf (capi-object-property view :rain) nil)
     (living-text-install-animation :rain view)
     (let ((rain (capi-object-property view :rain)))
       (when rain
         (setf (rain-densite rain) densite)
-        (setf (rain-speed rain) speed)
+        (setf (rain-max-speed rain) max-speed)
+        (setf (rain-wind rain) wind)
         (let* ((layout-# (layout etap))
                (layout (unless (zerop layout-#)
                          (get-layout (1- layout-#) (breakup etap)))))
           (when layout
-            (populate (rain-hash rain) layout densite speed))))))
+            (populate (rain-hash rain) layout densite max-speed))))))
   (redraw etap))
 
 
@@ -916,10 +919,15 @@ Stop animation if running, uninstall the living text, and redraw."
      :property :rain-densite
      :caliber *rain-densite*
      :callback 'rain-cursor-callback)
-    (rain-speed cursor
-     :prefix :speed
-     :property :rain-speed
-     :caliber *rain-speed*
+    (rain-max-speed cursor
+     :prefix :speed-max
+     :property :rain-max-speed
+     :caliber *rain-max-speed*
+     :callback 'rain-cursor-callback)
+     (rain-wind cursor
+     :prefix :wind
+     :property :rain-wind
+     :caliber *rain-wind*
      :callback 'rain-cursor-callback)
     (rain-repopulate push-button
      :text "Repopulate"
@@ -1009,7 +1017,7 @@ Stop animation if running, uninstall the living text, and redraw."
     (rain-setting column-layout
   '(rain-params rain-repopulate rain-duration rain-play)
   :adjust :center)
-   (rain-params column-layout '(rain-densite rain-speed)
+   (rain-params column-layout '(rain-densite rain-max-speed rain-wind)
      :title "Parameters" :title-position :frame :adjust :center)
 
     ;; Curtains

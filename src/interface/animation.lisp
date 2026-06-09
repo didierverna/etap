@@ -3,7 +3,7 @@
 
 (defstruct lwave amplitude ondulation propagation phase)
 
-(defstruct rain densite speed hash)
+(defstruct rain densite max-speed hash wind)
 
 (defstruct curtains speed offset direction)
 
@@ -143,16 +143,22 @@
   `(define-caliber rain ,name ,min ,default ,max ,@keys))
 
 (define-rain-caliber densite 0 2 10 :bounded t)
-(define-rain-caliber speed  0 1  10 :bounded t)
+(define-rain-caliber max-speed  0 1  10 :bounded t)
 (define-rain-caliber duration 0 3  100 :bounded t)
+(define-rain-caliber wind -12 1 12 :bounded t) ;0-12 km/h
 
 
 
 ; Calcul
-(defun rain-shift (elt hash)
+(defun rain-shift-y (elt hash)
 "recupere la position y d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
-    (when val (car val)))
+    (when val (nth 0 val)))
+)
+(defun rain-shift-x (elt hash)
+"recupere la position x d'une lettre dans la hashmap et la renvoi "
+  (let ((val (gethash elt hash)))
+    (when val (nth 1 val)))
 )
 
 (defun rain-step (rain view)
@@ -160,21 +166,36 @@
   (let* ((etap (top-level-interface view))
          (layout-# (layout etap))
          (layout (unless (zerop layout-#)
-                   (get-layout (1- layout-#) (breakup etap)))))
+                   (get-layout (1- layout-#) (breakup etap))))) ; get the layout
     (when layout
-      (let ((end (+ (height layout) (depth layout))))
+      (let ((end-down (+ (height layout) (depth layout))) ;limit dow
+            (end-side (paragraph-width (breakup etap)))) ;limite side
         (maphash (lambda (key val)
-                   (let ((y (car val))
-                         (speed (cdr val)))
-                     (setf (gethash key (rain-hash rain))
-                           (cons (if (>= y end) 0 (+ y speed))
-                                 speed))))
+                   (let ((dy (nth 0 val));decalage y
+                         (dx (nth 1 val));decalage x
+                         (vy (nth 2 val)) ; vitesse vertical 
+                         (vx (nth 3 val)) ; wind power
+                         (Yorigin (nth 4 val)) ; origin position y
+                         (Xorigin (nth 5 val))) ; origin position x
+                        
+                        (setf (gethash key (rain-hash rain))
+                              (if (or (>= (+ dy Yorigin) end-down) (> (+ dx Xorigin) end-side) (< (+ dx Xorigin) 0))
+                                (list 0 0 0 0 Yorigin Xorigin) ; put it back to origin
+                                (list 
+                                  (+ dy vy)
+                                  (+ dx vx)
+                                  (+ vy (* (- (rain-max-speed rain) vy) 0.1))
+                                  (+ vx (* (- (rain-wind rain) vx) 0.1))
+                                  Yorigin
+                                  Xorigin)
+                              ))))
                  (rain-hash rain))))))
 
 
-(defun populate (rain-hash layout densite speed)
+(defun populate (rain-hash layout densite max-speed)
   (clrhash rain-hash)
-  (let ((end (+ (height layout) (depth layout))))
+  (let* ((par-y (height layout))
+        (end (+ par-y (depth layout))))
     (loop :for line :in (lines layout)
           :for i :from 0
           :while (< i 3)
@@ -183,8 +204,13 @@
                       (when (typep (object item) 'tfm:character-metrics)
                         (when (< (random 10) densite)
                           (setf (gethash item rain-hash)
-                                (cons (- (y line) (random (floor end))) ; départ décalé aléatoirement AVANT la ligne
-                                      (+ 1 (random (max 1 (floor speed)))))))))
+                                (list (- (random (floor end))) ; decalage y
+                                      0 ; decalage x
+                                      (+ 1 (random (max 1 (floor max-speed))))  ; vitesse vertical aléatoire
+                                      0
+                                      (+ par-y (y line)); Origin y
+                                      (+ (x line) (x item))) ;Origin x
+                          ))))  
                     (items line)))))
 
 
@@ -193,18 +219,21 @@
   (let ((rain (capi-object-property view :rain)))
     (unless rain
       (setq rain (make-rain
-                    :densite  (caliber-default *rain-densite*)
-                    :speed    (caliber-default *rain-speed*)
-                    :hash     (make-hash-table)))
+                    :densite (caliber-default *rain-densite*)
+                    :max-speed (caliber-default *rain-max-speed*)
+                    :wind (caliber-default *rain-wind*)
+                    :hash (make-hash-table)))
       (setf (capi-object-property view :rain) rain))
     (let* ((etap   (top-level-interface view))
             (layout-# (layout etap))
             (layout (unless (zerop layout-#)
                       (get-layout (1- layout-#) (breakup etap)))))
       (when layout
-        (populate (rain-hash rain) layout (rain-densite rain) (rain-speed rain))))
+        (populate (rain-hash rain) layout (rain-densite rain) (rain-max-speed rain))))
     (setf (capi-object-property view :elt-y-shift)
-          (lambda (elt) (or (rain-shift elt (rain-hash rain)) 0)))
+          (lambda (elt) (or (rain-shift-y elt (rain-hash rain)) 0)))
+    (setf (capi-object-property view :elt-x-shift)
+          (lambda (elt) (or (rain-shift-x elt (rain-hash rain)) 0)))
     (setf (capi-object-property view :living-text-step)
           (lambda () (rain-step rain view)))))
 
