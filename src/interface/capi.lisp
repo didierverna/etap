@@ -414,18 +414,14 @@ Display LAYOUT number (1 by default)."
 ;;      Utils
 ;; -----------------
 
-
 (defun duration-cursor-callback (cursor value gesture)
   (declare (ignore value))
   (when (eq gesture :drag)
     (update-cursor-title cursor)))
 
-
-
 ;; -----------------------
 ;;      Line Callback
 ;; -----------------------
-
 
 (defun lwaves-cursor-callback
     (cursor value gesture
@@ -663,7 +659,6 @@ Update CURSOR's title and propagate the new value to the rain struct."
 ;; Living Text Interface
 ;; ----------------------
 
-
 (defun living-text-timer (view)
   (cond ((capi-object-property view :living-text-animation)
          (let* ((remaining (capi-object-property view :living-text-remaining))
@@ -708,11 +703,7 @@ Update CURSOR's title and propagate the new value to the rain struct."
 
 (defun living-text-start/stop-callback
     (button dialog &aux (view (view-area (etap dialog))))
-  "Function called when the living text start/stop BUTTON is pushed.
-Switch the animation:
-- indicate the new status in the Etap view's property,
-- update the button's data (hence its title),
-- Upon running, start the animation timer."
+  "Function to run an annimation once"
   (cond ((eq (item-data button) :stop-animation)
 	 (setf (capi-object-property view :living-text-animation) nil)
    (setf (capi-object-property view :living-text-active-button) nil) 
@@ -800,8 +791,6 @@ Stop animation if running, uninstall the living text, and redraw."
   (living-text-play-callback dialog #'rain-duration-cursor))
 
 
-
-
 ;;-----------------
 ;;    Interface
 ;;-----------------
@@ -866,15 +855,7 @@ Stop animation if running, uninstall the living text, and redraw."
     (lwaves-play push-button ; Play
       :text "Play"
       :callback-type '(:interface)
-      ;;:dialog dialog
-      ;;:duration-reader 
       :callback 'lwaves-play-callback)
-    ;;(lwaves-start/stop push-button ; Start/Push
-     ;;:data :run-animation
-     ;;:print-function 'title-capitalize
-     ;;:callback-type '(:item :interface)
-     ;;:callback 'living-text-start/stop-callback ;'lwaves-play-callback
-     ;;:reader lwaves-start/stop-button)
 
 
    ;; Char waves panes
