@@ -421,6 +421,7 @@ Display LAYOUT number (1 by default)."
     (update-cursor-title cursor)))
 
 
+
 ;; -----------------------
 ;;      Line Callback
 ;; -----------------------
@@ -448,20 +449,17 @@ Update CURSOR's title and propagate the new value where appropriate."
       (unless (capi-object-property view :living-text-animation)
 	(redraw etap)))))
 
-;;Marche pas regarder char waves
 (defun lwaves-phase-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when a Line Waves animation's phase reset button is pushed."
   (ecase data
     (:lx 
-      ;(setf (lwave-phase (capi-object-property view :cwave-x)) 0)
       (setf (widget-value (find-widget :xamp dialog)) nil)
       (setf (widget-value (find-widget :xond dialog)) nil)
       (setf (widget-value (find-widget :xprop dialog)) nil)
       (setf (capi-object-property view :lwave-x) nil))
 
     (:ly 
-      ;(setf (lwave-phase (capi-object-property view :cwave-y)) 0)
       (setf (widget-value (find-widget :yamp dialog)) nil)
       (setf (widget-value (find-widget :yond dialog)) nil)
       (setf (widget-value (find-widget :yprop dialog)) nil)
@@ -592,10 +590,10 @@ Update CURSOR's title and propagate the new value to the rain struct."
       
 (defun curtains-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
-  "Function called when the curtains reset button is pushed."
+  "Function to reset curtains"
   (declare (ignore data))
   (setf (capi-object-property view :living-text-animation) nil)
-  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (curtains-start/stop-button dialog)) :run-animation)
   (setf (capi-object-property view :living-text-active-button) nil)
   (curtains-reset view)
   (redraw etap))
@@ -649,7 +647,7 @@ Update CURSOR's title and propagate the new value to the rain struct."
   "Remet les caracteres a leur position typographique d'origine."
   (declare (ignore data))
   (setf (capi-object-property view :living-text-animation) nil)
-  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (heart-start/stop-button dialog)) :run-animation)
   (setf (capi-object-property view :living-text-active-button) nil)
   (let ((heart (capi-object-property view :heart)))
     (when heart
@@ -696,14 +694,17 @@ Update CURSOR's title and propagate the new value to the rain struct."
 
 (defun living-text-play-callback
     (dialog duration-reader &aux (view (view-area (etap dialog))))
-  "Callback de play"
-  (let ((frames (* (widget-value (funcall duration-reader dialog)) 33)))
-    (setf (capi-object-property view :living-text-remaining) frames)
-    (setf (capi-object-property view :living-text-active-button) nil)
-    (setf (capi-object-property view :living-text-animation) t)
-    (mp:schedule-timer-relative-milliseconds
-    (mp:make-timer 'living-text-timer view) 30 30)))
-
+  (cond
+    ((capi-object-property view :living-text-animation)
+     (setf (capi-object-property view :living-text-animation) nil))
+    (t
+     (let ((duration (widget-value (funcall duration-reader dialog))))
+       (setf (capi-object-property view :living-text-remaining)
+             (if (zerop duration) nil (* duration 33)))
+       (setf (capi-object-property view :living-text-active-button) nil)
+       (setf (capi-object-property view :living-text-animation) t)
+       (mp:schedule-timer-relative-milliseconds
+        (mp:make-timer 'living-text-timer view) 30 30)))))
 
 (defun living-text-start/stop-callback
     (button dialog &aux (view (view-area (etap dialog))))
@@ -726,42 +727,56 @@ Switch the animation:
 
 
 
-
 (defun living-text-destroy-callback
     (dialog &aux (etap (etap dialog)) (view (view-area etap)))
   "Function called when the living text DIALOG is destroyed.
 Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :living-text-animation) nil)
   (setf (capi-object-property view :rain) nil)
-  (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
-  (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
-  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (rain-start/stop-button dialog)) :run-animation)
   (setf (capi-object-property view :line-x-shift) nil)
   (setf (capi-object-property view :line-y-shift) nil)
   (setf (capi-object-property view :elt-x-shift) nil)
   (setf (capi-object-property view :elt-y-shift) nil)
-  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
-  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (curtains-start/stop-button dialog)) :run-animation)
+  ;(setf (item-data (heart-start/stop-button dialog)) :run-animation)
   (redraw etap))
 
 
 
 (defun living-text-animation-tabs-callback
     (item dialog &aux (view (view-area (etap dialog))))
-  (setf (capi-object-property view :living-text-animation) nil)
-  (setf (item-data (lwaves-start/stop-button dialog)) :run-animation)
-  (setf (item-data (cwaves-start/stop-button dialog)) :run-animation)
-  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
-  (setf (item-data (curtains-start/stop-button dialog)) :run-animation)
-  (setf (item-data (heart-start/stop-button dialog)) :run-animation)
-  (living-text-install-animation (first item) view))
+  (setf (capi-object-property view :living-text-animation) nil) ;; stop annim
+  ;;(setf (item-data (lwaves-start/stop-button dialog)) :run-animation) ;; reset button
+  ;;(setf (item-data (cwaves-start/stop-button dialog)) :run-animation) ;; |
+  ;;(setf (item-data (rain-start/stop-button dialog)) :run-animation) ;; | 
+  ;;(setf (item-data (curtains-start/stop-button dialog)) :run-animation) ;; |
+  ;(setf (item-data (heart-start/stop-button dialog)) :run-animation) ;; reset button
+
+  (setf (capi-object-property view :line-x-shift) nil);; reset des elem
+  (setf (capi-object-property view :line-y-shift) nil);; |
+  (setf (capi-object-property view :elt-x-shift) nil);; |
+  (setf (capi-object-property view :elt-y-shift) nil);; reset des elem
+  
+  (case (first item)
+    (:lines-waves (lwaves-phase-reset-callback :lx dialog) (lwaves-phase-reset-callback :ly dialog))
+    (:char-waves (cwaves-phase-reset-callback :cx dialog) (cwaves-phase-reset-callback :cy dialog))
+    (:rain (rain-repopulate-callback :reset dialog))
+    (:curtains (curtains-reset-callback :reset dialog))
+    (:heart (heart-reset-callback :reset dialog))
+  )
+
+  (living-text-install-animation (first item) view)) ;; install la nouvelle annime.
+ 
 
 
 (defun living-text-reset-callback
     (dialog &aux (etap (etap dialog)) (view (view-area etap)))
   ;; Stopper l'animation d'abord
   (setf (capi-object-property view :living-text-animation) nil)
-  (setf (item-data (rain-start/stop-button dialog)) :run-animation)
+  ;;(setf (item-data (rain-start/stop-button dialog)) :run-animation)
   ;; Remettre toutes les lettres à leur position typographique (shift=0)
   (let ((rain (capi-object-property view :rain)))
     (when rain
@@ -783,6 +798,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
 (defun rain-play-callback (dialog)
   (living-text-play-callback dialog #'rain-duration-cursor))
+
 
 
 
@@ -850,13 +866,15 @@ Stop animation if running, uninstall the living text, and redraw."
     (lwaves-play push-button ; Play
       :text "Play"
       :callback-type '(:interface)
+      ;;:dialog dialog
+      ;;:duration-reader 
       :callback 'lwaves-play-callback)
-    (lwaves-start/stop push-button ; Start/Push
-     :data :run-animation
-     :print-function 'title-capitalize
-     :callback-type '(:item :interface)
-     :callback 'living-text-start/stop-callback ;'lwaves-play-callback
-     :reader lwaves-start/stop-button)
+    ;;(lwaves-start/stop push-button ; Start/Push
+     ;;:data :run-animation
+     ;;:print-function 'title-capitalize
+     ;;:callback-type '(:item :interface)
+     ;;:callback 'living-text-start/stop-callback ;'lwaves-play-callback
+     ;;:reader lwaves-start/stop-button)
 
 
    ;; Char waves panes
@@ -908,12 +926,6 @@ Stop animation if running, uninstall the living text, and redraw."
       :text "Play"
       :callback-type '(:interface)
       :callback 'cwaves-play-callback)
-    (cwaves-start/stop push-button ; Start/Push
-     :data :run-animation
-     :print-function 'title-capitalize
-     :callback-type '(:item :interface)
-     :callback 'living-text-start/stop-callback
-     :reader cwaves-start/stop-button)
 
 
 
@@ -942,12 +954,6 @@ Stop animation if running, uninstall the living text, and redraw."
      :text "Play"
      :callback-type '(:interface)
      :callback 'rain-play-callback)
-    (rain-start/stop push-button
-     :data :run-animation
-     :print-function 'title-capitalize
-     :callback-type '(:item :interface)
-     :callback 'living-text-start/stop-callback
-     :reader rain-start/stop-button)
 
 
      ;; Curtains Panes
@@ -985,14 +991,14 @@ Stop animation if running, uninstall the living text, and redraw."
       :prefix :size :property :heart-size
       :caliber *heart-size* :callback 'heart-cursor-callback)
     (heart-reset push-button
-      :text "Reset" :data :reset
+      :text "Reset"
+      :data :reset
       :callback-type '(:data :interface) :callback 'heart-reset-callback)
     (heart-start/stop push-button
       :data :run-animation :print-function 'title-capitalize
       :callback-type '(:item :interface)
       :callback 'living-text-start/stop-callback
       :reader heart-start/stop-button))
-
 
     
 
@@ -1001,7 +1007,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
   ;; Line Waves
    (lwaves-settings column-layout
-    '(lwaves-options lwaves-duration lwaves-play lwaves-start/stop):adjust :center)
+    '(lwaves-options lwaves-duration lwaves-play):adjust :center)
    (lwaves-options row-layout '(lwaves-horizontal lwaves-vertical))
    (lwaves-horizontal column-layout '(xamp xond xprop xphase)
      :title "Horizontal" :title-position :frame :adjust :center)
@@ -1010,7 +1016,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
    ;; Char Waves
    (cwaves-settings column-layout
-  '(cwaves-options cwaves-duration cwaves-play cwaves-start/stop)
+  '(cwaves-options cwaves-duration cwaves-play)
   :adjust :center)
    (cwaves-options row-layout '(cwaves-horizontal cwaves-vertical)) ;; CHAR ADD 
    (cwaves-horizontal column-layout '(cxamp cxond cxprop cxphase) ;; CHAR ADD 
@@ -1020,7 +1026,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
     ;; Rain
     (rain-setting column-layout
-  '(rain-params rain-repopulate rain-duration rain-play rain-start/stop)
+  '(rain-params rain-repopulate rain-duration rain-play)
   :adjust :center)
    (rain-params column-layout '(rain-densite rain-speed)
      :title "Parameters" :title-position :frame :adjust :center)

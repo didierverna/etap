@@ -24,7 +24,7 @@
 (define-lwaves-caliber amplitude 0 0 10 :bounded t)
 (define-lwaves-caliber ondulation 0 0 400 :bounded t)
 (define-lwaves-caliber propagation 0 0 100 :bounded t)
-(define-lwaves-caliber duration 1 3 100 :bounded t)
+(define-lwaves-caliber duration 0 3 100 :bounded t)
 
 
 
@@ -83,7 +83,7 @@
 (define-cwaves-caliber amplitude   0 0  10  :bounded t)
 (define-cwaves-caliber ondulation  0 0  400 :bounded t)
 (define-cwaves-caliber propagation 0 0  100 :bounded t)
-(define-cwaves-caliber duration 1 3  100 :bounded t)
+(define-cwaves-caliber duration 0 3  100 :bounded t)
 
 
 
@@ -144,7 +144,7 @@
 
 (define-rain-caliber densite 0 2 10 :bounded t)
 (define-rain-caliber speed  0 1  10 :bounded t)
-(define-rain-caliber duration 1 3  100 :bounded t)
+(define-rain-caliber duration 0 3  100 :bounded t)
 
 
 
@@ -413,3 +413,18 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
               (if val (second val) 0))))
     (setf (capi-object-property view :living-text-step)
           (lambda () (heart-step heart)))))
+
+
+
+;; ----------------------------------------
+;;               Earthquake
+;; ----------------------------------------
+
+;(defmacro define-eartquake-caliber
+ ;   (name min default max &rest keys &key infinity bounded)
+  ;"Define a NAMEd heart caliber with MIN, DEFAULT, and MAX values."
+;  (declare (ignore infinity bounded))
+;  `(define-caliber eartquake ,name ,min ,default ,max ,@keys))
+
+;(define-heart-eartquake speed 1 3 20 :bounded t)
+;(define-heart-caliber wait 1 5 20 :bounded t)
