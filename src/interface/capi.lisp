@@ -657,6 +657,43 @@ Update CURSOR's title and propagate the new value to the rain struct."
   (redraw etap))
 
 
+;; ----------------------
+;;      Bomb Callback
+;; ----------------------
+
+(defun bomb-cursor-callback
+    (cursor value gesture
+     &aux (dialog (top-level-interface cursor))
+          (etap (etap dialog))
+          (view (view-area etap)))
+  "Function called when a Bomb animation CURSOR is dragged."
+  (declare (ignore value))
+  (when (eq gesture :drag)
+    (update-cursor-title cursor)
+    (let ((bomb (capi-object-property view :bomb)))
+      (when bomb
+        (ecase (property cursor)
+          (:bomb-tremble  (setf (bomb-tremble bomb) (widget-value cursor)))
+          (:bomb-wait (setf (bomb-wait bomb) (widget-value cursor)))
+          (:bomb-shockwave (setf (bomb-shockwave  bomb) (widget-value cursor)))
+          (:bomb-drop-speed (setf (bomb-drop-speed bomb) (widget-value cursor))))))
+    (unless (capi-object-property view :living-text-animation)
+      (redraw etap))))
+
+(defun bomb-reset-callback
+    (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  (declare (ignore data))
+  (setf (capi-object-property view :living-text-animation) nil)
+  (setf (capi-object-property view :living-text-active-button) nil)
+  (let ((bomb (capi-object-property view :bomb)))
+    (when bomb
+      (setf (bomb-phase bomb) :tremble)
+      (setf (bomb-obus bomb) nil)
+      (setf (bomb-counter bomb) -1)
+      (bomb-reset-positions bomb)))
+  (redraw etap))
+
+
 
 ;; ----------------------
 ;; Living Text Interface
@@ -743,11 +780,6 @@ Stop animation if running, uninstall the living text, and redraw."
 (defun living-text-animation-tabs-callback
     (item dialog &aux (view (view-area (etap dialog))))
   (setf (capi-object-property view :living-text-animation) nil) ;; stop annim
-  ;;(setf (item-data (lwaves-start/stop-button dialog)) :run-animation) ;; reset button
-  ;;(setf (item-data (cwaves-start/stop-button dialog)) :run-animation) ;; |
-  ;;(setf (item-data (rain-start/stop-button dialog)) :run-animation) ;; | 
-  ;;(setf (item-data (curtains-start/stop-button dialog)) :run-animation) ;; |
-  ;(setf (item-data (heart-start/stop-button dialog)) :run-animation) ;; reset button
 
   (setf (capi-object-property view :line-x-shift) nil);; reset des elem
   (setf (capi-object-property view :line-y-shift) nil);; |
@@ -760,6 +792,7 @@ Stop animation if running, uninstall the living text, and redraw."
     (:rain (rain-repopulate-callback :reset dialog))
     (:curtains (curtains-reset-callback :reset dialog))
     (:heart (heart-reset-callback :reset dialog))
+    (:bomb (bomb-reset-callback :reset dialog))
   )
 
   (living-text-install-animation (first item) view)) ;; install la nouvelle annime.
@@ -804,7 +837,7 @@ Stop animation if running, uninstall the living text, and redraw."
    (animation-tabs tab-layout
      :visible-max-width nil
      :combine-child-constraints t
-     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting) (:curtains curtains-setting) (:heart heart-setting)) ;; lines + char + rain
+     :items '((:lines-waves lwaves-settings) (:char-waves cwaves-settings) (:rain rain-setting) (:curtains curtains-setting) (:heart heart-setting) (:bomb bomb-setting)) ;; lines + char + rain
      :print-function (lambda (item) (title-capitalize (car item)))
      :callback-type '(:item :interface)
      :selection-callback 'living-text-animation-tabs-callback
@@ -987,7 +1020,31 @@ Stop animation if running, uninstall the living text, and redraw."
       :data :run-animation :print-function 'title-capitalize
       :callback-type '(:item :interface)
       :callback 'living-text-start/stop-callback
-      :reader heart-start/stop-button))
+      :reader heart-start/stop-button)
+      
+      
+      ;; Bomb panes
+    (bomb-tremble cursor
+      :prefix :tremble :property :bomb-tremble
+      :caliber *bomb-tremble* :callback 'bomb-cursor-callback)
+    (bomb-wait cursor
+      :prefix :wait :property :bomb-wait
+      :caliber *bomb-wait* :callback 'bomb-cursor-callback)
+    (bomb-shockwave cursor
+      :prefix :shockwave :property :bomb-shockwave
+      :caliber *bomb-shockwave* :callback 'bomb-cursor-callback)
+    (bomb-drop-speed cursor
+      :prefix :drop-speed :property :bomb-drop-speed
+      :caliber *bomb-drop-speed* :callback 'bomb-cursor-callback)
+    (bomb-reset push-button
+      :text "Reset"
+      :data :reset
+      :callback-type '(:data :interface) :callback 'bomb-reset-callback)
+    (bomb-start/stop push-button
+      :data :run-animation :print-function 'title-capitalize
+      :callback-type '(:item :interface)
+      :callback 'living-text-start/stop-callback
+      :reader bomb-start/stop-button))
 
     
 
@@ -1033,6 +1090,13 @@ Stop animation if running, uninstall the living text, and redraw."
       '(heart-params heart-reset heart-start/stop)
       :adjust :center)
     (heart-params column-layout '(heart-speed heart-size heart-wait)
+      :title "Parameters" :title-position :frame :adjust :center)
+
+    ;; Bomb
+    (bomb-setting column-layout
+      '(bomb-params bomb-reset bomb-start/stop)
+      :adjust :center)
+    (bomb-params column-layout '(bomb-tremble bomb-wait bomb-shockwave bomb-drop-speed)
       :title "Parameters" :title-position :frame :adjust :center))
     
 
