@@ -452,60 +452,94 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
 (define-bomb-caliber tremble 0 2 9 :bounded t)
 (define-bomb-caliber wait 1 2 10 :bounded t)
 (define-bomb-caliber shockwave 0 10 30 :bounded t)
-(define-bomb-caliber drop-speed 1 5 20 :bounded t)
+(define-bomb-caliber drop-speed 1 5 10 :bounded t)
 
 
 
 ; Calcul
+
+;---------
+; Utils
+;---------
 (defun bomb-shift-y (elt hash)
-"recupere la position y d'une lettre dans la hashmap et la renvoi "
+  "recupere la position y d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
     (when val (nth 1 val)))
 )
+
 (defun bomb-shift-x (elt hash)
-"recupere la position x d'une lettre dans la hashmap et la renvoi "
+  "recupere la position x d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
     (when val (nth 0 val)))
 )
 
 (defun bomb-reset-positions (bomb)
+  "Reset position in the hashmap, garde l'origine"
   (maphash (lambda (key val)
-             (declare (ignore val))
-             (setf (gethash key (bomb-hash bomb)) (list 0 0)))
+             (setf (gethash key (bomb-hash bomb))
+                   (list 0 0 (third val) (fourth val))))
            (bomb-hash bomb))
-  (setf (bomb-counter bomb) -1))
+  (setf (bomb-counter bomb) -1)
+)
 
-(defun bomb-tremble-step (bomb view)
-  (declare (ignore view))
+(defun bomb-wait-time (bomb)
+  "Decompte bomb-counter. Retourne :stop quand fini, initialise si besoin."
   (cond
     ((= (bomb-counter bomb) -1)
      (setf (bomb-counter bomb) (* (bomb-wait bomb) 33))
-     (bomb-tremble-step-apply bomb)
      nil)
     ((> (bomb-counter bomb) 0)
      (decf (bomb-counter bomb))
-     (bomb-tremble-step-apply bomb)
      nil)
     (t
-     (bomb-reset-positions bomb)
-     :stop)))
+     :stop))
+)
 
-(defun bomb-tremble-step-apply (bomb)
-  "Applique le tremblement a tous les caracteres."
+(defun bomb-populate (bomb layout)
+  "hashmap de bomb : (dx dy orig-x orig-y)"
+  (clrhash (bomb-hash bomb))
+  (let ((par-y (height layout)))
+    (dolist (line (lines layout))
+      (map nil
+           (lambda (item)
+             (when (typep (object item) 'tfm:character-metrics)
+               (setf (gethash item (bomb-hash bomb))
+                     (list 
+                        0 ;decalage x
+                        0 ;decalage y
+                        (+ (x line) (x item));origin x
+                        (+ par-y (y line));origin y
+                      ))))
+           (items line))))
+)
+
+
+;---------
+; Tremble
+;---------
+(defun bomb-tremble-step (bomb)
+  "Applique le tremblement a tous les caracteres, en preservant l'origine."
   (let ((tremble (bomb-tremble bomb)))
     (maphash
      (lambda (key val)
-       (declare (ignore val))
-       (setf (gethash key (bomb-hash bomb))
-             (list (+ (- tremble) (random (float tremble)))
-                   (+ (- tremble) (random (float tremble))))))
-     (bomb-hash bomb))))
+       (let ((orig-x (nth 2 val))
+             (orig-y (nth 3 val)))
+         (setf (gethash key (bomb-hash bomb))
+               (list (+ (- tremble) (random (float tremble)))
+                     (+ (- tremble) (random (float tremble)))
+                     orig-x
+                     orig-y))))
+     (bomb-hash bomb)))
+)
 
-
+;---------
+; Drop
+;---------
 (defun bomb-obus-step (bomb view)
+  "Drop l'obus"
   (declare (ignore view))
   (unless (bomb-obus bomb) (return-from bomb-obus-step :stop))
-  (let ((speed (bomb-drop-speed bomb))
+  (let ((speed (/ (bomb-drop-speed bomb) 2))
         (donep t))
     (setf (bomb-obus bomb)
           (mapcar (lambda (entry)
@@ -515,81 +549,159 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
                           (setq donep nil))
                         (list elt depart cible (min new-cur cible) dx))))
                   (bomb-obus bomb)))
-    (when donep :stop)))
+    (when donep :stop))
+)
 
+(defun bomb-obus-populate (bomb layout par-width)
+  "l'obus tombe au centre du paragraphe.
+   refaire une vraie forme d'obus plus tard."
+  (let* ((par-y (height layout))
+         (par-h+d (+ par-y (depth layout)))
+         (target-y (/ par-h+d 2))
+         (first-line (first (lines layout))))
+    (when first-line
+      (let ((all-chars (remove-if-not
+                          (lambda (item)
+                            (typep (object item) 'tfm:character-metrics))
+                          (coerce (items first-line) 'list))))
+        (setf (bomb-obus bomb)
+              (mapcar (lambda (item)
+                        (list item (- par-y 100) target-y 0.0 0))
+                      all-chars)))))
+)
 
+;---------
+; Shockwave
+;---------
+(defun bomb-shockwave-step (bomb layout par-width)
+  " Create an shockwave starting from the center"
+    (let* (
+      (impact-x (+ (x (first (lines layout)))
+        (/ (width (first (lines layout))) 2)))
+      (par-y (height layout))
+      (par-h+d (+ par-y (depth layout)))
+      (impact-y (/ par-h+d 2));impact y
+      (sigma 20.0) ; largeur de la crete
+      (max-dist (sqrt (+ (* (/ par-width 2) (/ par-width 2))
+                         (* (/ par-h+d 2) (/ par-h+d 2))))))
+      
+      (incf (bomb-counter bomb) (/ (bomb-shockwave bomb) 3.0))
+
+      (let ((rayon (bomb-counter bomb)))
+      (maphash
+       (lambda (key val)
+         (let* ((orig-x (nth 2 val))
+                (orig-y (nth 3 val))
+                (ddx    (- orig-x impact-x))
+                (ddy    (- orig-y impact-y))
+                (d      (sqrt (+ (* ddx ddx) (* ddy ddy))))
+                (h      (/ (exp (- (/ (* (- d rayon) (- d rayon))
+                                      (* 2 sigma sigma))))
+                           (sqrt (max d 1.0))))
+                (ux     (if (> d 0) (/ ddx d) 0))
+                (uy     (if (> d 0) (/ ddy d) 0)))
+           (setf (gethash key (bomb-hash bomb))
+                 (list (* h ux 30) (* h uy 30) orig-x orig-y))))
+       (bomb-hash bomb))
+
+      (when (> rayon (+ max-dist (* 2 sigma)))
+        (bomb-reset-positions bomb)
+        :stop)))
+)
+
+;---------
+; Disappear
+;---------
+(defun bomb-disappear-step (bomb layout par-width)
+  "Fait disparaitre les caracteres du dehors vers le centre."
+    (let* ((impact-x (/ (width (first (lines layout))) 2))
+          (impact-y (/ (+ (height layout) (depth layout)) 2)))
+      (decf (bomb-counter bomb) (bomb-shockwave bomb))
+      (let ((seuil (bomb-counter bomb)))
+        (maphash
+        (lambda (key val)
+          (let* ((orig-x (nth 2 val))
+                  (orig-y (nth 3 val))
+                  (ddx    (- orig-x impact-x))
+                  (ddy    (- orig-y impact-y))
+                  (d      (sqrt (+ (* ddx ddx) (* ddy ddy)))))
+            (if (> d seuil)
+              (setf (gethash key (bomb-hash bomb))
+                    (list (* ddx 1000) (* ddy 1000) orig-x orig-y))
+              (setf (gethash key (bomb-hash bomb))
+                    (list (first val) (second val) orig-x orig-y)))))
+        (bomb-hash bomb))
+        (when (<= seuil 0)
+          :stop))
+    )
+)
+
+;---------
+; MAIN BOMB
+;---------
 (defun bomb-step (bomb view)
+  "Main step function for the bomb with different phase :
+  - tremble 
+  - drop
+  - shockwave "
   (ecase (bomb-phase bomb)
     (:tremble
-     (let ((result (bomb-tremble-step bomb view)))
-       (when (eq result :stop)
-          (setf (bomb-phase bomb) :drop)
-          (let* ((etap      (top-level-interface view))
-                (layout-#  (layout etap))
-                (layout    (unless (zerop layout-#)
+      (let ((result (bomb-wait-time bomb)))
+        (if (eq result :stop)
+          (progn
+            (bomb-reset-positions bomb)
+            (setf (bomb-phase bomb) :drop)
+            (let* ((etap (top-level-interface view))
+                    (layout-# (layout etap))
+                    (layout (unless (zerop layout-#)
                               (get-layout (1- layout-#) (breakup etap))))
-                (par-width (paragraph-width (breakup etap))))
-            (when layout
-              (bomb-obus-populate bomb layout par-width))))
-       nil))
+                    (par-width (paragraph-width (breakup etap))))
+              (when layout
+                (bomb-obus-populate bomb layout par-width))))
+          (bomb-tremble-step bomb))
+        nil))
     (:drop
      (let ((result (bomb-obus-step bomb view)))
        (when (eq result :stop)
          (setf (bomb-phase bomb) :shockwave))
        nil))
     (:shockwave
-      :stop)))
-     ;(bomb-shockwave-step bomb view))))
+      (let* ((etap (top-level-interface view))
+              (layout-# (layout etap))
+              (layout (unless (zerop layout-#)
+                        (get-layout (1- layout-#) (breakup etap))))
+              (par-width (paragraph-width (breakup etap)))
+              (result (when layout (bomb-shockwave-step bomb layout par-width))))
+        (when (eq result :stop)
+          (setf (bomb-phase bomb) :disappear)
+          (setf (bomb-counter bomb)
+                (sqrt (+ (* (/ par-width 2) (/ par-width 2))
+                          (* (/ (+ (height layout) (depth layout)) 2)
+                            (/ (+ (height layout) (depth layout)) 2))))))
+        nil))
 
+    (:disappear
+      (let* ((etap (top-level-interface view))
+              (layout-# (layout etap))
+              (layout (unless (zerop layout-#)
+                        (get-layout (1- layout-#) (breakup etap))))
+              (par-width (paragraph-width (breakup etap)))
+              (result (when layout (bomb-disappear-step bomb layout par-width))))
+        (when (eq result :stop)
+          (setf (bomb-phase bomb) :end-wait)
+          (setf (bomb-counter bomb) -1))
+        nil))
 
-(defun bomb-populate (bomb layout)
-  (clrhash (bomb-hash bomb))
-  (dolist (line (lines layout))
-    (map nil
-         (lambda (item)
-           (when (typep (object item) 'tfm:character-metrics)
-             (setf (gethash item (bomb-hash bomb))
-                   (list 
-                      0
-                      0))))
-         (items line))))
+    (:end-wait
+      (let ((result (bomb-wait-time bomb)))
+        (when (eq result :stop)
+          (bomb-reset-positions bomb)
+          (setf (bomb-phase bomb) :tremble))
+        result))
+  )
+)
+             
 
-
-(defun bomb-obus-populate (bomb layout par-width)
-  "Forme les caracteres en rond."
-  (let* ((par-y     (height layout))
-         (par-h+d   (+ par-y (depth layout)))
-         (center-y  (/ par-h+d 2))
-         (center-x  (/ par-width 2))
-         (first-line (first (lines layout))))
-    (when first-line
-      (let* ((all-chars (remove-if-not
-                          (lambda (item)
-                            (typep (object item) 'tfm:character-metrics))
-                          (coerce (items first-line) 'list)))
-             (n-obus    (max 3 (min 20 (floor (length all-chars) 3))))
-             (start     (floor (- (length all-chars) n-obus) 2))
-             (obus-chars (subseq all-chars start (+ start n-obus)))
-             (n          (length obus-chars))
-             ;; rayon = 20% de la hauteur totale du paragraphe
-             (r          (* par-h+d 0.15)))
-        (setf (bomb-obus bomb)
-              (loop :for i :from 0
-                    :for item :in obus-chars
-                    :collect
-                    (let* ((angle   (/ (* 2.0 pi i) n))
-                           (px      (* r (cos angle)))
-                           (py      (* r (sin angle)))
-                           (orig-x  (+ (x (car (lines layout))) (x item)))
-                           (dx      (- (+ center-x px) orig-x))
-                           (cible-y (+ center-y py)))
-                      (list item
-                            (- par-y 100)
-                            cible-y
-                            0.0
-                            dx))))))))
-                    
-        
 ; Installation
 (defmethod living-text-install-animation ((animation (eql :bomb)) view)
   (let ((bomb (capi-object-property view :bomb)))
