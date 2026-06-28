@@ -553,12 +553,14 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
 )
 
 (defun bomb-obus-populate (bomb layout par-width)
-  "l'obus tombe au centre du paragraphe.
-   refaire une vraie forme d'obus plus tard."
+  "Forme les caracteres en disque plein (positions aleatoires), qui tombe au centre."
   (let* ((par-y (height layout))
          (par-h+d (+ par-y (depth layout)))
          (target-y (/ par-h+d 2))
-         (first-line (first (lines layout))))
+         (center-x (/ par-width 2))
+         (first-line (first (lines layout)))
+         (start-y (- par-y 100))
+         (r-max (* par-h+d 0.1)))
     (when first-line
       (let ((all-chars (remove-if-not
                           (lambda (item)
@@ -566,7 +568,15 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
                           (coerce (items first-line) 'list))))
         (setf (bomb-obus bomb)
               (mapcar (lambda (item)
-                        (list item (- par-y 100) target-y 0.0 0))
+                        (let* ((r (* r-max (sqrt (random 1.0)))) ; sqrt repartition uniforme
+                               (angle (random (* 2.0 pi)))
+                               (px (* r (cos angle)))
+                               (py (* r (sin angle)))
+                               (orig-x (+ (x first-line) (x item)))
+                               (dx (- (+ center-x px) orig-x))
+                               (cible-y (+ target-y py))
+                               (depart-y (+ start-y py)))
+                          (list item depart-y cible-y depart-y dx)))
                       all-chars)))))
 )
 
