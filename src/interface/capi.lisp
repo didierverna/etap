@@ -551,25 +551,26 @@ Update CURSOR's title and propagate the new value to the rain struct."
 	(redraw etap)))))
 
 
-(defun rain-repopulate-callback
+
+
+(defun rain-reset-callback
     (data dialog &aux (etap (etap dialog)) (view (view-area etap)))
-  "Function called when the Rain repopulate button is pushed."
+  "Function called when the Rain reset button is pushed.
+Stop the animation, put every drop back at its origin, and flag the rain
+for automatic repopulation on the next Play."
   (declare (ignore data))
-  (let ((densite (widget-value (find-widget :rain-densite dialog)))
-        (max-speed (widget-value (find-widget :rain-max-speed dialog)))
-        (wind (widget-value (find-widget :rain-wind dialog))))
-    (setf (capi-object-property view :rain) nil)
-    (living-text-install-animation :rain view)
-    (let ((rain (capi-object-property view :rain)))
-      (when rain
-        (setf (rain-densite rain) densite)
-        (setf (rain-max-speed rain) max-speed)
-        (setf (rain-wind rain) wind)
-        (let* ((layout-# (layout etap))
-               (layout (unless (zerop layout-#)
-                         (get-layout (1- layout-#) (breakup etap)))))
-          (when layout
-            (populate (rain-hash rain) layout densite max-speed))))))
+  (setf (capi-object-property view :living-text-animation) nil)
+  (let ((btn (capi-object-property view :living-text-active-button)))
+    (when btn
+      (setf (item-data btn) :play)
+      (setf (capi-object-property view :living-text-active-button) nil)))
+  (let ((rain (capi-object-property view :rain)))
+    (when rain
+      (maphash (lambda (key val)
+                 (setf (gethash key (rain-hash rain))
+                       (list 0 0 0 0 (nth 4 val) (nth 5 val)))) ; garde Yorigin/Xorigin
+               (rain-hash rain))))
+  (setf (capi-object-property view :rain-needs-repopulate) t)
   (redraw etap))
 
 
@@ -784,6 +785,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (setf (capi-object-property view :line-y-shift) nil)
   (setf (capi-object-property view :elt-x-shift) nil)
   (setf (capi-object-property view :elt-y-shift) nil)
+  (setf (capi-object-property view :rain-needs-repopulate) nil)
   ;(setf (item-data (curtains-start/stop-button dialog)) :run-animation)
   ;(setf (item-data (heart-start/stop-button dialog)) :run-animation)
   (redraw etap))
@@ -802,7 +804,7 @@ Stop animation if running, uninstall the living text, and redraw."
   (case (first item)
     (:lines-waves (lwaves-phase-reset-callback :lx dialog) (lwaves-phase-reset-callback :ly dialog))
     (:char-waves (cwaves-phase-reset-callback :cx dialog) (cwaves-phase-reset-callback :cy dialog))
-    (:rain (rain-repopulate-callback :reset dialog))
+    (:rain (rain-reset-callback :reset dialog))
     (:curtains (curtains-reset-callback :reset dialog))
     (:heart (heart-reset-callback :reset dialog))
     (:bomb (bomb-reset-callback :reset dialog))
@@ -836,7 +838,18 @@ Stop animation if running, uninstall the living text, and redraw."
 (defun cwaves-play-callback (button dialog)
   (living-text-play-callback button dialog #'cwaves-duration-cursor))
 
-(defun rain-play-callback (button dialog)
+(defun rain-play-callback
+    (button dialog &aux (etap (etap dialog)) (view (view-area etap)))
+  (when (capi-object-property view :rain-needs-repopulate)
+    (let ((rain (capi-object-property view :rain)))
+      (when rain
+        (let* ((layout-# (layout etap))
+               (layout (unless (zerop layout-#)
+                         (get-layout (1- layout-#) (breakup etap)))))
+          (when layout
+            (populate (rain-hash rain) layout
+                      (rain-densite rain) (rain-max-speed rain))))))
+    (setf (capi-object-property view :rain-needs-repopulate) nil))
   (living-text-play-callback button dialog #'rain-duration-cursor))
 
 
@@ -977,11 +990,6 @@ Stop animation if running, uninstall the living text, and redraw."
       :property :rain-wind
       :caliber *rain-wind*
       :callback 'rain-cursor-callback)
-    (rain-repopulate push-button
-      :text "Repopulate"
-      :data :repopulate
-      :callback-type '(:data :interface)
-      :callback 'rain-repopulate-callback)
     (rain-duration cursor
       :prefix :duration :property :rain-duration
       :caliber *rain-duration*
@@ -992,6 +1000,11 @@ Stop animation if running, uninstall the living text, and redraw."
       :print-function 'play/stop-button-text
       :callback-type '(:item :interface)
       :callback 'rain-play-callback)
+    (rain-reset push-button
+      :text "Reset"
+      :data :reset
+      :callback-type '(:data :interface)
+      :callback 'rain-reset-callback)
 
 
      ;; Curtains Panes
@@ -1088,7 +1101,7 @@ Stop animation if running, uninstall the living text, and redraw."
 
     ;; Rain
     (rain-setting column-layout
-  '(rain-params rain-repopulate rain-duration rain-play)
+  '(rain-params rain-reset rain-duration rain-play)
   :adjust :center)
    (rain-params column-layout '(rain-densite rain-max-speed rain-wind)
      :title "Parameters" :title-position :frame :adjust :center)
