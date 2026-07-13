@@ -419,6 +419,13 @@ Display LAYOUT number (1 by default)."
   (when (eq gesture :drag)
     (update-cursor-title cursor)))
 
+(defun play/stop-button-text (data)
+  "Return the button label for a play/stop toggle button DATA."
+  (case data
+    (:play "Play")
+    (:stop "Stop")
+    (t (title-capitalize data))))
+
 ;; -----------------------
 ;;      Line Callback
 ;; -----------------------
@@ -721,22 +728,28 @@ Update CURSOR's title and propagate the new value to the rain struct."
                   (setf (capi-object-property view :living-text-animation) nil)
                   (let ((btn (capi-object-property view :living-text-active-button)))
                     (when btn
-                      (setf (item-data btn) :run-animation)
+                      (setf (item-data btn) :play)
                       (setf (capi-object-property view :living-text-active-button) nil)))
                   :stop))))
         (t :stop)))
 
 
 (defun living-text-play-callback
-    (dialog duration-reader &aux (view (view-area (etap dialog))))
+    (button dialog duration-reader &aux (view (view-area (etap dialog))))
+  "Function called when a Play/Stop toggle BUTTON is pushed.
+If duration is 0, the animation runs until the button is
+pushed again to stop it."
   (cond
-    ((capi-object-property view :living-text-animation)
-     (setf (capi-object-property view :living-text-animation) nil))
+    ((eq (item-data button) :stop)
+     (setf (capi-object-property view :living-text-animation) nil)
+     (setf (capi-object-property view :living-text-active-button) nil)
+     (setf (item-data button) :play))
     (t
      (let ((duration (widget-value (funcall duration-reader dialog))))
        (setf (capi-object-property view :living-text-remaining)
              (if (zerop duration) nil (* duration 33)))
-       (setf (capi-object-property view :living-text-active-button) nil)
+       (setf (item-data button) :stop)
+       (setf (capi-object-property view :living-text-active-button) button)
        (setf (capi-object-property view :living-text-animation) t)
        (mp:schedule-timer-relative-milliseconds
         (mp:make-timer 'living-text-timer view) 30 30)))))
@@ -817,14 +830,14 @@ Stop animation if running, uninstall the living text, and redraw."
 ;;    Play / StartStop
 ;;-----------------
 
-(defun lwaves-play-callback (dialog)
-  (living-text-play-callback dialog #'lwaves-duration-cursor))
+(defun lwaves-play-callback (button dialog)
+  (living-text-play-callback button dialog #'lwaves-duration-cursor))
 
-(defun cwaves-play-callback (dialog)
-  (living-text-play-callback dialog #'cwaves-duration-cursor))
+(defun cwaves-play-callback (button dialog)
+  (living-text-play-callback button dialog #'cwaves-duration-cursor))
 
-(defun rain-play-callback (dialog)
-  (living-text-play-callback dialog #'rain-duration-cursor))
+(defun rain-play-callback (button dialog)
+  (living-text-play-callback button dialog #'rain-duration-cursor))
 
 
 ;;-----------------
@@ -888,9 +901,10 @@ Stop animation if running, uninstall the living text, and redraw."
       :caliber *lwaves-duration*
       :callback 'duration-cursor-callback
       :reader lwaves-duration-cursor)
-    (lwaves-play push-button ; Play
-      :text "Play"
-      :callback-type '(:interface)
+    (lwaves-play push-button
+      :data :play
+      :print-function 'play/stop-button-text
+      :callback-type '(:item :interface)
       :callback 'lwaves-play-callback)
 
 
@@ -939,43 +953,45 @@ Stop animation if running, uninstall the living text, and redraw."
       :caliber *cwaves-duration*
       :callback 'duration-cursor-callback
       :reader cwaves-duration-cursor)
-   (cwaves-play push-button ; Play
-      :text "Play"
-      :callback-type '(:interface)
+   (cwaves-play push-button
+      :data :play
+      :print-function 'play/stop-button-text
+      :callback-type '(:item :interface)
       :callback 'cwaves-play-callback)
 
 
 
     ;; Rain panes
     (rain-densite cursor
-     :prefix :densite
-     :property :rain-densite
-     :caliber *rain-densite*
-     :callback 'rain-cursor-callback)
+      :prefix :densite
+      :property :rain-densite
+      :caliber *rain-densite*
+      :callback 'rain-cursor-callback)
     (rain-max-speed cursor
-     :prefix :speed-max
-     :property :rain-max-speed
-     :caliber *rain-max-speed*
-     :callback 'rain-cursor-callback)
+      :prefix :speed-max
+      :property :rain-max-speed
+      :caliber *rain-max-speed*
+      :callback 'rain-cursor-callback)
      (rain-wind cursor
-     :prefix :wind
-     :property :rain-wind
-     :caliber *rain-wind*
-     :callback 'rain-cursor-callback)
+      :prefix :wind
+      :property :rain-wind
+      :caliber *rain-wind*
+      :callback 'rain-cursor-callback)
     (rain-repopulate push-button
-     :text "Repopulate"
-     :data :repopulate
-     :callback-type '(:data :interface)
-     :callback 'rain-repopulate-callback)
+      :text "Repopulate"
+      :data :repopulate
+      :callback-type '(:data :interface)
+      :callback 'rain-repopulate-callback)
     (rain-duration cursor
-     :prefix :duration :property :rain-duration
-     :caliber *rain-duration*
-     :callback 'duration-cursor-callback
-     :reader rain-duration-cursor)
+      :prefix :duration :property :rain-duration
+      :caliber *rain-duration*
+      :callback 'duration-cursor-callback
+      :reader rain-duration-cursor)
     (rain-play push-button
-     :text "Play"
-     :callback-type '(:interface)
-     :callback 'rain-play-callback)
+      :data :play
+      :print-function 'play/stop-button-text
+      :callback-type '(:item :interface)
+      :callback 'rain-play-callback)
 
 
      ;; Curtains Panes

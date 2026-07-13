@@ -29,21 +29,25 @@
 (define-lwaves-caliber duration 0 3 100 :bounded t)
 
 
+;---------
 ; Calcul
+;---------
 (defun lwaves-shift (y lwave)
   "Return an LWAVE shifting amount for Y position."
   (+ (lwave-amplitude lwave) ; preserve the paragraph's left border
     (* (lwave-amplitude lwave)
   (sin (+ (lwave-phase lwave)
-    (/ (* 2 pi (lwave-ondulation lwave) y) 20000))))))
+    (/ (* 2 pi (lwave-ondulation lwave) y) 20000)))))
+)
 
 (defun lwaves-step (lwave-x lwave-y)
   (incf (lwave-phase lwave-x) (/ (lwave-propagation lwave-x) 100))
-  (incf (lwave-phase lwave-y) (/ (lwave-propagation lwave-y) 100)))
+  (incf (lwave-phase lwave-y) (/ (lwave-propagation lwave-y) 100))
+)
 
-
-
-;Instalation
+;--------------
+; Installation
+;--------------
 (defmethod living-text-install-animation ((animation (eql :lines-waves)) view)
   (let ((lwave-x (capi-object-property view :lwave-x))
         (lwave-y (capi-object-property view :lwave-y)))
@@ -67,7 +71,8 @@
     (setf (capi-object-property view :line-y-shift)
           (lambda (line) (lwaves-shift (y line) lwave-y)))
     (setf (capi-object-property view :living-text-step)
-          (lambda () (lwaves-step lwave-x lwave-y)))))
+          (lambda () (lwaves-step lwave-x lwave-y))))
+)
 
 ;; ----------------------------------------
 ;;              Char Waves
@@ -85,23 +90,29 @@
 (define-cwaves-caliber duration 0 3  100 :bounded t)
 
 
+;---------
 ; Calcul
+;---------
 (defun cwaves-shift (x cwave)
   "Return an LWAVE shifting amount for X position."
   (+ (lwave-amplitude cwave)
     (* (lwave-amplitude cwave)
         (sin (+ (lwave-phase cwave)
-                (/ (* 2 pi (lwave-ondulation cwave) x) 20000))))))
+                (/ (* 2 pi (lwave-ondulation cwave) x) 20000)))))
+)
 
 (defun cwaves-step (cwave-x cwave-y)
   (incf (lwave-phase cwave-x) (/ (lwave-propagation cwave-x) 100))
-  (incf (lwave-phase cwave-y) (/ (lwave-propagation cwave-y) 100)))
+  (incf (lwave-phase cwave-y) (/ (lwave-propagation cwave-y) 100))
+)
 
 
-
+;--------------
 ; Installation
+;--------------
 (defgeneric living-text-install-animation (animation view)
-  (:documentation "Install ANIMATION in VIEW."))
+  (:documentation "Install ANIMATION in VIEW.")
+)
 
 (defmethod living-text-install-animation ((animation (eql :char-waves)) view)
   (let ((cwave-x (capi-object-property view :cwave-x))
@@ -125,7 +136,8 @@
     (setf (capi-object-property view :elt-y-shift)
           (lambda (elt) (cwaves-shift (x elt) cwave-y)))
     (setf (capi-object-property view :living-text-step)
-          (lambda () (cwaves-step cwave-x cwave-y)))))
+          (lambda () (cwaves-step cwave-x cwave-y))))
+)
 
 
 ;; ----------------------------------------
@@ -139,20 +151,25 @@
   `(define-caliber rain ,name ,min ,default ,max ,@keys))
 
 (define-rain-caliber densite 0 2 10 :bounded t)
-(define-rain-caliber max-speed  0 1  10 :bounded t)
+(define-rain-caliber max-speed 0 4 10 :bounded t)
 (define-rain-caliber duration 0 3  100 :bounded t)
 (define-rain-caliber wind -12 1 12 :bounded t) ;0-12 km/h
 
 
+;---------
 ; Calcul
+;---------
 (defun rain-shift-y (elt hash)
-"recupere la position y d'une lettre dans la hashmap et la renvoi "
+  "recupere la position y d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
-    (when val (nth 0 val))))
+    (when val (nth 0 val)))
+)
+
 (defun rain-shift-x (elt hash)
-"recupere la position x d'une lettre dans la hashmap et la renvoi "
+  "recupere la position x d'une lettre dans la hashmap et la renvoi "
   (let ((val (gethash elt hash)))
-    (when val (nth 1 val))))
+    (when val (nth 1 val)))
+)
 
 (defun rain-step (rain view)
   "avance chaque character a la vitesse du speed. Quand il touche le bas il se reste"
@@ -170,20 +187,25 @@
                          (vx (nth 3 val)) ; wind power
                          (Yorigin (nth 4 val)) ; origin position y
                          (Xorigin (nth 5 val))) ; origin position x
-                        
-                        (setf (gethash key (rain-hash rain))
-                              (if (or (>= (+ dy Yorigin) end-down) (> (+ dx Xorigin) end-side) (< (+ dx Xorigin) 0))
-                                (list 0 0 0 0 Yorigin Xorigin) ; put it back to origin
-                                (list 
-                                  (+ dy vy)
-                                  (+ dx vx)
-                                  (+ vy (* (- (rain-max-speed rain) vy) 0.1))
-                                  (+ vx (* (- (rain-wind rain) vx) 0.1))
-                                  Yorigin
-                                  Xorigin)
-                              ))))
-                 (rain-hash rain))))))
 
+                        (cond
+                          ((or (>= (+ dy Yorigin) end-down) (> (+ dx Xorigin) end-side) (< (+ dx Xorigin) 0))
+                           ;; remise a l'origine
+                           (setf (gethash key (rain-hash rain))
+                                 (list 0 0 0 0 Yorigin Xorigin)))
+                          ((< (random 1.0) 0.3)
+                           ;; saute ce tick (1 chance sur ~3 de ne pas avancer) => desynchronise les gouttes
+                           nil)
+                          (t
+                           (setf (gethash key (rain-hash rain))
+                                 (list 
+                                   (+ dy vy)
+                                   (+ dx vx)
+                                   (+ vy (* (- (rain-max-speed rain) vy) 0.1))
+                                   (+ vx (* (- (rain-wind rain) vx) 0.1))
+                                   Yorigin
+                                   Xorigin))))))
+                 (rain-hash rain))))))
 
 (defun populate (rain-hash layout densite max-speed)
   (clrhash rain-hash)
@@ -197,17 +219,20 @@
                       (when (typep (object item) 'tfm:character-metrics)
                         (when (< (random 10) densite)
                           (setf (gethash item rain-hash)
-                                (list (- (random (floor end))) ; decalage y
+                                (list (- (random (floor end)))
                                       0 ; decalage x
                                       (+ 1 (random (max 1 (floor max-speed))))  ; vitesse vertical aléatoire
                                       0
                                       (+ par-y (y line)); Origin y
                                       (+ (x line) (x item))) ;Origin x
                           ))))  
-                    (items line)))))
+                    (items line))))
+)
 
 
+;--------------
 ; Installation
+;--------------
 (defmethod living-text-install-animation ((animation (eql :rain)) view)
   (let ((rain (capi-object-property view :rain)))
     (unless rain
@@ -228,7 +253,8 @@
     (setf (capi-object-property view :elt-x-shift)
           (lambda (elt) (or (rain-shift-x elt (rain-hash rain)) 0)))
     (setf (capi-object-property view :living-text-step)
-          (lambda () (rain-step rain view)))))
+          (lambda () (rain-step rain view))))
+)
 
 
 ;; ----------------------------------------
@@ -244,16 +270,27 @@
 (define-curtains-caliber speed   0 2  20  :bounded t)
 
 
-;Calcul
+;---------
+; Utils
+;---------
+(defun curtains-reset (view)
+  "Reset the curtains animation to its initial state."
+  (let ((curtains (capi-object-property view :curtains)))
+    (when curtains
+      (setf (curtains-offset curtains) 0)))
+)
+
+;---------
+; Calcul
+;---------
 (defun curtains-shift (elt par-width curtains)
   (let* ((center (/ par-width 2))
          (elt-x (x elt))
          (offset (curtains-offset curtains)))
     (if (< elt-x center)
         (- (min offset elt-x))
-        (min offset (- par-width elt-x)))))
-
-
+        (min offset (- par-width elt-x))))
+)
 
 (defun curtains-step (curtains par-width)
   (ecase (curtains-direction curtains)
@@ -270,17 +307,13 @@
            (decf (curtains-offset curtains) (curtains-speed curtains))
            (when (< (curtains-offset curtains) 0)
              (setf (curtains-offset curtains) 0))
-           nil)))))
-
-
-(defun curtains-reset (view)
-  "Reset the curtains animation to its initial state."
-  (let ((curtains (capi-object-property view :curtains)))
-    (when curtains
-      (setf (curtains-offset curtains) 0))))
+           nil))))
+)
 
   
+;--------------
 ; Installation
+;--------------
 (defmethod living-text-install-animation ((animation (eql :curtains)) view)
   (let* ((curtains (capi-object-property view :curtains))
          (etap     (top-level-interface view))
@@ -317,8 +350,21 @@
 (define-heart-caliber size 1 5 20 :bounded t)
 (define-heart-caliber wait 1 5 20 :bounded t)
 
+;---------
+; Utils
+;---------
+(defun heart-reset-positions (heart)
+  "Remet cur-dx et cur-dy a 0 pour chaque caractere."
+  (maphash (lambda (key val)
+             (setf (gethash key (heart-hash heart))
+                   (list 0.0 0.0 (third val) (fourth val))))
+           (heart-hash heart))
+  (setf (heart-counter heart) -1)
+)
 
+;---------
 ; Calcul
+;---------
 (defun heart-point (t-param scale center-x center-y)
   "Retourne (x . y) sur la courbe cardiaque pour le parametre T-PARAM."
   (let* ((s  (sin t-param))
@@ -329,11 +375,12 @@
                 (* 2 (cos (* 3 t-param)))
                        (cos (* 4 t-param)))))
     (cons (+ center-x mx)
-          (- center-y (* scale my)))))
+          (- center-y (* scale my))))
+)
 
 (defun heart-populate (heart layout par-width)
   "Calcule la position cible sur le coeur pour chaque caractere.
-Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
+  Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
   (clrhash (heart-hash heart))
   (let* ((par-y (height layout))
          (par-h+d (+ par-y (depth layout)))
@@ -355,18 +402,8 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
           :do (setf (gethash item (heart-hash heart))
                     (list 0.0 0.0
                           (- (car target) (+ (x line) (x item)))
-                          (- (cdr target) (+ par-y (y line))))))))
-
-
-(defun heart-reset-positions (heart)
-  "Remet cur-dx et cur-dy a 0 pour chaque caractere."
-  (maphash (lambda (key val)
-             (setf (gethash key (heart-hash heart))
-                   (list 0.0 0.0 (third val) (fourth val))))
-           (heart-hash heart))
-  (setf (heart-counter heart) -1))
-
-
+                          (- (cdr target) (+ par-y (y line)))))))
+)
 
 (defun heart-step (heart)
   "Avance chaque caractere vers sa cible. Retourne :STOP quand tous sont arrives."
@@ -403,11 +440,12 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
           (t
           ;; Attente terminee : reset et stop
           (heart-reset-positions heart)
-          :stop)))))
+          :stop))))
+)
 
-
-
+;--------------
 ; Installation
+;--------------
 (defmethod living-text-install-animation ((animation (eql :heart)) view)
   (let* ((etap      (top-level-interface view))
          (layout-#  (layout etap))
@@ -432,7 +470,8 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
             (let ((val (gethash elt (heart-hash heart))))
               (if val (second val) 0))))
     (setf (capi-object-property view :living-text-step)
-          (lambda () (heart-step heart)))))
+          (lambda () (heart-step heart))))
+)
 
 
 
@@ -710,9 +749,10 @@ Stocke (cur-dx cur-dy tgt-dx tgt-dy) dans le hash de HEART."
         result))
   )
 )
-             
 
+;--------------
 ; Installation
+;--------------
 (defmethod living-text-install-animation ((animation (eql :bomb)) view)
   (let ((bomb (capi-object-property view :bomb)))
     (unless bomb
