@@ -5,7 +5,7 @@
 
 (defstruct rain densite max-speed hash wind)
 
-(defstruct curtains speed offset direction)
+(defstruct curtains speed offset direction deform)
 
 (defstruct heart speed size wait hash phase counter)
 
@@ -267,29 +267,33 @@
   (declare (ignore infinity bounded))
   `(define-caliber curtains ,name ,min ,default ,max ,@keys))
 
-(define-curtains-caliber speed   0 2  20  :bounded t)
+(define-curtains-caliber deform 1 2 20 :bounded t)
 
 
 ;---------
 ; Utils
 ;---------
 (defun curtains-reset (view)
-  "Reset the curtains animation to its initial state."
   (let ((curtains (capi-object-property view :curtains)))
     (when curtains
-      (setf (curtains-offset curtains) 0)))
+      (setf (curtains-offset curtains) 0)
+      (setf (curtains-phase curtains) 0)))
 )
-
 ;---------
 ; Calcul
 ;---------
 (defun curtains-shift (elt par-width curtains)
   (let* ((center (/ par-width 2))
          (elt-x (x elt))
-         (offset (curtains-offset curtains)))
+         (offset (curtains-offset curtains))
+         (deform (curtains-deform curtains))
+         (dist (if (< elt-x center) (- center elt-x) (- elt-x center)))
+         (z (max 0 (- dist offset)))
+         (damped (* (exp (- (/ z deform)))
+                    (cos (/ z deform)))))
     (if (< elt-x center)
-        (- (min offset elt-x))
-        (min offset (- par-width elt-x))))
+        (- (* damped offset))
+        (* damped offset)))
 )
 
 (defun curtains-step (curtains par-width)
@@ -310,6 +314,17 @@
            nil))))
 )
 
+(defun curtains-vshift (elt par-width curtains)
+  "Donne un léger mouvement vertical ondulant, lié à la même onde amortie
+que le mouvement horizontal, pour un effet tissu."
+  (let* ((center (/ par-width 2))
+         (elt-x (x elt))
+         (offset (curtains-offset curtains))
+         (deform (curtains-deform curtains))
+         (dist (if (< elt-x center) (- center elt-x) (- elt-x center)))
+         (z (max 0 (- dist offset))))
+    (* 4 (exp (- (/ z deform))) (sin (/ z deform))))
+)
   
 ;--------------
 ; Installation
@@ -324,14 +339,18 @@
       (setq curtains (make-curtains
                        :speed     (caliber-default *curtains-speed*)
                        :offset    0
-                       :direction :open))
+                       :direction :open
+                       :deform (caliber-default *curtains-deform*)))
       (setf (capi-object-property view :curtains) curtains))
     (when layout
       (let ((par-width (paragraph-width (breakup etap))))
         (setf (capi-object-property view :elt-x-shift)
               (lambda (elt) (curtains-shift elt par-width curtains)))
+        (setf (capi-object-property view :elt-y-shift)
+              (lambda (elt) (curtains-vshift elt par-width curtains)))
         (setf (capi-object-property view :living-text-step)
-              (lambda () (curtains-step curtains par-width)))))))
+              (lambda () (curtains-step curtains par-width))))))
+)
 
 
 
