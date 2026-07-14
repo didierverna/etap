@@ -1017,7 +1017,8 @@ Stop animation if running, uninstall the living text, and redraw."
       :items '(:open :close)
       :print-function 'title-capitalize
       :callback-type '(:data :interface)
-      :selection-callback 'curtains-direction-callback)
+      :selection-callback 'curtains-direction-callback
+      :reader curtains-direction-box)
     (curtains-reset push-button
       :text "Reset"
       :data :reset

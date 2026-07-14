@@ -5,7 +5,7 @@
 
 (defstruct rain densite max-speed hash wind)
 
-(defstruct curtains speed offset direction deform)
+(defstruct curtains speed offset direction deform) 
 
 (defstruct heart speed size wait hash phase counter)
 
@@ -276,8 +276,7 @@
 (defun curtains-reset (view)
   (let ((curtains (capi-object-property view :curtains)))
     (when curtains
-      (setf (curtains-offset curtains) 0)
-      (setf (curtains-phase curtains) 0)))
+      (setf (curtains-offset curtains) 0)))
 )
 ;---------
 ; Calcul
@@ -349,7 +348,17 @@ que le mouvement horizontal, pour un effet tissu."
         (setf (capi-object-property view :elt-y-shift)
               (lambda (elt) (curtains-vshift elt par-width curtains)))
         (setf (capi-object-property view :living-text-step)
-              (lambda () (curtains-step curtains par-width))))))
+              (lambda ()
+                (let ((result (curtains-step curtains par-width)))
+                  (when (eq result :stop)
+                    (let ((new-direction
+                            (if (eq (curtains-direction curtains) :open)
+                                :close :open)))
+                      (setf (curtains-direction curtains) new-direction)
+                      (setf (choice-selected-item
+                             (curtains-direction-box (living-text-dialog etap)))
+                            new-direction)))
+                  result))))))
 )
 
 
