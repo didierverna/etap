@@ -267,8 +267,9 @@
   (declare (ignore infinity bounded))
   `(define-caliber curtains ,name ,min ,default ,max ,@keys))
 
-(define-curtains-caliber deform 1 2 20 :bounded t)
 
+(define-curtains-caliber speed 1 2 20 :bounded t)
+(define-curtains-caliber deform 1 2 20 :bounded t)
 
 ;---------
 ; Utils
